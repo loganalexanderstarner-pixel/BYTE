@@ -19,25 +19,15 @@
         "height": 700,
         "resizable": true
       }
-    ]
+    ],
+    "security": {
+      "csp": null
+    }
   },
 
   "bundle": {
     "active": true,
     "targets": ["dmg", "app", "msi", "nsis"],
     "icon": ["icons/icon.png"]
-  },
-
-  "updater": {
-    "active": true,
-    "endpoints": [
-      "https://github.com/loganalexanderstarner-pixel/BYTE/releases/latest/download/latest.json"
-    ]
-  },
-
-  "plugins": {
-    "opener": {
-      "scope": ["https://*", "http://*"]
-    }
   }
 }
