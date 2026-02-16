@@ -24,8 +24,11 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
         run: npm install
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli
 
       - name: Build Tauri App
         run: npm run tauri build
