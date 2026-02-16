@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "BYTE",
+  "version": "0.1.0",
+  "identifier": "com.loganstarner.byte",
+
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420"
+  },
+
+  "app": {
+    "windows": [
+      {
+        "title": "BYTE Command Center",
+        "width": 900,
+        "height": 700,
+        "resizable": true
+      }
+    ]
+  },
+
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app", "msi", "nsis"],
+    "icon": ["icons/icon.png"]
+  },
+
+  "updater": {
+    "active": true,
+    "endpoints": [
+      "https://github.com/loganalexanderstarner-pixel/BYTE/releases/latest/download/latest.json"
+    ]
+  },
+
+  "plugins": {
+    "opener": {
+      "scope": ["https://*", "http://*"]
+    }
+  }
+}

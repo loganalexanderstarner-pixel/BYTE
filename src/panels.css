@@ -1,0 +1,26 @@
+/* ============================
+   RIGHT SYSTEM PANEL
+============================ */
+
+.system-panel {
+  background: var(--panel-dark);
+  border-left: 1px solid var(--border-glow);
+  padding: 20px;
+  box-shadow: var(--shadow-strong);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.system-panel h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--accent);
+  text-shadow: 0 0 10px var(--accent);
+}
+
+.system-panel p {
+  margin: 0;
+  opacity: 0.8;
+  font-size: 14px;
+}

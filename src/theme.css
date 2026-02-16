@@ -1,0 +1,18 @@
+:root {
+  --bg-main: #050505;
+  --panel-dark: rgba(10, 10, 10, 0.85);
+  --panel-glass: rgba(20, 20, 20, 0.35);
+
+  --text-primary: #e8e8e8;
+  --accent: #00eaff;
+
+  --border-glow: rgba(0, 234, 255, 0.4);
+
+  --bubble-user: rgba(0, 234, 255, 0.15);
+  --bubble-ai: rgba(255, 255, 255, 0.08);
+
+  --shadow-soft: 0 0 20px rgba(0, 234, 255, 0.15);
+  --shadow-strong: 0 0 40px rgba(0, 234, 255, 0.25);
+
+  --font-main: "Orbitron", sans-serif;
+}
