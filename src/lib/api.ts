@@ -56,8 +56,10 @@ export const api = {
   engineRestart: () => invoke<void>("engine_restart"),
   engineLog: () => invoke<string[]>("engine_log"),
   speedBoostInfo: () => invoke<BoostInfo>("speed_boost_info"),
-  /** Measures and keeps the fastest engine settings for the active model (1–2 minutes). */
-  engineTune: () => invoke<Tuning>("engine_tune"),
+  /** Measures and keeps the fastest engine settings for the active model (quick 1–2 min, thorough ~5 min). */
+  engineTune: (thorough = false) => invoke<Tuning>("engine_tune", { thorough }),
+  /** Tunes every downloaded model that fits, then returns to the one in use. Returns how many. */
+  engineTuneAll: (thorough = false) => invoke<number>("engine_tune_all", { thorough }),
 
   chatSend: (
     request: { requestId: string; messages: WireMessage[]; mode: Mode; thinking: ThinkingPref; model?: string; private?: boolean; projectId?: string | null },

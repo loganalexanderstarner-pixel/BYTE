@@ -176,8 +176,14 @@ pub async fn speed_boost_info(state: State<'_, AppState>) -> AppResult<BoostInfo
 /// Measures and keeps the fastest engine settings for the active model on
 /// this Mac (1–2 minutes; progress on `engine://tune`).
 #[tauri::command]
-pub async fn engine_tune(app: AppHandle, state: State<'_, AppState>) -> AppResult<crate::settings::Tuning> {
-    crate::tune::run(&app, &state).await
+pub async fn engine_tune(app: AppHandle, state: State<'_, AppState>, thorough: Option<bool>) -> AppResult<crate::settings::Tuning> {
+    crate::tune::run(&app, &state, None, thorough.unwrap_or(false)).await
+}
+
+/// Tunes every downloaded model that fits this Mac, then returns to the one in use.
+#[tauri::command]
+pub async fn engine_tune_all(app: AppHandle, state: State<'_, AppState>, thorough: Option<bool>) -> AppResult<usize> {
+    crate::tune::run_all(&app, &state, thorough.unwrap_or(false)).await
 }
 
 /// Tunes the active model in the background if it hasn't been tuned on this Mac.
@@ -195,7 +201,7 @@ pub fn auto_tune(app: &AppHandle) {
         if crate::tune::saved(&state, &models::key(m, v)).await.is_some() {
             return;
         }
-        if let Err(e) = crate::tune::run(&app, &state).await {
+        if let Err(e) = crate::tune::run(&app, &state, None, false).await {
             log::warn!("automatic tuning didn't finish: {e}");
         }
     });

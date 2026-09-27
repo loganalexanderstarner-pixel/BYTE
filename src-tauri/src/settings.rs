@@ -35,7 +35,7 @@ pub enum SpeedPref {
 }
 
 /// Engine settings measured to be fastest for one model on this Mac.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Tuning {
     /// Use the Speed boost helper.
@@ -50,6 +50,29 @@ pub struct Tuning {
     /// Chip it was measured on (re-tune on another Mac).
     pub chip: String,
     pub tested_at: i64,
+    pub flash_attn: bool,
+    pub draft_n_max: u32,
+    pub draft_p_min: f32,
+    /// Whether the thorough tune (more settings, ~5 minutes) was run.
+    pub thorough: bool,
+}
+
+impl Default for Tuning {
+    fn default() -> Self {
+        Tuning {
+            boost: false,
+            kv_f16: false,
+            ubatch: 512,
+            tokens_per_sec: 0.0,
+            prompt_per_sec: 0.0,
+            chip: String::new(),
+            tested_at: 0,
+            flash_attn: true,
+            draft_n_max: 16,
+            draft_p_min: 0.75,
+            thorough: false,
+        }
+    }
 }
 
 /// Persistent user settings. Unknown or missing fields fall back to defaults so

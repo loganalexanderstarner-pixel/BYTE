@@ -502,11 +502,11 @@ pub mod e2e_support {
     /// using BYTE's real arguments. Returns None (skip) if they aren't set.
     pub async fn start_server() -> Option<(Server, Endpoint)> {
         let model = std::env::var("BYTE_TEST_MODEL").ok()?;
-        start_server_with(&model, &[]).await
+        start_server_with(&model, &[], None).await
     }
 
-    /// Like `start_server`, with a specific model file and extra arguments.
-    pub async fn start_server_with(model: &str, extra: &[String]) -> Option<(Server, Endpoint)> {
+    /// Like `start_server`, with a specific model file, tuned options and extra arguments.
+    pub async fn start_server_with(model: &str, extra: &[String], opts: Option<&crate::engine::LaunchOpts>) -> Option<(Server, Endpoint)> {
         let Ok(bin) = std::env::var("BYTE_TEST_LLAMA_SERVER") else {
             eprintln!("skipping: set BYTE_TEST_LLAMA_SERVER and BYTE_TEST_MODEL");
             return None;
@@ -514,6 +514,9 @@ pub mod e2e_support {
         let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
         let key = "test-key";
         let mut args = crate::engine::server_args(std::path::Path::new(model), port, key, "test", 4096);
+        if let Some(o) = opts {
+            crate::engine::apply_opts(&mut args, o);
+        }
         args.extend_from_slice(extra);
         let child = std::process::Command::new(&bin)
             .args(&args)

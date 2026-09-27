@@ -149,6 +149,7 @@ pub fn run() {
             commands::chat_autotitle,
             commands::speed_boost_info,
             commands::engine_tune,
+            commands::engine_tune_all,
             commands::projects_list,
             commands::project_save,
             commands::project_delete,

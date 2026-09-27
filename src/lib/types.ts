@@ -41,6 +41,11 @@ export interface Tuning {
   promptPerSec: number;
   chip: string;
   testedAt: number;
+  flashAttn: boolean;
+  draftNMax: number;
+  draftPMin: number;
+  /** The thorough tune (more settings, ~5 minutes) was run. */
+  thorough: boolean;
 }
 
 export interface TuneProgress {
@@ -49,6 +54,9 @@ export interface TuneProgress {
   total: number;
   label: string;
   done: boolean;
+  /** When tuning several models: which one (1-based) of how many. */
+  modelIndex: number;
+  modelCount: number;
 }
 
 export interface BoostInfo {

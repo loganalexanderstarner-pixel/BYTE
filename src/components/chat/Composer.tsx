@@ -78,10 +78,15 @@ export function Composer() {
       {tune && (
         <div className="banner tune-banner">
           <span className="grow">
-            <b>Tuning BYTE for this Mac</b> (step {tune.step} of {tune.total}): {tune.label}… This happens once per model and finds the fastest settings for your chip.
+            <b>Tuning BYTE for this Mac</b>
+            {tune.modelCount > 1 ? ` (model ${tune.modelIndex} of ${tune.modelCount}, step ${tune.step} of ${tune.total})` : ` (step ${tune.step} of ${tune.total})`}: {tune.label}… This finds the fastest settings for your chip and is saved for next time.
           </span>
           <div className="progress" style={{ width: 120 }}>
-            <span style={{ width: `${(Math.max(0, tune.step - 1) / tune.total) * 100}%` }} />
+            <span
+              style={{
+                width: `${((Math.max(0, tune.modelIndex - 1) + Math.max(0, tune.step - 1) / Math.max(1, tune.total)) / Math.max(1, tune.modelCount)) * 100}%`,
+              }}
+            />
           </div>
         </div>
       )}

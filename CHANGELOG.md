@@ -13,6 +13,10 @@
   downloaded automatically), full-precision vs compact conversation memory, and a bigger batch for
   reading long prompts. A banner shows progress; chat waits until it's done. Results and *Tune again* are
   in Settings → Engine; turn automatic tuning off there. Tuning is redone on a different Mac.
+- **Thorough tune** (about 5 minutes) also tries the Speed boost look-ahead (8/16/24 words) and confidence,
+  flash attention on/off and reading batches of 256–2048. **Tune all** runs it on every downloaded model.
+- Fixed: turning flash attention off with Speed boost made the engine exit at startup (the helper's
+  memory must be full precision too).
 
 ## 1.0.0-test.7 — Speed boost
 

@@ -336,22 +336,61 @@ function SpeedSection() {
               ? `Tuning: step ${tune.step} of ${tune.total}, ${tune.label.toLowerCase()}…`
               : tuned
                 ? `${tuned.tokensPerSec.toFixed(1)} tokens/sec writing · ${Math.round(tuned.promptPerSec)} tokens/sec reading · ` +
-                  [tuned.boost ? "Speed boost on" : "Speed boost off", tuned.kvF16 ? "full-precision memory" : "compact memory", `batch ${tuned.ubatch}`].join(", ") +
-                  ` · measured ${new Date(tuned.testedAt).toLocaleDateString()}`
+                  [
+                    tuned.boost ? `Speed boost on (looks ${tuned.draftNMax} ahead)` : "Speed boost off",
+                    tuned.kvF16 ? "full-precision memory" : "compact memory",
+                    tuned.flashAttn ? "flash attention" : "no flash attention",
+                    `batch ${tuned.ubatch}`,
+                  ].join(", ") +
+                  ` · ${tuned.thorough ? "thorough" : "quick"} tune, ${new Date(tuned.testedAt).toLocaleDateString()}`
                 : "Not tuned yet. BYTE measures a few engine settings and keeps the fastest for this model (1–2 minutes)."}
           </small>
+        </label>
+        <div className="row" style={{ gap: 6, flex: "none" }}>
+          <button
+            className="btn sm"
+            disabled={!!tune || engine.state !== "ready"}
+            title="Tries Speed boost, memory precision and batch size (1–2 minutes)"
+            onClick={() =>
+              void guard(async () => {
+                await api.engineTune(false);
+                await load();
+              })
+            }
+          >
+            <Gauge size={14} className={tune ? "spin" : undefined} /> {tune ? "Tuning…" : "Quick tune"}
+          </button>
+          <button
+            className="btn sm primary"
+            disabled={!!tune || engine.state !== "ready"}
+            title="Also tries Speed boost look-ahead, flash attention and more batch sizes (about 5 minutes)"
+            onClick={() =>
+              void guard(async () => {
+                await api.engineTune(true);
+                await load();
+              })
+            }
+          >
+            Thorough tune
+          </button>
+        </div>
+      </div>
+      <div className="field">
+        <label>
+          Tune all downloaded models
+          <small>Runs the thorough tune on every downloaded model that fits this Mac, one after another, then goes back to the one you use.</small>
         </label>
         <button
           className="btn sm"
           disabled={!!tune || engine.state !== "ready"}
           onClick={() =>
             void guard(async () => {
-              await api.engineTune();
+              await api.engineTuneAll(true);
               await load();
             })
           }
         >
-          <Gauge size={14} className={tune ? "spin" : undefined} /> {tune ? "Tuning…" : tuned ? "Tune again" : "Tune now"}
+          Tune all
         </button>
       </div>
       <div className="field">

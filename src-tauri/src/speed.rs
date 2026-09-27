@@ -103,8 +103,8 @@ mod tests {
             eprintln!("skipping: set BYTE_TEST_MAIN_MODEL and BYTE_TEST_DRAFT_MODEL");
             return;
         };
-        let args = crate::engine::draft_args(std::path::Path::new(&draft));
-        let Some((_server, ep)) = crate::chat::e2e_support::start_server_with(&main, &args).await else { return };
+        let args = crate::engine::draft_args(std::path::Path::new(&draft), 16, 0.75);
+        let Some((_server, ep)) = crate::chat::e2e_support::start_server_with(&main, &args, None).await else { return };
         let body = json!({
             "messages": [{ "role": "user", "content": PROMPTS[0] }],
             "max_tokens": 120, "temperature": 0, "stream": false,
@@ -124,6 +124,25 @@ mod tests {
         eprintln!("drafted {} accepted {} at {:.1} tok/s", t["draft_n"], t["draft_n_accepted"], t["predicted_per_second"].as_f64().unwrap_or(0.0));
         assert!(t["draft_n"].as_u64().unwrap_or(0) > 0, "no tokens were drafted: {t}");
         assert!(t["draft_n_accepted"].as_u64().unwrap_or(0) > 0);
+    }
+
+    /// Real engine accepts every setting the tuner can pick, all at once.
+    #[tokio::test]
+    #[ignore]
+    async fn e2e_engine_accepts_all_tuning_options() {
+        let (Ok(main), Ok(draft)) = (std::env::var("BYTE_TEST_MAIN_MODEL"), std::env::var("BYTE_TEST_DRAFT_MODEL")) else {
+            eprintln!("skipping: set BYTE_TEST_MAIN_MODEL and BYTE_TEST_DRAFT_MODEL");
+            return;
+        };
+        for opts in [
+            crate::engine::LaunchOpts { draft: Some(draft.clone().into()), kv_f16: true, ubatch: Some(2048), flash_attn_off: true, draft_n_max: Some(24), draft_p_min: Some(0.6) },
+            crate::engine::LaunchOpts { draft: Some(draft.clone().into()), kv_f16: false, ubatch: Some(256), flash_attn_off: false, draft_n_max: Some(8), draft_p_min: Some(0.9) },
+        ] {
+            let Some((_server, ep)) = crate::chat::e2e_support::start_server_with(&main, &[], Some(&opts)).await else { return };
+            let s = measure_both(&crate::chat::local_client(), &ep).await.unwrap();
+            eprintln!("{opts:?}: {:.1} tok/s writing, {:.0} reading", s.generate, s.read);
+            assert!(s.generate > 0.0 && s.read > 0.0);
+        }
     }
 
     /// Real engine: reports a positive speed.

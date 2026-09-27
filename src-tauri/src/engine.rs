@@ -65,6 +65,11 @@ pub struct LaunchOpts {
     pub kv_f16: bool,
     /// Physical batch size for prompt processing (llama.cpp default 512).
     pub ubatch: Option<u32>,
+    /// Turn flash attention off (only possible with a full-precision KV cache).
+    pub flash_attn_off: bool,
+    /// Speed boost look-ahead: how many words the helper drafts, and how sure it must be.
+    pub draft_n_max: Option<u32>,
+    pub draft_p_min: Option<f32>,
 }
 
 #[derive(Debug, Clone)]
@@ -166,7 +171,7 @@ impl Engine {
         reserved: u64,
         opts: LaunchOpts,
     ) -> AppResult<()> {
-        let LaunchOpts { draft, mut kv_f16, ubatch } = opts;
+        let LaunchOpts { draft, mut kv_f16, ubatch, mut flash_attn_off, draft_n_max, draft_p_min } = opts;
         let (model, variant) = catalog.resolve(key)?;
         if !models::is_installed(&models_dir, variant) {
             self.set_status(app, EngineStatus::NoModel).await;
@@ -196,6 +201,10 @@ impl Engine {
                 kv_f16 = false;
             }
         }
+        // An 8-bit KV cache needs flash attention.
+        if !kv_f16 {
+            flash_attn_off = false;
+        }
         let extra = draft_extra + if kv_f16 { kv_extra } else { 0 };
         if plan.fit == system::Fit::TooBig {
             let message = if reserved > 0 {
@@ -216,7 +225,7 @@ impl Engine {
             key: models::key(model, variant),
             path: models::entry_path(&models_dir, variant),
             context: plan.context,
-            opts: LaunchOpts { draft, kv_f16, ubatch },
+            opts: LaunchOpts { draft, kv_f16, ubatch, flash_attn_off, draft_n_max, draft_p_min },
         };
         self.spawn(app.clone(), launch).await
     }
@@ -581,16 +590,16 @@ const DRAFT_OVERHEAD: u64 = 400 * 1_000_000;
 /// Speculative decoding with a small same-family model. Only guesses the
 /// helper is at least 75% sure of are checked, which kept 70–90% of them in
 /// tests; the main model verifies every guess, so answers don't change.
-pub fn draft_args(draft: &std::path::Path) -> Vec<String> {
+pub fn draft_args(draft: &std::path::Path, n_max: u32, p_min: f32) -> Vec<String> {
     [
         "--model-draft",
         &draft.to_string_lossy(),
         "--spec-type",
         "draft-simple",
         "--spec-draft-n-max",
-        "16",
+        &n_max.to_string(),
         "--spec-draft-p-min",
-        "0.75",
+        &format!("{p_min:.2}"),
         "--n-gpu-layers-draft",
         "999",
         "--cache-type-k-draft",
@@ -605,18 +614,29 @@ pub fn draft_args(draft: &std::path::Path) -> Vec<String> {
 
 /// Adds tuned performance options to the base arguments.
 pub fn apply_opts(args: &mut Vec<String>, opts: &LaunchOpts) {
-    if opts.kv_f16 {
-        for i in 0..args.len().saturating_sub(1) {
-            if args[i] == "--cache-type-k" || args[i] == "--cache-type-v" {
-                args[i + 1] = "f16".into();
-            }
+    for i in 0..args.len().saturating_sub(1) {
+        if opts.kv_f16 && (args[i] == "--cache-type-k" || args[i] == "--cache-type-v") {
+            args[i + 1] = "f16".into();
+        }
+        if opts.flash_attn_off && opts.kv_f16 && args[i] == "--flash-attn" {
+            args[i + 1] = "off".into();
         }
     }
     if let Some(ub) = opts.ubatch {
         args.extend(["--ubatch-size".into(), ub.to_string(), "--batch-size".into(), ub.max(2048).to_string()]);
     }
     if let Some(d) = &opts.draft {
-        args.extend(draft_args(d));
+        let mut a = draft_args(d, opts.draft_n_max.unwrap_or(16), opts.draft_p_min.unwrap_or(0.75));
+        // Without flash attention the helper can't use an 8-bit cache either
+        // (llama-server exits with "failed to create MTP context").
+        if opts.flash_attn_off && opts.kv_f16 {
+            for i in 0..a.len().saturating_sub(1) {
+                if a[i] == "--cache-type-k-draft" || a[i] == "--cache-type-v-draft" {
+                    a[i + 1] = "f16".into();
+                }
+            }
+        }
+        args.extend(a);
     }
 }
 
@@ -658,7 +678,7 @@ mod tests {
 
     #[test]
     fn draft_args_and_failure_detection() {
-        let a = draft_args(std::path::Path::new("/m/d.gguf")).join(" ");
+        let a = draft_args(std::path::Path::new("/m/d.gguf"), 16, 0.75).join(" ");
         assert!(a.contains("--model-draft /m/d.gguf") && a.contains("--spec-draft-p-min 0.75"), "{a}");
         assert!(speculation_failed(&["E srv load_model: failed to initialize speculative decoding context".into()]));
         assert!(!speculation_failed(&["srv loaded".into()]));
@@ -667,9 +687,15 @@ mod tests {
     #[test]
     fn tuned_options_change_the_arguments() {
         let mut a = server_args(std::path::Path::new("/m/q.gguf"), 1, "k", "m", 4096);
-        apply_opts(&mut a, &LaunchOpts { draft: Some("/m/d.gguf".into()), kv_f16: true, ubatch: Some(1024) });
+        apply_opts(&mut a, &LaunchOpts { draft: Some("/m/d.gguf".into()), kv_f16: true, ubatch: Some(1024), flash_attn_off: true, draft_n_max: Some(8), draft_p_min: Some(0.6) });
         let j = a.join(" ");
         assert!(j.contains("--cache-type-k f16") && j.contains("--cache-type-v f16"), "{j}");
+        assert!(j.contains("--flash-attn off") && j.contains("--spec-draft-n-max 8") && j.contains("--spec-draft-p-min 0.60"), "{j}");
+        assert!(j.contains("--cache-type-k-draft f16") && j.contains("--cache-type-v-draft f16"), "{j}");
+        // Flash attention stays on with an 8-bit cache (llama.cpp requires it).
+        let mut c = server_args(std::path::Path::new("/m/q.gguf"), 1, "k", "m", 4096);
+        apply_opts(&mut c, &LaunchOpts { flash_attn_off: true, ..Default::default() });
+        assert!(c.join(" ").contains("--flash-attn on"));
         assert!(j.contains("--ubatch-size 1024") && j.contains("--batch-size 2048"), "{j}");
         assert!(j.contains("--model-draft /m/d.gguf"));
         let mut b = server_args(std::path::Path::new("/m/q.gguf"), 1, "k", "m", 4096);
