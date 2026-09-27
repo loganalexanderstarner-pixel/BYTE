@@ -174,6 +174,8 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
             totals.completion_tokens += s.completion_tokens;
             totals.prompt_ms += s.prompt_ms;
             totals.total_ms += s.total_ms;
+            totals.draft_tokens += s.draft_tokens;
+            totals.draft_accepted += s.draft_accepted;
             totals.tokens_per_second = s.tokens_per_second;
             rounds_with_stats += 1;
         }

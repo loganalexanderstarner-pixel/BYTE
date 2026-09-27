@@ -226,7 +226,14 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
             </button>
           )}
           {showStats && s && s.completionTokens > 0 && (
-            <span className="stats" title={`${s.promptTokens} prompt tokens · ${s.completionTokens} generated`}>
+            <span
+              className="stats"
+              title={
+                `${s.promptTokens} prompt tokens · ${s.completionTokens} generated` +
+                (s.draftTokens > 0 ? ` · Speed boost: ${s.draftAccepted} of ${s.draftTokens} drafted words kept` : "")
+              }
+            >
+              {s.draftTokens > 0 && "⚡ "}
               {tokensPerSec(s.tokensPerSecond)} · {duration(s.totalMs / 1000)}
             </span>
           )}

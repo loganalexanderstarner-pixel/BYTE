@@ -1859,3 +1859,8 @@ kbd {
 .form-field textarea {
   font-weight: 400;
 }
+.pref-row {
+  gap: 10px;
+  margin: 0 0 var(--space-3);
+  font-size: 0.9em;
+}

@@ -19,11 +19,19 @@ pub struct SystemInfo {
     pub apple_silicon: bool,
     /// Chip generation, tier, bandwidth and Neural Engine (for speed estimates).
     pub chip_info: crate::chip::ChipInfo,
+    /// What the user asked BYTE to favour when recommending (set from settings).
+    #[serde(skip)]
+    pub speed_pref: crate::settings::SpeedPref,
 }
 
 impl SystemInfo {
     /// This Mac with `bytes` already taken by other loaded models, for
     /// planning a model that runs alongside them.
+    pub fn with_pref(mut self, pref: crate::settings::SpeedPref) -> Self {
+        self.speed_pref = pref;
+        self
+    }
+
     pub fn minus(mut self, bytes: u64) -> Self {
         self.gpu_budget_bytes = self.gpu_budget_bytes.saturating_sub(bytes);
         self.total_ram_bytes = self.total_ram_bytes.saturating_sub(bytes);
@@ -45,6 +53,7 @@ pub fn system_info(data_dir: &std::path::Path) -> SystemInfo {
     static GPU_CORES: once_cell::sync::Lazy<Option<u32>> = once_cell::sync::Lazy::new(crate::chip::gpu_core_count);
     SystemInfo {
         chip_info: crate::chip::identify(&chip, *GPU_CORES),
+        speed_pref: Default::default(),
         apple_silicon: cfg!(all(target_os = "macos", target_arch = "aarch64")),
         gpu_budget_bytes: gpu_budget(total, wired_limit_override()),
         free_disk_bytes: free_disk_for(data_dir),

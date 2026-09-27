@@ -2,7 +2,9 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type {
+  BoostInfo,
   ChatSummary,
+  SpeedTest,
   ConversationMeta,
   Profile,
   Profiles,
@@ -52,6 +54,9 @@ export const api = {
   engineStatus: () => invoke<EngineStatus>("engine_status"),
   engineRestart: () => invoke<void>("engine_restart"),
   engineLog: () => invoke<string[]>("engine_log"),
+  speedBoostInfo: () => invoke<BoostInfo>("speed_boost_info"),
+  /** Measures tokens/sec with and without Speed boost and keeps the faster (about a minute). */
+  engineSpeedTest: () => invoke<SpeedTest>("engine_speed_test"),
 
   chatSend: (
     request: { requestId: string; messages: WireMessage[]; mode: Mode; thinking: ThinkingPref; model?: string; private?: boolean; projectId?: string | null },

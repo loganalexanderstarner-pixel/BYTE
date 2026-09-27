@@ -46,6 +46,10 @@ pub struct Stats {
     pub prompt_ms: f64,
     pub total_ms: f64,
     pub thinking_ms: f64,
+    /// Speed boost (speculative decoding): tokens the helper model guessed,
+    /// and how many of them the main model kept.
+    pub draft_tokens: u64,
+    pub draft_accepted: u64,
 }
 
 /// Registry of running generations so the UI can stop them.
@@ -239,6 +243,8 @@ pub fn parse_payload(data: &str) -> Vec<Delta> {
             prompt_ms: f("prompt_ms"),
             total_ms: f("prompt_ms") + f("predicted_ms"),
             thinking_ms: 0.0,
+            draft_tokens: f("draft_n") as u64,
+            draft_accepted: f("draft_n_accepted") as u64,
         }));
     }
     out
@@ -492,13 +498,20 @@ pub mod e2e_support {
     /// Starts llama-server from BYTE_TEST_LLAMA_SERVER with BYTE_TEST_MODEL,
     /// using BYTE's real arguments. Returns None (skip) if they aren't set.
     pub async fn start_server() -> Option<(Server, Endpoint)> {
-        let (Ok(bin), Ok(model)) = (std::env::var("BYTE_TEST_LLAMA_SERVER"), std::env::var("BYTE_TEST_MODEL")) else {
+        let model = std::env::var("BYTE_TEST_MODEL").ok()?;
+        start_server_with(&model, &[]).await
+    }
+
+    /// Like `start_server`, with a specific model file and extra arguments.
+    pub async fn start_server_with(model: &str, extra: &[String]) -> Option<(Server, Endpoint)> {
+        let Ok(bin) = std::env::var("BYTE_TEST_LLAMA_SERVER") else {
             eprintln!("skipping: set BYTE_TEST_LLAMA_SERVER and BYTE_TEST_MODEL");
             return None;
         };
         let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
         let key = "test-key";
-        let args = crate::engine::server_args(std::path::Path::new(&model), port, key, "test", 4096);
+        let mut args = crate::engine::server_args(std::path::Path::new(model), port, key, "test", 4096);
+        args.extend_from_slice(extra);
         let child = std::process::Command::new(&bin)
             .args(&args)
             .stdout(std::process::Stdio::null())
@@ -606,8 +619,8 @@ mod wire_format {
         assert_eq!(stats["tokensPerSecond"], 1.5);
         let d = crate::models::DownloadEvent::Progress { id: "m".into(), bytes: 1, total: 2, bytes_per_sec: 3.0 };
         assert_eq!(serde_json::to_value(d).unwrap()["bytesPerSec"], 3.0);
-        let s = crate::engine::EngineStatus::Ready { model: "m".into(), context: 4096 };
-        assert_eq!(serde_json::to_value(s).unwrap(), serde_json::json!({ "state": "ready", "model": "m", "context": 4096 }));
+        let s = crate::engine::EngineStatus::Ready { model: "m".into(), context: 4096, boosted: false };
+        assert_eq!(serde_json::to_value(s).unwrap(), serde_json::json!({ "state": "ready", "model": "m", "context": 4096, "boosted": false }));
         assert_eq!(serde_json::to_value(crate::engine::EngineStatus::NoModel).unwrap(), serde_json::json!({ "state": "noModel" }));
     }
 }

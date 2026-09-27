@@ -15,11 +15,29 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 | 5 | Documents: PDF/PPTX/DOCX/HTML, edit existing files, infographics, math/diagrams | Planned |
 | 6 | Research+: Deep/Extended, academic, quote finder, fact-check, compare, web agent, YouTube | Planned |
 | 7 | Writing & learning: studio, long-form, style, flashcards, quizzes, tutor, custom assistants | Planned |
-| 8 | Speed: speculative decoding, routing, model lab | Planned |
+| 8 | Speed (Speed boost + speed test + preference done early in test.7): speculative decoding, routing, model lab | Planned |
 | 9 | Mac control: Apple apps, Shortcuts, files, clipboard, undo & dry-run | Planned |
 | 10 | Upkeep & automation: scheduler, briefing, watchers, trackers, connectors, dashboards | Planned |
 | 11 | Input & windows: voice, vision, Quick Ask, floating widget, menu-bar popover, palette, notes | Planned |
 | 12 | Privacy & polish: offline, Touch ID, permissions dashboard, 20 themes, sharing, v1.0 | Planned |
+
+## Speed boost (pulled forward from Phase 8; `engine.rs`, `speed.rs`, `models::drafter_for`)
+
+- Token generation on Apple Silicon is limited by memory bandwidth (M4: ~120 GB/s), so the levers are fewer
+  bytes per token (smaller quant, MoE), more tokens per pass (speculative decoding), and fewer wasted tokens
+  (thinking only when needed).
+- Speculative decoding: `--model-draft <helper> --spec-type draft-simple --spec-draft-n-max 16
+  --spec-draft-p-min 0.75` (+ draft on GPU, q8 KV). Helpers by family: Qwen3.5/3.6/3.8 → qwen3.5-0.8b,
+  Qwen3 → qwen3-0.6b, Gemma 3 → gemma-3-270m, Llama 3 → llama-3.2-1b; must be ≤ ¼ of the main model.
+  A mismatched helper makes llama-server log "failed to initialize speculative…" and run without it;
+  `EngineStatus::Ready.boosted` reports whether it's active. Skipped if memory would be tight.
+- Measured with the pinned engine on CPU: p-min 0.75 raised acceptance from 38–59% to 70–97%. The real
+  speed-up can only be measured on Metal, so `engine_speed_test` measures both ways on the user's Mac and
+  keeps the faster (`speed::boost_wins`, ≥ 5% better).
+- Some repos ship MTP heads (`MTP/mtp-*.gguf` for Qwen3.8 27B and Gemma 4 12B, `--spec-type draft-mtp`);
+  the catalog builder currently skips them as auxiliary files. Using them is a follow-up.
+- `settings.speedPref` (speed / balanced / quality) changes the tokens/sec target in `models::score`
+  (22 / 8 / 5).
 
 ## Chats & memory (Phase 3, `db.rs`, `export.rs`)
 

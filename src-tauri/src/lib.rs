@@ -12,6 +12,7 @@ mod profiles;
 mod prompt;
 mod router;
 mod settings;
+mod speed;
 mod state;
 mod summarize;
 mod system;
@@ -93,7 +94,8 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 match active {
                     Some((model, ctx)) => {
-                        if let Err(e) = engine.start(&handle, models_dir, &catalog, &model, ctx, 0).await {
+                        let draft = commands::boost_draft(&handle.state::<AppState>(), &catalog, &model).await;
+                        if let Err(e) = engine.start(&handle, models_dir, &catalog, &model, ctx, 0, draft).await {
                             log::warn!("engine did not start at launch: {e}");
                             return;
                         }
@@ -141,6 +143,8 @@ pub fn run() {
             commands::memory_delete,
             commands::data_wipe,
             commands::chat_autotitle,
+            commands::speed_boost_info,
+            commands::engine_speed_test,
             commands::projects_list,
             commands::project_save,
             commands::project_delete,

@@ -1,13 +1,13 @@
 import { open as openDialog, ask } from "@tauri-apps/plugin-dialog";
-import { Brain, Cpu, Download, HardDrive, Info, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Brain, Cpu, Download, Gauge, HardDrive, Info, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X, Zap } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { THEMES } from "../../design/themes";
 import { Logo } from "../../design/Logo";
 import { api, errorText } from "../../lib/api";
 import { bytes, contextLabel, ramSize } from "../../lib/format";
 import { displayName } from "../../lib/models";
-import type { Memory, Profiles } from "../../lib/types";
+import type { BoostInfo, Memory, Profiles, Settings, SpeedTest } from "../../lib/types";
 import { useStore, type SettingsTab } from "../../state/store";
 import { CatalogBrowser } from "../models/CatalogBrowser";
 
@@ -63,6 +63,7 @@ function ModelsTab() {
       <p className="muted" style={{ marginTop: 0 }}>
         Pick the brain BYTE runs on. Everything runs on this Mac's GPU; files download from Hugging Face only when you choose them.
       </p>
+      <SpeedPrefPicker />
       <CatalogBrowser />
     </>
   );
@@ -201,6 +202,165 @@ function MemoryTab() {
   );
 }
 
+const PREFS: { id: Settings["speedPref"]; label: string; hint: string }[] = [
+  { id: "speed", label: "Faster", hint: "Quicker answers from a smaller or more compressed model" },
+  { id: "balanced", label: "Balanced", hint: "Smart, at a comfortable reading speed" },
+  { id: "quality", label: "Smarter", hint: "The most capable model that fits, even if slower" },
+];
+
+/** What "BYTE's pick" favours for this Mac. */
+function SpeedPrefPicker() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const refresh = useStore((s) => s.refreshModels);
+  if (!settings) return null;
+  return (
+    <div className="row pref-row">
+      <span className="faint">BYTE's pick favours</span>
+      <div className="segmented" role="group" aria-label="BYTE's pick favours">
+        {PREFS.map((p) => (
+          <button
+            key={p.id}
+            aria-pressed={settings.speedPref === p.id}
+            title={p.hint}
+            onClick={async () => {
+              await update({ speedPref: p.id });
+              await refresh();
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Speed boost (speculative decoding) and a real speed test on this Mac. */
+function SpeedSection() {
+  const engine = useStore((s) => s.engine);
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const downloads = useStore((s) => s.downloads);
+  const [info, setInfo] = useState<BoostInfo | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<SpeedTest | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const restarted = useRef(false);
+
+  const load = () => api.speedBoostInfo().then(setInfo).catch(() => setInfo(null));
+  useEffect(() => {
+    void load();
+  }, [engine.state, settings?.activeModel]);
+
+  // When the helper finishes downloading, restart the engine to use it.
+  const dl = info?.helperKey ? downloads[info.helperKey] : undefined;
+  useEffect(() => {
+    if (dl?.phase === "finished" && !restarted.current) {
+      restarted.current = true;
+      void api.engineRestart().then(load);
+    }
+  }, [dl?.phase]);
+
+  if (!info || !settings) return null;
+  const boosted = engine.state === "ready" && engine.boosted;
+  const guard = async (fn: () => Promise<unknown>) => {
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
+
+  return (
+    <div className="section">
+      <h4>Speed</h4>
+      {error && <div className="banner danger">{error}</div>}
+      <div className="field">
+        <label>
+          <span className="row" style={{ gap: 6 }}>
+            <Zap size={14} style={{ color: "var(--accent)" }} /> Speed boost
+          </span>
+          <small>
+            {!info.available
+              ? "Not available for this model (no small helper from the same family)."
+              : boosted
+                ? `On: ${info.helperName} drafts a few words ahead and your model checks them. Same answers, usually faster.`
+                : settings.speedBoost && !info.installed
+                  ? `Needs the ${info.helperName} helper (${bytes(info.helperBytes)} download).`
+                  : settings.speedBoost
+                    ? "On; it applies the next time the engine starts."
+                    : "Off."}
+          </small>
+        </label>
+        {info.available && (
+          <div className="row" style={{ gap: 8 }}>
+            {settings.speedBoost && !info.installed && info.helperKey && !dl && (
+              <button className="btn sm primary" onClick={() => void guard(() => api.modelDownload(info.helperKey!))}>
+                <Download size={14} /> Download helper
+              </button>
+            )}
+            <label className="row" style={{ gap: 6, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={settings.speedBoost}
+                onChange={(e) =>
+                  void guard(async () => {
+                    await update({ speedBoost: e.target.checked });
+                    await api.engineRestart();
+                    await load();
+                  })
+                }
+              />
+              On
+            </label>
+          </div>
+        )}
+      </div>
+      {dl && dl.phase !== "finished" && info.helperKey && (
+        <div style={{ margin: "4px 0 10px" }}>
+          <div className="progress">
+            <span style={{ width: `${dl.total ? (dl.bytes / dl.total) * 100 : 0}%` }} />
+          </div>
+        </div>
+      )}
+      <div className="field">
+        <label>
+          <span className="row" style={{ gap: 6 }}>
+            <Gauge size={14} style={{ color: "var(--accent)" }} /> Test speed on this Mac
+          </span>
+          <small>
+            {result
+              ? `Without boost ${result.withoutBoost.toFixed(1)} tokens/sec` +
+                (result.withBoost != null
+                  ? ` · with boost ${result.withBoost.toFixed(1)} tokens/sec → boost ${result.boostKept ? `kept on (${(result.withBoost / result.withoutBoost).toFixed(1)}× faster)` : "turned off (not faster here)"}`
+                  : "")
+              : "Measures real tokens/sec with and without Speed boost and keeps whichever is faster. Takes about a minute."}
+          </small>
+        </label>
+        <button
+          className="btn sm"
+          disabled={testing || engine.state !== "ready"}
+          onClick={() =>
+            void guard(async () => {
+              setTesting(true);
+              try {
+                setResult(await api.engineSpeedTest());
+                await load();
+              } finally {
+                setTesting(false);
+              }
+            })
+          }
+        >
+          <Gauge size={14} className={testing ? "spin" : undefined} /> {testing ? "Testing…" : "Test speed"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AppearanceTab() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
@@ -312,6 +472,7 @@ function EngineTab() {
           <RefreshCw size={14} className={busy ? "spin" : undefined} /> Restart engine
         </button>
       </div>
+      <SpeedSection />
       <div className="field">
         <label>
           Context window

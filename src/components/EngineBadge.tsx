@@ -15,8 +15,8 @@ export function EngineBadge() {
   switch (engine.state) {
     case "ready":
       cls += " ok";
-      label = `${name(engine.model)} · ${contextLabel(engine.context)}`;
-      title = `Running on this Mac with a ${engine.context.toLocaleString()}-token context window.`;
+      label = `${engine.boosted ? "⚡ " : ""}${name(engine.model)} · ${contextLabel(engine.context)}`;
+      title = `Running on this Mac with a ${engine.context.toLocaleString()}-token context window.${engine.boosted ? " Speed boost is on." : ""}`;
       break;
     case "starting":
       cls += " warn";

@@ -37,6 +37,7 @@ src-tauri/                Rust core (Tauri 2)
   src/summarize.rs        automatic chat title / summary / tags (local model, JSON)
   src/profiles.rs         profiles (separate data folders; models shared)
   src/chip.rs             Apple Silicon chip detection + speed estimates
+  src/speed.rs            real tokens/sec measurement (Speed boost on/off test)
   src/system.rs           hardware info + RAM planner (fit, context size)
   src/chat.rs             SSE streaming client, context fitting, cancellation, e2e test
   src/router.rs           per-turn thinking/length plan by mode

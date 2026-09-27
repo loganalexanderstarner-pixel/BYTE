@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.0-test.7 — Speed boost
+
+- **Speed boost (speculative decoding)**: a tiny model from the same family (e.g. Qwen3.5 0.8B for
+  Qwen3.5 9B) writes a few words ahead and your model checks them all at once. Your model still decides
+  every word, so answers are the same, just faster when the guesses are right. In tests the helper's
+  guesses were kept 70–97% of the time. Settings → Engine → Speed; the helper is a one-time download
+  (under 1 GB). Only used when it fits in memory next to your model.
+- **Test speed on this Mac**: measures real tokens/sec with and without Speed boost and keeps the faster.
+  Boosted answers show ⚡ next to their speed.
+- **"BYTE's pick favours: Faster / Balanced / Smarter"** in Settings → Models. On a 16 GB M4, *Faster*
+  picks Qwen3.5 4B (~27 tokens/sec estimated) instead of Qwen3.5 9B (~13).
+
 ## 1.0.0-test.6 — Phase 3 (part 2): edit & versions, projects, profiles
 
 - **Edit any message you sent** (pencil icon): BYTE answers the new version, and the old one is kept.

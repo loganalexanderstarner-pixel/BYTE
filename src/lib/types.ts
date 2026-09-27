@@ -22,6 +22,25 @@ export interface Settings {
   memoryEnabled: boolean;
   /** Models reloaded alongside the main one at launch. */
   loadedAlongside: string[];
+  /** Speculative decoding with a small same-family helper model. */
+  speedBoost: boolean;
+  /** What BYTE favours when recommending a model version. */
+  speedPref: "speed" | "balanced" | "quality";
+}
+
+export interface BoostInfo {
+  enabled: boolean;
+  available: boolean;
+  helperKey: string | null;
+  helperName: string | null;
+  helperBytes: number;
+  installed: boolean;
+}
+
+export interface SpeedTest {
+  withBoost: number | null;
+  withoutBoost: number;
+  boostKept: boolean;
 }
 
 /** A saved chat in the sidebar (messages load when it's opened). */
@@ -174,7 +193,7 @@ export type EngineStatus =
   | { state: "noModel" }
   | { state: "stopped" }
   | { state: "starting"; model: string }
-  | { state: "ready"; model: string; context: number }
+  | { state: "ready"; model: string; context: number; boosted: boolean }
   | { state: "error"; message: string };
 
 /** A model running in memory (the main one, or one loaded alongside). */
@@ -201,6 +220,9 @@ export interface Stats {
   promptMs: number;
   totalMs: number;
   thinkingMs: number;
+  /** Speed boost: tokens the helper guessed, and how many were kept. */
+  draftTokens: number;
+  draftAccepted: number;
 }
 
 export interface Source {

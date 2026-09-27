@@ -42,7 +42,8 @@ pub enum EngineStatus {
     NoModel,
     Stopped,
     Starting { model: String },
-    Ready { model: String, context: u32 },
+    /// `boosted`: a helper model is speeding up generation (speculative decoding).
+    Ready { model: String, context: u32, boosted: bool },
     Error { message: String },
 }
 
@@ -52,6 +53,8 @@ struct Launch {
     key: String,
     path: PathBuf,
     context: u32,
+    /// Small same-family model for speculative decoding ("Speed boost").
+    draft: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -149,6 +152,7 @@ impl Engine {
         key: &str,
         ctx_override: Option<u32>,
         reserved: u64,
+        draft: Option<PathBuf>,
     ) -> AppResult<()> {
         let (model, variant) = catalog.resolve(key)?;
         if !models::is_installed(&models_dir, variant) {
@@ -156,7 +160,20 @@ impl Engine {
             return Err(AppError::msg(format!("{} ({}) is not downloaded yet", model.name, variant.quant)));
         }
         let info = system::system_info(&models_dir).minus(reserved);
-        let plan = models::plan(model, variant, &info, ctx_override.unwrap_or(DEFAULT_CONTEXT));
+        let desired_ctx = ctx_override.unwrap_or(DEFAULT_CONTEXT);
+        // The helper model needs its own memory; use it only if everything still fits comfortably.
+        let draft = draft.filter(|d| {
+            let extra = std::fs::metadata(d).map(|m| m.len()).unwrap_or(u64::MAX / 4) + DRAFT_OVERHEAD;
+            let with = models::plan(model, variant, &info.clone().minus(extra), desired_ctx);
+            let without = models::plan(model, variant, &info, desired_ctx);
+            let ok = with.fit != system::Fit::TooBig && with.context >= without.context.min(DEFAULT_CONTEXT);
+            if !ok {
+                log::info!("speed boost skipped: not enough memory next to {}", model.name);
+            }
+            ok
+        });
+        let extra = draft.as_ref().and_then(|d| std::fs::metadata(d).ok()).map(|m| m.len() + DRAFT_OVERHEAD).unwrap_or(0);
+        let plan = models::plan(model, variant, &info.clone().minus(extra), desired_ctx);
         if plan.fit == system::Fit::TooBig {
             let message = if reserved > 0 {
                 format!("{} doesn't fit next to the models already loaded. Unload one first, or pick a smaller version.", model.name)
@@ -170,9 +187,9 @@ impl Engine {
         {
             let mut inner = self.inner.lock().await;
             inner.restarts = 0;
-            inner.loaded = Some(LoadInfo { key: models::key(model, variant), context: plan.context, needed_bytes: plan.needed_bytes });
+            inner.loaded = Some(LoadInfo { key: models::key(model, variant), context: plan.context, needed_bytes: plan.needed_bytes + extra });
         }
-        let launch = Launch { key: models::key(model, variant), path: models::entry_path(&models_dir, variant), context: plan.context };
+        let launch = Launch { key: models::key(model, variant), path: models::entry_path(&models_dir, variant), context: plan.context, draft };
         self.spawn(app.clone(), launch).await
     }
 
@@ -187,7 +204,10 @@ impl Engine {
         self.set_status(&app, EngineStatus::Starting { model: launch.key.clone() }).await;
         let port = free_port()?;
         let api_key = uuid::Uuid::new_v4().simple().to_string();
-        let args = server_args(&launch.path, port, &api_key, &launch.key, context);
+        let mut args = server_args(&launch.path, port, &api_key, &launch.key, context);
+        if let Some(d) = &launch.draft {
+            args.extend(draft_args(d));
+        }
 
         let command = match app.shell().sidecar(SIDECAR) {
             Ok(c) => c,
@@ -252,8 +272,10 @@ impl Engine {
                     }
                     inner.endpoint = Some(endpoint);
                 }
-                log::info!("engine ready: {} with {context}-token context", launch.key);
-                self.set_status(&app, EngineStatus::Ready { model: launch.key.clone(), context }).await;
+                // llama-server keeps running without speculation if the helper doesn't match.
+                let boosted = launch.draft.is_some() && !speculation_failed(&self.log_tail().await);
+                log::info!("engine ready: {} with {context}-token context (speed boost: {boosted})", launch.key);
+                self.set_status(&app, EngineStatus::Ready { model: launch.key.clone(), context, boosted }).await;
                 Ok(())
             }
             Err(e) => {
@@ -527,6 +549,38 @@ pub fn server_args(model: &std::path::Path, port: u16, api_key: &str, alias: &st
     ]
 }
 
+/// Memory for the helper model's context and buffers, on top of its file.
+const DRAFT_OVERHEAD: u64 = 400 * 1_000_000;
+
+/// Speculative decoding with a small same-family model. Only guesses the
+/// helper is at least 75% sure of are checked, which kept 70–90% of them in
+/// tests; the main model verifies every guess, so answers don't change.
+pub fn draft_args(draft: &std::path::Path) -> Vec<String> {
+    [
+        "--model-draft",
+        &draft.to_string_lossy(),
+        "--spec-type",
+        "draft-simple",
+        "--spec-draft-n-max",
+        "16",
+        "--spec-draft-p-min",
+        "0.75",
+        "--n-gpu-layers-draft",
+        "999",
+        "--cache-type-k-draft",
+        "q8_0",
+        "--cache-type-v-draft",
+        "q8_0",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect()
+}
+
+fn speculation_failed(log: &[String]) -> bool {
+    log.iter().any(|l| l.contains("failed to initialize speculative") || l.contains("vocabs are not compatible"))
+}
+
 fn free_port() -> AppResult<u16> {
     let listener = std::net::TcpListener::bind("127.0.0.1:0")?;
     Ok(listener.local_addr()?.port())
@@ -557,6 +611,14 @@ mod tests {
         for needle in ["--model /m/q.gguf", "--port 5555", "--ctx-size 16384", "--jinja", "--reasoning-format deepseek", "--host 127.0.0.1", "--api-key k"] {
             assert!(joined.contains(needle), "missing {needle}: {joined}");
         }
+    }
+
+    #[test]
+    fn draft_args_and_failure_detection() {
+        let a = draft_args(std::path::Path::new("/m/d.gguf")).join(" ");
+        assert!(a.contains("--model-draft /m/d.gguf") && a.contains("--spec-draft-p-min 0.75"), "{a}");
+        assert!(speculation_failed(&["E srv load_model: failed to initialize speculative decoding context".into()]));
+        assert!(!speculation_failed(&["srv loaded".into()]));
     }
 
     #[test]

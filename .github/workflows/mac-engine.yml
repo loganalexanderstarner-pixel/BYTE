@@ -11,6 +11,8 @@ on:
       - "src-tauri/src/chat.rs"
       - "src-tauri/src/agent.rs"
       - "src-tauri/src/tools/**"
+      - "src-tauri/src/speed.rs"
+      - "src-tauri/src/summarize.rs"
       - "src-tauri/Cargo.lock"
       - "scripts/LLAMA_TAG"
       - "scripts/build-llama-server.sh"
@@ -63,9 +65,23 @@ jobs:
           f=.cache/models/Qwen3-0.6B-Q8_0.gguf
           [ -f "$f" ] || curl -fsSL -o "$f" "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf?download=true"
           echo "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031  $f" | shasum -a 256 -c
+      - name: Cache Speed boost test models
+        uses: actions/cache@v4
+        with:
+          path: .cache/boost
+          key: boost-qwen3.5-2b-0.8b-q4km
+      - name: Download Speed boost test models (Qwen3.5 2B + 0.8B helper)
+        run: |
+          mkdir -p .cache/boost
+          for m in Qwen3.5-2B Qwen3.5-0.8B; do
+            f=.cache/boost/$m-Q4_K_M.gguf
+            [ -f "$f" ] || curl -fsSL -o "$f" "https://huggingface.co/unsloth/$m-GGUF/resolve/main/$m-Q4_K_M.gguf?download=true"
+          done
       - name: End-to-end test against the real engine
         working-directory: src-tauri
         env:
           BYTE_TEST_LLAMA_SERVER: ${{ github.workspace }}/src-tauri/binaries/llama-server-aarch64-apple-darwin
           BYTE_TEST_MODEL: ${{ github.workspace }}/.cache/models/Qwen3-0.6B-Q8_0.gguf
+          BYTE_TEST_MAIN_MODEL: ${{ github.workspace }}/.cache/boost/Qwen3.5-2B-Q4_K_M.gguf
+          BYTE_TEST_DRAFT_MODEL: ${{ github.workspace }}/.cache/boost/Qwen3.5-0.8B-Q4_K_M.gguf
         run: cargo test --locked e2e -- --ignored --nocapture --test-threads=1

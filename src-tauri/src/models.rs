@@ -273,12 +273,58 @@ pub fn effective_quality(model: &CatalogModel, v: &Variant) -> i32 {
     model.quality as i32 - penalty
 }
 
-/// Quality adjusted for speed on this Mac: answers slower than ~8 tokens/sec
-/// feel sluggish, so very slow versions rank lower.
+/// Quality adjusted for speed on this Mac: answers slower than a target feel
+/// sluggish, so slower versions rank lower. The target depends on what the
+/// user prefers: ~8 tokens/sec by default, 22 for "faster", 5 for "smarter".
 pub fn score(model: &CatalogModel, v: &Variant, info: &SystemInfo) -> i32 {
+    use crate::settings::SpeedPref;
     let tps = crate::chip::estimate(&info.chip_info, v.size_bytes, model.params_b, model.active_b).tokens_per_sec;
-    let penalty = if tps >= 8.0 { 0.0 } else { ((8.0 - tps) * 2.5).min(20.0) };
+    let (target, per_token, cap) = match info.speed_pref {
+        SpeedPref::Speed => (22.0, 3.0, 40.0),
+        SpeedPref::Balanced => (8.0, 2.5, 20.0),
+        SpeedPref::Quality => (5.0, 2.0, 12.0),
+    };
+    let penalty = if tps >= target { 0.0 } else { ((target - tps) * per_token).min(cap) };
     effective_quality(model, v) - penalty.round() as i32
+}
+
+/// A small model from the same family that can draft tokens for `model`
+/// (speculative decoding). It must share the tokenizer and be at most a
+/// quarter of the size, or it wouldn't save time.
+pub fn drafter_for<'a>(catalog: &'a Catalog, model: &CatalogModel) -> Option<&'a CatalogModel> {
+    let m = model.id.as_str();
+    let starts = |p: &[&str]| p.iter().any(|x| m.starts_with(x));
+    let id = if starts(&["qwen3.5", "qwen3.6", "qwen3.8-27b", "qwen-agentworld"]) {
+        "qwen3.5-0.8b"
+    } else if starts(&["qwen3-"]) {
+        "qwen3-0.6b"
+    } else if starts(&["gemma-3-"]) {
+        "gemma-3-270m"
+    } else if starts(&["llama-3", "meta-llama-3", "hermes-3-llama-3"]) {
+        "llama-3.2-1b"
+    } else {
+        return None;
+    };
+    let d = catalog.model(id)?;
+    let big = model.params_b.unwrap_or(0.0);
+    let small = d.params_b.unwrap_or(f32::MAX);
+    (d.id != model.id && small * 4.0 <= big).then_some(d)
+}
+
+/// The drafter version to use: the best one already downloaded, else the
+/// one to offer (Q8_0 is most accurate; drafters are tiny either way).
+pub fn drafter_variant<'a>(d: &'a CatalogModel, models_dir: &Path) -> (&'a Variant, bool) {
+    let rank = |v: &Variant| match v.quant.as_str() {
+        "Q8_0" => 0,
+        "Q4_K_M" => 1,
+        _ => 2,
+    };
+    let mut vs: Vec<&Variant> = d.variants.iter().collect();
+    vs.sort_by_key(|v| rank(v));
+    match vs.iter().find(|v| is_installed(models_dir, v)) {
+        Some(v) => (v, true),
+        None => (vs[0], false),
+    }
 }
 
 /// The best version of `model` for this Mac: highest quality that fits
@@ -703,6 +749,7 @@ mod tests {
             cpu_cores: 10,
             apple_silicon: true,
             chip_info: crate::chip::identify("Apple M4", Some(10)),
+            speed_pref: Default::default(),
         }
     }
 
@@ -799,6 +846,44 @@ mod tests {
         let nine = 8_500_000_000;
         assert!(status(nine, "qwen3.5-0.8b", "Q8_0"));
         assert!(!status(nine, "qwen3.5-9b", "Q6_K"));
+    }
+
+    #[test]
+    fn drafters_come_from_the_same_family_and_are_small() {
+        let c = Catalog::embedded();
+        let d = |id: &str| drafter_for(&c, c.model(id).unwrap()).map(|m| m.id.clone());
+        assert_eq!(d("qwen3.5-9b").as_deref(), Some("qwen3.5-0.8b"));
+        assert_eq!(d("qwen3.8-27b").as_deref(), Some("qwen3.5-0.8b"));
+        assert_eq!(d("gemma-3-27b").as_deref(), Some("gemma-3-270m"));
+        assert_eq!(d("llama-3.1-8b").as_deref(), Some("llama-3.2-1b"));
+        // Too close in size to help, or no same-family helper.
+        assert_eq!(d("qwen3.5-2b"), None);
+        assert_eq!(d("qwen3.5-0.8b"), None);
+        assert_eq!(d("gpt-oss-20b"), None);
+        let dir = tempfile::tempdir().unwrap();
+        let (v, installed) = drafter_variant(c.model("qwen3.5-0.8b").unwrap(), dir.path());
+        assert_eq!((v.quant.as_str(), installed), ("Q8_0", false));
+    }
+
+    #[test]
+    fn preference_changes_the_pick_on_a_16gb_m4() {
+        use crate::settings::SpeedPref;
+        let c = Catalog::embedded();
+        let pick = |pref| recommend(&c, &mac(16).with_pref(pref), 16384).map(|(m, v)| format!("{}:{}", m.id, v.quant)).unwrap();
+        let balanced = pick(SpeedPref::Balanced);
+        let fast = pick(SpeedPref::Speed);
+        let smart = pick(SpeedPref::Quality);
+        let speed = |k: &str| {
+            let (m, v) = c.resolve(k).unwrap();
+            crate::chip::estimate(&mac(16).chip_info, v.size_bytes, m.params_b, m.active_b).tokens_per_sec
+        };
+        eprintln!("balanced {balanced} ({:.0} tok/s), fast {fast} ({:.0}), smart {smart} ({:.0})", speed(&balanced), speed(&fast), speed(&smart));
+        assert!(speed(&fast) > speed(&balanced) * 1.3, "faster pick should be clearly faster");
+        let q = |k: &str| {
+            let (m, v) = c.resolve(k).unwrap();
+            effective_quality(m, v)
+        };
+        assert!(q(&smart) >= q(&balanced));
     }
 
     #[test]
@@ -979,6 +1064,7 @@ fn dump_models_for_ui() {
         os_version: "macOS 15".into(),
         cpu_cores: 10,
         apple_silicon: true,
+        speed_pref: Default::default(),
         chip_info: crate::chip::identify(
             &std::env::var("BYTE_DUMP_CHIP").unwrap_or_else(|_| {
                 match gb {
