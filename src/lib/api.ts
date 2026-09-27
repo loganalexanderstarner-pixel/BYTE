@@ -2,7 +2,11 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type {
+  ChatSummary,
   ConversationMeta,
+  Profile,
+  Profiles,
+  Project,
   LoadedModel,
   Memory,
   SearchHit,
@@ -19,6 +23,14 @@ import type {
 
 /** True when running inside the Tauri shell (false in a plain browser tab). */
 export const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+/** Sidebar changes to a chat; "" clears folder/project. */
+export interface ChatPatch {
+  title?: string;
+  pinned?: boolean;
+  folder?: string;
+  projectId?: string;
+}
 
 export const api = {
   systemInfo: () => invoke<SystemInfo>("system_info"),
@@ -42,7 +54,7 @@ export const api = {
   engineLog: () => invoke<string[]>("engine_log"),
 
   chatSend: (
-    request: { requestId: string; messages: WireMessage[]; mode: Mode; thinking: ThinkingPref; model?: string; private?: boolean },
+    request: { requestId: string; messages: WireMessage[]; mode: Mode; thinking: ThinkingPref; model?: string; private?: boolean; projectId?: string | null },
     onEvent: (e: ChatEvent) => void,
   ) => {
     const channel = new Channel<ChatEvent>();
@@ -56,7 +68,21 @@ export const api = {
   chatLoad: (id: string) => invoke<unknown | null>("chat_load", { id }),
   chatSave: (conversation: unknown) => invoke<void>("chat_save", { conversation }),
   chatDelete: (id: string) => invoke<void>("chat_delete", { id }),
-  chatUpdate: (id: string, patch: { title?: string; pinned?: boolean; folder?: string }) => invoke<void>("chat_update", { id, patch }),
+  chatUpdate: (id: string, patch: ChatPatch) => invoke<void>("chat_update", { id, patch }),
+  /** BYTE writes a title, one-line summary and tags for a chat (once). */
+  chatAutotitle: (id: string) => invoke<ChatSummary | null>("chat_autotitle", { id }),
+
+  // Projects
+  projectsList: () => invoke<Project[]>("projects_list"),
+  projectSave: (project: Project) => invoke<Project>("project_save", { project }),
+  projectDelete: (id: string) => invoke<void>("project_delete", { id }),
+
+  // Profiles (switching restarts BYTE)
+  profilesList: () => invoke<Profiles>("profiles_list"),
+  profileCreate: (name: string) => invoke<Profile>("profile_create", { name }),
+  profileRename: (id: string, name: string) => invoke<void>("profile_rename", { id, name }),
+  profileDelete: (id: string) => invoke<void>("profile_delete", { id }),
+  profileSwitch: (id: string) => invoke<void>("profile_switch", { id }),
   chatsSearch: (query: string) => invoke<SearchHit[]>("chats_search", { query }),
   chatsImport: (conversations: unknown[]) => invoke<number>("chats_import", { conversations }),
   /** Exports every chat into a new folder inside `dir`; returns its path. */

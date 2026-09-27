@@ -8,10 +8,12 @@ mod export;
 mod error;
 mod models;
 mod paths;
+mod profiles;
 mod prompt;
 mod router;
 mod settings;
 mod state;
+mod summarize;
 mod system;
 mod tools;
 
@@ -138,6 +140,15 @@ pub fn run() {
             commands::memory_update,
             commands::memory_delete,
             commands::data_wipe,
+            commands::chat_autotitle,
+            commands::projects_list,
+            commands::project_save,
+            commands::project_delete,
+            commands::profiles_list,
+            commands::profile_create,
+            commands::profile_rename,
+            commands::profile_delete,
+            commands::profile_switch,
             commands::engine_status,
             commands::engine_restart,
             commands::engine_log,

@@ -6,8 +6,13 @@ use crate::error::{AppError, AppResult};
 
 /// All on-disk locations BYTE uses. Everything lives under
 /// `~/Library/Application Support/com.loganstarner.byte/` on macOS.
+///
+/// `root` holds what every profile shares (models, the model catalog, engine
+/// PID files, logs); `data` is the active profile's folder (database, key,
+/// settings, action log).
 #[derive(Debug, Clone)]
 pub struct Paths {
+    pub root: PathBuf,
     pub data: PathBuf,
     pub models: PathBuf,
     pub logs: PathBuf,
@@ -23,12 +28,16 @@ impl Paths {
         Self::at(data)
     }
 
-    pub fn at(data: PathBuf) -> AppResult<Self> {
+    pub fn at(root: PathBuf) -> AppResult<Self> {
+        std::fs::create_dir_all(&root)?;
+        let profile = crate::profiles::Profiles::load(&root).active;
+        let data = crate::profiles::Profiles::dir(&root, &profile);
         let paths = Paths {
-            models: data.join("models"),
-            logs: data.join("logs"),
+            models: root.join("models"),
+            logs: root.join("logs"),
             settings_file: data.join("settings.json"),
             data,
+            root,
         };
         for dir in [&paths.data, &paths.models, &paths.logs] {
             std::fs::create_dir_all(dir)?;

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
-import { api, errorText, events, inTauri } from "../lib/api";
+import { api, errorText, events, inTauri, type ChatPatch } from "../lib/api";
+import { branchAt, switchVersion, versionsAt } from "../lib/branches";
 import { titleFrom } from "../lib/format";
 import type {
   ChatEvent,
@@ -8,6 +9,7 @@ import type {
   DownloadEvent,
   EngineStatus,
   LoadedModel,
+  Project,
   Mode,
   ModelStatus,
   Settings,
@@ -48,6 +50,12 @@ export interface Message {
   alt?: boolean;
   /** The user chose a model other than the main one for this answer. */
   picked?: boolean;
+  /** Other versions of the thread from this message on (edit & regenerate). */
+  alts?: Message[][];
+  /** This version's place among all versions (0-based). */
+  version?: number;
+  /** BYTE was closed while this answer was being written. */
+  interrupted?: boolean;
   createdAt: number;
 }
 
@@ -65,6 +73,9 @@ export interface Conversation {
   loaded?: boolean;
   /** Message count from the database (before messages are loaded). */
   messageCount?: number;
+  summary?: string | null;
+  tags?: string[];
+  projectId?: string | null;
 }
 
 /** Has anything been said in this chat (loaded or not)? */
@@ -108,10 +119,18 @@ interface State {
   refreshModels(): Promise<void>;
   refreshLoaded(): Promise<void>;
   setAnswerWith(v: string): void;
-  newChat(isPrivate?: boolean): void;
+  newChat(isPrivate?: boolean, projectId?: string | null): void;
   selectChat(id: string): Promise<void>;
   deleteChat(id: string): void;
-  updateChat(id: string, patch: { title?: string; pinned?: boolean; folder?: string }): Promise<void>;
+  updateChat(id: string, patch: ChatPatch): Promise<void>;
+  /** Replace a user message and answer again; the old version is kept. */
+  editMessage(msgId: string, text: string): Promise<void>;
+  /** Show another version of the thread at this message. */
+  showVersion(msgId: string, index: number): void;
+  projects: Project[];
+  refreshProjects(): Promise<void>;
+  saveProject(p: Project): Promise<Project>;
+  deleteProject(id: string): Promise<void>;
   /** Save or dismiss a "remember" suggestion shown under an answer. */
   resolveMemory(msgId: string, stepId: string, save: boolean): Promise<void>;
   /** Reload the chat list from the database (after an erase or import). */
@@ -196,6 +215,9 @@ const fromMeta = (m: ConversationMeta): Conversation => ({
   pinned: m.pinned,
   folder: m.folder,
   messageCount: m.messageCount,
+  summary: m.summary,
+  tags: m.tags,
+  projectId: m.projectId,
   messages: [],
   loaded: false,
 });
@@ -231,7 +253,10 @@ export const useStore = create<State>((set, get) => {
 
   /** Streams an assistant reply for the conversation's current history.
    * `model` picks a loaded model other than the main one. */
-  const generate = async (convId: string, opts: { model?: string; group?: string; alt?: boolean } = {}) => {
+  const generate = async (
+    convId: string,
+    opts: { model?: string; group?: string; alt?: boolean; branch?: { alts: Message[][]; version: number } } = {},
+  ) => {
     const conv = get().conversations.find((c) => c.id === convId);
     if (!conv) return;
     const { mode, thinking } = get();
@@ -247,6 +272,8 @@ export const useStore = create<State>((set, get) => {
       group: opts.group,
       alt: opts.alt,
       picked: !!opts.model && !opts.group,
+      alts: opts.branch?.alts,
+      version: opts.branch?.version,
       createdAt: Date.now(),
     };
     patchConversation(convId, (c) => ({ ...c, messages: [...c.messages, reply] }));
@@ -318,7 +345,10 @@ export const useStore = create<State>((set, get) => {
     };
 
     try {
-      await api.chatSend({ requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private }, onEvent);
+      await api.chatSend(
+        { requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private, projectId: conv.projectId },
+        onEvent,
+      );
     } catch (err) {
       cancelAnimationFrame(frame);
       flush();
@@ -327,12 +357,34 @@ export const useStore = create<State>((set, get) => {
       const running = get().running.filter((id) => id !== reply.id);
       set({ running, generating: running.length ? (get().generating === reply.id ? running[0] : get().generating) : null });
       const done = get().conversations.find((c) => c.id === convId);
-      if (done && inTauri) scheduleSave(done, 100);
+      if (done && inTauri) {
+        scheduleSave(done, 100);
+        maybeAutotitle(done);
+      }
     }
   };
 
+  /** After the first answer, BYTE titles, summarizes and tags the chat (once). */
+  const titled = new Set<string>();
+  const maybeAutotitle = (c: Conversation) => {
+    if (c.private || c.summary || titled.has(c.id) || get().running.length) return;
+    if (!c.messages.some((m) => m.role === "assistant" && m.status === "done" && m.content)) return;
+    titled.add(c.id);
+    setTimeout(() => {
+      api
+        .chatAutotitle(c.id)
+        .then((s) => {
+          if (!s) return;
+          set({
+            conversations: get().conversations.map((x) => (x.id === c.id ? { ...x, title: s.title, summary: s.summary, tags: s.tags } : x)),
+          });
+        })
+        .catch((e) => console.warn("couldn't title chat", e));
+    }, 1500);
+  };
+
   /** Answers the last question with the model(s) chosen in the composer. */
-  const answer = async (convId: string) => {
+  const answer = async (convId: string, branch?: { alts: Message[][]; version: number }) => {
     const { answerWith, loaded } = get();
     const ready = loaded.filter((l) => l.status.state === "ready");
     if (answerWith === "compare" && ready.length > 1) {
@@ -343,7 +395,7 @@ export const useStore = create<State>((set, get) => {
       return;
     }
     const pick = ready.find((l) => l.key === answerWith && !l.primary);
-    await generate(convId, { model: pick?.key });
+    await generate(convId, { model: pick?.key, branch });
   };
 
   return {
@@ -359,6 +411,7 @@ export const useStore = create<State>((set, get) => {
     generating: null,
     running: [],
     loaded: [],
+    projects: [],
     answerWith: "main",
     mode: "auto",
     thinking: "auto",
@@ -374,6 +427,7 @@ export const useStore = create<State>((set, get) => {
       }
       await importLocalChats();
       const conversations = (await api.chatsList().catch(() => [] as ConversationMeta[])).map(fromMeta);
+      void get().refreshProjects();
       await events.onEngineStatus((engine) => {
         set({ engine });
         void get().refreshLoaded();
@@ -431,9 +485,11 @@ export const useStore = create<State>((set, get) => {
       set({ models, recommended });
     },
 
-    newChat(isPrivate = false) {
+    newChat(isPrivate = false, projectId = null) {
       // Reuse an empty chat of the same kind instead of stacking empty ones.
-      const empty = get().conversations.find((c) => c.messages.length === 0 && !hasMessages(c) && !!c.private === isPrivate);
+      const empty = get().conversations.find(
+        (c) => c.messages.length === 0 && !hasMessages(c) && !!c.private === isPrivate && (c.projectId ?? null) === projectId,
+      );
       if (empty) {
         set({ currentId: empty.id });
         return;
@@ -445,6 +501,7 @@ export const useStore = create<State>((set, get) => {
         updatedAt: Date.now(),
         messages: [],
         private: isPrivate,
+        projectId,
         loaded: true,
       };
       set({ conversations: [conv, ...get().conversations], currentId: conv.id });
@@ -456,7 +513,9 @@ export const useStore = create<State>((set, get) => {
       if (!c || c.loaded || !inTauri) return;
       try {
         const full = (await api.chatLoad(id)) as Conversation | null;
-        const messages = (full?.messages ?? []).map((m) => (m.status === "streaming" ? { ...m, status: "cancelled" as const } : m));
+        const messages = (full?.messages ?? []).map((m) =>
+          m.status === "streaming" ? { ...m, status: "cancelled" as const, interrupted: true } : m,
+        );
         set({ conversations: get().conversations.map((x) => (x.id === id ? { ...x, messages, loaded: true } : x)) });
       } catch (e) {
         console.error("couldn't load chat", e);
@@ -483,6 +542,7 @@ export const useStore = create<State>((set, get) => {
                 title: patch.title?.trim() || x.title,
                 pinned: patch.pinned ?? x.pinned,
                 folder: patch.folder === undefined ? x.folder : patch.folder.trim() || null,
+                projectId: patch.projectId === undefined ? x.projectId : patch.projectId || null,
               }
             : x,
         ),
@@ -532,13 +592,54 @@ export const useStore = create<State>((set, get) => {
 
     async regenerate() {
       const convId = get().currentId;
-      if (!convId || get().generating) return;
-      patchConversation(convId, (c) => {
-        const msgs = [...c.messages];
-        while (msgs.length && msgs[msgs.length - 1].role === "assistant") msgs.pop();
-        return { ...c, messages: msgs };
+      const conv = currentConversation(get());
+      if (!convId || !conv || get().generating) return;
+      // The earlier answer(s) stay available as other versions.
+      let i = conv.messages.length;
+      while (i > 0 && conv.messages[i - 1].role === "assistant") i--;
+      const grouped = conv.messages.slice(i).some((m) => m.group);
+      const branch = i < conv.messages.length && !grouped ? versionsAt(conv.messages, i) : undefined;
+      patchConversation(convId, (c) => ({ ...c, messages: c.messages.slice(0, i) }));
+      await answer(convId, branch ? { alts: branch, version: branch.length } : undefined);
+    },
+
+    async editMessage(msgId, text) {
+      const conv = currentConversation(get());
+      const content = text.trim();
+      if (!conv || !content || get().generating) return;
+      const i = conv.messages.findIndex((m) => m.id === msgId);
+      if (i < 0 || conv.messages[i].role !== "user") return;
+      const edited: Message = { id: uid(), role: "user", content, status: "done", createdAt: Date.now() };
+      patchConversation(conv.id, (c) => ({ ...c, updatedAt: Date.now(), messages: branchAt(c.messages, i, edited) }));
+      await answer(conv.id);
+    },
+
+    showVersion(msgId, index) {
+      const conv = currentConversation(get());
+      if (!conv || get().generating) return;
+      const i = conv.messages.findIndex((m) => m.id === msgId);
+      if (i < 0) return;
+      patchConversation(conv.id, (c) => ({ ...c, messages: switchVersion(c.messages, i, index) }));
+    },
+
+    async refreshProjects() {
+      if (!inTauri) return;
+      set({ projects: await api.projectsList().catch(() => get().projects) });
+    },
+
+    async saveProject(p) {
+      const saved = inTauri ? await api.projectSave(p) : { ...p, id: p.id || uid(), createdAt: p.createdAt || Date.now() };
+      const others = get().projects.filter((x) => x.id !== saved.id);
+      set({ projects: [...others, saved].sort((a, b) => a.name.localeCompare(b.name)) });
+      return saved;
+    },
+
+    async deleteProject(id) {
+      if (inTauri) await api.projectDelete(id);
+      set({
+        projects: get().projects.filter((p) => p.id !== id),
+        conversations: get().conversations.map((c) => (c.projectId === id ? { ...c, projectId: null } : c)),
       });
-      await answer(convId);
     },
 
     toggleWeb() {

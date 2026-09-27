@@ -1723,3 +1723,139 @@ kbd {
 .about-me:focus {
   border-color: var(--accent);
 }
+
+/* ---------- Edit & versions ---------- */
+.msg.user {
+  flex-wrap: wrap;
+}
+.msg.user .user-actions {
+  flex-basis: 100%;
+  justify-content: flex-end;
+  margin-top: 2px;
+  height: 24px;
+}
+.msg.user.editing {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.edit-box {
+  width: 100%;
+  min-height: 70px;
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--accent);
+  background: var(--user-bubble);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+  outline: none;
+}
+.versions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.82em;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.versions .icon-btn {
+  width: 24px;
+  height: 24px;
+}
+.versions .icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.interrupted {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 8px;
+  font-size: 0.88em;
+  color: var(--warn);
+}
+
+/* ---------- Projects ---------- */
+.sidebar-label.with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: var(--space-2);
+}
+.sidebar-label.with-action .icon-btn {
+  width: 22px;
+  height: 22px;
+}
+.project-head {
+  padding: 2px 6px 2px 12px;
+}
+.project-head .grow-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 6px 0;
+}
+.project-head .grow-btn span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.project-head .icon-btn {
+  width: 24px;
+  height: 24px;
+  opacity: 0.6;
+}
+.project-head:hover .icon-btn {
+  opacity: 1;
+}
+.project-empty {
+  margin: 0;
+  padding: 2px 12px 6px 40px;
+  font-size: 0.82em;
+}
+.modal.small {
+  width: min(560px, calc(100vw - 32px));
+  grid-template-columns: 1fr;
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  margin-bottom: 6px;
+}
+.profile-row.active {
+  border-color: var(--accent);
+}
+.profile-row .grow {
+  flex: 1;
+  min-width: 0;
+}
+.modal.small {
+  height: auto;
+  max-height: calc(100vh - 64px);
+}
+.form-field input,
+.form-field textarea {
+  font-weight: 400;
+}

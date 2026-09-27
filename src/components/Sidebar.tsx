@@ -1,9 +1,11 @@
 import { ask } from "@tauri-apps/plugin-dialog";
 import {
+  Briefcase,
   ChevronRight,
   EyeOff,
   Folder,
   FolderInput,
+  FolderPlus,
   Lock,
   MessageSquare,
   MoreHorizontal,
@@ -13,13 +15,16 @@ import {
   PinOff,
   Search,
   SquarePen,
+  Plus,
   Trash2,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { Logo } from "../design/Logo";
 import { api, inTauri } from "../lib/api";
-import type { SearchHit } from "../lib/types";
+import type { Project, SearchHit } from "../lib/types";
 import { hasMessages, useStore, type Conversation } from "../state/store";
 
 function groupLabel(ts: number): string {
@@ -34,14 +39,19 @@ function groupLabel(ts: number): string {
   return "Older";
 }
 
-/** Sidebar sections: pinned, folders, then the rest by date. */
-export function sidebarSections(conversations: Conversation[]) {
+/** Sidebar sections: pinned, projects, folders, then the rest by date. */
+export function sidebarSections(conversations: Conversation[], projectList: Project[] = []) {
   const visible = conversations.filter(hasMessages);
   const pinned = visible.filter((c) => c.pinned);
   const folders = new Map<string, Conversation[]>();
   const dated: { label: string; items: Conversation[] }[] = [];
+  const byProject = new Map(projectList.map((p) => [p.id, [] as Conversation[]]));
   for (const c of visible) {
     if (c.pinned) continue;
+    if (c.projectId && byProject.has(c.projectId)) {
+      byProject.get(c.projectId)!.push(c);
+      continue;
+    }
     if (c.folder) {
       folders.set(c.folder, [...(folders.get(c.folder) ?? []), c]);
       continue;
@@ -54,6 +64,7 @@ export function sidebarSections(conversations: Conversation[]) {
   const byRecent = (a: Conversation, b: Conversation) => b.updatedAt - a.updatedAt;
   return {
     pinned: pinned.sort(byRecent),
+    projects: projectList.map((p) => ({ project: p, items: byProject.get(p.id)!.sort(byRecent) })),
     folders: [...folders.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, items]) => ({ name, items: items.sort(byRecent) })),
     dated,
   };
@@ -75,6 +86,8 @@ export function Sidebar() {
   const selectChat = useStore((s) => s.selectChat);
   const newChat = useStore((s) => s.newChat);
   const toggleSidebar = useStore((s) => s.toggleSidebar);
+  const projects = useStore((s) => s.projects);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [closed, setClosed] = useState<Set<string>>(new Set());
@@ -101,9 +114,9 @@ export function Sidebar() {
     return () => clearTimeout(t);
   }, [query, conversations]);
 
-  const sections = useMemo(() => sidebarSections(conversations), [conversations]);
+  const sections = useMemo(() => sidebarSections(conversations, projects), [conversations, projects]);
   const folderNames = sections.folders.map((f) => f.name);
-  const empty = !sections.pinned.length && !sections.folders.length && !sections.dated.length;
+  const empty = !sections.pinned.length && !sections.folders.length && !sections.dated.length && !projects.length;
 
   const toggleFolder = (name: string) => {
     const next = new Set(closed);
@@ -167,6 +180,42 @@ export function Sidebar() {
                 ))}
               </div>
             )}
+            <div className="sidebar-label with-action">
+              <span>Projects</span>
+              <button
+                className="icon-btn"
+                title="New project: chats that share instructions"
+                onClick={() => setEditingProject({ id: "", name: "", instructions: "", createdAt: 0 })}
+              >
+                <FolderPlus size={14} />
+              </button>
+            </div>
+            {sections.projects.map(({ project, items }) => {
+              const key = `project:${project.id}`;
+              return (
+                <div key={project.id}>
+                  <div className="folder-head project-head">
+                    <button className="grow-btn" onClick={() => toggleFolder(key)} aria-expanded={!closed.has(key)}>
+                      <ChevronRight size={13} style={{ transform: closed.has(key) ? undefined : "rotate(90deg)" }} />
+                      <Briefcase size={14} />
+                      <span>{project.name}</span>
+                    </button>
+                    <button className="icon-btn" title={`New chat in ${project.name}`} onClick={() => newChat(false, project.id)}>
+                      <Plus size={14} />
+                    </button>
+                    <button className="icon-btn" title="Project settings" onClick={() => setEditingProject(project)}>
+                      <MoreHorizontal size={14} />
+                    </button>
+                  </div>
+                  {!closed.has(key) &&
+                    (items.length ? (
+                      items.map((c) => <ConvRow key={c.id} c={c} active={c.id === currentId} folders={folderNames} indent />)
+                    ) : (
+                      <p className="faint project-empty">No chats yet</p>
+                    ))}
+                </div>
+              );
+            })}
             {sections.folders.map((f) => (
               <div key={f.name}>
                 <button className="folder-head" onClick={() => toggleFolder(f.name)} aria-expanded={!closed.has(f.name)}>
@@ -190,7 +239,80 @@ export function Sidebar() {
           </>
         )}
       </nav>
+      {editingProject && createPortal(<ProjectEditor project={editingProject} onClose={() => setEditingProject(null)} />, document.body)}
     </aside>
+  );
+}
+
+/** Create or edit a project: its name and the instructions every chat in it follows. */
+function ProjectEditor({ project, onClose }: { project: Project; onClose(): void }) {
+  const saveProject = useStore((s) => s.saveProject);
+  const deleteProject = useStore((s) => s.deleteProject);
+  const newChat = useStore((s) => s.newChat);
+  const [name, setName] = useState(project.name);
+  const [instructions, setInstructions] = useState(project.instructions);
+  const [error, setError] = useState<string | null>(null);
+  const isNew = !project.id;
+
+  const save = async () => {
+    try {
+      const saved = await saveProject({ ...project, name, instructions });
+      if (isNew) newChat(false, saved.id);
+      onClose();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  return (
+    <div className="scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal small" role="dialog" aria-modal="true" aria-label={isNew ? "New project" : "Project settings"}>
+        <section className="modal-body">
+          <button className="icon-btn modal-close" onClick={onClose} aria-label="Close">
+            <X size={18} />
+          </button>
+          <h3>{isNew ? "New project" : "Project settings"}</h3>
+          <p className="muted" style={{ marginTop: 0 }}>Chats in a project share its instructions, like the budget for a remodel or the style for a class.</p>
+          {error && <div className="banner danger">{error}</div>}
+          <label className="form-field">
+            <span>Name</span>
+            <input className="text-input" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Kitchen remodel" />
+          </label>
+          <label className="form-field">
+            <span>Instructions for BYTE</span>
+            <textarea
+              className="about-me"
+              rows={6}
+              value={instructions}
+              maxLength={4000}
+              onChange={(e) => setInstructions(e.target.value)}
+              placeholder="Budget is $20,000. The kitchen is 12 × 14 ft. We prefer light wood and want to keep the window."
+            />
+          </label>
+          <div className="row" style={{ gap: 8, marginTop: 12 }}>
+            {!isNew && (
+              <button
+                className="btn sm ghost"
+                style={{ color: "var(--danger)" }}
+                onClick={async () => {
+                  if (await ask(`Delete the project “${project.name}”? Its chats are kept.`, { title: "Delete project", kind: "warning" })) {
+                    await deleteProject(project.id);
+                    onClose();
+                  }
+                }}
+              >
+                <Trash2 size={14} /> Delete project
+              </button>
+            )}
+            <span className="spacer" style={{ flex: 1 }} />
+            <button className="btn sm ghost" onClick={onClose}>Cancel</button>
+            <button className="btn sm primary" disabled={!name.trim()} onClick={() => void save()}>
+              {isNew ? "Create" : "Save"}
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }
 
@@ -198,6 +320,7 @@ function ConvRow({ c, active, folders, indent }: { c: Conversation; active: bool
   const selectChat = useStore((s) => s.selectChat);
   const deleteChat = useStore((s) => s.deleteChat);
   const updateChat = useStore((s) => s.updateChat);
+  const projects = useStore((s) => s.projects);
   const [menu, setMenu] = useState(false);
   const [editing, setEditing] = useState<"title" | "folder" | null>(null);
   const [value, setValue] = useState("");
@@ -239,7 +362,12 @@ function ConvRow({ c, active, folders, indent }: { c: Conversation; active: bool
 
   return (
     <div className={`conv-row ${indent ? "indent" : ""}`} ref={ref}>
-      <button className="conv-item" aria-current={active} onClick={() => void selectChat(c.id)} title={c.title}>
+      <button
+        className="conv-item"
+        aria-current={active}
+        onClick={() => void selectChat(c.id)}
+        title={[c.title, c.summary, c.tags?.length ? c.tags.map((t) => `#${t}`).join(" ") : ""].filter(Boolean).join("\n")}
+      >
         {c.private ? <Lock size={14} /> : c.pinned ? <Pin size={14} /> : <MessageSquare size={15} />}
         <span>{c.title}</span>
       </button>
@@ -263,6 +391,18 @@ function ConvRow({ c, active, folders, indent }: { c: Conversation; active: bool
                     <FolderInput size={14} /> Move to {f}
                   </button>
                 ))}
+              {projects
+                .filter((p) => p.id !== c.projectId)
+                .map((p) => (
+                  <button key={p.id} role="menuitem" onClick={() => { setMenu(false); void updateChat(c.id, { projectId: p.id }); }}>
+                    <Briefcase size={14} /> Move to {p.name}
+                  </button>
+                ))}
+              {c.projectId && (
+                <button role="menuitem" onClick={() => { setMenu(false); void updateChat(c.id, { projectId: "" }); }}>
+                  <Briefcase size={14} /> Remove from project
+                </button>
+              )}
               <button role="menuitem" onClick={() => { setMenu(false); setValue(""); setEditing("folder"); }}>
                 <Folder size={14} /> New folder…
               </button>

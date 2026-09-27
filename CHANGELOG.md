@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.0-test.6 — Phase 3 (part 2): edit & versions, projects, profiles
+
+- **Edit any message you sent** (pencil icon): BYTE answers the new version, and the old one is kept.
+  **Regenerate** also keeps the earlier answer. Switch between versions with ◀ 1 / 2 ▶.
+- **Automatic titles, summaries and tags**: after the first answer BYTE names the chat (e.g. "Quarterly
+  taxes") and writes a one-line summary with tags. Hover a chat to see them; search finds them too.
+  A title you type yourself is never replaced.
+- **Projects**: group chats that share instructions ("Budget is $20k, we like light wood"). Every chat in
+  the project follows them. Create one with the folder-plus icon next to *Projects*; move chats in from
+  the ⋯ menu.
+- **Profiles** (Settings → About): separate chats, memories and settings for different people or for
+  work and personal. Downloaded models are shared. Switching restarts BYTE.
+- **Interrupted answers**: if BYTE was closed mid-answer, the chat says so and offers *Try again*.
+
 ## 1.0.0-test.5 — Phase 3 (part 1): saved chats and memory
 
 - **Chats are saved in an encrypted database** on your Mac (SQLCipher). Chats from earlier test builds are

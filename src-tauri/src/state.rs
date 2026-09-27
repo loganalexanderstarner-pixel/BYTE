@@ -31,14 +31,14 @@ impl AppState {
         let settings = Settings::load(&paths.settings_file);
         AppState {
             settings: Mutex::new(settings),
-            engine: Engine::new(paths.data.join("engine.pid")),
-            extras: Extras::new(paths.data.clone()),
+            engine: Engine::new(paths.root.join("engine.pid")),
+            extras: Extras::new(paths.root.clone()),
             downloads: Downloads::default(),
             generations: Generations::default(),
             net: crate::tools::fetch::web_client(),
             local_http: crate::chat::local_client(),
             actions: crate::tools::ActionLog::new(paths.data.join("actions.jsonl")),
-            catalog: crate::models::CatalogStore::load(paths.data.join("catalog.json")),
+            catalog: crate::models::CatalogStore::load(paths.root.join("catalog.json")),
             db: crate::db::Db::open(&paths.data).unwrap_or_else(|e| {
                 // Chats still work for this session; they just aren't kept.
                 log::error!("database unavailable, chats won't be saved this session: {e}");

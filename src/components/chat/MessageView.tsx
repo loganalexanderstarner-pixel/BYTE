@@ -1,6 +1,8 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Brain, Check, ChevronRight, Copy, Lightbulb, RefreshCw, TriangleAlert } from "lucide-react";
+import { Brain, Check, ChevronLeft, ChevronRight, Copy, Lightbulb, Pencil, RefreshCw, TriangleAlert } from "lucide-react";
 import { memo, useMemo, useState, type MouseEvent } from "react";
+
+import { versionInfo } from "../../lib/branches";
 
 import { Logo } from "../../design/Logo";
 import { duration, tokensPerSec } from "../../lib/format";
@@ -50,6 +52,89 @@ function MemorySuggestion({ messageId, step }: { messageId: string; step: Step }
           <button className="btn sm ghost" onClick={() => void resolve(messageId, step.id, false)}>No thanks</button>
         </>
       )}
+    </div>
+  );
+}
+
+/** ◀ 2 / 3 ▶ for messages that have other versions. */
+function VersionSwitcher({ message }: { message: Message }) {
+  const showVersion = useStore((s) => s.showVersion);
+  const busy = useStore((s) => s.running.length > 0);
+  const { count, index } = versionInfo(message);
+  if (count < 2) return null;
+  return (
+    <span className="versions" aria-label={`Version ${index + 1} of ${count}`}>
+      <button className="icon-btn" disabled={busy || index === 0} onClick={() => showVersion(message.id, index - 1)} title="Previous version">
+        <ChevronLeft size={14} />
+      </button>
+      <span>
+        {index + 1} / {count}
+      </span>
+      <button className="icon-btn" disabled={busy || index === count - 1} onClick={() => showVersion(message.id, index + 1)} title="Next version">
+        <ChevronRight size={14} />
+      </button>
+    </span>
+  );
+}
+
+function UserMessage({ message }: { message: Message }) {
+  const editMessage = useStore((s) => s.editMessage);
+  const busy = useStore((s) => s.running.length > 0);
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(message.content);
+
+  if (editing) {
+    return (
+      <div className="msg user editing">
+        <textarea
+          className="edit-box"
+          autoFocus
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              setEditing(false);
+              void editMessage(message.id, text);
+            }
+            if (e.key === "Escape") setEditing(false);
+          }}
+          aria-label="Edit message"
+        />
+        <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
+          <button className="btn sm ghost" onClick={() => setEditing(false)}>Cancel</button>
+          <button
+            className="btn sm primary"
+            disabled={!text.trim() || text.trim() === message.content.trim()}
+            onClick={() => {
+              setEditing(false);
+              void editMessage(message.id, text);
+            }}
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="msg user">
+      <div className="bubble">{message.content}</div>
+      <div className={`msg-actions user-actions ${versionInfo(message).count > 1 ? "visible" : ""}`}>
+        <VersionSwitcher message={message} />
+        {!busy && (
+          <button
+            className="icon-btn"
+            title="Edit (keeps the current version)"
+            onClick={() => {
+              setText(message.content);
+              setEditing(true);
+            }}
+          >
+            <Pencil size={14} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -114,16 +199,29 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
           </div>
         </div>
       )}
-      {message.status === "cancelled" && <div className="faint" style={{ fontSize: "0.85em", marginTop: 6 }}>Stopped.</div>}
+      {message.status === "cancelled" && !message.interrupted && (
+        <div className="faint" style={{ fontSize: "0.85em", marginTop: 6 }}>Stopped.</div>
+      )}
+      {message.interrupted && (
+        <div className="interrupted">
+          <span>BYTE was closed before finishing this answer.</span>
+          {isLast && (
+            <button className="btn sm" onClick={() => void regenerate()}>
+              <RefreshCw size={13} /> Try again
+            </button>
+          )}
+        </div>
+      )}
       {!generating && (
         <div className={`msg-actions ${isLast ? "visible" : ""}`}>
+          <VersionSwitcher message={message} />
           {message.content && (
             <button className="icon-btn" onClick={copy} title="Copy">
               {copied ? <Check size={15} /> : <Copy size={15} />}
             </button>
           )}
           {isLast && (
-            <button className="icon-btn" onClick={() => void regenerate()} title="Regenerate">
+            <button className="icon-btn" onClick={() => void regenerate()} title="Regenerate (keeps this answer as another version)">
               <RefreshCw size={15} />
             </button>
           )}
@@ -147,12 +245,6 @@ export const MessageView = memo(function MessageView({
   isLast: boolean;
   generating: boolean;
 }) {
-  if (message.role === "user") {
-    return (
-      <div className="msg user">
-        <div className="bubble">{message.content}</div>
-      </div>
-    );
-  }
+  if (message.role === "user") return <UserMessage message={message} />;
   return <AssistantMessage message={message} isLast={isLast} generating={generating} />;
 });

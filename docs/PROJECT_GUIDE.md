@@ -10,7 +10,7 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 |---|---|---|
 | 1 | Foundation: engine sidecar, model catalog/downloader, RAM planner, streaming chat, modes, thinking, onboarding, logo, themes, CI/release | ✅ Done (commit 47d952e) |
 | 2 | Agent & web: tool registry, action log, web search/read, forced grounding, citations, calculator | ✅ Done (test.2) |
-| 3 | Memory: encrypted DB, chats, memory/About me, projects, profiles, branching, pins, export | 🟡 Part 1 done: encrypted DB, search, pins, folders, private chats, memory + About me, export. Next: branching/edit, auto summaries & tags, projects, profiles |
+| 3 | Memory: encrypted DB, chats, memory/About me, projects, profiles, branching, pins, export | ✅ Done (test.5 + test.6): encrypted DB, search, pins, folders, private chats, memory + About me, export, edit & versions, auto titles/summaries/tags, projects, profiles, interrupted-answer recovery |
 | 4 | Files & knowledge base: parsers, OCR, embeddings, folder indexing, reader | Planned |
 | 5 | Documents: PDF/PPTX/DOCX/HTML, edit existing files, infographics, math/diagrams | Planned |
 | 6 | Research+: Deep/Extended, academic, quote finder, fact-check, compare, web agent, YouTube | Planned |
@@ -35,6 +35,18 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 - Memory: `settings.aboutMe` + `memories` rows go into the system prompt (`prompt::memory_section`, 4 KB cap).
   The `remember` tool only *suggests*; the UI shows Save / No thanks and calls `memory_add(text, "chat")`.
 - `settings.loadedAlongside` lists extra models to reload after the main engine starts (`commands::load_extra`).
+- **Versions** (`src/lib/branches.ts`): editing a user message or regenerating keeps the old thread in the
+  message's `alts` (list of message lists from that position) with `version` = its index. Stored inside the
+  message JSON, so the DB schema doesn't change; only the visible version is sent to the model and indexed.
+- **Auto titles** (`summarize.rs`): after the first answer the UI calls `chat_autotitle`; one non-streaming
+  JSON request (grammar-forced, thinking off). Replies that copy the prompt's example are rejected. Stored
+  with `Db::set_summary`; a user-typed title sets `title_locked`. Summary + tags are added to the search
+  index's title column.
+- **Projects**: `projects` table; `conversations.project_id`; `chat_send` gets `projectId` and appends
+  `prompt::project_section`. Schema v2 migration adds tags, project_id, title_locked, projects.
+- **Profiles** (`profiles.rs`): `profiles.json` in the app data root. The default profile uses the root
+  folder (no migration); others use `profiles/<id>/` for `byte.db`, `db.key`, `settings.json`,
+  `actions.jsonl`. Shared in the root: models, catalog, engine PID files, logs. Switching restarts the app.
 
 ## Model catalog (added after Phase 2)
 

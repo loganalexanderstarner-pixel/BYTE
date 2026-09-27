@@ -34,6 +34,8 @@ src-tauri/                Rust core (Tauri 2)
   src/models.rs           catalog + resumable SHA-256-verified downloader
   src/db.rs               encrypted SQLite (SQLCipher): chats, FTS search, memories
   src/export.rs           export chats to Markdown + JSON
+  src/summarize.rs        automatic chat title / summary / tags (local model, JSON)
+  src/profiles.rs         profiles (separate data folders; models shared)
   src/chip.rs             Apple Silicon chip detection + speed estimates
   src/system.rs           hardware info + RAM planner (fit, context size)
   src/chat.rs             SSE streaming client, context fitting, cancellation, e2e test

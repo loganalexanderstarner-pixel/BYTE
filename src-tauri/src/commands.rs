@@ -5,7 +5,9 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, State};
 
 use crate::chat::{self, ChatEvent, ChatMessage};
-use crate::db::{ConversationMeta, Memory, MetaPatch, SearchHit};
+use crate::db::{ConversationMeta, Memory, MetaPatch, Project, SearchHit};
+use crate::profiles::{Profile, Profiles};
+use crate::summarize::ChatSummary;
 use crate::engine::{EngineStatus, LoadedModel, DEFAULT_CONTEXT, EXTRA_CONTEXT};
 use crate::error::{AppError, AppResult};
 use crate::models::{self, ModelStatus};
@@ -232,6 +234,9 @@ pub struct ChatRequest {
     /// Private chat: saved memories aren't used and nothing new is suggested.
     #[serde(default)]
     pub private: bool,
+    /// The chat's project, whose instructions apply.
+    #[serde(default)]
+    pub project_id: Option<String>,
 }
 
 #[tauri::command]
@@ -264,6 +269,9 @@ pub async fn chat_send(state: State<'_, AppState>, request: ChatRequest, on_even
     if memory {
         let memories: Vec<String> = state.db.memories()?.into_iter().map(|m| m.text).collect();
         system.push_str(&prompt::memory_section(about_me.as_deref(), &memories, true));
+    }
+    if let Some(project) = request.project_id.as_deref().filter(|p| !p.is_empty()).map(|p| state.db.project(p)).transpose()?.flatten() {
+        system.push_str(&prompt::project_section(&project.name, &project.instructions));
     }
     let reserve = plan.max_tokens + plan.thinking_budget.max(0) as u32;
     let history = chat::fit_history(&request.messages, &system, ep.context, reserve.min(ep.context / 2));
@@ -378,4 +386,69 @@ pub fn memory_delete(state: State<'_, AppState>, id: String) -> AppResult<()> {
 #[tauri::command]
 pub fn data_wipe(state: State<'_, AppState>) -> AppResult<()> {
     state.db.wipe()
+}
+
+/// Gives a saved chat a short title, one-line summary and tags, using the main
+/// model. Does nothing if it already has a summary.
+#[tauri::command]
+pub async fn chat_autotitle(state: State<'_, AppState>, id: String) -> AppResult<Option<ChatSummary>> {
+    let Some(conv) = state.db.load(&id)? else { return Ok(None) };
+    if conv.get("summary").and_then(|s| s.as_str()).is_some_and(|s| !s.is_empty()) {
+        return Ok(None);
+    }
+    let messages = conv.get("messages").and_then(|m| m.as_array()).cloned().unwrap_or_default();
+    if !messages.iter().any(|m| m.get("role").and_then(|r| r.as_str()) == Some("assistant")) {
+        return Ok(None);
+    }
+    let Some(ep) = state.engine.endpoint().await else { return Ok(None) };
+    let transcript = crate::summarize::transcript(&messages, 3000);
+    let mut s = crate::summarize::summarize(&state.local_http, &ep, &transcript).await?;
+    s.title = state.db.set_summary(&id, Some(&s.title), &s.summary, &s.tags)?;
+    Ok(Some(s))
+}
+
+#[tauri::command]
+pub fn projects_list(state: State<'_, AppState>) -> AppResult<Vec<Project>> {
+    state.db.projects()
+}
+
+#[tauri::command]
+pub fn project_save(state: State<'_, AppState>, project: Project) -> AppResult<Project> {
+    state.db.save_project(&project)
+}
+
+#[tauri::command]
+pub fn project_delete(state: State<'_, AppState>, id: String) -> AppResult<()> {
+    state.db.delete_project(&id)
+}
+
+#[tauri::command]
+pub fn profiles_list(state: State<'_, AppState>) -> Profiles {
+    Profiles::load(&state.paths.root)
+}
+
+#[tauri::command]
+pub fn profile_create(state: State<'_, AppState>, name: String) -> AppResult<Profile> {
+    Profiles::load(&state.paths.root).create(&state.paths.root, &name)
+}
+
+#[tauri::command]
+pub fn profile_rename(state: State<'_, AppState>, id: String, name: String) -> AppResult<()> {
+    Profiles::load(&state.paths.root).rename(&state.paths.root, &id, &name)
+}
+
+#[tauri::command]
+pub fn profile_delete(state: State<'_, AppState>, id: String) -> AppResult<()> {
+    Profiles::load(&state.paths.root).delete(&state.paths.root, &id)
+}
+
+/// Makes `id` the active profile and restarts BYTE into it.
+#[tauri::command]
+pub async fn profile_switch(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<()> {
+    Profiles::load(&state.paths.root).set_active(&state.paths.root, &id)?;
+    state.engine.stop().await;
+    for e in state.extras.all().await {
+        e.stop().await;
+    }
+    app.restart();
 }

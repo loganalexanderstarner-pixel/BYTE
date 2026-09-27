@@ -33,6 +33,35 @@ export interface ConversationMeta {
   pinned: boolean;
   folder: string | null;
   messageCount: number;
+  /** One-line summary BYTE writes after the first answer. */
+  summary: string | null;
+  tags: string[];
+  projectId: string | null;
+}
+
+/** Chats that share instructions. */
+export interface Project {
+  id: string;
+  name: string;
+  instructions: string;
+  createdAt: number;
+}
+
+export interface Profile {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
+export interface Profiles {
+  active: string;
+  profiles: Profile[];
+}
+
+export interface ChatSummary {
+  title: string;
+  summary: string;
+  tags: string[];
 }
 
 export interface SearchHit {

@@ -134,3 +134,12 @@ mod memory_tests {
         assert_eq!(memory_section(Some("  "), &[], false), "");
     }
 }
+
+/// Instructions for every chat in a project.
+pub fn project_section(name: &str, instructions: &str) -> String {
+    let i = instructions.trim();
+    if i.is_empty() {
+        return format!("\n\nThis chat is part of the user's project \"{name}\".");
+    }
+    format!("\n\nThis chat is part of the user's project \"{name}\". Follow the project's instructions:\n{i}")
+}

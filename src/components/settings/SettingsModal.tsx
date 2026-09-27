@@ -1,5 +1,5 @@
 import { open as openDialog, ask } from "@tauri-apps/plugin-dialog";
-import { Brain, Cpu, Download, HardDrive, Info, Palette, Plus, RefreshCw, ShieldCheck, Trash2, X } from "lucide-react";
+import { Brain, Cpu, Download, HardDrive, Info, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { THEMES } from "../../design/themes";
@@ -7,7 +7,7 @@ import { Logo } from "../../design/Logo";
 import { api, errorText } from "../../lib/api";
 import { bytes, contextLabel, ramSize } from "../../lib/format";
 import { displayName } from "../../lib/models";
-import type { Memory } from "../../lib/types";
+import type { Memory, Profiles } from "../../lib/types";
 import { useStore, type SettingsTab } from "../../state/store";
 import { CatalogBrowser } from "../models/CatalogBrowser";
 
@@ -371,6 +371,7 @@ function AboutTab() {
           />
         </div>
       </div>
+      <ProfilesSection />
       <div className="section">
         <h4>Privacy</h4>
         <p className="row" style={{ alignItems: "flex-start" }}>
@@ -395,5 +396,96 @@ function AboutTab() {
         <button className="btn sm" onClick={() => void update({ onboardingComplete: false })}>Show the welcome guide again</button>
       </div>
     </>
+  );
+}
+
+/** Separate chats, memories and settings for different people (or work and
+ * personal). Downloaded models are shared. Switching restarts BYTE. */
+function ProfilesSection() {
+  const [data, setData] = useState<Profiles | null>(null);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const refresh = () => api.profilesList().then(setData).catch(() => setData(null));
+  useEffect(() => {
+    void refresh();
+  }, []);
+  const guard = async (fn: () => Promise<unknown>) => {
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
+  if (!data) return null;
+  return (
+    <div className="section">
+      <h4>Profiles</h4>
+      <p className="faint" style={{ marginTop: 0, fontSize: "0.88em" }}>
+        Each profile has its own chats, memories and settings. Downloaded models are shared. Switching restarts BYTE.
+      </p>
+      {error && <div className="banner danger">{error}</div>}
+      {data.profiles.map((p) => {
+        const active = p.id === data.active;
+        return (
+          <div key={p.id} className={`profile-row ${active ? "active" : ""}`}>
+            <UserRound size={15} style={{ color: active ? "var(--accent)" : undefined }} />
+            <span className="grow">
+              {p.name}
+              {active && <span className="faint"> · in use</span>}
+            </span>
+            {!active && (
+              <button
+                className="btn sm"
+                onClick={() =>
+                  void guard(async () => {
+                    if (await ask(`Switch to “${p.name}”? BYTE will restart.`, { title: "Switch profile" })) await api.profileSwitch(p.id);
+                  })
+                }
+              >
+                Switch
+              </button>
+            )}
+            {!active && p.id !== "default" && (
+              <button
+                className="icon-btn"
+                title="Delete profile"
+                onClick={() =>
+                  void guard(async () => {
+                    const ok = await ask(`Delete the profile “${p.name}” and all of its chats and memories? This can't be undone.`, {
+                      title: "Delete profile",
+                      kind: "warning",
+                    });
+                    if (ok) {
+                      await api.profileDelete(p.id);
+                      await refresh();
+                    }
+                  })
+                }
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+        );
+      })}
+      <form
+        className="row"
+        style={{ gap: 8 }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void guard(async () => {
+            await api.profileCreate(draft);
+            setDraft("");
+            await refresh();
+          });
+        }}
+      >
+        <input className="text-input grow" value={draft} maxLength={40} onChange={(e) => setDraft(e.target.value)} placeholder="New profile name" aria-label="New profile name" />
+        <button className="btn sm" type="submit" disabled={!draft.trim()}>
+          <Plus size={14} /> Add profile
+        </button>
+      </form>
+    </div>
   );
 }

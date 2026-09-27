@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 1;
+const SCHEMA_VERSION: i32 = 2;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -38,6 +38,10 @@ pub struct ConversationMeta {
     pub pinned: bool,
     pub folder: Option<String>,
     pub message_count: i64,
+    /// One-line summary written by BYTE after the first answer.
+    pub summary: Option<String>,
+    pub tags: Vec<String>,
+    pub project_id: Option<String>,
 }
 
 /// Changes to a chat's sidebar properties (only the fields present change).
@@ -48,6 +52,20 @@ pub struct MetaPatch {
     pub pinned: Option<bool>,
     /// `Some("")` removes the chat from its folder.
     pub folder: Option<String>,
+    /// `Some("")` removes the chat from its project.
+    pub project_id: Option<String>,
+}
+
+/// A project: chats that share instructions (e.g. "Kitchen remodel").
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Project {
+    pub id: String,
+    pub name: String,
+    /// Added to the system prompt of every chat in the project.
+    pub instructions: String,
+    #[serde(default)]
+    pub created_at: i64,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -116,7 +134,8 @@ impl Db {
         let conn = self.conn();
         let mut st = conn.prepare(
             "SELECT c.id, c.title, c.created_at, c.updated_at, c.pinned, c.folder,
-                    (SELECT count(*) FROM messages m WHERE m.conversation_id = c.id)
+                    (SELECT count(*) FROM messages m WHERE m.conversation_id = c.id),
+                    c.summary, c.tags, c.project_id
              FROM conversations c ORDER BY c.pinned DESC, c.updated_at DESC",
         )?;
         let rows = st.query_map([], |r| {
@@ -128,6 +147,9 @@ impl Db {
                 pinned: r.get::<_, i64>(4)? != 0,
                 folder: r.get(5)?,
                 message_count: r.get(6)?,
+                summary: r.get(7)?,
+                tags: split_tags(r.get::<_, Option<String>>(8)?),
+                project_id: r.get(9)?,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
@@ -138,7 +160,7 @@ impl Db {
         let conn = self.conn();
         let meta = conn
             .query_row(
-                "SELECT title, created_at, updated_at, pinned, folder FROM conversations WHERE id = ?1",
+                "SELECT title, created_at, updated_at, pinned, folder, summary, tags, project_id FROM conversations WHERE id = ?1",
                 [id],
                 |r| {
                     Ok(serde_json::json!({
@@ -148,6 +170,9 @@ impl Db {
                         "updatedAt": r.get::<_, i64>(2)?,
                         "pinned": r.get::<_, i64>(3)? != 0,
                         "folder": r.get::<_, Option<String>>(4)?,
+                        "summary": r.get::<_, Option<String>>(5)?,
+                        "tags": split_tags(r.get::<_, Option<String>>(6)?),
+                        "projectId": r.get::<_, Option<String>>(7)?,
                     }))
                 },
             )
@@ -172,14 +197,22 @@ impl Db {
         let updated = conv.get("updatedAt").and_then(Value::as_i64).unwrap_or(now);
         let messages = conv.get("messages").and_then(Value::as_array).cloned().unwrap_or_default();
 
+        let project = conv.get("projectId").and_then(Value::as_str).filter(|p| !p.is_empty());
         let mut conn = self.conn();
         let tx = conn.transaction()?;
-        // Pinned/folder are changed through `update_meta`, so keep them on upsert.
+        // Pinned/folder/project/summary are changed through `update_meta` and
+        // `set_summary`, so an upsert keeps them. Once the user renamed the chat
+        // or BYTE titled it, the UI's first-message title no longer applies.
         tx.execute(
-            "INSERT INTO conversations (id, title, created_at, updated_at) VALUES (?1, ?2, ?3, ?4)
-             ON CONFLICT(id) DO UPDATE SET title = excluded.title, updated_at = excluded.updated_at",
-            params![id, title, created, updated],
+            "INSERT INTO conversations (id, title, created_at, updated_at, project_id) VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(id) DO UPDATE SET
+                 title = CASE WHEN conversations.title_locked = 1 OR conversations.summary IS NOT NULL THEN conversations.title ELSE excluded.title END,
+                 updated_at = excluded.updated_at",
+            params![id, title, created, updated, project],
         )?;
+        let search_title: String = tx.query_row("SELECT title, summary, tags FROM conversations WHERE id = ?1", [id], |r| {
+            Ok(search_label(&r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?.as_deref(), r.get::<_, Option<String>>(2)?.as_deref()))
+        })?;
         tx.execute("DELETE FROM messages WHERE conversation_id = ?1", [id])?;
         tx.execute("DELETE FROM messages_fts WHERE conversation_id = ?1", [id])?;
         {
@@ -193,7 +226,7 @@ impl Db {
                 let content = m.get("content").and_then(Value::as_str).unwrap_or("");
                 let at = m.get("createdAt").and_then(Value::as_i64).unwrap_or(now);
                 ins.execute(params![mid, id, seq as i64, role, content, m.to_string(), at])?;
-                fts.execute(params![content, title, id, mid])?;
+                fts.execute(params![content, search_title, id, mid])?;
             }
         }
         tx.commit()?;
@@ -212,8 +245,14 @@ impl Db {
     pub fn update_meta(&self, id: &str, patch: &MetaPatch) -> AppResult<()> {
         let conn = self.conn();
         if let Some(t) = patch.title.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
-            conn.execute("UPDATE conversations SET title = ?2 WHERE id = ?1", params![id, t])?;
-            conn.execute("UPDATE messages_fts SET title = ?2 WHERE conversation_id = ?1", params![id, t])?;
+            // Renamed by the user: automatic titles won't replace it.
+            conn.execute("UPDATE conversations SET title = ?2, title_locked = 1 WHERE id = ?1", params![id, t])?;
+            refresh_search_title(&conn, id)?;
+        }
+        if let Some(p) = &patch.project_id {
+            let p = p.trim();
+            let p = (!p.is_empty()).then_some(p);
+            conn.execute("UPDATE conversations SET project_id = ?2 WHERE id = ?1", params![id, p])?;
         }
         if let Some(p) = patch.pinned {
             conn.execute("UPDATE conversations SET pinned = ?2 WHERE id = ?1", params![id, p as i64])?;
@@ -271,6 +310,62 @@ impl Db {
         Ok(out)
     }
 
+    /// Stores BYTE's automatic title (unless the user renamed the chat), one-line
+    /// summary and tags. Returns the title now in effect.
+    pub fn set_summary(&self, id: &str, title: Option<&str>, summary: &str, tags: &[String]) -> AppResult<String> {
+        let conn = self.conn();
+        let tags = tags.iter().map(|t| t.trim().to_lowercase()).filter(|t| !t.is_empty()).take(5).collect::<Vec<_>>().join(",");
+        if let Some(t) = title.map(str::trim).filter(|t| !t.is_empty()) {
+            conn.execute("UPDATE conversations SET title = ?2 WHERE id = ?1 AND title_locked = 0", params![id, t])?;
+        }
+        conn.execute("UPDATE conversations SET summary = ?2, tags = ?3 WHERE id = ?1", params![id, summary.trim(), tags])?;
+        refresh_search_title(&conn, id)?;
+        Ok(conn.query_row("SELECT title FROM conversations WHERE id = ?1", [id], |r| r.get(0))?)
+    }
+
+    // ---------- projects ----------
+
+    pub fn projects(&self) -> AppResult<Vec<Project>> {
+        let conn = self.conn();
+        let mut st = conn.prepare("SELECT id, name, instructions, created_at FROM projects ORDER BY name COLLATE NOCASE")?;
+        let rows = st.query_map([], |r| Ok(Project { id: r.get(0)?, name: r.get(1)?, instructions: r.get(2)?, created_at: r.get(3)? }))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    pub fn project(&self, id: &str) -> AppResult<Option<Project>> {
+        Ok(self
+            .conn()
+            .query_row("SELECT id, name, instructions, created_at FROM projects WHERE id = ?1", [id], |r| {
+                Ok(Project { id: r.get(0)?, name: r.get(1)?, instructions: r.get(2)?, created_at: r.get(3)? })
+            })
+            .optional()?)
+    }
+
+    /// Creates or updates a project (an empty id creates a new one).
+    pub fn save_project(&self, p: &Project) -> AppResult<Project> {
+        let name = p.name.trim();
+        if name.is_empty() {
+            return Err(AppError::msg("Give the project a name."));
+        }
+        let instructions: String = p.instructions.trim().chars().take(4000).collect();
+        let id = if p.id.is_empty() { uuid::Uuid::new_v4().to_string() } else { p.id.clone() };
+        let created = if p.created_at > 0 { p.created_at } else { chrono::Utc::now().timestamp_millis() };
+        self.conn().execute(
+            "INSERT INTO projects (id, name, instructions, created_at) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(id) DO UPDATE SET name = excluded.name, instructions = excluded.instructions",
+            params![id, name, instructions, created],
+        )?;
+        Ok(Project { id, name: name.to_string(), instructions, created_at: created })
+    }
+
+    /// Deletes a project; its chats stay, outside any project.
+    pub fn delete_project(&self, id: &str) -> AppResult<()> {
+        let conn = self.conn();
+        conn.execute("UPDATE conversations SET project_id = NULL WHERE project_id = ?1", [id])?;
+        conn.execute("DELETE FROM projects WHERE id = ?1", [id])?;
+        Ok(())
+    }
+
     // ---------- memories ----------
 
     pub fn memories(&self) -> AppResult<Vec<Memory>> {
@@ -324,13 +419,36 @@ impl Db {
 
     /// Deletes every chat and memory (Settings → Memory → Erase everything).
     pub fn wipe(&self) -> AppResult<()> {
-        self.conn().execute_batch("DELETE FROM messages_fts; DELETE FROM messages; DELETE FROM conversations; DELETE FROM memories;")?;
+        self.conn().execute_batch(
+            "DELETE FROM messages_fts; DELETE FROM messages; DELETE FROM conversations; DELETE FROM memories; DELETE FROM projects;",
+        )?;
         Ok(())
     }
 }
 
 fn str_field<'a>(v: &'a Value, key: &str) -> AppResult<&'a str> {
     v.get(key).and_then(Value::as_str).filter(|s| !s.is_empty()).ok_or_else(|| AppError::msg(format!("missing {key}")))
+}
+
+fn split_tags(s: Option<String>) -> Vec<String> {
+    s.unwrap_or_default().split(',').map(str::trim).filter(|t| !t.is_empty()).map(String::from).collect()
+}
+
+/// What the search index holds as a chat's "title": title, summary and tags.
+fn search_label(title: &str, summary: Option<&str>, tags: Option<&str>) -> String {
+    [Some(title), summary, tags.map(|t| t.replace(',', " ")).as_deref()].into_iter().flatten().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ")
+}
+
+fn refresh_search_title(conn: &Connection, id: &str) -> AppResult<()> {
+    let label: Option<String> = conn
+        .query_row("SELECT title, summary, tags FROM conversations WHERE id = ?1", [id], |r| {
+            Ok(search_label(&r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?.as_deref(), r.get::<_, Option<String>>(2)?.as_deref()))
+        })
+        .optional()?;
+    if let Some(l) = label {
+        conn.execute("UPDATE messages_fts SET title = ?2 WHERE conversation_id = ?1", params![id, l])?;
+    }
+    Ok(())
 }
 
 fn migrate(conn: &Connection) -> AppResult<()> {
@@ -372,7 +490,24 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 1);
+    if version < 2 {
+        // Automatic summaries/tags, projects, and titles the user typed.
+        conn.execute_batch(
+            "BEGIN;
+             ALTER TABLE conversations ADD COLUMN tags TEXT;
+             ALTER TABLE conversations ADD COLUMN project_id TEXT;
+             ALTER TABLE conversations ADD COLUMN title_locked INTEGER NOT NULL DEFAULT 0;
+             CREATE TABLE projects (
+                 id TEXT PRIMARY KEY,
+                 name TEXT NOT NULL,
+                 instructions TEXT NOT NULL DEFAULT '',
+                 created_at INTEGER NOT NULL
+             );
+             PRAGMA user_version = 2;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 2);
     Ok(())
 }
 
@@ -474,7 +609,7 @@ mod tests {
         b["updatedAt"] = json!(9000);
         db.save(&b).unwrap();
         assert_eq!(db.list().unwrap()[0].id, "b");
-        db.update_meta("a", &MetaPatch { pinned: Some(true), folder: Some("Work".into()), title: Some("Renamed".into()) }).unwrap();
+        db.update_meta("a", &MetaPatch { pinned: Some(true), folder: Some("Work".into()), title: Some("Renamed".into()), project_id: None }).unwrap();
         let list = db.list().unwrap();
         assert_eq!((list[0].id.as_str(), list[0].pinned, list[0].folder.as_deref(), list[0].title.as_str()), ("a", true, Some("Work"), "Renamed"));
         // A later save from the UI keeps the pin and folder.
@@ -552,6 +687,72 @@ mod tests {
         assert!(db.list().unwrap().is_empty());
         let aside = std::fs::read_dir(dir.path()).unwrap().filter_map(|e| e.ok()).any(|e| e.file_name().to_string_lossy().starts_with("byte.db.unreadable-"));
         assert!(aside);
+    }
+
+    #[test]
+    fn summaries_tags_and_locked_titles() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Db::open(dir.path()).unwrap();
+        db.save(&chat("a", "plan a weekend in", &[("user", "plan a weekend in lisbon"), ("assistant", "Sure")])).unwrap();
+        let t = db.set_summary("a", Some("Lisbon weekend plan"), "Three-day itinerary for Lisbon.", &["Travel".into(), "Portugal".into()]).unwrap();
+        assert_eq!(t, "Lisbon weekend plan");
+        let meta = &db.list().unwrap()[0];
+        assert_eq!(meta.summary.as_deref(), Some("Three-day itinerary for Lisbon."));
+        assert_eq!(meta.tags, vec!["travel", "portugal"]);
+        // Tags and summaries are searchable, and survive the next save.
+        db.save(&chat("a", "plan a weekend in", &[("user", "plan a weekend in lisbon"), ("assistant", "Sure"), ("user", "more")])).unwrap();
+        assert_eq!(db.list().unwrap()[0].title, "Lisbon weekend plan");
+        assert_eq!(db.search("portugal", 10).unwrap()[0].conversation_id, "a");
+        assert_eq!(db.search("itinerary", 10).unwrap()[0].conversation_id, "a");
+        // A title the user typed isn't replaced by automatic ones, or by the UI's.
+        db.update_meta("a", &MetaPatch { title: Some("My trip".into()), ..Default::default() }).unwrap();
+        assert_eq!(db.set_summary("a", Some("Other"), "x", &[]).unwrap(), "My trip");
+        db.save(&chat("a", "Something else", &[("user", "hi")])).unwrap();
+        assert_eq!(db.list().unwrap()[0].title, "My trip");
+    }
+
+    #[test]
+    fn projects_group_chats_and_carry_instructions() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Db::open(dir.path()).unwrap();
+        assert!(db.save_project(&Project { id: String::new(), name: " ".into(), instructions: String::new(), created_at: 0 }).is_err());
+        let p = db.save_project(&Project { id: String::new(), name: "Kitchen remodel".into(), instructions: "Budget is $20k.".into(), created_at: 0 }).unwrap();
+        let mut c = chat("a", "Cabinets", &[("user", "oak or maple?")]);
+        c["projectId"] = json!(p.id);
+        db.save(&c).unwrap();
+        assert_eq!(db.list().unwrap()[0].project_id.as_deref(), Some(p.id.as_str()));
+        assert_eq!(db.project(&p.id).unwrap().unwrap().instructions, "Budget is $20k.");
+        db.save_project(&Project { instructions: "Budget is $25k.".into(), ..p.clone() }).unwrap();
+        assert_eq!(db.projects().unwrap()[0].instructions, "Budget is $25k.");
+        db.update_meta("a", &MetaPatch { project_id: Some(String::new()), ..Default::default() }).unwrap();
+        assert_eq!(db.list().unwrap()[0].project_id, None);
+        db.update_meta("a", &MetaPatch { project_id: Some(p.id.clone()), ..Default::default() }).unwrap();
+        db.delete_project(&p.id).unwrap();
+        assert!(db.projects().unwrap().is_empty());
+        assert_eq!(db.list().unwrap()[0].project_id, None);
+    }
+
+    #[test]
+    fn upgrades_a_version_1_database() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("v1.db");
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.pragma_update(None, "key", "x'00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff'").unwrap();
+            conn.execute_batch(
+                "CREATE TABLE conversations (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, pinned INTEGER NOT NULL DEFAULT 0, folder TEXT, summary TEXT);
+                 CREATE TABLE messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE, seq INTEGER NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, data TEXT NOT NULL, created_at INTEGER NOT NULL);
+                 CREATE VIRTUAL TABLE messages_fts USING fts5(content, title, conversation_id UNINDEXED, message_id UNINDEXED, tokenize = 'porter unicode61');
+                 CREATE TABLE memories (id TEXT PRIMARY KEY, text TEXT NOT NULL, source TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+                 INSERT INTO conversations (id, title, created_at, updated_at) VALUES ('old', 'Old chat', 1, 2);
+                 PRAGMA user_version = 1;",
+            )
+            .unwrap();
+        }
+        let db = Db::open_with_key(&path, "x'00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff'").unwrap();
+        let list = db.list().unwrap();
+        assert_eq!((list[0].title.as_str(), list[0].tags.len(), list[0].project_id.as_deref()), ("Old chat", 0, None));
+        assert!(db.projects().unwrap().is_empty());
     }
 
     #[test]
