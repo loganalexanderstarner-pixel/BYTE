@@ -1,16 +1,33 @@
 # Design system and cross-platform plan
 
 Two things Logan asked for, written down so both sessions work from the same
-source: the app should **look like the byte-ai web app**, and it should ship
-on **macOS, Windows and Linux** — each native to its own OS rather than one
-lowest-common-denominator build.
+source.
+
+## What is changing, and what is NOT
+
+Logan's words: *"I like the different themes the macOS app has. I just like
+the setup the web app has — the colours, the branding — vs the weird B. But
+the button setups, the layout, is great."*
+
+So this is **not** "make it look like the web app".
+
+| | decision |
+|---|---|
+| **Layout, button arrangement, command-deck home** | **Keep.** He likes it. Do not restyle toward the web app. |
+| **Having many themes** | **Keep.** The 20-theme plan stands. |
+| **Colour palette** | **Adopt byte-ai's**, as the default/base theme and as the model for how tokens are structured. |
+| **Logo** | **Replace the letter-B mark** (`src/design/Logo.tsx`, currently a drawn `B`) with byte-ai's bolt-in-rounded-square below. |
+
+In short: **byte-ai's skin on the app's bones.** The structure you have is
+right; the palette and the mark are what should come across.
 
 ---
 
 ## Part 1 — the design system, from byte-ai
 
 These are the real values from `byte-ai/app/static/styles.css`, not an
-approximation from screenshots.
+approximation from screenshots. Use them for the default theme and as the
+pattern for the rest — **not** as a reason to reduce the theme count.
 
 ### Palette
 
