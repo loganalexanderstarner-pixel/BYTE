@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { api, errorText, events, inTauri, type ChatPatch, type CloudTurn } from "../lib/api";
+import { idOf, isImage } from "../lib/cloudDocs";
 import { branchAt, switchVersion, versionsAt } from "../lib/branches";
 import { titleFrom } from "../lib/format";
 import type {
@@ -31,6 +32,13 @@ export interface Step {
   summary?: string;
   /** For "remember" suggestions: what the user decided. */
   decision?: "saved" | "dismissed";
+}
+
+/** A photo or file sent with a message (stored on the BYTE cloud). */
+export interface Attachment {
+  id: string;
+  name: string;
+  image: boolean;
 }
 
 export interface Message {
@@ -69,6 +77,8 @@ export interface Message {
   notice?: string;
   /** Thumbs up/down given on the cloud. */
   feedback?: "up" | "down";
+  /** Photos/files sent with this (user) message. */
+  attachments?: Attachment[];
   createdAt: number;
 }
 
@@ -158,6 +168,14 @@ interface State {
   regenerate(): Promise<void>;
   /** Cloud account status (connected, modes). */
   cloud: CloudStatus | null;
+  /** Photos/files waiting to go with the next message (cloud chats). */
+  pending: Attachment[];
+  /** Uploads in progress, and the last upload error. */
+  attaching: number;
+  attachError: string | null;
+  attachFiles(paths: string[]): Promise<void>;
+  attachExisting(a: Attachment): void;
+  removePending(id: string): void;
   refreshCloud(): Promise<void>;
   /** Deepen / justify (new answer), answer-now / stop, or thumbs up/down on a cloud answer. */
   cloudAct(msgId: string, action: "deepen" | "justify" | "answer-now" | "feedback", value?: "up" | "down"): Promise<void>;
@@ -330,7 +348,11 @@ export const useStore = create<State>((set, get) => {
     };
     patchConversation(convId, (c) => ({ ...c, messages: [...c.messages, reply] }));
     let cloud: CloudTurn | undefined;
-    if (useCloud) cloud = cloudTurn(conv, cloudMode);
+    if (useCloud) {
+      cloud = cloudTurn(conv, cloudMode);
+      const asked = [...conv.messages].reverse().find((m) => m.role === "user");
+      if (asked?.attachments?.length) cloud.attachmentIds = asked.attachments.map((a) => a.id);
+    }
     await streamReply(convId, reply, (onEvent) =>
       api.chatSend(
         { requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private, projectId: conv.projectId, cloud },
@@ -505,6 +527,9 @@ export const useStore = create<State>((set, get) => {
     tune: null,
     answerWith: "main",
     cloud: null,
+    pending: [],
+    attaching: 0,
+    attachError: null,
     mode: "auto",
     thinking: "auto",
     sidebarOpen: true,
@@ -588,7 +613,7 @@ export const useStore = create<State>((set, get) => {
         (c) => c.messages.length === 0 && !hasMessages(c) && !!c.private === isPrivate && (c.projectId ?? null) === projectId,
       );
       if (empty) {
-        set({ currentId: empty.id });
+        set({ currentId: empty.id, pending: [] });
         return;
       }
       const conv: Conversation = {
@@ -601,11 +626,11 @@ export const useStore = create<State>((set, get) => {
         projectId,
         loaded: true,
       };
-      set({ conversations: [conv, ...get().conversations], currentId: conv.id });
+      set({ conversations: [conv, ...get().conversations], currentId: conv.id, pending: [] });
     },
 
     async selectChat(id) {
-      set({ currentId: id });
+      set({ currentId: id, pending: get().currentId === id ? get().pending : [] });
       const c = get().conversations.find((x) => x.id === id);
       if (!c || c.loaded || !inTauri) return;
       try {
@@ -674,7 +699,9 @@ export const useStore = create<State>((set, get) => {
         set({ conversations: [conv, ...get().conversations], currentId: conv.id });
         convId = conv.id;
       }
-      const user: Message = { id: uid(), role: "user", content, status: "done", createdAt: Date.now() };
+      const attachments = get().pending;
+      const user: Message = { id: uid(), role: "user", content, status: "done", createdAt: Date.now(), ...(attachments.length ? { attachments } : {}) };
+      set({ pending: [], attachError: null });
       patchConversation(convId, (c) => ({
         ...c,
         title: c.messages.length === 0 ? titleFrom(content) : c.title,
@@ -706,7 +733,8 @@ export const useStore = create<State>((set, get) => {
       if (!conv || !content || get().generating) return;
       const i = conv.messages.findIndex((m) => m.id === msgId);
       if (i < 0 || conv.messages[i].role !== "user") return;
-      const edited: Message = { id: uid(), role: "user", content, status: "done", createdAt: Date.now() };
+      const kept = conv.messages[i].attachments;
+      const edited: Message = { id: uid(), role: "user", content, status: "done", createdAt: Date.now(), ...(kept ? { attachments: kept } : {}) };
       patchConversation(conv.id, (c) => ({ ...c, updatedAt: Date.now(), messages: branchAt(c.messages, i, edited) }));
       await answer(conv.id);
     },
@@ -776,6 +804,40 @@ export const useStore = create<State>((set, get) => {
       await streamReply(conv.id, { ...reply, id: reply.id }, (onEvent) =>
         api.cloudAction({ ...base, requestId: reply.id, action, since: msg.remoteId }, onEvent),
       );
+    },
+
+    async attachFiles(paths) {
+      let convId = get().currentId;
+      if (!convId || !get().conversations.some((c) => c.id === convId)) {
+        const conv: Conversation = { id: uid(), title: "New chat", createdAt: Date.now(), updatedAt: Date.now(), messages: [], loaded: true };
+        set({ conversations: [conv, ...get().conversations], currentId: conv.id });
+        convId = conv.id;
+      }
+      set({ attaching: get().attaching + paths.length, attachError: null });
+      for (const path of paths) {
+        const name = path.split(/[\\/]/).pop() ?? "file";
+        try {
+          const conv = get().conversations.find((c) => c.id === convId)!;
+          const res = await api.cloudAttach(conv.cloudId ?? null, conv.messages[0]?.content ?? name, path);
+          set({
+            conversations: get().conversations.map((c) => (c.id === convId ? { ...c, cloudId: res.conversationId } : c)),
+          });
+          const id = idOf(res.attachment);
+          if (id) set({ pending: [...get().pending, { id, name, image: isImage({ ...res.attachment, filename: res.attachment.filename ?? name }) }] });
+        } catch (e) {
+          set({ attachError: `${name}: ${errorText(e)}` });
+        } finally {
+          set({ attaching: Math.max(0, get().attaching - 1) });
+        }
+      }
+    },
+
+    attachExisting(a) {
+      if (!get().pending.some((p) => p.id === a.id)) set({ pending: [...get().pending, a] });
+    },
+
+    removePending(id) {
+      set({ pending: get().pending.filter((p) => p.id !== id) });
     },
 
     toggleWeb() {

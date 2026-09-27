@@ -1,7 +1,11 @@
-import { ArrowUp, Brain, Cloud, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap } from "lucide-react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { ArrowUp, Brain, Cloud, Images, Loader2, Paperclip, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
+import { inTauri } from "../../lib/api";
 import { displayName } from "../../lib/models";
+import { AttachmentChips, LibraryPicker } from "./Attachments";
 import type { Mode, ThinkingPref } from "../../lib/types";
 import { useStore } from "../../state/store";
 
@@ -54,6 +58,42 @@ export function Composer() {
   const onCloud = cloudConnected && !!settings?.useCloud && !privateChat;
   const cloudModes = cloudStatus?.account?.modes ?? [];
   const ready = onCloud || (engine.state === "ready" && !tune);
+  const pending = useStore((s) => s.pending);
+  const attaching = useStore((s) => s.attaching);
+  const attachError = useStore((s) => s.attachError);
+  const attachFiles = useStore((s) => s.attachFiles);
+  const removePending = useStore((s) => s.removePending);
+  const [library, setLibrary] = useState(false);
+  const [dragging, setDragging] = useState(false);
+
+  // Drop photos/files onto the window to attach them (cloud chats).
+  useEffect(() => {
+    if (!inTauri || !onCloud) return;
+    let off: (() => void) | undefined;
+    void getCurrentWebview()
+      .onDragDropEvent((e) => {
+        if (e.payload.type === "over" || e.payload.type === "enter") setDragging(true);
+        else if (e.payload.type === "leave") setDragging(false);
+        else if (e.payload.type === "drop") {
+          setDragging(false);
+          if (e.payload.paths.length) void attachFiles(e.payload.paths);
+        }
+      })
+      .then((u) => (off = u));
+    return () => off?.();
+  }, [onCloud, attachFiles]);
+
+  const pickFiles = async () => {
+    const picked = await openDialog({
+      multiple: true,
+      title: "Attach photos or files",
+      filters: [
+        { name: "Photos and documents", extensions: ["png", "jpg", "jpeg", "gif", "webp", "heic", "pdf", "docx", "pptx", "xlsx", "txt", "md", "csv"] },
+      ],
+    });
+    const paths = Array.isArray(picked) ? picked : picked ? [picked] : [];
+    if (paths.length) await attachFiles(paths);
+  };
 
   useEffect(() => {
     ref.current?.focus();
@@ -68,7 +108,7 @@ export function Composer() {
   }, [text]);
 
   const submit = () => {
-    if (!ready || generating || !text.trim()) return;
+    if (!ready || generating || !text.trim() || attaching > 0) return;
     void send(text);
     setText("");
   };
@@ -122,7 +162,19 @@ export function Composer() {
           </button>
         </div>
       )}
-      <div className="composer">
+      <div className={`composer ${dragging ? "dropping" : ""}`}>
+        {onCloud && (pending.length > 0 || attaching > 0 || attachError) && (
+          <div className="composer-attachments">
+            <AttachmentChips items={pending} onRemove={removePending} />
+            {attaching > 0 && (
+              <span className="faint">
+                <Loader2 size={13} className="spin" /> Uploading {attaching}…
+              </span>
+            )}
+            {attachError && <span className="attach-error">{attachError}</span>}
+          </div>
+        )}
+        {library && <LibraryPicker onClose={() => setLibrary(false)} />}
         <textarea
           ref={ref}
           rows={1}
@@ -152,6 +204,16 @@ export function Composer() {
               <Cloud size={14} />
               {onCloud ? "Cloud" : "This Mac"}
             </button>
+          )}
+          {onCloud && (
+            <>
+              <button className="icon-btn" onClick={() => void pickFiles()} title="Attach photos or files (or drop them here)" aria-label="Attach">
+                <Paperclip size={16} />
+              </button>
+              <button className="icon-btn" onClick={() => setLibrary(!library)} title="Reuse a photo you've already uploaded" aria-label="Library">
+                <Images size={16} />
+              </button>
+            </>
           )}
           {onCloud ? (
             <div className="segmented" role="group" aria-label="Cloud mode">
@@ -223,7 +285,7 @@ export function Composer() {
               <Square size={14} fill="currentColor" />
             </button>
           ) : (
-            <button className="send-btn" onClick={submit} disabled={!ready || !text.trim()} title="Send (Enter)" aria-label="Send">
+            <button className="send-btn" onClick={submit} disabled={!ready || !text.trim() || attaching > 0} title="Send (Enter)" aria-label="Send">
               <ArrowUp size={18} />
             </button>
           )}

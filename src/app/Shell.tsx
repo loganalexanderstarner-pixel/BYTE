@@ -1,9 +1,10 @@
-import { PanelLeft, Settings as SettingsIcon, SquarePen } from "lucide-react";
-import { useEffect } from "react";
+import { FileText, PanelLeft, Settings as SettingsIcon, SquarePen } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { ChatView } from "../components/chat/ChatView";
 import { Composer } from "../components/chat/Composer";
 import { EngineBadge } from "../components/EngineBadge";
+import { DocumentsPanel } from "../components/documents/DocumentsPanel";
 import { SettingsModal } from "../components/settings/SettingsModal";
 import { Sidebar } from "../components/Sidebar";
 import { useStore } from "../state/store";
@@ -13,6 +14,8 @@ export function Shell() {
   const toggleSidebar = useStore((s) => s.toggleSidebar);
   const newChat = useStore((s) => s.newChat);
   const openSettings = useStore((s) => s.openSettings);
+  const cloudConnected = useStore((s) => !!s.settings?.cloudConnected);
+  const [docsOpen, setDocsOpen] = useState(false);
   const settingsTab = useStore((s) => s.settingsTab);
   const stop = useStore((s) => s.stop);
 
@@ -55,6 +58,11 @@ export function Shell() {
           </div>
           <div className="row no-drag">
             <EngineBadge />
+            {cloudConnected && (
+              <button className="icon-btn" onClick={() => setDocsOpen(true)} title="Documents: PDFs, slides and more, made on your BYTE cloud">
+                <FileText size={18} />
+              </button>
+            )}
             <button className="icon-btn" onClick={() => openSettings("models")} title="Settings (⌘,)">
               <SettingsIcon size={18} />
             </button>
@@ -64,6 +72,7 @@ export function Shell() {
         <Composer />
       </main>
       {settingsTab && <SettingsModal />}
+      {docsOpen && <DocumentsPanel onClose={() => setDocsOpen(false)} />}
     </div>
   );
 }

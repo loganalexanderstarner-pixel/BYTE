@@ -193,6 +193,37 @@ impl CloudClient {
         self.send(self.req(reqwest::Method::DELETE, path), Duration::from_secs(60)).await
     }
 
+    /// Raw bytes and content type (images, documents, exports).
+    pub async fn bytes(&self, path: &str) -> CloudResult<(Vec<u8>, String)> {
+        let r = self.req(reqwest::Method::GET, path).timeout(Duration::from_secs(300)).send().await.map_err(net_error)?;
+        let status = r.status();
+        if status == 401 || status == 403 {
+            return Err(CloudError::Unauthorized);
+        }
+        if !status.is_success() {
+            return Err(if matches!(status.as_u16(), 502..=504) {
+                CloudError::Unreachable(format!("HTTP {status}"))
+            } else {
+                CloudError::Other(AppError::msg(format!("The BYTE cloud couldn't send that file ({status}).")))
+            });
+        }
+        let mime = r.headers().get("content-type").and_then(|v| v.to_str().ok()).unwrap_or("application/octet-stream").to_string();
+        Ok((r.bytes().await.map_err(net_error)?.to_vec(), mime))
+    }
+
+    /// Sends a local file as multipart form field `file`.
+    pub async fn upload(&self, path: &str, file: &std::path::Path, max: u64) -> CloudResult<Value> {
+        let meta = std::fs::metadata(file).map_err(|e| CloudError::Other(e.into()))?;
+        if meta.len() > max {
+            return Err(CloudError::Other(AppError::msg(format!("That file is too big to send (limit {} MB).", max / (1024 * 1024)))));
+        }
+        let name = file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "file".into());
+        let bytes = tokio::fs::read(file).await.map_err(|e| CloudError::Other(e.into()))?;
+        let part = reqwest::multipart::Part::bytes(bytes).file_name(name.clone()).mime_str(mime_for(&name)).map_err(|e| CloudError::Other(e.into()))?;
+        let form = reqwest::multipart::Form::new().part("file", part);
+        self.send(self.req(reqwest::Method::POST, path).multipart(form), Duration::from_secs(600)).await
+    }
+
     pub async fn create_conversation(&self, title: &str) -> CloudResult<String> {
         let v = self.post("/api/conversations", &json!({ "title": title })).await?;
         id_of(&v).ok_or_else(|| CloudError::Other(AppError::msg("the BYTE cloud didn't return a conversation id")))
@@ -216,6 +247,25 @@ impl CloudClient {
             s if !(200..300).contains(&s) => Err(CloudError::Other(AppError::msg(format!("the BYTE cloud stream failed (HTTP {s})")))),
             _ => Ok(r),
         }
+    }
+}
+
+/// Content type from a file name (for uploads).
+pub fn mime_for(name: &str) -> &'static str {
+    match name.rsplit('.').next().unwrap_or("").to_ascii_lowercase().as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "heic" => "image/heic",
+        "pdf" => "application/pdf",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "txt" | "md" => "text/plain",
+        "csv" => "text/csv",
+        "json" => "application/json",
+        _ => "application/octet-stream",
     }
 }
 

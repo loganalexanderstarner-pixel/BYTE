@@ -270,3 +270,51 @@ fn cloud_conversations_become_local_chats() {
     assert_eq!(msgs[1]["sources"][0]["n"], 1);
     assert_eq!(cmd::to_local_chat(&v, "7", Some("mine".into()))["id"], "mine");
 }
+
+#[test]
+fn only_cloud_api_paths_are_allowed() {
+    for ok in ["/api/documents", "/api/jobs/12/outline", "/api/templates?kind=pptx&topic=solar%20power"] {
+        assert!(cmd::api_path(ok).is_ok(), "{ok}");
+    }
+    for bad in ["/other", "api/x", "/api/../admin", "https://evil.example/api/x", "/api/x y", "/api/a\\b", "/api/x#frag"] {
+        assert!(cmd::api_path(bad).is_err(), "{bad}");
+    }
+}
+
+#[tokio::test]
+async fn uploads_send_the_file_as_multipart() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/conversations/9/attachments"))
+        .and(wiremock::matchers::header_regex("content-type", "^multipart/form-data"))
+        .and(wiremock::matchers::body_string_contains("filename=\"photo.png\""))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "id": 5, "name": "photo.png" })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("photo.png");
+    std::fs::write(&file, b"fake png bytes").unwrap();
+    let client = CloudClient::new(&server.uri(), FAKE_KEY);
+    let v = client.upload("/api/conversations/9/attachments", &file, 1024).await.unwrap();
+    assert_eq!(v["id"], 5);
+    // Too big: refused before anything is sent.
+    std::fs::write(&file, vec![0u8; 2048]).unwrap();
+    assert!(client.upload("/api/conversations/9/attachments", &file, 1024).await.is_err());
+    assert_eq!(mime_for("Deck.PPTX"), "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+}
+
+#[tokio::test]
+async fn downloads_keep_bytes_and_type() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/documents/3/preview/1"))
+        .respond_with(ResponseTemplate::new(200).insert_header("content-type", "image/png").set_body_bytes(vec![1u8, 2, 3]))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET")).and(path("/api/documents/404/download")).respond_with(ResponseTemplate::new(404)).mount(&server).await;
+    let client = CloudClient::new(&server.uri(), FAKE_KEY);
+    let (b, mime) = client.bytes("/api/documents/3/preview/1").await.unwrap();
+    assert_eq!((b, mime.as_str()), (vec![1, 2, 3], "image/png"));
+    assert!(matches!(client.bytes("/api/documents/404/download").await, Err(CloudError::Other(_))));
+}

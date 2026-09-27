@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0-test.10 — BYTE Cloud (part 1: chat)
+## 1.0.0-test.10 — BYTE Cloud: chat, photos and documents
 
 - **BYTE Cloud**: connect your own BYTE cluster in Settings → Cloud with an API key from
   byteai.bytebylogan.xyz. BYTE checks the key with the cloud first, then keeps it in the macOS Keychain (never
@@ -12,6 +12,14 @@
 - **Cloud answers** carry a small cloud tag and get extra actions: go deeper, explain the reasoning, thumbs
   up/down, and "Answer now" while it's thinking. Edits and regenerate fork the conversation on the cloud too.
 - **Import cloud chats** into the sidebar and search.
+- **Photos and files** (cloud chats): attach with the paperclip or drop them on the window; **Library** reuses
+  photos you've already uploaded without sending them again.
+- **Documents on the cloud** (the page icon at the top): PDF reports, slides, Word documents, flyers, worksheets
+  and projects. BYTE plans an outline first; you rename, reorder, add or remove sections and pick a design
+  (built-in or your own templates) before anything is written — or throw it away at no cost. Progress shows while
+  it's made; finished documents preview page by page, download to Documents/BYTE, can be revised with an
+  instruction, or turned into another format. A source document (PDF, Word, slides, text) can be used as
+  material.
 - **If the cloud can't be reached**, BYTE answers on this Mac instead and says so. A slow start is normal (the
   cluster may be busy) and is never retried into the queue. Private chats never leave this Mac.
 

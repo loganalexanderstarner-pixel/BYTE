@@ -84,6 +84,13 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
   (`cloud::cmd::local_mode` maps modes). After acceptance, errors are reported, never answered twice.
 - Actions: `cloud_action` (deepen / justify stream a new answer; answer-now, stop, feedback), `cloud_import`
   copies cloud conversations into the local DB. Private chats never use the cloud.
+- General calls: `cloud_get/post/delete` (only `/api/…` paths, `cmd::api_path`), `cloud_image` (data: URL for
+  thumbnails/pages), `cloud_upload` (multipart field `file`, 50 MB cap), `cloud_attach` (creates the cloud
+  conversation first if needed), `cloud_download` (to a path from the save dialog). The UI builds features on
+  these: `src/lib/cloudDocs.ts` reads replies tolerantly (lists, job state, outline round-trip).
+- Attachments: `store.pending` → `message.attachments` → `CloudTurn.attachmentIds`; Library =
+  `GET /api/attachments`. Documents: `components/documents/DocumentsPanel.tsx` (create → poll job →
+  `OutlineReview` with templates → approve/reject → document previews, download, revise, render).
 - Tests: `cloud/tests.rs` with `wiremock` (fake keys only). `scripts/check-secrets.sh` runs in CI.
 
 ## Chats & memory (Phase 3, `db.rs`, `export.rs`)

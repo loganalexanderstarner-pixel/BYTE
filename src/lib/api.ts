@@ -111,6 +111,18 @@ export const api = {
   cloudDeleteMessage: (messageId: string) => invoke<void>("cloud_delete_message", { messageId }),
   cloudConversations: () => invoke<unknown>("cloud_conversations"),
   cloudImport: (conversationId: string) => invoke<string>("cloud_import", { conversationId }),
+  /** Any `/api/…` call on the cloud (documents, library, memories, …). */
+  cloudGet: <T = unknown>(path: string) => invoke<T>("cloud_get", { path }),
+  cloudPost: <T = unknown>(path: string, body?: unknown) => invoke<T>("cloud_post", { path, body: body ?? null }),
+  cloudDelete: (path: string) => invoke<unknown>("cloud_delete", { path }),
+  /** A cloud image as a data: URL. */
+  cloudImage: (path: string) => invoke<string>("cloud_image", { path }),
+  /** Saves a cloud file to `dest`; returns its size. */
+  cloudDownload: (path: string, dest: string) => invoke<number>("cloud_download", { path, dest }),
+  cloudUpload: <T = unknown>(path: string, file: string) => invoke<T>("cloud_upload", { path, file }),
+  /** Uploads a photo/file for a chat, starting its cloud conversation if needed. */
+  cloudAttach: (conversationId: string | null, title: string, file: string) =>
+    invoke<{ conversationId: string; attachment: Record<string, unknown> }>("cloud_attach", { conversationId, title, file }),
 
   // Saved chats (encrypted database)
   chatsList: () => invoke<ConversationMeta[]>("chats_list"),

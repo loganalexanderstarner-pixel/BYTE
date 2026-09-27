@@ -316,3 +316,81 @@ pub fn to_local_chat(v: &Value, cid: &str, local_id: Option<String>) -> Value {
         "messages": messages,
     })
 }
+
+// ---------- general account calls (documents, library, memories, …) ----------
+
+/// Only the cloud's own API paths, so the UI can't be pointed anywhere else.
+pub(crate) fn api_path(path: &str) -> AppResult<&str> {
+    let ok = path.starts_with("/api/")
+        && !path.contains("..")
+        && !path.contains("://")
+        && !path.chars().any(|c| c.is_whitespace() || c.is_control() || c == '#' || c == '\\');
+    ok.then_some(path).ok_or_else(|| AppError::msg("not a BYTE cloud API path"))
+}
+
+#[tauri::command]
+pub async fn cloud_get(state: State<'_, AppState>, path: String) -> AppResult<Value> {
+    Ok(state.cloud_client().await?.get(api_path(&path)?).await?)
+}
+
+#[tauri::command]
+pub async fn cloud_post(state: State<'_, AppState>, path: String, body: Option<Value>) -> AppResult<Value> {
+    Ok(state.cloud_client().await?.post(api_path(&path)?, &body.unwrap_or_else(|| json!({}))).await?)
+}
+
+#[tauri::command]
+pub async fn cloud_delete(state: State<'_, AppState>, path: String) -> AppResult<Value> {
+    Ok(state.cloud_client().await?.delete(api_path(&path)?).await?)
+}
+
+/// An image from the cloud (attachment, template thumbnail, document page) as
+/// a `data:` URL the page can show.
+#[tauri::command]
+pub async fn cloud_image(state: State<'_, AppState>, path: String) -> AppResult<String> {
+    let (bytes, mime) = state.cloud_client().await?.bytes(api_path(&path)?).await?;
+    use base64::Engine as _;
+    let mime = if mime.starts_with("image/") { mime } else { "image/png".into() };
+    Ok(format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes)))
+}
+
+/// Saves a cloud file (a finished document, an export) where the user chose.
+#[tauri::command]
+pub async fn cloud_download(state: State<'_, AppState>, path: String, dest: String) -> AppResult<u64> {
+    let (bytes, _) = state.cloud_client().await?.bytes(api_path(&path)?).await?;
+    let dest = std::path::PathBuf::from(dest);
+    if let Some(dir) = dest.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&dest, &bytes)?;
+    Ok(bytes.len() as u64)
+}
+
+/// Largest file sent to the cloud in one upload.
+const MAX_UPLOAD: u64 = 50 * 1024 * 1024;
+
+/// Uploads a file the user picked (multipart field `file`) to `path`.
+#[tauri::command]
+pub async fn cloud_upload(state: State<'_, AppState>, path: String, file: String) -> AppResult<Value> {
+    let client = state.cloud_client().await?;
+    Ok(client.upload(api_path(&path)?, std::path::Path::new(&file), MAX_UPLOAD).await?)
+}
+
+/// Uploads a photo or file for a chat. Starts the cloud conversation if the
+/// chat doesn't have one yet (attachments belong to a conversation).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Uploaded {
+    pub conversation_id: String,
+    pub attachment: Value,
+}
+
+#[tauri::command]
+pub async fn cloud_attach(state: State<'_, AppState>, conversation_id: Option<String>, title: String, file: String) -> AppResult<Uploaded> {
+    let client = state.cloud_client().await?;
+    let cid = match conversation_id.filter(|c| !c.is_empty()) {
+        Some(c) => c,
+        None => client.create_conversation(&title_from(&title)).await?,
+    };
+    let attachment = client.upload(&format!("/api/conversations/{cid}/attachments"), std::path::Path::new(&file), MAX_UPLOAD).await?;
+    Ok(Uploaded { conversation_id: cid, attachment })
+}
