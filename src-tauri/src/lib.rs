@@ -1,5 +1,6 @@
 mod agent;
 mod chat;
+mod chip;
 mod commands;
 mod engine;
 mod error;

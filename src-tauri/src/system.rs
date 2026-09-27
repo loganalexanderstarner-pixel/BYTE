@@ -17,6 +17,8 @@ pub struct SystemInfo {
     pub os_version: String,
     pub cpu_cores: usize,
     pub apple_silicon: bool,
+    /// Chip generation, tier, bandwidth and Neural Engine (for speed estimates).
+    pub chip_info: crate::chip::ChipInfo,
 }
 
 pub fn system_info(data_dir: &std::path::Path) -> SystemInfo {
@@ -30,7 +32,9 @@ pub fn system_info(data_dir: &std::path::Path) -> SystemInfo {
         .map(|c| c.brand().trim().to_string())
         .filter(|b| !b.is_empty())
         .unwrap_or_else(|| "Unknown".into());
+    static GPU_CORES: once_cell::sync::Lazy<Option<u32>> = once_cell::sync::Lazy::new(crate::chip::gpu_core_count);
     SystemInfo {
+        chip_info: crate::chip::identify(&chip, *GPU_CORES),
         apple_silicon: cfg!(all(target_os = "macos", target_arch = "aarch64")),
         gpu_budget_bytes: gpu_budget(total, wired_limit_override()),
         free_disk_bytes: free_disk_for(data_dir),

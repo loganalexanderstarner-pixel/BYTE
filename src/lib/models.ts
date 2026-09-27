@@ -40,6 +40,7 @@ export function quantLabel(bits: number): string {
 export const RAM_TIERS = [8, 16, 24, 32, 48, 64, 96, 128] as const;
 
 export const TAG_LABELS: Record<string, string> = {
+  moe: "MoE",
   reasoning: "Reasoning",
   coding: "Coding",
   writing: "Writing",
@@ -54,4 +55,23 @@ export function fitGroup(m: ModelStatus): "great" | "tight" | "toobig" {
   const best = m.variants.find((v) => v.key === m.best);
   if (!best) return "toobig";
   return best.fit.fit === "great" ? "great" : "tight";
+}
+
+/** "27B" or "35B total · 3B active". */
+export function paramsLabel(m: ModelStatus): string | null {
+  const fmt = (b: number) => (b >= 10 ? `${Math.round(b)}B` : `${Math.round(b * 10) / 10}B`);
+  if (m.paramsB && m.activeB) return `${fmt(m.paramsB)} total · ${fmt(m.activeB)} active`;
+  if (m.paramsB) return fmt(m.paramsB);
+  return m.sizeLabel;
+}
+
+/** "about 40 s" / "about 2 min". */
+export function approxDuration(secs: number): string {
+  if (secs < 60) return `about ${Math.max(1, Math.round(secs / 5) * 5)} s`;
+  const m = secs / 60;
+  return m < 10 ? `about ${Math.round(m * 2) / 2} min` : `about ${Math.round(m)} min`;
+}
+
+export function speedClass(tps: number): "fast" | "ok" | "slow" {
+  return tps >= 20 ? "fast" : tps >= 8 ? "ok" : "slow";
 }

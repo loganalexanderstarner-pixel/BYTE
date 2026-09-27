@@ -1,8 +1,8 @@
-import { Brain, CircleCheck, Download, Pause, Play, Sparkles, Trash2, TriangleAlert, Wrench } from "lucide-react";
+import { Brain, CircleCheck, Clock, Download, Gauge, Pause, Play, Sparkles, Trash2, TriangleAlert, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { bytes, contextLabel, eta } from "../../lib/format";
-import { quantLabel, shortQuant, TAG_LABELS } from "../../lib/models";
+import { approxDuration, paramsLabel, quantLabel, shortQuant, speedClass, TAG_LABELS } from "../../lib/models";
 import type { ModelStatus, VariantStatus } from "../../lib/types";
 import type { DownloadState } from "../../state/store";
 
@@ -92,11 +92,16 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
         <div className="grow">
           <div className="title">
             {model.name}
-            {model.sizeLabel && <span className="faint" style={{ fontWeight: 500, fontSize: "0.85em" }}>{model.sizeLabel}</span>}
+            {paramsLabel(model) && <span className="faint" style={{ fontWeight: 500, fontSize: "0.85em" }}>{paramsLabel(model)}</span>}
             {isPick && <span className="pill accent"><Sparkles size={11} /> BYTE's pick</span>}
             {active && <span className="pill ok"><CircleCheck size={12} /> In use</span>}
           </div>
           <div className="muted" style={{ fontSize: "0.92em" }}>{model.tagline}</div>
+          {model.usedFor && (
+            <div style={{ fontSize: "0.88em", marginTop: 2 }}>
+              <span className="faint">Good for:</span> {model.usedFor}
+            </div>
+          )}
         </div>
         <div className="row" style={{ gap: 6, flex: "none" }}>
           {v.installed && model.role === "chat" && !active && onActivate && (
@@ -146,6 +151,13 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
           <FitPill v={v} />
         </span>
       </div>
+      {!tooBig && (
+        <div className={`speed-row ${speedClass(v.speed.tokensPerSec)}`} title="Estimated from this Mac's chip; actual speed varies with prompt length and other apps.">
+          <span><Gauge size={13} /> ≈ {Math.round(v.speed.tokensPerSec)} tokens/sec on this Mac</span>
+          <span><Clock size={13} /> Typical answer {approxDuration(v.speed.replySecs)}</span>
+          {model.thinking && <span className="faint">({approxDuration(v.speed.replyThinkingSecs)} with thinking)</span>}
+        </div>
+      )}
       {tooBig && <div className="faint" style={{ fontSize: "0.85em" }}>{v.fit.note}</div>}
       {installedOthers.length > 0 && (
         <div className="faint" style={{ fontSize: "0.85em" }}>

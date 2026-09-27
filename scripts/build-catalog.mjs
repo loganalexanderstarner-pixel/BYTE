@@ -14,6 +14,13 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sources = JSON.parse(readFileSync(join(root, "scripts/catalog-sources.json"), "utf8"));
+const discovered = (() => {
+  try {
+    return JSON.parse(readFileSync(join(root, "scripts/catalog-discovered.json"), "utf8")).models;
+  } catch {
+    return [];
+  }
+})();
 const HF = "https://huggingface.co";
 
 async function json(url) {
@@ -33,12 +40,24 @@ async function listFiles(repo) {
     .map((f) => ({ name: f.path, size: f.lfs?.size ?? f.size, sha256: f.lfs?.oid ?? null }));
 }
 
-/** Files for one quantization, matched by name; multi-part files sorted. */
+/**
+ * Files for one quantization. Some repos hold the same version twice (one
+ * file and a split copy in a folder); pick exactly one copy, preferring the
+ * single file, and return split parts in order.
+ */
 function pickVariant(files, quant) {
   const esc = quant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const re = new RegExp(`[-.]${esc}(-\\d{5}-of-\\d{5})?\\.gguf$`, "i");
   const matched = files.filter((f) => re.test(f.name.split("/").pop()) && !f.name.startsWith("BF16/"));
-  return matched.sort((a, b) => a.name.localeCompare(b.name));
+  const groups = new Map();
+  for (const f of matched) {
+    const key = f.name.replace(/-\d{5}-of-\d{5}(?=\.gguf$)/, "");
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(f);
+  }
+  const options = [...groups.values()].map((g) => g.sort((a, b) => a.name.localeCompare(b.name)));
+  options.sort((a, b) => a.length - b.length || a[0].name.length - b[0].name.length);
+  return options[0] ?? [];
 }
 
 // ---------- minimal GGUF metadata reader ----------
@@ -158,6 +177,26 @@ function archFrom(kv) {
   };
 }
 
+/** Active parameters per token (billions) for mixture-of-experts models. */
+function activeParams(entry, arch, totalB) {
+  if (entry.activeB) return entry.activeB;
+  const m = /[-_ ]a(\d+(?:\.\d+)?)b\b/i.exec(entry.id + " " + entry.name);
+  if (m) return Number(m[1]);
+  if (arch.experts > 1 && arch.expertsUsed > 0 && totalB) {
+    // Shared layers are a small share of MoE weights; the rest is split across experts.
+    return Math.round(totalB * (0.05 + 0.95 * (arch.expertsUsed / arch.experts)) * 10) / 10;
+  }
+  return null;
+}
+
+/** Estimated capability when not hand-scored: effective size and recency. */
+function autoQuality(totalB, activeB, released) {
+  const effective = activeB ? Math.sqrt(totalB * activeB) * 1.3 : totalB;
+  const year = Number(String(released ?? "2024").slice(0, 4));
+  const recency = year >= 2026 ? 8 : year === 2025 ? 2 : year === 2024 ? -6 : -12;
+  return Math.max(15, Math.min(90, Math.round(28 + 14 * Math.log(Math.max(0.3, effective)) + recency)));
+}
+
 /** Rough bits per weight from the quant name, for quality labels. */
 function bitsOf(quant) {
   const q = quant.toUpperCase().replace(/^UD-/, "");
@@ -171,8 +210,18 @@ function bitsOf(quant) {
   return 4.5;
 }
 
+async function totalParams(repo) {
+  try {
+    const info = await json(`${HF}/api/models/${repo}?expand[]=gguf`);
+    return info.gguf?.total ? Math.round((info.gguf.total / 1e9) * 10) / 10 : null;
+  } catch {
+    return null;
+  }
+}
+
 async function build(entry, role) {
-  const files = await listFiles(entry.repo);
+  const files = (await listFiles(entry.repo)).filter((f) => !/^(dspark|draft|eagle|aux)[-_]/i.test(f.name.split("/").pop()));
+  const paramsKnown = entry.paramsB ?? (await totalParams(entry.repo));
   const variants = [];
   for (const quant of entry.variants) {
     const parts = pickVariant(files, quant);
@@ -181,6 +230,19 @@ async function build(entry, role) {
       continue;
     }
     if (parts.some((p) => !p.sha256)) throw new Error(`${entry.id} ${quant}: missing sha256`);
+    // Sanity check: the file size must match parameters × bits per weight, so
+    // an unrelated file with the right suffix is never listed as the model.
+    const size = parts.reduce((s, p) => s + p.size, 0);
+    if (paramsKnown) {
+      const expected = (paramsKnown * 1e9 * bitsOf(quant)) / 8;
+      // UD quants keep some layers at higher precision and small models have
+      // large vocab tables, so allow generous headroom above the estimate.
+      const upper = paramsKnown < 3 ? 2.8 : 2.0;
+      if (size < expected * 0.55 || size > expected * upper) {
+        console.warn(`  ! ${entry.id} ${quant}: ${(size / 1e9).toFixed(1)} GB doesn't match ${paramsKnown}B params — skipped`);
+        continue;
+      }
+    }
     variants.push({
       quant,
       bits: bitsOf(quant),
@@ -188,21 +250,54 @@ async function build(entry, role) {
       files: parts.map((p) => ({ name: p.name, size: p.size, sha256: p.sha256 })),
     });
   }
-  if (!variants.length) throw new Error(`${entry.id}: no variants found`);
+  // No Mac (max 512 GB) can load versions much larger than ~460 GB.
+  for (let i = variants.length - 1; i >= 0; i--) if (variants[i].sizeBytes > 460e9) variants.splice(i, 1);
+  if (!variants.length) throw new Error(`${entry.id}: no variants small enough for any Mac`);
   const smallest = variants[0];
   const meta = await readMetadata(entry.repo, smallest.files[0].name);
   const arch = archFrom(meta);
   const params = meta["general.size_label"] ?? null;
-  const { variants: _v, ...rest } = entry;
-  console.log(`  ✓ ${entry.id.padEnd(18)} ${arch.arch.padEnd(10)} layers=${arch.nLayer} kvLayers=${arch.kvLayers} kvHeads=${arch.nHeadKv} headDim=${arch.headDim} ctx=${arch.maxCtx} variants=${variants.map((v) => v.quant).join(",")}`);
-  return { quality: 0, ...rest, role, sizeLabel: params, arch, variants };
+  const paramsB = paramsKnown;
+  const activeB = activeParams(entry, arch, paramsB);
+  if (activeB && !entry.tags?.includes("moe")) entry.tags = [...(entry.tags ?? []), "moe"];
+  const override = sources.qualityOverrides?.[entry.id];
+  if (typeof override === "number") entry.quality = override;
+  else if (entry.auto) entry.quality = autoQuality(paramsB ?? 7, activeB, entry.released);
+  const { variants: _v, auto: _a, ...rest } = entry;
+  console.log(`  ✓ ${entry.id.slice(0, 34).padEnd(34)} ${arch.arch.padEnd(10)} kvLayers=${arch.kvLayers}/${arch.nLayer} ctx=${arch.maxCtx} ${variants.length} sizes`);
+  return { quality: 0, ...rest, role, sizeLabel: params, paramsB, activeB, arch, variants };
+}
+
+/** Runs `fn` over items with limited concurrency, keeping order. */
+async function pool(items, n, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: n }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        results[i] = await fn(items[i]);
+      }
+    }),
+  );
+  return results;
 }
 
 const out = { version: 1, generated: new Date().toISOString().slice(0, 10), models: [] };
 for (const m of sources.models) out.models.push(await build(m, "chat"));
 for (const h of sources.helpers) out.models.push(await build(h, h.role));
+const ids = new Set(out.models.map((m) => m.id));
+const auto = await pool(discovered.filter((m) => !ids.has(m.id)), 6, async (m) => {
+  try {
+    return await build(m, "chat");
+  } catch (e) {
+    console.warn(`  ! skipped ${m.id}: ${e.message}`);
+    return null;
+  }
+});
+for (const m of auto) if (m && !ids.has(m.id)) (ids.add(m.id), out.models.push(m));
 
 const dest = join(root, "src-tauri/catalog/models.json");
 mkdirSync(dirname(dest), { recursive: true });
-writeFileSync(dest, `${JSON.stringify(out, null, 1)}\n`);
+writeFileSync(dest, `${JSON.stringify(out)}\n`);
 console.log(`wrote ${out.models.length} models to ${dest} (${(JSON.stringify(out).length / 1024).toFixed(1)} KB)`);

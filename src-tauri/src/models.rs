@@ -83,6 +83,15 @@ pub struct CatalogModel {
     pub role: Role,
     #[serde(default)]
     pub size_label: Option<String>,
+    /// Total parameters in billions.
+    #[serde(default)]
+    pub params_b: Option<f32>,
+    /// Parameters used per token (mixture-of-experts models only), billions.
+    #[serde(default)]
+    pub active_b: Option<f32>,
+    /// What the model is good for, in plain words.
+    #[serde(default)]
+    pub used_for: Option<String>,
     pub arch: ModelArch,
     pub variants: Vec<Variant>,
 }
@@ -264,6 +273,14 @@ pub fn effective_quality(model: &CatalogModel, v: &Variant) -> i32 {
     model.quality as i32 - penalty
 }
 
+/// Quality adjusted for speed on this Mac: answers slower than ~8 tokens/sec
+/// feel sluggish, so very slow versions rank lower.
+pub fn score(model: &CatalogModel, v: &Variant, info: &SystemInfo) -> i32 {
+    let tps = crate::chip::estimate(&info.chip_info, v.size_bytes, model.params_b, model.active_b).tokens_per_sec;
+    let penalty = if tps >= 8.0 { 0.0 } else { ((8.0 - tps) * 2.5).min(20.0) };
+    effective_quality(model, v) - penalty.round() as i32
+}
+
 /// The best version of `model` for this Mac: highest quality that fits
 /// comfortably, else highest that fits at all. Ties go to the smaller file
 /// (faster, same quality).
@@ -273,11 +290,7 @@ pub fn best_variant<'a>(model: &'a CatalogModel, info: &SystemInfo, ctx: u32) ->
             .variants
             .iter()
             .filter(|v| plan(model, v, info, ctx).fit == want)
-            .max_by(|a, b| {
-                effective_quality(model, a)
-                    .cmp(&effective_quality(model, b))
-                    .then(b.size_bytes.cmp(&a.size_bytes))
-            })
+            .max_by(|a, b| score(model, a, info).cmp(&score(model, b, info)).then(b.size_bytes.cmp(&a.size_bytes)))
     };
     pick(Fit::Great).or_else(|| pick(Fit::Tight))
 }
@@ -293,7 +306,7 @@ pub fn recommend<'a>(catalog: &'a Catalog, info: &SystemInfo, ctx: u32) -> Optio
             let comfy = |m: &CatalogModel, v: &Variant| plan(m, v, info, ctx).fit == Fit::Great;
             comfy(ma, va)
                 .cmp(&comfy(mb, vb))
-                .then(effective_quality(ma, va).cmp(&effective_quality(mb, vb)))
+                .then(score(ma, va, info).cmp(&score(mb, vb, info)))
                 .then(vb.size_bytes.cmp(&va.size_bytes))
         })
 }
@@ -314,6 +327,8 @@ pub struct VariantStatus {
     pub fit: FitPlan,
     /// Smallest standard Mac memory size this version needs.
     pub min_ram_gb: u32,
+    /// Expected speed on this Mac's chip.
+    pub speed: crate::chip::SpeedEstimate,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -332,6 +347,9 @@ pub struct ModelStatus {
     pub repo: String,
     pub role: Role,
     pub size_label: Option<String>,
+    pub params_b: Option<f32>,
+    pub active_b: Option<f32>,
+    pub used_for: Option<String>,
     pub max_context: u32,
     pub variants: Vec<VariantStatus>,
     /// Best version for this Mac (None if nothing fits).
@@ -370,6 +388,7 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
                         installed,
                         quality: effective_quality(m, v),
                         min_ram_gb: system::ram_tier_gb(min_plan.needed_bytes),
+                        speed: crate::chip::estimate(&lc.info.chip_info, v.size_bytes, m.params_b, m.active_b),
                         fit,
                     }
                 })
@@ -390,6 +409,9 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
                 repo: m.repo.clone(),
                 role: m.role,
                 size_label: m.size_label.clone(),
+                params_b: m.params_b,
+                active_b: m.active_b,
+                used_for: m.used_for.clone(),
                 max_context: m.arch.max_ctx,
                 variants,
             }
@@ -674,14 +696,16 @@ mod tests {
             os_version: String::new(),
             cpu_cores: 10,
             apple_silicon: true,
+            chip_info: crate::chip::identify("Apple M4", Some(10)),
         }
     }
 
     #[test]
     fn embedded_catalog_is_valid_and_small() {
         let c = Catalog::embedded();
-        assert!(c.models.len() >= 10);
-        assert!(EMBEDDED_CATALOG.len() < 64 * 1024, "catalog should stay tiny");
+        assert!(c.models.iter().filter(|m| m.role == Role::Chat).count() >= 150, "catalog should offer 150+ chat models");
+        assert!(EMBEDDED_CATALOG.len() < 1024 * 1024, "catalog should stay small (models download separately)");
+        assert!(c.models.iter().filter(|m| m.active_b.is_some()).count() >= 20, "catalog should include MoE models");
         assert!(c.models.iter().any(|m| m.role == Role::Draft));
         assert!(c.models.iter().any(|m| m.role == Role::Embed));
         let mut ids: Vec<_> = c.models.iter().map(|m| &m.id).collect();
@@ -931,6 +955,18 @@ fn dump_models_for_ui() {
         os_version: "macOS 15".into(),
         cpu_cores: 10,
         apple_silicon: true,
+        chip_info: crate::chip::identify(
+            &std::env::var("BYTE_DUMP_CHIP").unwrap_or_else(|_| {
+                match gb {
+                    0..=16 => "Apple M4",
+                    17..=48 => "Apple M4 Pro",
+                    49..=128 => "Apple M4 Max",
+                    _ => "Apple M3 Ultra",
+                }
+                .into()
+            }),
+            Some(40),
+        ),
     };
     let dir = tempfile::tempdir().unwrap();
     let c = Catalog::embedded();

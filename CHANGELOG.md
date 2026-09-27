@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.0-test.3 — Big model catalog + chip-aware speed
+
+- **184 chat models, 1,003 downloadable versions**, from 0.4 GB phone-size models to 400+ GB giants, including
+  **52 mixture-of-experts (MoE)** models (e.g. Qwen3.6 35B-A3B: 35B knowledge, 3B speed) and low-bit versions
+  of big models (Qwen3.8 27B from Q2 to Q8) so bigger models fit smaller Macs. Built automatically from trusted
+  publishers on Hugging Face (Qwen, Google, Meta, Mistral, Microsoft, IBM, NVIDIA, DeepSeek, OpenAI, LiquidAI,
+  unsloth, bartowski, …). Uncensored, role-play, merged and vision-only models are left out.
+- **Speed for every version on your Mac**: estimated tokens/sec and typical answer time (with and without
+  thinking), from your chip's memory bandwidth and GPU. BYTE detects the exact chip (M1–M5, Pro/Max/Ultra and
+  GPU cores), so an M4 shows faster numbers than an M2. Very slow versions are no longer recommended.
+- Each model says what it's **good for**, its size (and active size for MoE), release date and license.
+- Catalog browser: **search**, sort by *best for this Mac / newest / smallest / fastest*, **MoE** and
+  **Downloaded** filters, "show more" paging, a storage summary (how much disk your models use), and delete for
+  any downloaded version. Settings shows the chip, GPU cores and Neural Engine.
+- The catalog stays small (~0.4 MB inside the app); model files download from Hugging Face only when chosen.
+
 ## 1.0.0-test.2 — Phase 2: web search with sources + model catalog
 
 - **Hardware-aware model catalog**: 12 chat models from 0.5 GB to 63 GB (Qwen3.5 0.8B/2B/4B/9B, Qwen3.8 27B,

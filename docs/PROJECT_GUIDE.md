@@ -23,14 +23,23 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 
 ## Model catalog (added after Phase 2)
 
-- `scripts/catalog-sources.json` (curated list: repo, variants, quality score, tags) →
-  `scripts/build-catalog.mjs` → `src-tauri/catalog/models.json` (compiled in, ~13 KB).
+- `scripts/catalog-sources.json` (curated models with quality scores and "used for" text, helpers, quality
+  overrides) + `scripts/catalog-discovered.json` (from `scripts/discover-models.mjs`: trusted authors, official
+  name allowlist, excludes uncensored/abliterated/RP/vision/merges) → `scripts/build-catalog.mjs` (picks
+  variants, drops auxiliary/draft files and duplicate single-vs-split copies, size sanity check, reads the
+  GGUF header for architecture via HTTP Range, computes MoE active params) → `src-tauri/catalog/models.json`
+  (compiled in, ~0.4 MB). Result: 184 chat models, 1,003 versions, 52 MoE.
+- `src-tauri/src/chip.rs`: identifies the chip from the CPU brand + GPU core count (ioreg) → bandwidth,
+  GPU TFLOPS, Neural Engine TOPS. Speed estimate: tok/s = bandwidth × efficiency (0.8 dense, 0.6 MoE) ÷ bytes
+  of active weights; prompt speed from TFLOPS; typical reply = 1,500-token prompt + 450-token answer
+  (+700 thinking tokens). Versions under 8 tok/s get a recommendation penalty.
+- The Neural Engine is not used for chat (llama.cpp runs on the GPU); it is planned for OCR and voice.
 - The app refreshes the catalog from `settings.catalogUrl` (default: raw GitHub URL of this repo's main branch);
   a newer `generated` date wins and is cached in the data folder. If the repo becomes private, point
   `catalogUrl` at a public host (e.g. the owner's cluster).
 - Model keys are `"<id>:<quant>"`; older keys like `"qwen3-14b"` resolve to the Q4_K_M file older builds downloaded.
-- Recommendation: highest effective quality (curated score minus a low-bit penalty) among versions that fit
-  comfortably, else that fit at all; ties go to the smaller file.
+- Recommendation: highest effective quality (curated or automatic score minus a low-bit penalty, minus a speed
+  penalty) among versions that fit comfortably, else that fit at all; ties go to the smaller file.
 
 ## Verification log (Phase 2)
 

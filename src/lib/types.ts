@@ -26,6 +26,27 @@ export interface SystemInfo {
   osVersion: string;
   cpuCores: number;
   appleSilicon: boolean;
+  chipInfo: ChipInfo;
+}
+
+export interface ChipInfo {
+  name: string;
+  /** 1 for M1 … 4 for M4 (0 if unknown). */
+  generation: number;
+  tier: "base" | "pro" | "max" | "ultra";
+  gpuCores: number | null;
+  bandwidthGbps: number;
+  gpuTflops: number;
+  neuralEngineTops: number;
+  exact: boolean;
+}
+
+export interface SpeedEstimate {
+  tokensPerSec: number;
+  promptPerSec: number;
+  /** Seconds for a typical answer. */
+  replySecs: number;
+  replyThinkingSecs: number;
 }
 
 export type Fit = "great" | "tight" | "toobig";
@@ -53,6 +74,8 @@ export interface VariantStatus {
   fit: FitPlan;
   /** Smallest standard Mac memory size this version needs. */
   minRamGb: number;
+  /** Expected speed on this Mac. */
+  speed: SpeedEstimate;
 }
 
 export interface ModelStatus {
@@ -69,6 +92,12 @@ export interface ModelStatus {
   repo: string;
   role: "chat" | "draft" | "embed";
   sizeLabel: string | null;
+  /** Total parameters, billions. */
+  paramsB: number | null;
+  /** Parameters used per token (mixture-of-experts), billions. */
+  activeB: number | null;
+  /** What it's good for, in plain words. */
+  usedFor: string | null;
   maxContext: number;
   variants: VariantStatus[];
   /** Key of the best version for this Mac, or null if none fits. */

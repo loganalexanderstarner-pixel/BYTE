@@ -57,13 +57,20 @@ recommends the best one. Examples of what it picks:
 | 32 GB | Qwen3.8 27B (Q5_K_M) | 19.8 GB |
 | 96–128 GB | Qwen3.8 27B (Q6_K) or gpt-oss 120B | 22–63 GB |
 
-The catalog lists 12 chat models (0.5–63 GB) with several sizes each, labelled *Great fit*, *Fits*, or *Needs N GB*.
-You can filter by memory size and strength. The list itself is tiny (about 13 KB) and refreshes from the web, so new
-models appear without an app update. Model files download from Hugging Face only when you choose them and are
-stored in `~/Library/Application Support/com.loganstarner.byte/models/`.
+The catalog lists **184 chat models with 1,003 versions** (0.4 GB to 400+ GB, 52 of them mixture-of-experts),
+each labelled *Great fit*, *Fits*, or *Needs N GB*, with the **estimated tokens/sec and typical answer time on your
+Mac** (BYTE detects the chip — M1 to M5, Pro/Max/Ultra — so an M4 shows faster numbers than an M2). Search, sort
+(best, newest, smallest, fastest) and filter by memory size, strength, MoE or downloaded. The list itself is small
+(about 0.4 MB) and refreshes from the web, so new models appear without an app update. Model files download from
+Hugging Face only when you choose them, can be deleted any time, and are stored in `~/Library/Application Support/com.loganstarner.byte/models/`.
 
-To regenerate the catalog after editing `scripts/catalog-sources.json`: `node scripts/build-catalog.mjs` (it reads
-exact file sizes, checksums and architecture from Hugging Face without downloading the models).
+To regenerate the catalog: `node scripts/discover-models.mjs` (finds models from trusted publishers), then
+`node scripts/build-catalog.mjs` (reads exact file sizes, checksums and architecture from Hugging Face without
+downloading the models). Hand-picked models and quality scores live in `scripts/catalog-sources.json`.
+
+**About the Neural Engine:** chat models run on the GPU (llama.cpp with Metal), which is the fastest path on Apple
+Silicon; the Neural Engine can't run these models efficiently. BYTE will use it through Apple's frameworks for
+text recognition in images (OCR) and voice.
 
 **Honest expectations:** local models are very capable but won't match the largest cloud models at writing or
 reasoning. Deep and Extended answers can take a minute or more, especially on a fanless MacBook Air.
