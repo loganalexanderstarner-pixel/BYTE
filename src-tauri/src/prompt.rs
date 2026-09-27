@@ -26,7 +26,8 @@ Format answers so they are easy to scan, using Markdown:\n\
         p.push_str(&format!("\n\nThe user's name is {name}. Use it naturally now and then, not in every message."));
     }
     p.push_str(
-        "\n\nYou have a calculator tool. Use it for any arithmetic, percentages or unit conversions instead of computing in your head.",
+        "\n\nYou have a calculator tool. Use it for any arithmetic, percentages or unit conversions instead of computing in your head. \
+If a calculator result is already in the conversation, use that exact number.",
     );
     if web_available {
         p.push_str(

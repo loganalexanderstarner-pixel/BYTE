@@ -59,6 +59,17 @@ fn must_search_first(turn: &Turn<'_>, question: &str) -> bool {
     turn.web && crate::router::needs_fresh_info(question)
 }
 
+/// Records a tool call BYTE made on the model's behalf, plus its result, in
+/// the conversation sent to the model.
+fn push_tool_exchange(messages: &mut Vec<Value>, call_id: &str, name: &str, args: &Value, content: String) {
+    messages.push(json!({
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [{ "id": call_id, "type": "function", "function": { "name": name, "arguments": args.to_string() } }],
+    }));
+    messages.push(json!({ "role": "tool", "tool_call_id": call_id, "content": content }));
+}
+
 pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<ChatEvent>) -> AppResult<()> {
     let send = |e: ChatEvent| events.send(e).map_err(|e| AppError::msg(format!("UI channel closed: {e}")));
     send(ChatEvent::Started { thinking: turn.plan.thinking, model: turn.ep.model.clone() })?;
@@ -74,6 +85,19 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     let mut wrote_content = false;
     let mut finish = String::from("stop");
 
+    // Arithmetic: BYTE runs the calculator itself. Small models often skip the
+    // tool and do the sum in their head (1234 * 5678 came out 7,112,932).
+    if let Some(expr) = crate::router::math_expression(&question) {
+        if tools::calc::calculate(&expr).is_ok() {
+            let call_id = "byte_calc_0".to_string();
+            let args = json!({ "expression": expr });
+            send(ChatEvent::ToolCall { id: call_id.clone(), name: tools::CALCULATE.into(), args: args.clone() })?;
+            let out = tools::run(&ctx, &mut book, tools::CALCULATE, &args).await;
+            send(ChatEvent::ToolResult { id: call_id.clone(), ok: out.ok, summary: out.summary.clone() })?;
+            push_tool_exchange(&mut messages, &call_id, tools::CALCULATE, &args, out.content);
+        }
+    }
+
     // Time-sensitive questions: BYTE runs the first search itself instead of
     // trusting the model to decide (small models often answer from memory).
     if must_search_first(&turn, &question) {
@@ -88,12 +112,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         if !book.sources.is_empty() {
             send(ChatEvent::Sources { sources: book.sources.clone() })?;
         }
-        messages.push(json!({
-            "role": "assistant",
-            "content": "",
-            "tool_calls": [{ "id": call_id, "type": "function", "function": { "name": tools::WEB_SEARCH, "arguments": args.to_string() } }],
-        }));
-        messages.push(json!({ "role": "tool", "tool_call_id": call_id, "content": out.content }));
+        push_tool_exchange(&mut messages, &call_id, tools::WEB_SEARCH, &args, out.content);
 
         // Snippets rarely hold the full answer: read the top results too, in parallel.
         let urls: Vec<String> = book.sources.iter().take(lim.auto_read).map(|s| s.url.clone()).collect();
@@ -230,6 +249,18 @@ mod tests {
     use super::*;
     use crate::chat::e2e_support::{collecting_channel, start_server};
     use crate::settings::ThinkingPref;
+
+    #[test]
+    fn tool_exchange_is_a_call_then_its_result() {
+        let mut messages = Vec::new();
+        push_tool_exchange(&mut messages, "byte_calc_0", tools::CALCULATE, &json!({ "expression": "6 * 7" }), "6 * 7 = 42".into());
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0]["tool_calls"][0]["function"]["name"], "calculate");
+        assert_eq!(messages[0]["tool_calls"][0]["id"], "byte_calc_0");
+        assert_eq!(messages[1]["role"], "tool");
+        assert_eq!(messages[1]["tool_call_id"], "byte_calc_0");
+        assert_eq!(messages[1]["content"], "6 * 7 = 42");
+    }
 
     /// Real engine: the model must call the calculator and use its result.
     /// Run with BYTE_TEST_LLAMA_SERVER and BYTE_TEST_MODEL set (see chat.rs).

@@ -11,6 +11,9 @@
   Up to three can run next to the main one; BYTE checks the combined memory first.
   - Pick which loaded model answers in the chat box, or **Compare all** to get answers side by side.
   - Settings → Models shows what's in memory now and how much it uses, with *Unload*.
+- **Exact math even with small models:** when a question contains a sum ("1234 * 5678", "15% of 80"),
+  BYTE runs the calculator itself before the model answers. The Mac engine test caught the tiny test
+  model answering 1234 × 5678 = 7,112,932 from memory; with the fix it answers 7,006,652 every time.
 - The Check for new models button now says plainly when the online list can't be reached (for example
   when the repository is private); the list built into the app keeps working.
 - CI: unit tests run on Linux; the real-engine test runs on macOS only when engine code changes, to save
