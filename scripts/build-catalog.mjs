@@ -32,12 +32,40 @@ async function json(url) {
   }
 }
 
+const trees = new Map();
+async function tree(repo) {
+  if (!trees.has(repo)) trees.set(repo, await json(`${HF}/api/models/${repo}/tree/main?recursive=1`));
+  return trees.get(repo);
+}
+
 /** All .gguf files in a repo (recursively), without projector/draft extras. */
 async function listFiles(repo) {
-  const tree = await json(`${HF}/api/models/${repo}/tree/main?recursive=1`);
-  return tree
+  return (await tree(repo))
     .filter((f) => f.type === "file" && f.path.endsWith(".gguf") && !/mmproj|(^|\/)mtp[-/]/i.test(f.path))
     .map((f) => ({ name: f.path, size: f.lfs?.size ?? f.size, sha256: f.lfs?.oid ?? null }));
+}
+
+/**
+ * A speed-up head shipped next to the model (multi-token prediction, EAGLE-3
+ * or DSpark), used for speculative decoding instead of a separate small
+ * model. Picks one 8-bit copy (4-bit when the 8-bit one is over 2 GB); skips
+ * 16-bit copies and "shared" variants.
+ */
+export function pickSpeedHead(files) {
+  const heads = files
+    .filter((f) => f.type === "file" && f.path.endsWith(".gguf") && f.lfs?.oid)
+    .map((f) => ({ name: f.path, size: f.lfs.size ?? f.size, sha256: f.lfs.oid, base: f.path.split("/").pop() }))
+    .map((f) => ({ ...f, kind: /^(mtp|eagle3|dspark)[-_]/i.exec(f.base)?.[1]?.toLowerCase() }))
+    .filter((f) => f.kind && !/BF16|F16|shared/i.test(f.base));
+  if (!heads.length) return null;
+  const rank = (f) => {
+    const q = /(Q8_0|Q4_K_M|Q4_0)\.gguf$/i.exec(f.base)?.[1]?.toUpperCase();
+    if (q === "Q8_0" || !q) return f.size > 2e9 ? 3 : 0;
+    return q === "Q4_K_M" ? 1 : 2;
+  };
+  heads.sort((a, b) => rank(a) - rank(b) || a.name.length - b.name.length);
+  const { kind, name, size, sha256 } = heads[0];
+  return { kind, file: { name, size, sha256 } };
 }
 
 /**
@@ -269,7 +297,8 @@ async function build(entry, role) {
   else if (entry.auto) entry.quality = autoQuality(paramsB ?? 7, activeB, entry.released);
   const { variants: _v, auto: _a, ...rest } = entry;
   console.log(`  ✓ ${entry.id.slice(0, 34).padEnd(34)} ${arch.arch.padEnd(10)} kvLayers=${arch.kvLayers}/${arch.nLayer} ctx=${arch.maxCtx} ${variants.length} sizes`);
-  return { quality: 0, ...rest, role, sizeLabel: params, paramsB, activeB, arch, variants };
+  const speedHead = role === "chat" ? pickSpeedHead(await tree(entry.repo)) : null;
+  return { quality: 0, ...rest, role, sizeLabel: params, paramsB, activeB, arch, variants, ...(speedHead ? { speedHead } : {}) };
 }
 
 /** Runs `fn` over items with limited concurrency, keeping order. */
@@ -287,21 +316,25 @@ async function pool(items, n, fn) {
   return results;
 }
 
-const out = { version: 1, generated: new Date().toISOString().slice(0, 10), models: [] };
-for (const m of sources.models) out.models.push(await build(m, "chat"));
-for (const h of sources.helpers) out.models.push(await build(h, h.role));
-const ids = new Set(out.models.map((m) => m.id));
-const auto = await pool(discovered.filter((m) => !ids.has(m.id)), 6, async (m) => {
-  try {
-    return await build(m, "chat");
-  } catch (e) {
-    console.warn(`  ! skipped ${m.id}: ${e.message}`);
-    return null;
-  }
-});
-for (const m of auto) if (m && !ids.has(m.id)) (ids.add(m.id), out.models.push(m));
+if (process.argv[1] === fileURLToPath(import.meta.url)) await main();
 
-const dest = join(root, "src-tauri/catalog/models.json");
-mkdirSync(dirname(dest), { recursive: true });
-writeFileSync(dest, `${JSON.stringify(out)}\n`);
-console.log(`wrote ${out.models.length} models to ${dest} (${(JSON.stringify(out).length / 1024).toFixed(1)} KB)`);
+async function main() {
+  const out = { version: 1, generated: new Date().toISOString().slice(0, 10), models: [] };
+  for (const m of sources.models) out.models.push(await build(m, "chat"));
+  for (const h of sources.helpers) out.models.push(await build(h, h.role));
+  const ids = new Set(out.models.map((m) => m.id));
+  const auto = await pool(discovered.filter((m) => !ids.has(m.id)), 6, async (m) => {
+    try {
+      return await build(m, "chat");
+    } catch (e) {
+      console.warn(`  ! skipped ${m.id}: ${e.message}`);
+      return null;
+    }
+  });
+  for (const m of auto) if (m && !ids.has(m.id)) (ids.add(m.id), out.models.push(m));
+
+  const dest = join(root, "src-tauri/catalog/models.json");
+  mkdirSync(dirname(dest), { recursive: true });
+  writeFileSync(dest, `${JSON.stringify(out)}\n`);
+  console.log(`wrote ${out.models.length} models to ${dest} (${(JSON.stringify(out).length / 1024).toFixed(1)} KB)`);
+}

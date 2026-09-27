@@ -94,6 +94,104 @@ pub struct CatalogModel {
     pub used_for: Option<String>,
     pub arch: ModelArch,
     pub variants: Vec<Variant>,
+    /// A speed-up head published with the model (see `Helper`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub speed_head: Option<SpeedHead>,
+}
+
+/// How a Speed boost helper guesses ahead (llama.cpp `--spec-type`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum HelperKind {
+    /// A separate small model from the same family.
+    #[default]
+    Draft,
+    /// Multi-token prediction layers trained with the model itself.
+    Mtp,
+    /// An EAGLE-3 head that reads the model's hidden states.
+    Eagle3,
+    /// A DSpark head that drafts a whole block at once.
+    Dspark,
+}
+
+impl HelperKind {
+    pub fn spec_type(self) -> &'static str {
+        match self {
+            HelperKind::Draft => "draft-simple",
+            HelperKind::Mtp => "draft-mtp",
+            HelperKind::Eagle3 => "draft-eagle3",
+            HelperKind::Dspark => "draft-dspark",
+        }
+    }
+
+    /// How many tokens to guess per step when not tuned. Heads are accurate
+    /// for a few tokens; a separate model can run further ahead.
+    pub fn default_lookahead(self) -> u32 {
+        match self {
+            HelperKind::Draft => 16,
+            HelperKind::Mtp => 3,
+            HelperKind::Eagle3 => 8,
+            HelperKind::Dspark => 7,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SpeedHead {
+    pub kind: HelperKind,
+    pub file: ModelFile,
+}
+
+/// Version name used in download keys for a model's speed-up head
+/// (`"gemma-4-12b:speed-head"`).
+pub const HEAD_QUANT: &str = "speed-head";
+
+/// The Speed boost helper for a model: its own speed-up head when it ships
+/// one (more accurate, smaller), else a small model from the same family.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Helper {
+    pub kind: HelperKind,
+    /// Download key.
+    pub key: String,
+    pub name: String,
+    pub repo: String,
+    pub variant: Variant,
+}
+
+impl Helper {
+    pub fn path(&self, models_dir: &Path) -> PathBuf {
+        entry_path(models_dir, &self.variant)
+    }
+
+    pub fn installed(&self, models_dir: &Path) -> bool {
+        is_installed(models_dir, &self.variant)
+    }
+}
+
+fn head_variant(h: &SpeedHead) -> Variant {
+    Variant { quant: HEAD_QUANT.into(), bits: 8.0, size_bytes: h.file.size, files: vec![h.file.clone()] }
+}
+
+pub fn helper_for(catalog: &Catalog, model: &CatalogModel, models_dir: &Path) -> Option<Helper> {
+    if let Some(h) = &model.speed_head {
+        let name = match h.kind {
+            HelperKind::Mtp => "built-in multi-token head",
+            HelperKind::Eagle3 => "EAGLE-3 head",
+            HelperKind::Dspark => "DSpark head",
+            HelperKind::Draft => "helper",
+        };
+        return Some(Helper {
+            kind: h.kind,
+            key: format!("{}:{HEAD_QUANT}", model.id),
+            name: format!("{}'s {name}", model.name),
+            repo: model.repo.clone(),
+            variant: head_variant(h),
+        });
+    }
+    let d = drafter_for(catalog, model)?;
+    let (v, _) = drafter_variant(d, models_dir);
+    Some(Helper { kind: HelperKind::Draft, key: key(d, v), name: d.name.clone(), repo: d.repo.clone(), variant: v.clone() })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -133,13 +231,25 @@ impl Catalog {
             if m.variants.is_empty() || m.variants.iter().any(|v| v.files.is_empty()) {
                 return Err(AppError::msg(format!("catalog entry {} has no files", m.id)));
             }
-            for f in m.variants.iter().flat_map(|v| &v.files) {
+            for f in m.variants.iter().flat_map(|v| &v.files).chain(m.speed_head.as_ref().map(|h| &h.file)) {
                 if f.sha256.len() != 64 || f.name.contains("..") || f.name.starts_with('/') {
                     return Err(AppError::msg(format!("catalog entry {} has an invalid file", m.id)));
                 }
             }
         }
         Ok(())
+    }
+
+    /// What to download for a key: a model version, or a model's speed-up
+    /// head (`"<id>:speed-head"`). Returns (repo, files, canonical key).
+    pub fn download_target(&self, key: &str) -> AppResult<(String, Variant, String)> {
+        if let Some(id) = key.strip_suffix(&format!(":{HEAD_QUANT}")) {
+            let model = self.model(id).ok_or_else(|| AppError::msg(format!("unknown model '{id}'")))?;
+            let head = model.speed_head.as_ref().ok_or_else(|| AppError::msg(format!("{} has no speed-up head", model.name)))?;
+            return Ok((model.repo.clone(), head_variant(head), key.to_string()));
+        }
+        let (model, variant) = self.resolve(key)?;
+        Ok((model.repo.clone(), variant.clone(), self::key(model, variant)))
     }
 
     pub fn model(&self, id: &str) -> Option<&CatalogModel> {
