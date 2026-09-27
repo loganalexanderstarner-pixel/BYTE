@@ -1,5 +1,7 @@
 //! Decides per message whether the model should think before answering and
-//! how much it may write. Phase 8 swaps the heuristic for a small classifier.
+//! how much it may write. Accuracy first: in Auto mode BYTE thinks unless the
+//! message is clearly simple (small talk, a rewrite, a sum the calculator
+//! answers), and scales the thinking budget with how hard the question looks.
 
 use serde::Serialize;
 
@@ -82,17 +84,73 @@ pub fn needs_fresh_info(message: &str) -> bool {
     (year - 1..=year + 1).any(|y| m.contains(&y.to_string()))
 }
 
+/// How much deliberate reasoning a message needs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Effort {
+    /// Greetings, thanks, rewrites, formatting, a sum the calculator answers.
+    Trivial,
+    /// A short, plain question: a little thinking catches slips.
+    Light,
+    /// Anything else.
+    Normal,
+    /// Reasoning cues, long messages, maths.
+    Hard,
+}
+
+/// Whole messages (after greetings and "BYTE" are removed) that are small talk.
+const SMALL_TALK: &[&str] = &[
+    "", "how are you", "how are you doing", "what's up", "whats up", "sup", "who are you", "what's your name",
+    "good morning", "good night", "good evening", "see you", "see you later", "got it", "thank you", "bye",
+];
+const GREETING_WORDS: &[&str] = &["hi", "hey", "hello", "yo", "byte"];
+const ACK_WORDS: &[&str] = &["ok", "okay", "cool", "nice", "great", "thanks", "thx", "ty", "yes", "no", "sure", "lol", "haha", "perfect", "awesome"];
+
+const TEXT_JOBS: &[&str] = &[
+    "rewrite", "rephrase", "reword", "paraphrase", "proofread", "fix the spelling", "fix the grammar", "fix grammar",
+    "fix spelling", "fix typos", "translate", "format this", "format as", "make it shorter", "make it longer",
+    "shorten", "summarize this", "summarise this", "tl;dr", "turn this into", "convert this to", "capitalize",
+];
+
+/// Classifies a message (cheap heuristics; no model call).
+pub fn effort(message: &str) -> Effort {
+    let m = message.trim().to_lowercase();
+    let clean: String = m.chars().filter(|c| c.is_alphanumeric() || c.is_whitespace() || *c == '\'').collect();
+    let words = clean.split_whitespace().count();
+    let rest: Vec<&str> = clean.split_whitespace().filter(|w| !GREETING_WORDS.contains(w)).collect();
+    if words <= 6 && (SMALL_TALK.contains(&rest.join(" ").as_str()) || rest.iter().all(|w| ACK_WORDS.contains(w))) {
+        return Effort::Trivial;
+    }
+    if TEXT_JOBS.iter().any(|j| m.starts_with(j) || m.contains(&format!("\n{j}")) || (words <= 12 && m.contains(j))) {
+        return Effort::Trivial;
+    }
+    // The calculator answers plain sums exactly; thinking adds nothing.
+    if words <= 8 && math_expression(message).is_some() {
+        return Effort::Trivial;
+    }
+    if looks_complex(message) {
+        return Effort::Hard;
+    }
+    if words <= 12 {
+        Effort::Light
+    } else {
+        Effort::Normal
+    }
+}
+
 pub fn plan_turn(mode: Mode, pref: ThinkingPref, message: &str) -> TurnPlan {
-    let thinking = match pref {
-        ThinkingPref::On => true,
-        ThinkingPref::Off => false,
-        ThinkingPref::Auto => match mode {
-            Mode::Fast => false,
-            Mode::Auto => looks_complex(message),
-            Mode::Deep | Mode::Extended => true,
+    let (budget, max_tokens) = mode_limits(mode);
+    let (thinking, budget) = match pref {
+        ThinkingPref::On => (true, budget),
+        ThinkingPref::Off => (false, 0),
+        ThinkingPref::Auto => match (mode, effort(message)) {
+            (Mode::Fast, _) => (false, 0),
+            (Mode::Auto, Effort::Trivial) => (false, 0),
+            (Mode::Auto, Effort::Light) => (true, 384),
+            (Mode::Auto, Effort::Normal) => (true, 1024),
+            (Mode::Auto, Effort::Hard) => (true, budget),
+            (Mode::Deep | Mode::Extended, _) => (true, budget),
         },
     };
-    let (budget, max_tokens) = mode_limits(mode);
     TurnPlan { thinking, thinking_budget: if thinking { budget } else { 0 }, max_tokens, mode, profile: Default::default() }
 }
 
@@ -255,6 +313,25 @@ mod tests {
     }
 
     #[test]
+    fn accuracy_first_effort_levels() {
+        let e = |m: &str| effort(m);
+        for m in ["hi", "Thanks!", "hey byte, what's up", "ok cool", "what's 1234 * 5678?", "Rewrite this so it sounds friendlier: see you at 5"] {
+            assert_eq!(e(m), Effort::Trivial, "{m}");
+        }
+        assert_eq!(e("Translate to French: the meeting moved to Tuesday afternoon because of the storm"), Effort::Trivial);
+        for m in ["What is the capital of Australia?", "Who wrote Dune?", "hi, what causes tides on earth"] {
+            assert_eq!(e(m), Effort::Light, "{m}");
+        }
+        assert_eq!(e("Tell me about the history of the printing press in Europe and its effect on literacy"), Effort::Normal);
+        assert_eq!(e("Should I use Postgres or SQLite for a small desktop app?"), Effort::Hard);
+        // Short plain questions think a little; hard ones get the full budget.
+        let light = plan_turn(Mode::Auto, ThinkingPref::Auto, "Who wrote Dune?");
+        assert!(light.thinking && light.thinking_budget == 384);
+        assert_eq!(plan_turn(Mode::Auto, ThinkingPref::Auto, "Explain why the sky is blue").thinking_budget, 2048);
+        assert!(!plan_turn(Mode::Fast, ThinkingPref::Auto, "Explain why the sky is blue").thinking);
+    }
+
+    #[test]
     fn small_talk_skips_thinking_in_auto() {
         assert!(!plan_turn(Mode::Auto, ThinkingPref::Auto, "hey byte, what's up").thinking);
     }
@@ -262,7 +339,9 @@ mod tests {
     #[test]
     fn reasoning_questions_think_in_auto() {
         assert!(plan_turn(Mode::Auto, ThinkingPref::Auto, "Explain why the sky is blue").thinking);
-        assert!(plan_turn(Mode::Auto, ThinkingPref::Auto, "what is 17*23 + 4^2 = ?").thinking);
+        assert!(plan_turn(Mode::Auto, ThinkingPref::Auto, "If a train leaves at 3pm going 80 km/h, when does it cover 200 km?").thinking);
+        // A plain sum goes to the calculator, which is exact; no thinking needed.
+        assert!(!plan_turn(Mode::Auto, ThinkingPref::Auto, "what is 17*23 + 4^2 = ?").thinking);
     }
 
     #[test]
