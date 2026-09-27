@@ -169,3 +169,76 @@ first token is normal; do not treat it as an error or retry into the queue.
 **Expect it to be unreachable sometimes.** If the cluster is down, fall back
 to local models rather than showing an error. A cloud option backed by
 hardware in a house should degrade, not break — that is the honest design.
+
+---
+
+## What is actually behind the endpoint
+
+Worth knowing, because it shapes sensible timeouts, retries and fallbacks.
+Deliberately no addresses or topology here — this repository is going public,
+and a map of someone's home network does not belong in it. These are
+behavioural characteristics, which is what the app needs.
+
+### Two engines, one endpoint
+
+| | dense model | MoE model |
+|---|---|---|
+| runs on | a discrete GPU | CPU, RAM-backed |
+| context | ~33k tokens | **49k per request** |
+| concurrency | shared | **4 simultaneous requests** |
+| suits | short interactive turns, lower latency | long context, large documents |
+
+**The app must not choose.** A router picks per request based on prompt size:
+short turns go to the GPU for latency, long ones to the MoE because its
+context is RAM-backed and there is far more RAM than VRAM. Sending a hint
+about which engine you want will be ignored, and hardcoding an assumption
+about which one answered will break when the router changes.
+
+### Speed, honestly
+
+It is consumer hardware, not a datacentre. Expect **roughly 20–35 tokens per
+second** on the MoE — fine to read as it streams, noticeably slower than a
+commercial API. First-token latency is usually sub-second but a long prompt
+must be processed before generation starts, so a large document can take
+tens of seconds before anything appears.
+
+Design implication: **stream, always.** A spinner for twenty seconds reads as
+broken; the same twenty seconds with text arriving reads as working. Use the
+`phase` event to say what it is doing (`searching: ...`) during the gaps.
+
+### Four concurrent requests, then a queue
+
+Past four, requests queue rather than fail. A slow start is normal under
+load — **do not retry into the queue**, that makes it worse. Distinguish
+"queued" from "failed" before showing an error.
+
+### It lives in a house
+
+This is the part most worth designing around. The cluster is physical
+machines in one person's home, so:
+
+* **power cuts, reboots and upgrades happen.** It is not 99.9%.
+* **one machine is a dual-boot gaming PC** that leaves the cluster entirely
+  when it boots Windows. Capacity varies by time of day.
+* **a redeploy drops in-flight connections.** The work usually continues
+  server-side, but the stream dies.
+
+So: **treat unreachable as normal, not exceptional.** If the cluster does not
+answer, fall back to local models silently and say so quietly in the UI —
+never an error dialog. A cloud option backed by someone's house should
+degrade, not break. Retry with backoff, and when a stream dies mid-answer,
+reconnect and re-read the conversation rather than assuming the turn was
+lost; the answer is usually already saved.
+
+### Accounts and limits
+
+Every key belongs to an account with a tier, and tiers carry real daily
+allowances for documents and heavy modes. `GET /api/auth/me` returns the
+budgets — **show them**, so a user understands a refusal instead of
+experiencing it as a bug. A 429 means an allowance is spent, not that
+something is broken.
+
+New users sign up through an invite link; there is no open registration. If
+the app is shared, the onboarding needs to account for that: a key cannot be
+created without an account, and an account cannot be created without an
+invite.
