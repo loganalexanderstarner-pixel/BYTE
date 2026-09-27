@@ -1,0 +1,91 @@
+// Mirrors of the Rust types that cross the IPC boundary (see src-tauri/src).
+
+export type Mode = "fast" | "auto" | "deep" | "extended";
+export type ThinkingPref = "auto" | "on" | "off";
+
+export interface Settings {
+  onboardingComplete: boolean;
+  activeModel: string | null;
+  contextSize: number | null;
+  defaultMode: Mode;
+  thinking: ThinkingPref;
+  theme: string;
+  accent: string | null;
+  fontScale: number;
+  density: "comfortable" | "compact";
+  showStats: boolean;
+}
+
+export interface SystemInfo {
+  chip: string;
+  totalRamBytes: number;
+  gpuBudgetBytes: number;
+  freeDiskBytes: number;
+  osVersion: string;
+  cpuCores: number;
+  appleSilicon: boolean;
+}
+
+export type Fit = "great" | "tight" | "toobig";
+
+export interface FitPlan {
+  fit: Fit;
+  context: number;
+  neededBytes: number;
+  gpuBudgetBytes: number;
+  totalRamBytes: number;
+  note: string;
+}
+
+export interface ModelStatus {
+  id: string;
+  name: string;
+  tagline: string;
+  repo: string;
+  file: string;
+  sizeBytes: number;
+  role: "chat" | "draft" | "embed";
+  recommended: boolean;
+  thinking: boolean;
+  speedHint: string;
+  installed: boolean;
+  partialBytes: number;
+  downloading: boolean;
+  fit: FitPlan;
+}
+
+export type EngineStatus =
+  | { state: "noModel" }
+  | { state: "stopped" }
+  | { state: "starting"; model: string }
+  | { state: "ready"; model: string; context: number }
+  | { state: "error"; message: string };
+
+export type DownloadEvent =
+  | { kind: "resuming"; id: string; bytes: number }
+  | { kind: "progress"; id: string; bytes: number; total: number; bytesPerSec: number }
+  | { kind: "verifying"; id: string }
+  | { kind: "finished"; id: string }
+  | { kind: "paused"; id: string; bytes: number }
+  | { kind: "failed"; id: string; message: string };
+
+export interface Stats {
+  promptTokens: number;
+  completionTokens: number;
+  tokensPerSecond: number;
+  promptMs: number;
+  totalMs: number;
+  thinkingMs: number;
+}
+
+export type ChatEvent =
+  | { kind: "started"; thinking: boolean; model: string }
+  | { kind: "reasoning"; delta: string }
+  | { kind: "content"; delta: string }
+  | ({ kind: "stats" } & Stats)
+  | { kind: "done"; finishReason: string };
+
+export interface WireMessage {
+  role: "user" | "assistant";
+  content: string;
+}

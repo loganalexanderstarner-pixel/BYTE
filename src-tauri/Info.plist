@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>BYTE uses the microphone for voice input. Audio is transcribed on this Mac and never leaves it.</string>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>BYTE controls apps like Notes, Reminders, Calendar, Mail and Music only when you ask it to.</string>
+  <key>NSCalendarsUsageDescription</key>
+  <string>BYTE reads your calendar to answer questions about your schedule and to add events you ask for.</string>
+  <key>NSCalendarsFullAccessUsageDescription</key>
+  <string>BYTE reads your calendar to answer questions about your schedule and to add events you ask for.</string>
+  <key>NSRemindersUsageDescription</key>
+  <string>BYTE adds reminders and tasks you ask for to the Reminders app.</string>
+  <key>NSRemindersFullAccessUsageDescription</key>
+  <string>BYTE adds reminders and tasks you ask for to the Reminders app.</string>
+  <key>NSContactsUsageDescription</key>
+  <string>BYTE looks up contact names when drafting messages and emails you ask for.</string>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>BYTE uses your location for local lookups such as weather and nearby places, only when you ask.</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>BYTE transcribes speech on this Mac for voice input.</string>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>BYTE talks to its own AI engine running on this Mac.</string>
+</dict>
+</plist>

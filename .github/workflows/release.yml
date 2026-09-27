@@ -1,44 +1,81 @@
 name: Release BYTE
 
+# Tags like v1.0.0-test.1 publish a hidden pre-release (for testing on a real
+# Mac); a plain tag like v1.0.0 publishes the public release.
 on:
   push:
-    tags:
-      - "v*"
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v1.0.0-test.1"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        platform: [macos-latest, windows-latest]
-
-    runs-on: ${{ matrix.platform }}
-
+  macos:
+    name: Build macOS (Apple Silicon)
+    runs-on: macos-15
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Node
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
         with:
-          node-version: 18
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
-      - name: Install frontend dependencies
-        run: npm install
-
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli
-
-      - name: Build Tauri App
-        run: npm run tauri build
-
-      - name: Upload Release Artifacts
-        uses: softprops/action-gh-release@v1
+      - uses: actions/setup-node@v4
         with:
-          files: |
-            src-tauri/target/release/bundle/**/*.dmg
-            src-tauri/target/release/bundle/**/*.app
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.exe
+          node-version: 22
+          cache: npm
 
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Check versions match the tag
+        run: node scripts/bump.mjs --check "${TAG#v}"
+
+      - name: Cache llama.cpp build
+        uses: actions/cache@v4
+        with:
+          path: .cache/llama.cpp
+          key: llama-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/LLAMA_TAG', 'scripts/build-llama-server.sh') }}
+
+      - name: Build engine (llama-server, Metal)
+        run: TARGET_TRIPLE=aarch64-apple-darwin scripts/build-llama-server.sh
+
+      - run: npm ci
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        with:
+          tagName: ${{ env.TAG }}
+          releaseName: "BYTE ${{ env.TAG }}"
+          releaseBody: |
+            **Apple Silicon Macs (M1 or newer), macOS 13.3+.** Download the `.dmg`, open it, and drag BYTE to Applications.
+
+            **First launch:** BYTE isn't signed with an Apple Developer ID yet, so macOS will block it the first time.
+            - macOS 15 (Sequoia) or later: open BYTE once, click **Done**, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+            - macOS 13–14: right-click BYTE in Applications → **Open** → **Open**.
+            - If macOS says the app is "damaged", run this in Terminal: `xattr -cr /Applications/BYTE.app`
+
+            See the README for details.
+          releaseDraft: false
+          prerelease: ${{ contains(env.TAG, '-') }}
+          args: --target aarch64-apple-darwin
+
+      - name: Verify the bundle contains the engine
+        run: |
+          app=$(ls -d src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app | head -n1)
+          test -x "$app/Contents/MacOS/llama-server"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          "$app/Contents/MacOS/llama-server" --version
