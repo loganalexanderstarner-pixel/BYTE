@@ -44,6 +44,7 @@ src-tauri/                Rust core (Tauri 2)
   src/chat.rs             SSE streaming client, context fitting, cancellation, e2e test
   src/router.rs           per-turn thinking/length plan by mode
   src/prompt.rs           system prompt (identity, date, mode rules)
+  src/cloud/              cloud mode (docs/CLOUD-MODE.md): client + SSE follower, Keychain key store, commands
   src/commands.rs         #[tauri::command] wrappers (thin)
   src/settings.rs         persisted settings (camelCase JSON)
   binaries/               sidecars, built by scripts (gitignored)
@@ -79,3 +80,8 @@ On Linux, Tauri needs `libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicato
 - Colors come only from theme tokens in `styles/tokens.css`. Respect `prefers-reduced-motion`.
 - Add tests with every module: Rust unit tests next to the code, vitest `*.test.ts` next to TS files.
 - Keep `CHANGELOG.md` and `docs/PROJECT_GUIDE.md` (phase status) updated each phase.
+- **No secrets in the repo, ever** (it's public, with history). BYTE cloud keys live only in the macOS Keychain
+  (`cloud::keychain`); tests use short fake keys (`byte_test_…`). Run `scripts/check-secrets.sh` before pushing
+  (CI runs it too). Never use a real key someone pastes into a chat; tell them to revoke it.
+- Cloud mode follows `docs/CLOUD-MODE.md`: modes come from `me.modes`, stream with `delta` events, the document
+  outline approval step is required, and an unreachable cloud falls back to the local model.

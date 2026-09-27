@@ -1,0 +1,411 @@
+//! Cloud mode: the owner's BYTE cluster as a remote backend, reached over the
+//! public internet (contract: docs/CLOUD-MODE.md).
+//!
+//! - The API key authenticates as its owner and lives only in the macOS
+//!   Keychain (`keychain.rs`). It's checked with `GET /api/auth/me` before
+//!   it's saved.
+//! - Modes come from the account (`me.modes`), never a hard-coded list.
+//! - Answers stream as `delta` events (appended text only); `phase` and
+//!   `sources` arrive while the answer is written.
+//! - A slow first token is queueing, not an error: nothing is retried into the
+//!   queue. An unreachable cluster makes BYTE answer locally instead.
+
+pub mod cmd;
+pub mod keychain;
+pub mod sse;
+
+use std::time::{Duration, Instant};
+
+use futures_util::StreamExt;
+use serde::Serialize;
+use serde_json::{json, Value};
+use tauri::ipc::Channel;
+use tokio_util::sync::CancellationToken;
+
+use crate::chat::{ChatEvent, Stats};
+use crate::error::AppError;
+
+pub const DEFAULT_BASE: &str = "https://byteai.bytebylogan.xyz";
+
+/// Why a cloud call failed, so callers can fall back when the cluster is down.
+#[derive(Debug)]
+pub enum CloudError {
+    /// Can't reach the cluster (offline, DNS, refused, gateway errors).
+    Unreachable(String),
+    /// The key was rejected (401/403).
+    Unauthorized,
+    Other(AppError),
+}
+
+impl From<CloudError> for AppError {
+    fn from(e: CloudError) -> Self {
+        match e {
+            CloudError::Unreachable(m) => AppError::msg(format!("The BYTE cloud can't be reached right now ({m}).")),
+            CloudError::Unauthorized => {
+                AppError::msg("The BYTE cloud didn't accept your key. It may have been revoked; paste a new one in Settings → Cloud.")
+            }
+            CloudError::Other(e) => e,
+        }
+    }
+}
+
+type CloudResult<T> = Result<T, CloudError>;
+
+fn net_error(e: reqwest::Error) -> CloudError {
+    if e.is_connect() || e.is_timeout() || e.is_request() {
+        CloudError::Unreachable(e.to_string())
+    } else {
+        CloudError::Other(e.into())
+    }
+}
+
+#[derive(Clone)]
+pub struct CloudClient {
+    http: reqwest::Client,
+    base: String,
+    key: String,
+}
+
+/// One mode offered to this account, in the order the server lists them.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CloudMode {
+    pub id: String,
+    pub label: String,
+}
+
+/// The account behind a key (`GET /api/auth/me`).
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CloudMe {
+    pub name: Option<String>,
+    pub email: Option<String>,
+    pub tier: Option<String>,
+    pub modes: Vec<CloudMode>,
+    /// Limits and what's left of them, shown as the server sends them.
+    pub budgets: Value,
+}
+
+fn mode_label(id: &str) -> String {
+    match id {
+        "fast" => "Fast".into(),
+        "auto" => "Auto".into(),
+        "extended" => "Extended".into(),
+        "extended_plus" => "Extended+".into(),
+        other => {
+            let s = other.replace('_', " ");
+            let mut c = s.chars();
+            c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default()
+        }
+    }
+}
+
+pub fn text(v: &Value) -> Option<String> {
+    match v {
+        Value::String(s) if !s.is_empty() => Some(s.clone()),
+        Value::Number(n) => Some(n.to_string()),
+        Value::Object(o) => o.get("name").or_else(|| o.get("id")).and_then(text),
+        _ => None,
+    }
+}
+
+/// Reads the account without assuming more than the contract promises.
+pub fn parse_me(v: &Value) -> CloudMe {
+    let user = v.get("user").unwrap_or(v);
+    let pick = |keys: &[&str]| keys.iter().find_map(|k| v.get(*k).or_else(|| user.get(*k)).and_then(text));
+    let modes = v
+        .get("modes")
+        .or_else(|| user.get("modes"))
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter_map(|m| {
+                    let id = match m {
+                        Value::String(s) => s.clone(),
+                        Value::Object(o) => o.get("id").or_else(|| o.get("mode")).or_else(|| o.get("name")).and_then(text)?,
+                        _ => return None,
+                    };
+                    let label = m.get("label").and_then(text).unwrap_or_else(|| mode_label(&id));
+                    Some(CloudMode { id, label })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    CloudMe {
+        name: pick(&["name", "display_name", "username"]),
+        email: pick(&["email"]),
+        tier: pick(&["tier", "plan"]),
+        modes,
+        budgets: ["budgets", "budget", "quota", "limits"].iter().find_map(|k| v.get(*k).cloned()).unwrap_or(Value::Null),
+    }
+}
+
+/// Plain id of an object the server returned (`{"id": 12}` or `"12"`).
+pub fn id_of(v: &Value) -> Option<String> {
+    v.get("id").and_then(text).or_else(|| text(v))
+}
+
+impl CloudClient {
+    pub fn new(base: &str, key: &str) -> Self {
+        let http = reqwest::Client::builder()
+            .connect_timeout(Duration::from_secs(10))
+            .user_agent(concat!("BYTE-mac/", env!("CARGO_PKG_VERSION")))
+            .build()
+            .expect("http client");
+        CloudClient { http, base: base.trim_end_matches('/').to_string(), key: key.trim().to_string() }
+    }
+
+    fn url(&self, path: &str) -> String {
+        format!("{}{}", self.base, path)
+    }
+
+    fn req(&self, method: reqwest::Method, path: &str) -> reqwest::RequestBuilder {
+        self.http.request(method, self.url(path)).bearer_auth(&self.key)
+    }
+
+    async fn send(&self, rb: reqwest::RequestBuilder, timeout: Duration) -> CloudResult<Value> {
+        let r = rb.timeout(timeout).send().await.map_err(net_error)?;
+        let status = r.status();
+        if status == 401 || status == 403 {
+            return Err(CloudError::Unauthorized);
+        }
+        if matches!(status.as_u16(), 502..=504) {
+            return Err(CloudError::Unreachable(format!("HTTP {status}")));
+        }
+        let body = r.text().await.map_err(net_error)?;
+        if !status.is_success() {
+            let detail = serde_json::from_str::<Value>(&body).ok().and_then(|v| v.get("detail").and_then(text)).unwrap_or(body);
+            return Err(CloudError::Other(AppError::msg(format!("The BYTE cloud said: {} ({status})", detail.chars().take(300).collect::<String>()))));
+        }
+        Ok(if body.trim().is_empty() { Value::Null } else { serde_json::from_str(&body).unwrap_or(Value::String(body)) })
+    }
+
+    pub async fn get(&self, path: &str) -> CloudResult<Value> {
+        self.send(self.req(reqwest::Method::GET, path), Duration::from_secs(60)).await
+    }
+
+    pub async fn post(&self, path: &str, body: &Value) -> CloudResult<Value> {
+        // Posting may wait in the cluster's queue; that's normal, not an error.
+        self.send(self.req(reqwest::Method::POST, path).json(body), Duration::from_secs(600)).await
+    }
+
+    pub async fn delete(&self, path: &str) -> CloudResult<Value> {
+        self.send(self.req(reqwest::Method::DELETE, path), Duration::from_secs(60)).await
+    }
+
+    pub async fn create_conversation(&self, title: &str) -> CloudResult<String> {
+        let v = self.post("/api/conversations", &json!({ "title": title })).await?;
+        id_of(&v).ok_or_else(|| CloudError::Other(AppError::msg("the BYTE cloud didn't return a conversation id")))
+    }
+
+    /// Opens the event stream of a conversation, after message `since`.
+    async fn open_stream(&self, cid: &str, since: Option<&str>) -> CloudResult<reqwest::Response> {
+        let mut path = format!("/api/conversations/{cid}/stream");
+        if let Some(s) = since {
+            path.push_str(&format!("?since={s}"));
+        }
+        let r = self
+            .req(reqwest::Method::GET, &path)
+            .header("Accept", "text/event-stream")
+            .send()
+            .await
+            .map_err(net_error)?;
+        match r.status().as_u16() {
+            401 | 403 => Err(CloudError::Unauthorized),
+            502..=504 => Err(CloudError::Unreachable(format!("HTTP {}", r.status()))),
+            s if !(200..300).contains(&s) => Err(CloudError::Other(AppError::msg(format!("the BYTE cloud stream failed (HTTP {s})")))),
+            _ => Ok(r),
+        }
+    }
+}
+
+/// Finds the user's and the assistant's message ids in whatever the post
+/// returned (a row, a list of rows, or `{user_message, assistant_message}`).
+pub fn posted_ids(v: &Value) -> (Option<String>, Option<String>) {
+    let mut rows: Vec<&Value> = Vec::new();
+    match v {
+        Value::Array(a) => rows.extend(a.iter()),
+        Value::Object(o) => {
+            rows.push(v);
+            rows.extend(o.values().filter(|x| x.is_object()));
+            if let Some(Value::Array(a)) = o.get("messages") {
+                rows.extend(a.iter());
+            }
+        }
+        _ => {}
+    }
+    let find = |role: &str| rows.iter().find(|r| r.get("role").and_then(Value::as_str) == Some(role)).and_then(|r| id_of(r));
+    let user = find("user").or_else(|| v.get("user_message_id").and_then(text)).or_else(|| (v.get("role").is_none()).then(|| id_of(v)).flatten());
+    let assistant = find("assistant").or_else(|| v.get("assistant_message_id").and_then(text));
+    (user, assistant)
+}
+
+pub fn sources_of(v: &Value) -> Vec<crate::tools::Source> {
+    v.get("sources")
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .enumerate()
+                .map(|(i, s)| {
+                    let url = s.get("url").or_else(|| s.get("link")).and_then(text).or_else(|| s.as_str().map(String::from)).unwrap_or_default();
+                    crate::tools::Source {
+                        n: s.get("n").and_then(Value::as_u64).map(|n| n as u32).unwrap_or(i as u32 + 1),
+                        title: s.get("title").and_then(text).unwrap_or_else(|| url.clone()),
+                        snippet: s.get("snippet").or_else(|| s.get("excerpt")).and_then(text).unwrap_or_default(),
+                        read: true,
+                        url,
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// How one streamed answer ended.
+#[derive(Debug, PartialEq)]
+pub struct TurnEnd {
+    pub assistant_id: Option<String>,
+    pub text: String,
+    pub finish: String,
+}
+
+/// Follows one answer on the conversation's event stream and forwards it as
+/// `ChatEvent`s. `since` is the message after which new rows appear (the
+/// user's message); `assistant` is the answer's id if the post returned it.
+/// Reconnects (with `since`) if the stream closes before the answer is done.
+pub async fn follow(
+    client: &CloudClient,
+    cid: &str,
+    since: Option<String>,
+    mut assistant: Option<String>,
+    cancel: &CancellationToken,
+    on_event: &Channel<ChatEvent>,
+) -> CloudResult<TurnEnd> {
+    let started = Instant::now();
+    let mut first_token: Option<Instant> = None;
+    let mut text_out = String::new();
+    let mut reconnects = 0;
+    let emit = |e: ChatEvent| {
+        let _ = on_event.send(e);
+    };
+    loop {
+        let resp = tokio::select! {
+            _ = cancel.cancelled() => return stop(client, assistant, text_out).await,
+            r = client.open_stream(cid, since.as_deref()) => r?,
+        };
+        let mut body = resp.bytes_stream();
+        let mut parser = sse::Parser::default();
+        let mut finished: Option<String> = None;
+        'read: loop {
+            let chunk = tokio::select! {
+                _ = cancel.cancelled() => return stop(client, assistant, text_out).await,
+                c = body.next() => c,
+            };
+            let Some(chunk) = chunk else { break 'read };
+            let chunk = match chunk {
+                Ok(c) => c,
+                Err(_) => break 'read, // dropped: reconnect below
+            };
+            for ev in parser.push(&String::from_utf8_lossy(&chunk)) {
+                let data: Value = serde_json::from_str(&ev.data).unwrap_or(Value::Null);
+                let row_id = id_of(&data);
+                let mine = |a: &Option<String>| a.is_none() || a == &row_id;
+                match ev.event.as_str() {
+                    "message" => {
+                        if data.get("role").and_then(Value::as_str) != Some("assistant") || !mine(&assistant) {
+                            continue;
+                        }
+                        assistant = row_id.clone();
+                        // A full row (first sight, or after a reconnect): emit what we haven't shown.
+                        let content = data.get("content").and_then(Value::as_str).unwrap_or("");
+                        if content.len() > text_out.len() && content.starts_with(&text_out) {
+                            let rest = &content[text_out.len()..];
+                            first_token.get_or_insert_with(Instant::now);
+                            emit(ChatEvent::Content { delta: rest.to_string() });
+                            text_out.push_str(rest);
+                        }
+                        if let Some(s) = data.get("status").and_then(Value::as_str).filter(|s| matches!(*s, "done" | "error")) {
+                            finished = Some(s.into());
+                        }
+                        let src = sources_of(&data);
+                        if !src.is_empty() {
+                            emit(ChatEvent::Sources { sources: src });
+                        }
+                    }
+                    "delta" => {
+                        if !mine(&assistant) {
+                            continue;
+                        }
+                        assistant = row_id.clone().or(assistant);
+                        if let Some(add) = data.get("append").and_then(Value::as_str).filter(|a| !a.is_empty()) {
+                            first_token.get_or_insert_with(Instant::now);
+                            emit(ChatEvent::Content { delta: add.to_string() });
+                            text_out.push_str(add);
+                        }
+                        if let Some(s) = data.get("status").and_then(Value::as_str).filter(|s| matches!(*s, "done" | "error")) {
+                            finished = Some(s.into());
+                        }
+                    }
+                    "status" => {
+                        if mine(&assistant) {
+                            if let Some(s) = data.get("status").and_then(Value::as_str).filter(|s| matches!(*s, "done" | "error")) {
+                                finished = Some(s.into());
+                            }
+                        }
+                    }
+                    "phase" => {
+                        if let Some(p) = data.get("phase").and_then(text) {
+                            emit(ChatEvent::Phase { text: p });
+                        }
+                    }
+                    "sources" => {
+                        if mine(&assistant) {
+                            emit(ChatEvent::Sources { sources: sources_of(&data) });
+                        }
+                    }
+                    "done" => finished = finished.or(Some("done".into())),
+                    "bye" => break 'read,
+                    _ => {}
+                }
+            }
+            if finished.is_some() {
+                break 'read;
+            }
+        }
+        if let Some(f) = finished {
+            let secs = first_token.map(|t| t.elapsed().as_secs_f64()).unwrap_or(0.0);
+            let tokens = (text_out.chars().count() as f64 / 4.0).round() as u64;
+            emit(ChatEvent::Stats(Stats {
+                completion_tokens: tokens,
+                tokens_per_second: if secs > 0.5 { tokens as f64 / secs } else { 0.0 },
+                total_ms: started.elapsed().as_secs_f64() * 1000.0,
+                ..Default::default()
+            }));
+            if f == "error" {
+                return Err(CloudError::Other(AppError::msg("The BYTE cloud couldn't finish this answer. Try again.")));
+            }
+            return Ok(TurnEnd { assistant_id: assistant, text: text_out, finish: "stop".into() });
+        }
+        reconnects += 1;
+        if reconnects > 5 {
+            return Err(CloudError::Unreachable("the answer stream kept dropping".into()));
+        }
+        tokio::time::sleep(Duration::from_millis(500 * reconnects)).await;
+    }
+}
+
+async fn stop(client: &CloudClient, assistant: Option<String>, text: String) -> CloudResult<TurnEnd> {
+    if let Some(id) = &assistant {
+        let _ = client.post(&format!("/api/messages/{id}/stop"), &json!({})).await;
+    }
+    Ok(TurnEnd { assistant_id: assistant, text, finish: "cancelled".into() })
+}
+
+/// Message actions that start a new streamed answer.
+/// (`answer-now` and `stop` act on the answer already streaming.)
+pub const STREAMING_ACTIONS: &[&str] = &["regenerate", "deepen", "justify"];
+/// All message actions the app offers.
+pub const ACTIONS: &[&str] = &["regenerate", "deepen", "justify", "stop", "answer-now", "feedback"];
+
+#[cfg(test)]
+mod tests;

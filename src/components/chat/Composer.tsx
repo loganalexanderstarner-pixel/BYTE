@@ -1,4 +1,4 @@
-import { ArrowUp, Brain, Columns2, Cpu, Gauge, Globe, Rocket, Square, Telescope, Zap } from "lucide-react";
+import { ArrowUp, Brain, Cloud, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { displayName } from "../../lib/models";
@@ -11,6 +11,15 @@ const MODES: { id: Mode; label: string; icon: typeof Zap; hint: string }[] = [
   { id: "deep", label: "Deep", icon: Telescope, hint: "Always thinks first; thorough, structured answers." },
   { id: "extended", label: "Extended", icon: Rocket, hint: "Unlimited thinking and the longest, most complete answers." },
 ];
+
+/** Icons for the cloud's mode ids; the list itself always comes from the account. */
+const CLOUD_ICONS: Record<string, typeof Zap> = { fast: Zap, auto: Gauge, extended: Telescope, extended_plus: Rocket };
+const CLOUD_HINTS: Record<string, string> = {
+  fast: "Answers immediately, no reasoning.",
+  auto: "Picks how deeply to think for each question.",
+  extended: "Thinks longer before answering.",
+  extended_plus: "No limit on thinking.",
+};
 
 const NEXT_THINKING: Record<ThinkingPref, ThinkingPref> = { auto: "on", on: "off", off: "auto" };
 const THINKING_LABEL: Record<ThinkingPref, string> = { auto: "Thinking: Auto", on: "Thinking: On", off: "Thinking: Off" };
@@ -36,7 +45,15 @@ export function Composer() {
   const setAnswerWith = useStore((s) => s.setAnswerWith);
   const readyModels = loaded.filter((l) => l.status.state === "ready");
   const tune = useStore((s) => s.tune);
-  const ready = engine.state === "ready" && !tune;
+  const settings = useStore((s) => s.settings);
+  const cloudStatus = useStore((s) => s.cloud);
+  const updateSettings = useStore((s) => s.updateSettings);
+  const privateChat = useStore((s) => s.conversations.find((c) => c.id === s.currentId)?.private ?? false);
+  const cloudConnected = !!settings?.cloudConnected;
+  // The cloud needs no model on this Mac, so it also works on Macs too small for one.
+  const onCloud = cloudConnected && !!settings?.useCloud && !privateChat;
+  const cloudModes = cloudStatus?.account?.modes ?? [];
+  const ready = onCloud || (engine.state === "ready" && !tune);
 
   useEffect(() => {
     ref.current?.focus();
@@ -63,7 +80,9 @@ export function Composer() {
     }
   };
 
-  const placeholder = ready
+  const placeholder = onCloud
+    ? "Ask BYTE anything (answered on your BYTE cloud)…"
+    : ready
     ? "Ask BYTE anything…"
     : tune
       ? "Tuning BYTE for this Mac — one moment…"
@@ -75,7 +94,7 @@ export function Composer() {
 
   return (
     <div className="composer-wrap">
-      {tune && (
+      {tune && !onCloud && (
         <div className="banner tune-banner">
           <span className="grow">
             <b>Tuning BYTE for this Mac</b>
@@ -90,13 +109,16 @@ export function Composer() {
           </div>
         </div>
       )}
-      {!ready && !tune && engine.state !== "starting" && (
+      {!ready && !tune && engine.state !== "starting" && !onCloud && (
         <div className={`banner ${engine.state === "error" ? "danger" : ""}`}>
           <span className="grow">
             {engine.state === "error" ? engine.message : "BYTE needs a model before it can chat."}
           </span>
           <button className="btn sm primary" onClick={() => openSettings(engine.state === "error" ? "engine" : "models")}>
             {engine.state === "error" ? "Fix it" : "Choose a model"}
+          </button>
+          <button className="btn sm" onClick={() => (cloudConnected ? void updateSettings({ useCloud: true }) : openSettings("cloud"))}>
+            <Cloud size={14} /> {cloudConnected ? "Use BYTE Cloud" : "Connect BYTE Cloud"}
           </button>
         </div>
       )}
@@ -112,34 +134,76 @@ export function Composer() {
           spellCheck
         />
         <div className="composer-bar">
-          <div className="segmented" role="group" aria-label="Mode">
-            {MODES.map(({ id, label, icon: Icon, hint }) => (
-              <button key={id} aria-pressed={mode === id} onClick={() => setMode(id)} title={`${label}: ${hint}`}>
-                <Icon size={14} />
-                {label}
-              </button>
-            ))}
-          </div>
-          <button
-            className={`pill ${thinking === "on" ? "accent" : ""}`}
-            style={{ cursor: "pointer", height: 30 }}
-            onClick={() => setThinking(NEXT_THINKING[thinking])}
-            title="Auto: think when useful · On: always think first · Off: answer immediately"
-          >
-            <Brain size={14} />
-            {THINKING_LABEL[thinking]}
-          </button>
-          <button
-            className={`pill ${web ? "accent" : ""}`}
-            style={{ cursor: "pointer", height: 30 }}
-            onClick={toggleWeb}
-            aria-pressed={web}
-            title={web ? "Web search is on: BYTE searches when a question needs current information" : "Web search is off: BYTE answers from what it already knows"}
-          >
-            <Globe size={14} />
-            {web ? "Web" : "Web off"}
-          </button>
-          {readyModels.length > 1 && (
+          {cloudConnected && (
+            <button
+              className={`pill ${onCloud ? "accent" : ""}`}
+              style={{ cursor: privateChat ? "not-allowed" : "pointer", height: 30 }}
+              onClick={() => settings && void updateSettings({ useCloud: !settings.useCloud })}
+              disabled={privateChat}
+              aria-pressed={onCloud}
+              title={
+                privateChat
+                  ? "Private chats stay on this Mac"
+                  : onCloud
+                    ? "Answering on your BYTE cloud. Click to answer on this Mac."
+                    : "Answering on this Mac. Click to use your BYTE cloud."
+              }
+            >
+              <Cloud size={14} />
+              {onCloud ? "Cloud" : "This Mac"}
+            </button>
+          )}
+          {onCloud ? (
+            <div className="segmented" role="group" aria-label="Cloud mode">
+              {cloudModes.map(({ id, label }) => {
+                const Icon = CLOUD_ICONS[id] ?? Sparkles;
+                return (
+                  <button
+                    key={id}
+                    aria-pressed={(settings?.cloudMode ?? cloudModes[0]?.id) === id}
+                    onClick={() => void updateSettings({ cloudMode: id })}
+                    title={CLOUD_HINTS[id] ? `${label}: ${CLOUD_HINTS[id]}` : label}
+                  >
+                    <Icon size={14} />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="segmented" role="group" aria-label="Mode">
+              {MODES.map(({ id, label, icon: Icon, hint }) => (
+                <button key={id} aria-pressed={mode === id} onClick={() => setMode(id)} title={`${label}: ${hint}`}>
+                  <Icon size={14} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          {!onCloud && (
+            <button
+              className={`pill ${thinking === "on" ? "accent" : ""}`}
+              style={{ cursor: "pointer", height: 30 }}
+              onClick={() => setThinking(NEXT_THINKING[thinking])}
+              title="Auto: think when useful · On: always think first · Off: answer immediately"
+            >
+              <Brain size={14} />
+              {THINKING_LABEL[thinking]}
+            </button>
+          )}
+          {!onCloud && (
+            <button
+              className={`pill ${web ? "accent" : ""}`}
+              style={{ cursor: "pointer", height: 30 }}
+              onClick={toggleWeb}
+              aria-pressed={web}
+              title={web ? "Web search is on: BYTE searches when a question needs current information" : "Web search is off: BYTE answers from what it already knows"}
+            >
+              <Globe size={14} />
+              {web ? "Web" : "Web off"}
+            </button>
+          )}
+          {!onCloud && readyModels.length > 1 && (
             <label className={`pill model-pick ${answerWith !== "main" ? "accent" : ""}`} title="Which loaded model answers">
               {answerWith === "compare" ? <Columns2 size={14} /> : <Cpu size={14} />}
               <select value={answerWith} onChange={(e) => setAnswerWith(e.target.value)} aria-label="Answer with">
@@ -166,7 +230,7 @@ export function Composer() {
         </div>
       </div>
       <div className="composer-hint">
-        Runs entirely on your Mac · <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line
+        {onCloud ? "Answered on your BYTE cloud (falls back to this Mac if it's unreachable)" : "Runs entirely on your Mac"} · <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line
       </div>
     </div>
   );

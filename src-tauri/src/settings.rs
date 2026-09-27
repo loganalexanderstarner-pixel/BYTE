@@ -116,6 +116,16 @@ pub struct Settings {
     pub auto_tune: bool,
     /// Measured best settings per model key ("id:quant").
     pub tuning: HashMap<String, Tuning>,
+    /// A BYTE cloud key is saved in the Keychain (the key itself is never here).
+    pub cloud_connected: bool,
+    /// Cloud address; `None` = the default in `cloud::DEFAULT_BASE`.
+    pub cloud_base_url: Option<String>,
+    /// The account as `GET /api/auth/me` last described it (tier, modes, budgets).
+    pub cloud_account: Option<serde_json::Value>,
+    /// Answer with the BYTE cloud instead of the model on this Mac.
+    pub use_cloud: bool,
+    /// Cloud mode id last chosen (one of the account's modes).
+    pub cloud_mode: Option<String>,
 }
 
 impl Default for Settings {
@@ -141,6 +151,11 @@ impl Default for Settings {
             speed_pref: SpeedPref::Balanced,
             auto_tune: true,
             tuning: HashMap::new(),
+            cloud_connected: false,
+            cloud_base_url: None,
+            cloud_account: None,
+            use_cloud: false,
+            cloud_mode: None,
         }
     }
 }

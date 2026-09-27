@@ -30,6 +30,14 @@ export interface Settings {
   autoTune: boolean;
   /** Measured best settings per model key. */
   tuning: Record<string, Tuning>;
+  /** A BYTE cloud key is saved in the Keychain (the key itself never reaches the UI). */
+  cloudConnected: boolean;
+  cloudBaseUrl: string | null;
+  /** Raw `GET /api/auth/me`, cached. Use `cloudStatus()` for the parsed form. */
+  cloudAccount: unknown;
+  /** Answer with the BYTE cloud instead of this Mac. */
+  useCloud: boolean;
+  cloudMode: string | null;
 }
 
 /** Engine settings measured to be fastest for one model on this Mac. */
@@ -100,6 +108,8 @@ export interface ConversationMeta {
   summary: string | null;
   tags: string[];
   projectId: string | null;
+  /** Conversation id on the BYTE cloud. */
+  cloudId?: string | null;
 }
 
 /** Chats that share instructions. */
@@ -288,7 +298,30 @@ export type ChatEvent =
   | { kind: "toolResult"; id: string; ok: boolean; summary: string }
   | { kind: "sources"; sources: Source[] }
   | ({ kind: "stats" } & Stats)
-  | { kind: "done"; finishReason: string };
+  | { kind: "done"; finishReason: string }
+  | { kind: "phase"; text: string }
+  | { kind: "remote"; conversationId: string; messageId: string | null; userMessageId: string | null }
+  | { kind: "notice"; text: string };
+
+/** One mode the BYTE cloud offers this account (never a fixed list). */
+export interface CloudMode {
+  id: string;
+  label: string;
+}
+
+export interface CloudMe {
+  name: string | null;
+  email: string | null;
+  tier: string | null;
+  modes: CloudMode[];
+  budgets: unknown;
+}
+
+export interface CloudStatus {
+  connected: boolean;
+  baseUrl: string;
+  account: CloudMe | null;
+}
 
 export interface WireMessage {
   role: "user" | "assistant";

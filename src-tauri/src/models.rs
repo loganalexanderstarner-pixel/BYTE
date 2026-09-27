@@ -1121,7 +1121,7 @@ mod tests {
         boosted.boost = true;
         let (m, v) = c.resolve("qwen3.5-9b:Q6_K").unwrap();
         assert!(expected_tps(m, v, &boosted) > expected_tps(m, v, &mac(16)));
-        let (m, v) = c.resolve("gpt-oss-20b:MXFP4").unwrap();
+        let (m, _) = c.resolve("gpt-oss-20b:MXFP4").unwrap();
         assert!(has_helper(m), "gpt-oss ships an EAGLE-3 head");
     }
 

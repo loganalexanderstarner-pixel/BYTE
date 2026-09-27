@@ -67,6 +67,25 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 - **Thinking router** (`router::effort`): accuracy first. Auto mode skips thinking only for small talk,
   rewrites/translations and sums the calculator answers; budget 384 (short) / 1024 / 2048 (reasoning).
 
+## Cloud mode (`cloud/`, contract in `docs/CLOUD-MODE.md`)
+
+- `cloud::CloudClient` (bearer key, 10 s connect timeout, no read timeout on streams: queueing is normal).
+  Errors: 401/403 → `Unauthorized`; connect/timeout/502–504 → `Unreachable`; else `Other`.
+- Key: `cloud::keychain::Keychain` (macOS Keychain via `keyring`, service `com.loganstarner.byte.cloud`, account
+  per profile). `cloud_connect` validates with `GET /api/auth/me` *before* saving. Settings keep only
+  `cloudConnected`, `cloudBaseUrl`, `cloudAccount` (raw `me`), `useCloud`, `cloudMode`.
+- Modes: parsed from `me.modes` (`cloud::parse_me`, tolerant of strings or objects), never hard-coded.
+- Chat: `chat_send` with `request.cloud` → `cloud::cmd::send`: create conversation (first message), optional
+  `branch` (after edit/regenerate; `store.cloudTurn` decides), post the message, then `cloud::follow` reads the
+  SSE stream (`cloud::sse::Parser`): `delta` → `ChatEvent::Content`, `phase` → `Phase`, `sources` → `Sources`
+  (as they arrive), `status` done/error, `bye` → reconnect with `since`. `Remote` events carry conversation and
+  message ids; `conversations.cloud_id` (schema v3) and `message.remoteId` keep them.
+- Fallback: `Unreachable` before the cloud accepted the message → `Notice` + the local model answers
+  (`cloud::cmd::local_mode` maps modes). After acceptance, errors are reported, never answered twice.
+- Actions: `cloud_action` (deepen / justify stream a new answer; answer-now, stop, feedback), `cloud_import`
+  copies cloud conversations into the local DB. Private chats never use the cloud.
+- Tests: `cloud/tests.rs` with `wiremock` (fake keys only). `scripts/check-secrets.sh` runs in CI.
+
 ## Chats & memory (Phase 3, `db.rs`, `export.rs`)
 
 - `byte.db` in the app data folder, SQLCipher (rusqlite `bundled-sqlcipher-vendored-openssl`). Key: 256 random

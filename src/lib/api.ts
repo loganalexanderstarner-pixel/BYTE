@@ -23,6 +23,7 @@ import type {
   SystemInfo,
   ThinkingPref,
   WireMessage,
+  CloudStatus,
 } from "./types";
 
 /** True when running inside the Tauri shell (false in a plain browser tab). */
@@ -35,6 +36,17 @@ export interface ChatPatch {
   folder?: string;
   projectId?: string;
 }
+
+/** The cloud part of a chat request. */
+export interface CloudTurn {
+  conversationId?: string | null;
+  mode: string;
+  lastRemoteId?: string | null;
+  attachmentIds?: (string | number)[];
+  branchFrom?: string | null;
+}
+
+export type CloudAction = "regenerate" | "deepen" | "justify" | "stop" | "answer-now" | "feedback";
 
 export const api = {
   systemInfo: () => invoke<SystemInfo>("system_info"),
@@ -65,7 +77,16 @@ export const api = {
   engineTuneAll: (thorough = false) => invoke<number>("engine_tune_all", { thorough }),
 
   chatSend: (
-    request: { requestId: string; messages: WireMessage[]; mode: Mode; thinking: ThinkingPref; model?: string; private?: boolean; projectId?: string | null },
+    request: {
+      requestId: string;
+      messages: WireMessage[];
+      mode: Mode;
+      thinking: ThinkingPref;
+      model?: string;
+      private?: boolean;
+      projectId?: string | null;
+      cloud?: CloudTurn;
+    },
     onEvent: (e: ChatEvent) => void,
   ) => {
     const channel = new Channel<ChatEvent>();
@@ -73,6 +94,23 @@ export const api = {
     return invoke<void>("chat_send", { request, onEvent: channel });
   },
   chatCancel: (requestId: string) => invoke<boolean>("chat_cancel", { requestId }),
+
+  // BYTE cloud (docs/CLOUD-MODE.md). The key goes straight to the Keychain.
+  cloudStatus: () => invoke<CloudStatus>("cloud_status"),
+  cloudConnect: (key: string, baseUrl?: string | null) => invoke<CloudStatus>("cloud_connect", { key, baseUrl: baseUrl ?? null }),
+  cloudDisconnect: () => invoke<CloudStatus>("cloud_disconnect"),
+  cloudRefresh: () => invoke<CloudStatus>("cloud_refresh"),
+  cloudAction: (
+    request: { requestId: string; conversationId: string; messageId: string; action: CloudAction; since?: string | null; value?: string },
+    onEvent: (e: ChatEvent) => void,
+  ) => {
+    const channel = new Channel<ChatEvent>();
+    channel.onmessage = onEvent;
+    return invoke<void>("cloud_action", { request, onEvent: channel });
+  },
+  cloudDeleteMessage: (messageId: string) => invoke<void>("cloud_delete_message", { messageId }),
+  cloudConversations: () => invoke<unknown>("cloud_conversations"),
+  cloudImport: (conversationId: string) => invoke<string>("cloud_import", { conversationId }),
 
   // Saved chats (encrypted database)
   chatsList: () => invoke<ConversationMeta[]>("chats_list"),

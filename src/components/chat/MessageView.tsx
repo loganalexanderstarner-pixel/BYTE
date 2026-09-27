@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Brain, Check, ChevronLeft, ChevronRight, Copy, Lightbulb, Pencil, RefreshCw, TriangleAlert } from "lucide-react";
+import { Brain, Check, ChevronLeft, ChevronRight, Cloud, Copy, FastForward, HelpCircle, Layers, Lightbulb, Pencil, RefreshCw, ThumbsDown, ThumbsUp, TriangleAlert } from "lucide-react";
 import { memo, useMemo, useState, type MouseEvent } from "react";
 
 import { versionInfo } from "../../lib/branches";
@@ -141,6 +141,9 @@ function UserMessage({ message }: { message: Message }) {
 
 function AssistantMessage({ message, isLast, generating }: { message: Message; isLast: boolean; generating: boolean }) {
   const regenerate = useStore((s) => s.regenerate);
+  const cloudAct = useStore((s) => s.cloudAct);
+  const cloudModes = useStore((s) => s.cloud?.account?.modes);
+  const cloudModeLabel = message.cloudMode ? (cloudModes?.find((m) => m.id === message.cloudMode)?.label ?? message.cloudMode) : null;
   const showStats = useStore((s) => s.settings?.showStats ?? true);
   const models = useStore((s) => s.models);
   // Name the model when it isn't simply the main one.
@@ -155,6 +158,7 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
   const toolRunning = !!message.steps?.some((st) => st.status === "running");
   const thinkingLive = generating && !!message.reasoning && message.content.length === 0 && !toolRunning;
   const waiting = generating && !message.reasoning && message.content.length === 0 && !message.steps?.length;
+  const onCloud = !!message.cloud && !!message.remoteId;
   const s = message.stats;
 
   const copy = async () => {
@@ -169,7 +173,13 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
         <Logo size={16} glow={false} />
         BYTE
         {modelLabel && <span className="model-label">{modelLabel}</span>}
+        {message.cloud && (
+          <span className="model-label cloud-label" title="Written on your BYTE cloud">
+            <Cloud size={12} /> Cloud{cloudModeLabel ? ` · ${cloudModeLabel}` : ""}
+          </span>
+        )}
       </div>
+      {message.notice && <div className="banner notice-banner">{message.notice}</div>}
       {message.reasoning && message.reasoning.trim().length > 0 && (
         <Thinking text={message.reasoning} live={thinkingLive} ms={s?.thinkingMs} />
       )}
@@ -179,7 +189,14 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
           <i />
           <i />
           <i />
+          {message.cloud && <span className="phase">{message.phase ?? "Waiting in line on your BYTE cloud…"}</span>}
         </div>
+      )}
+      {generating && message.phase && !waiting && <div className="phase live">{message.phase}</div>}
+      {generating && onCloud && (
+        <button className="btn sm answer-now" onClick={() => void cloudAct(message.id, "answer-now")} title="Stop thinking and answer with what BYTE has so far">
+          <FastForward size={13} /> Answer now
+        </button>
       )}
       {message.content && (
         <div
@@ -224,6 +241,32 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
             <button className="icon-btn" onClick={() => void regenerate()} title="Regenerate (keeps this answer as another version)">
               <RefreshCw size={15} />
             </button>
+          )}
+          {onCloud && message.content && (
+            <>
+              <button className="icon-btn" onClick={() => void cloudAct(message.id, "deepen")} title="Go deeper: expand this answer">
+                <Layers size={15} />
+              </button>
+              <button className="icon-btn" onClick={() => void cloudAct(message.id, "justify")} title="Explain the reasoning behind this answer">
+                <HelpCircle size={15} />
+              </button>
+              <button
+                className={`icon-btn ${message.feedback === "up" ? "on" : ""}`}
+                onClick={() => void cloudAct(message.id, "feedback", "up")}
+                title="Good answer"
+                aria-pressed={message.feedback === "up"}
+              >
+                <ThumbsUp size={15} />
+              </button>
+              <button
+                className={`icon-btn ${message.feedback === "down" ? "on" : ""}`}
+                onClick={() => void cloudAct(message.id, "feedback", "down")}
+                title="Bad answer"
+                aria-pressed={message.feedback === "down"}
+              >
+                <ThumbsDown size={15} />
+              </button>
+            </>
           )}
           {showStats && s && s.completionTokens > 0 && (
             <span

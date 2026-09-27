@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: No secrets in the repository (it's public)
+        run: scripts/check-secrets.sh
       - uses: actions/setup-node@v4
         with:
           node-version: 22

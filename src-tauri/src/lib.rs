@@ -1,6 +1,7 @@
 mod agent;
 mod chat;
 mod chip;
+mod cloud;
 mod commands;
 mod db;
 mod engine;
@@ -149,6 +150,14 @@ pub fn run() {
             commands::chat_autotitle,
             commands::speed_boost_info,
             commands::gpu_share_info,
+            cloud::cmd::cloud_status,
+            cloud::cmd::cloud_connect,
+            cloud::cmd::cloud_disconnect,
+            cloud::cmd::cloud_refresh,
+            cloud::cmd::cloud_action,
+            cloud::cmd::cloud_delete_message,
+            cloud::cmd::cloud_conversations,
+            cloud::cmd::cloud_import,
             commands::gpu_share_set,
             commands::engine_tune,
             commands::engine_tune_all,

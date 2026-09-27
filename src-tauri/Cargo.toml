@@ -31,7 +31,7 @@ log = "0.4"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "io-util", "process", "sync", "time", "signal", "net"] }
 tokio-util = { version = "0.7", features = ["io"] }
 futures-util = "0.3"
-reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls-native-roots", "gzip", "brotli", "http2", "charset"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls-native-roots", "gzip", "brotli", "http2", "charset", "multipart"] }
 
 sysinfo = "0.39"
 sha2 = "0.10"
@@ -50,8 +50,13 @@ fend-core = "1.5"
 # nothing extra is needed on the Mac.
 rusqlite = { version = "0.37", features = ["bundled-sqlcipher-vendored-openssl"] }
 
+# Cloud mode: the API key lives in the macOS Keychain, never in files.
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+
 [dev-dependencies]
 tempfile = "3"
+wiremock = "0.6"
 
 [profile.release]
 codegen-units = 1

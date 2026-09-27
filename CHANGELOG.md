@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.0-test.10 — BYTE Cloud (part 1: chat)
+
+- **BYTE Cloud**: connect your own BYTE cluster in Settings → Cloud with an API key from
+  byteai.bytebylogan.xyz. BYTE checks the key with the cloud first, then keeps it in the macOS Keychain (never
+  in a file). Your tier, modes and limits show there.
+- **Chat on the cloud**: a Cloud / This Mac switch in the chat box. On the cloud, the mode buttons are the ones
+  your account has (Fast, Auto, Extended, Extended+ — whatever your plan includes), answers stream in live, what
+  the cloud is doing shows as it works ("searching: …"), and sources appear while the answer is written. Works
+  even on Macs with no model downloaded.
+- **Cloud answers** carry a small cloud tag and get extra actions: go deeper, explain the reasoning, thumbs
+  up/down, and "Answer now" while it's thinking. Edits and regenerate fork the conversation on the cloud too.
+- **Import cloud chats** into the sidebar and search.
+- **If the cloud can't be reached**, BYTE answers on this Mac instead and says so. A slow start is normal (the
+  cluster may be busy) and is never retried into the queue. Private chats never leave this Mac.
+
 ## 1.0.0-test.9 — Fastest possible on every Mac, without losing accuracy
 
 - **Models' own speed-up heads**: Gemma 4 (E2B, E4B, 12B, 26B-A4B, 31B), Qwen3.8 27B and Flash-Next,

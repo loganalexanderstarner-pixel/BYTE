@@ -1,5 +1,7 @@
 use tokio::sync::Mutex;
 
+use crate::error::{AppError, AppResult};
+
 use crate::chat::Generations;
 use crate::engine::{Engine, Extras};
 use crate::models::Downloads;
@@ -26,6 +28,10 @@ pub struct AppState {
     pub db: crate::db::Db,
     /// Model catalog (built in, refreshed from the web).
     pub catalog: crate::models::CatalogStore,
+    /// Where the BYTE cloud key is kept (the macOS Keychain).
+    pub secrets: Box<dyn crate::cloud::keychain::SecretStore>,
+    /// The cloud key once read from the Keychain this session.
+    pub cloud_key: Mutex<Option<String>>,
 }
 
 impl AppState {
@@ -42,6 +48,8 @@ impl AppState {
             actions: crate::tools::ActionLog::new(paths.data.join("actions.jsonl")),
             catalog: crate::models::CatalogStore::load(paths.root.join("catalog.json")),
             tuning: std::sync::atomic::AtomicBool::new(false),
+            secrets: Box::new(crate::cloud::keychain::Keychain),
+            cloud_key: Mutex::new(None),
             db: crate::db::Db::open(&paths.data).unwrap_or_else(|e| {
                 // Chats still work for this session; they just aren't kept.
                 log::error!("database unavailable, chats won't be saved this session: {e}");
@@ -49,5 +57,30 @@ impl AppState {
             }),
             paths,
         }
+    }
+}
+
+impl AppState {
+    /// Keychain account for this profile's cloud key.
+    pub fn cloud_account(&self) -> String {
+        match self.paths.data.strip_prefix(&self.paths.root) {
+            Ok(p) if !p.as_os_str().is_empty() => p.to_string_lossy().replace('\\', "/"),
+            _ => "default".into(),
+        }
+    }
+
+    pub async fn cloud_base(&self) -> String {
+        self.settings.lock().await.cloud_base_url.clone().filter(|u| !u.trim().is_empty()).unwrap_or_else(|| crate::cloud::DEFAULT_BASE.into())
+    }
+
+    /// A client with the saved key, or an error saying how to connect.
+    pub async fn cloud_client(&self) -> AppResult<crate::cloud::CloudClient> {
+        let mut cached = self.cloud_key.lock().await;
+        if cached.is_none() {
+            *cached = self.secrets.get(&self.cloud_account())?;
+        }
+        let key = cached.clone().ok_or_else(|| AppError::msg("Connect BYTE Cloud first: Settings → Cloud."))?;
+        drop(cached);
+        Ok(crate::cloud::CloudClient::new(&self.cloud_base().await, &key))
     }
 }

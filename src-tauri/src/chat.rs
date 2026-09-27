@@ -35,6 +35,12 @@ pub enum ChatEvent {
     Sources { sources: Vec<crate::tools::Source> },
     Stats(Stats),
     Done { finish_reason: String },
+    /// Live progress from the BYTE cloud ("searching: …").
+    Phase { text: String },
+    /// Ids on the BYTE cloud for this turn, so the chat can continue there.
+    Remote { conversation_id: String, message_id: Option<String>, user_message_id: Option<String> },
+    /// Something the user should know about this answer (e.g. answered on this Mac because the cloud was down).
+    Notice { text: String },
 }
 
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]

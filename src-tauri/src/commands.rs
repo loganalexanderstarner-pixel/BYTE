@@ -329,10 +329,32 @@ pub struct ChatRequest {
     /// The chat's project, whose instructions apply.
     #[serde(default)]
     pub project_id: Option<String>,
+    /// Answer on the BYTE cloud instead of this Mac.
+    #[serde(default)]
+    pub cloud: Option<crate::cloud::cmd::CloudTurn>,
 }
 
 #[tauri::command]
 pub async fn chat_send(state: State<'_, AppState>, request: ChatRequest, on_event: Channel<ChatEvent>) -> AppResult<()> {
+    let mut request = request;
+    if let Some(turn) = request.cloud.take() {
+        if request.private {
+            return Err(AppError::msg("Private chats stay on this Mac. Switch to a model on this Mac, or turn off Private."));
+        }
+        match crate::cloud::cmd::send(&state, &request, &turn, &on_event).await {
+            Err(crate::cloud::CloudError::Unreachable(why)) => {
+                // The cluster lives in a house; when it's down, answer here instead.
+                log::warn!("cloud unreachable, answering locally: {why}");
+                let _ = on_event.send(ChatEvent::Notice { text: "The BYTE cloud couldn't be reached, so this answer was written on this Mac.".into() });
+                request.mode = crate::cloud::cmd::local_mode(&turn.mode);
+            }
+            other => return other.map_err(Into::into),
+        }
+    }
+    local_turn(&state, request, on_event).await
+}
+
+async fn local_turn(state: &AppState, request: ChatRequest, on_event: Channel<ChatEvent>) -> AppResult<()> {
     if state.tuning.load(std::sync::atomic::Ordering::SeqCst) {
         return Err(AppError::msg("BYTE is tuning itself for this Mac (about a minute). Try again when it's done."));
     }

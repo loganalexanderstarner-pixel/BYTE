@@ -1,5 +1,5 @@
 import { open as openDialog, ask } from "@tauri-apps/plugin-dialog";
-import { Brain, Cpu, Download, Gauge, HardDrive, Info, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X, Zap } from "lucide-react";
+import { Brain, Cloud, Cpu, Download, Gauge, HardDrive, Info, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { THEMES } from "../../design/themes";
@@ -10,12 +10,14 @@ import { displayName } from "../../lib/models";
 import type { BoostInfo, GpuShare, Memory, Profiles, Settings } from "../../lib/types";
 import { useStore, type SettingsTab } from "../../state/store";
 import { CatalogBrowser } from "../models/CatalogBrowser";
+import { CloudTab } from "./CloudTab";
 
 const TABS: { id: SettingsTab; label: string; icon: typeof Cpu }[] = [
   { id: "models", label: "Models", icon: HardDrive },
   { id: "memory", label: "Memory & chats", icon: Brain },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "engine", label: "Engine", icon: Cpu },
+  { id: "cloud", label: "Cloud", icon: Cloud },
   { id: "about", label: "About", icon: Info },
 ];
 
@@ -49,6 +51,7 @@ export function SettingsModal() {
           {tab === "memory" && <MemoryTab />}
           {tab === "appearance" && <AppearanceTab />}
           {tab === "engine" && <EngineTab />}
+          {tab === "cloud" && <CloudTab />}
           {tab === "about" && <AboutTab />}
         </section>
       </div>

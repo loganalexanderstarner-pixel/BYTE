@@ -1872,3 +1872,55 @@ kbd {
   align-items: center;
   gap: var(--space-3);
 }
+
+/* ---------- cloud mode ---------- */
+
+.cloud-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.typing .phase {
+  margin-left: 8px;
+  align-self: center;
+  color: var(--text-2);
+  font-size: 0.85em;
+  animation: none;
+}
+.phase.live {
+  color: var(--text-2);
+  font-size: 0.85em;
+  margin: 2px 0 6px;
+}
+.btn.answer-now {
+  margin-top: 6px;
+}
+.notice-banner {
+  margin: 4px 0 8px;
+  max-width: none;
+  font-size: 0.88em;
+  color: var(--text-2);
+}
+.icon-btn.on {
+  color: var(--accent);
+}
+.cloud-account {
+  display: grid;
+  gap: 4px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-3);
+}
+.cloud-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.key-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono, monospace);
+}

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { api, errorText, events, inTauri, type ChatPatch } from "../lib/api";
+import { api, errorText, events, inTauri, type ChatPatch, type CloudTurn } from "../lib/api";
 import { branchAt, switchVersion, versionsAt } from "../lib/branches";
 import { titleFrom } from "../lib/format";
 import type {
@@ -19,6 +19,7 @@ import type {
   SystemInfo,
   ThinkingPref,
   WireMessage,
+  CloudStatus,
 } from "../lib/types";
 
 /** One tool use shown in the answer's activity list. */
@@ -57,6 +58,17 @@ export interface Message {
   version?: number;
   /** BYTE was closed while this answer was being written. */
   interrupted?: boolean;
+  /** Written on the BYTE cloud; `remoteId` is its message id there. */
+  cloud?: boolean;
+  remoteId?: string;
+  /** Cloud mode id used for this answer. */
+  cloudMode?: string;
+  /** Live progress from the cloud while it works ("searching: …"). */
+  phase?: string;
+  /** Something to point out about this answer (e.g. written locally because the cloud was down). */
+  notice?: string;
+  /** Thumbs up/down given on the cloud. */
+  feedback?: "up" | "down";
   createdAt: number;
 }
 
@@ -77,6 +89,10 @@ export interface Conversation {
   summary?: string | null;
   tags?: string[];
   projectId?: string | null;
+  /** Conversation id on the BYTE cloud once this chat has used it. */
+  cloudId?: string | null;
+  /** Newest message the cloud conversation continues from (this session). */
+  cloudHead?: string | null;
 }
 
 /** Has anything been said in this chat (loaded or not)? */
@@ -90,7 +106,7 @@ export interface DownloadState {
   error?: string;
 }
 
-export type SettingsTab = "models" | "memory" | "appearance" | "engine" | "about";
+export type SettingsTab = "models" | "memory" | "appearance" | "engine" | "cloud" | "about";
 
 interface State {
   ready: boolean;
@@ -140,6 +156,11 @@ interface State {
   reloadChats(): Promise<void>;
   send(text: string): Promise<void>;
   regenerate(): Promise<void>;
+  /** Cloud account status (connected, modes). */
+  cloud: CloudStatus | null;
+  refreshCloud(): Promise<void>;
+  /** Deepen / justify (new answer), answer-now / stop, or thumbs up/down on a cloud answer. */
+  cloudAct(msgId: string, action: "deepen" | "justify" | "answer-now" | "feedback", value?: "up" | "down"): Promise<void>;
   stop(): Promise<void>;
   toggleWeb(): void;
   setMode(m: Mode): void;
@@ -221,11 +242,34 @@ const fromMeta = (m: ConversationMeta): Conversation => ({
   summary: m.summary,
   tags: m.tags,
   projectId: m.projectId,
+  cloudId: m.cloudId ?? null,
   messages: [],
   loaded: false,
 });
 
 const uid = () => crypto.randomUUID();
+
+/** Cloud id of the newest message that has one. */
+const lastRemoteId = (messages: Message[]) => [...messages].reverse().find((m) => m.remoteId)?.remoteId ?? null;
+
+/**
+ * Where the new question goes on the cloud. Normally it continues the cloud
+ * conversation; after an edit or a regenerate the chat goes on from an
+ * earlier message, so the cloud conversation is forked there first (or a new
+ * one is started when the very first message changed).
+ */
+export function cloudTurn(conv: Pick<Conversation, "messages" | "cloudId" | "cloudHead">, mode: string): CloudTurn {
+  const msgs = conv.messages;
+  const last = msgs[msgs.length - 1];
+  const before = last?.role === "user" ? msgs.slice(0, -1) : msgs;
+  const prev = lastRemoteId(before);
+  if (!conv.cloudId) return { conversationId: null, mode, lastRemoteId: null, branchFrom: null };
+  const head = conv.cloudHead ?? lastRemoteId(msgs);
+  const forked = !!last?.remoteId || (head !== null && head !== prev);
+  if (!forked) return { conversationId: conv.cloudId, mode, lastRemoteId: prev, branchFrom: null };
+  if (!prev) return { conversationId: null, mode, lastRemoteId: null, branchFrom: null };
+  return { conversationId: conv.cloudId, mode, lastRemoteId: prev, branchFrom: prev };
+}
 
 /** Messages sent to the model: finished turns only, in order. Side-by-side
  * alternatives are left out so each question has one answer in the history. */
@@ -262,8 +306,11 @@ export const useStore = create<State>((set, get) => {
   ) => {
     const conv = get().conversations.find((c) => c.id === convId);
     if (!conv) return;
-    const { mode, thinking } = get();
+    const { mode, thinking, settings } = get();
     const history = toWire(conv.messages);
+    // The BYTE cloud answers when it's switched on (never for private chats or a picked local model).
+    const useCloud = !!settings?.useCloud && !!settings.cloudConnected && !conv.private && !opts.model && !opts.group;
+    const cloudMode = settings?.cloudMode ?? get().cloud?.account?.modes[0]?.id ?? "auto";
     const reply: Message = {
       id: uid(),
       role: "assistant",
@@ -277,9 +324,23 @@ export const useStore = create<State>((set, get) => {
       picked: !!opts.model && !opts.group,
       alts: opts.branch?.alts,
       version: opts.branch?.version,
+      cloud: useCloud || undefined,
+      cloudMode: useCloud ? cloudMode : undefined,
       createdAt: Date.now(),
     };
     patchConversation(convId, (c) => ({ ...c, messages: [...c.messages, reply] }));
+    let cloud: CloudTurn | undefined;
+    if (useCloud) cloud = cloudTurn(conv, cloudMode);
+    await streamReply(convId, reply, (onEvent) =>
+      api.chatSend(
+        { requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private, projectId: conv.projectId, cloud },
+        onEvent,
+      ),
+    );
+  };
+
+  /** Runs one streamed answer into `reply` (a message already in the chat). */
+  const streamReply = async (convId: string, reply: Message, call: (onEvent: (e: ChatEvent) => void) => Promise<void>) => {
     set({ generating: get().generating ?? reply.id, running: [...get().running, reply.id] });
 
     // Batch token deltas into one render per animation frame.
@@ -302,7 +363,7 @@ export const useStore = create<State>((set, get) => {
     const onEvent = (e: ChatEvent) => {
       switch (e.kind) {
         case "started":
-          patchMessage(convId, reply.id, (m) => ({ ...m, thinking: e.thinking, model: e.model }));
+          patchMessage(convId, reply.id, (m) => ({ ...m, thinking: e.thinking, model: m.cloud ? undefined : e.model }));
           break;
         case "reasoning":
           pendingReasoning += e.delta;
@@ -331,6 +392,34 @@ export const useStore = create<State>((set, get) => {
         case "sources":
           patchMessage(convId, reply.id, (m) => ({ ...m, sources: e.sources }));
           break;
+        case "phase":
+          patchMessage(convId, reply.id, (m) => ({ ...m, phase: e.text }));
+          break;
+        case "remote":
+          patchConversation(convId, (c) => {
+            const head = e.messageId ?? e.userMessageId ?? c.cloudHead ?? null;
+            // The user's message gets its cloud id too, so later turns know where to continue.
+            let userIdx = -1;
+            c.messages.forEach((m, i) => {
+              if (m.role === "user" && i < c.messages.findIndex((x) => x.id === reply.id)) userIdx = i;
+            });
+            return {
+              ...c,
+              cloudId: e.conversationId,
+              cloudHead: head,
+              messages: c.messages.map((m, i) =>
+                m.id === reply.id && e.messageId
+                  ? { ...m, remoteId: e.messageId }
+                  : i === userIdx && e.userMessageId
+                    ? { ...m, remoteId: e.userMessageId }
+                    : m,
+              ),
+            };
+          });
+          break;
+        case "notice":
+          patchMessage(convId, reply.id, (m) => ({ ...m, notice: e.text, cloud: undefined, cloudMode: undefined }));
+          break;
         case "stats": {
           const { kind: _kind, ...stats } = e;
           patchMessage(convId, reply.id, (m) => ({ ...m, stats }));
@@ -341,6 +430,7 @@ export const useStore = create<State>((set, get) => {
           flush();
           patchMessage(convId, reply.id, (m) => ({
             ...m,
+            phase: undefined,
             status: e.finishReason === "cancelled" ? "cancelled" : "done",
           }));
           break;
@@ -348,14 +438,11 @@ export const useStore = create<State>((set, get) => {
     };
 
     try {
-      await api.chatSend(
-        { requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private, projectId: conv.projectId },
-        onEvent,
-      );
+      await call(onEvent);
     } catch (err) {
       cancelAnimationFrame(frame);
       flush();
-      patchMessage(convId, reply.id, (m) => ({ ...m, status: "error", error: errorText(err) }));
+      patchMessage(convId, reply.id, (m) => ({ ...m, phase: undefined, status: "error", error: errorText(err) }));
     } finally {
       const running = get().running.filter((id) => id !== reply.id);
       set({ running, generating: running.length ? (get().generating === reply.id ? running[0] : get().generating) : null });
@@ -417,6 +504,7 @@ export const useStore = create<State>((set, get) => {
     projects: [],
     tune: null,
     answerWith: "main",
+    cloud: null,
     mode: "auto",
     thinking: "auto",
     sidebarOpen: true,
@@ -432,6 +520,7 @@ export const useStore = create<State>((set, get) => {
       await importLocalChats();
       const conversations = (await api.chatsList().catch(() => [] as ConversationMeta[])).map(fromMeta);
       void get().refreshProjects();
+      void get().refreshCloud();
       await events.onEngineStatus((engine) => {
         set({ engine });
         void get().refreshLoaded();
@@ -648,6 +737,45 @@ export const useStore = create<State>((set, get) => {
         projects: get().projects.filter((p) => p.id !== id),
         conversations: get().conversations.map((c) => (c.projectId === id ? { ...c, projectId: null } : c)),
       });
+    },
+
+    async refreshCloud() {
+      if (!inTauri) return;
+      set({ cloud: await api.cloudStatus().catch(() => get().cloud) });
+    },
+
+    async cloudAct(msgId, action, value) {
+      const conv = currentConversation(get());
+      const msg = conv?.messages.find((m) => m.id === msgId);
+      if (!conv?.cloudId || !msg?.remoteId) return;
+      const base = { requestId: uid(), conversationId: conv.cloudId, messageId: msg.remoteId };
+      if (action === "feedback") {
+        patchMessage(conv.id, msgId, (m) => ({ ...m, feedback: value }));
+        await api.cloudAction({ ...base, action, value }, () => {}).catch((e) => console.warn("feedback not sent", e));
+        return;
+      }
+      if (action === "answer-now") {
+        await api.cloudAction({ ...base, action }, () => {}).catch((e) => console.warn("answer-now failed", e));
+        return;
+      }
+      if (get().generating) return;
+      // Deepen / justify write a new answer after this one.
+      const reply: Message = {
+        id: uid(),
+        role: "assistant",
+        content: "",
+        status: "streaming",
+        cloud: true,
+        cloudMode: msg.cloudMode,
+        createdAt: Date.now(),
+      };
+      patchConversation(conv.id, (c) => {
+        const i = c.messages.findIndex((m) => m.id === msgId);
+        return { ...c, messages: [...c.messages.slice(0, i + 1), reply, ...c.messages.slice(i + 1)] };
+      });
+      await streamReply(conv.id, { ...reply, id: reply.id }, (onEvent) =>
+        api.cloudAction({ ...base, requestId: reply.id, action, since: msg.remoteId }, onEvent),
+      );
     },
 
     toggleWeb() {
