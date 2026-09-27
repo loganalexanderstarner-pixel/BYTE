@@ -195,6 +195,8 @@ export interface VariantStatus {
   speed: SpeedEstimate;
   /** Fits in the memory left next to the models already running. */
   fitsAlongside: boolean;
+  /** Writing speed measured on this Mac by tuning (tokens/sec). */
+  measuredTps?: number | null;
 }
 
 export interface ModelStatus {

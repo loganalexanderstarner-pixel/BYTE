@@ -37,8 +37,7 @@ pub struct TuneProgress {
 
 /// Name of this Mac's chip, to know when tuning was done on another Mac.
 pub fn chip_id(state: &AppState) -> String {
-    let c = crate::system::system_info(&state.paths.data).chip_info;
-    format!("{} {}", c.name, c.gpu_cores.map(|g| format!("{g}-core GPU")).unwrap_or_default()).trim().to_string()
+    crate::system::system_info(&state.paths.data).chip_id()
 }
 
 /// Tuned settings for `key` on this Mac, if measured.

@@ -171,8 +171,15 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
         </span>
       </div>
       {!tooBig && (
-        <div className={`speed-row ${speedClass(v.speed.tokensPerSec)}`} title="Estimated from this Mac's chip; actual speed varies with prompt length and other apps.">
-          <span><Gauge size={13} /> ≈ {Math.round(v.speed.tokensPerSec)} tokens/sec on this Mac</span>
+        <div
+          className={`speed-row ${speedClass(v.measuredTps ?? v.speed.tokensPerSec)}`}
+          title={v.measuredTps ? "Measured on this Mac by tuning, with its fastest settings." : "Estimated from this Mac's chip; actual speed varies with prompt length and other apps."}
+        >
+          {v.measuredTps ? (
+            <span><Gauge size={13} /> {v.measuredTps.toFixed(1)} tokens/sec measured on this Mac</span>
+          ) : (
+            <span><Gauge size={13} /> ≈ {Math.round(v.speed.tokensPerSec)} tokens/sec on this Mac</span>
+          )}
           <span><Clock size={13} /> Typical answer {approxDuration(v.speed.replySecs)}</span>
           {model.thinking && <span className="faint">({approxDuration(v.speed.replyThinkingSecs)} with thinking)</span>}
         </div>

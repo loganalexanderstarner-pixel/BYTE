@@ -22,6 +22,16 @@ pub struct SystemInfo {
     /// What the user asked BYTE to favour when recommending (set from settings).
     #[serde(skip)]
     pub speed_pref: crate::settings::SpeedPref,
+    /// Speed boost is on (estimates count on it where a helper exists).
+    #[serde(skip)]
+    pub boost: bool,
+    /// Writing speed measured by tuning on this Mac, by model key.
+    #[serde(skip)]
+    pub measured: std::collections::HashMap<String, f64>,
+    /// Measured ÷ estimated speed on this Mac (median over tuned models), to
+    /// correct estimates for models not measured yet. Set by `models::calibrate`.
+    #[serde(skip)]
+    pub calibration: Option<f64>,
 }
 
 impl SystemInfo {
@@ -30,6 +40,21 @@ impl SystemInfo {
     pub fn with_pref(mut self, pref: crate::settings::SpeedPref) -> Self {
         self.speed_pref = pref;
         self
+    }
+
+    /// Adds what the settings say about preferences and measured speeds.
+    pub fn with_settings(mut self, s: &crate::settings::Settings) -> Self {
+        let chip = self.chip_id();
+        self.speed_pref = s.speed_pref;
+        self.boost = s.speed_boost;
+        self.measured = s.tuning.iter().filter(|(_, t)| t.chip == chip && t.tokens_per_sec > 0.0).map(|(k, t)| (k.clone(), t.tokens_per_sec)).collect();
+        self
+    }
+
+    /// Name of this Mac's chip, to know when tuning was done on another Mac.
+    pub fn chip_id(&self) -> String {
+        let c = &self.chip_info;
+        format!("{} {}", c.name, c.gpu_cores.map(|g| format!("{g}-core GPU")).unwrap_or_default()).trim().to_string()
     }
 
     pub fn minus(mut self, bytes: u64) -> Self {
@@ -54,6 +79,9 @@ pub fn system_info(data_dir: &std::path::Path) -> SystemInfo {
     SystemInfo {
         chip_info: crate::chip::identify(&chip, *GPU_CORES),
         speed_pref: Default::default(),
+        boost: false,
+        measured: Default::default(),
+        calibration: None,
         apple_silicon: cfg!(all(target_os = "macos", target_arch = "aarch64")),
         gpu_budget_bytes: gpu_budget(total, wired_limit_override()),
         free_disk_bytes: free_disk_for(data_dir),

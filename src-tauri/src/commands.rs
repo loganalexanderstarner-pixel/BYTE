@@ -37,13 +37,11 @@ pub async fn settings_update(state: State<'_, AppState>, patch: serde_json::Valu
 
 #[tauri::command]
 pub async fn models_list(state: State<'_, AppState>) -> AppResult<Vec<ModelStatus>> {
-    let (ctx, pref) = {
-        let s = state.settings.lock().await;
-        (s.context_size.unwrap_or(DEFAULT_CONTEXT), s.speed_pref)
-    };
+    let settings = state.settings.lock().await.clone();
+    let ctx = settings.context_size.unwrap_or(DEFAULT_CONTEXT);
     let active = state.downloads.active_ids().await;
-    let info = system::system_info(&state.paths.data).with_pref(pref);
     let catalog = state.catalog.get();
+    let info = models::calibrate(system::system_info(&state.paths.data).with_settings(&settings), &catalog);
     let loaded_bytes = loaded_bytes(&state).await;
     Ok(models::list(&catalog, &models::ListContext { models_dir: &state.paths.models, info: &info, ctx, downloading: &active, loaded_bytes }))
 }
@@ -51,12 +49,10 @@ pub async fn models_list(state: State<'_, AppState>) -> AppResult<Vec<ModelStatu
 /// The best chat model + version for this Mac, as a key like "qwen3.5-9b:Q6_K".
 #[tauri::command]
 pub async fn model_recommend(state: State<'_, AppState>) -> AppResult<Option<String>> {
-    let (ctx, pref) = {
-        let s = state.settings.lock().await;
-        (s.context_size.unwrap_or(DEFAULT_CONTEXT), s.speed_pref)
-    };
-    let info = system::system_info(&state.paths.data).with_pref(pref);
+    let settings = state.settings.lock().await.clone();
+    let ctx = settings.context_size.unwrap_or(DEFAULT_CONTEXT);
     let catalog = state.catalog.get();
+    let info = models::calibrate(system::system_info(&state.paths.data).with_settings(&settings), &catalog);
     Ok(models::recommend(&catalog, &info, ctx).map(|(m, v)| models::key(m, v)))
 }
 

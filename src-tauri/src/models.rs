@@ -388,7 +388,7 @@ pub fn effective_quality(model: &CatalogModel, v: &Variant) -> i32 {
 /// user prefers: ~8 tokens/sec by default, 22 for "faster", 5 for "smarter".
 pub fn score(model: &CatalogModel, v: &Variant, info: &SystemInfo) -> i32 {
     use crate::settings::SpeedPref;
-    let tps = crate::chip::estimate(&info.chip_info, v.size_bytes, model.params_b, model.active_b).tokens_per_sec;
+    let tps = expected_tps(model, v, info);
     let (target, per_token, cap) = match info.speed_pref {
         SpeedPref::Speed => (22.0, 3.0, 40.0),
         SpeedPref::Balanced => (8.0, 2.5, 20.0),
@@ -398,24 +398,70 @@ pub fn score(model: &CatalogModel, v: &Variant, info: &SystemInfo) -> i32 {
     effective_quality(model, v) - penalty.round() as i32
 }
 
+/// Writing speed to plan with: measured by tuning on this Mac when available,
+/// else estimated from the chip (a bit higher when Speed boost has a helper
+/// for this model; measured boosts were 1.3–2× on code and lists).
+pub fn expected_tps(model: &CatalogModel, v: &Variant, info: &SystemInfo) -> f64 {
+    if let Some(&m) = info.measured.get(&key(model, v)) {
+        return m;
+    }
+    let raw = |v: &Variant| crate::chip::estimate(&info.chip_info, v.size_bytes, model.params_b, model.active_b).tokens_per_sec;
+    // Another version of this model was measured: scale by how far off the
+    // estimate was for it (same architecture, same Mac).
+    if let Some((other, m)) = model.variants.iter().find_map(|o| info.measured.get(&key(model, o)).map(|m| (o, *m))) {
+        return raw(v) * m / raw(other).max(0.1);
+    }
+    let est = raw(v) * info.calibration.unwrap_or(1.0);
+    if info.boost && has_helper(model) {
+        est * 1.3
+    } else {
+        est
+    }
+}
+
+/// Learns from tuning how far this Mac's real speed is from the estimates
+/// (thermals, other apps, the engine build) and applies it to every model.
+pub fn calibrate(mut info: SystemInfo, catalog: &Catalog) -> SystemInfo {
+    let mut ratios: Vec<f64> = info
+        .measured
+        .iter()
+        .filter_map(|(k, m)| {
+            let (model, v) = catalog.resolve(k).ok()?;
+            let est = crate::chip::estimate(&info.chip_info, v.size_bytes, model.params_b, model.active_b).tokens_per_sec;
+            (est > 0.0).then(|| m / est)
+        })
+        .collect();
+    ratios.sort_by(f64::total_cmp);
+    info.calibration = ratios.get(ratios.len() / 2).map(|r| r.clamp(0.2, 3.0));
+    info
+}
+
+/// Whether Speed boost has a helper for `model` (its own head or a family drafter).
+pub fn has_helper(model: &CatalogModel) -> bool {
+    model.speed_head.is_some() || (drafter_id(model).is_some() && model.params_b.unwrap_or(0.0) >= 3.2)
+}
+
+fn drafter_id(model: &CatalogModel) -> Option<&'static str> {
+    let m = model.id.as_str();
+    let starts = |p: &[&str]| p.iter().any(|x| m.starts_with(x));
+    if starts(&["qwen3.5", "qwen3.6", "qwen3.8-27b", "qwen-agentworld"]) {
+        Some("qwen3.5-0.8b")
+    } else if starts(&["qwen3-"]) {
+        Some("qwen3-0.6b")
+    } else if starts(&["gemma-3-"]) {
+        Some("gemma-3-270m")
+    } else if starts(&["llama-3", "meta-llama-3", "hermes-3-llama-3"]) {
+        Some("llama-3.2-1b")
+    } else {
+        None
+    }
+}
+
 /// A small model from the same family that can draft tokens for `model`
 /// (speculative decoding). It must share the tokenizer and be at most a
 /// quarter of the size, or it wouldn't save time.
 pub fn drafter_for<'a>(catalog: &'a Catalog, model: &CatalogModel) -> Option<&'a CatalogModel> {
-    let m = model.id.as_str();
-    let starts = |p: &[&str]| p.iter().any(|x| m.starts_with(x));
-    let id = if starts(&["qwen3.5", "qwen3.6", "qwen3.8-27b", "qwen-agentworld"]) {
-        "qwen3.5-0.8b"
-    } else if starts(&["qwen3-"]) {
-        "qwen3-0.6b"
-    } else if starts(&["gemma-3-"]) {
-        "gemma-3-270m"
-    } else if starts(&["llama-3", "meta-llama-3", "hermes-3-llama-3"]) {
-        "llama-3.2-1b"
-    } else {
-        return None;
-    };
-    let d = catalog.model(id)?;
+    let d = catalog.model(drafter_id(model)?)?;
     let big = model.params_b.unwrap_or(0.0);
     let small = d.params_b.unwrap_or(f32::MAX);
     (d.id != model.id && small * 4.0 <= big).then_some(d)
@@ -437,33 +483,50 @@ pub fn drafter_variant<'a>(d: &'a CatalogModel, models_dir: &Path) -> (&'a Varia
     }
 }
 
-/// The best version of `model` for this Mac: highest quality that fits
-/// comfortably, else highest that fits at all. Ties go to the smaller file
-/// (faster, same quality).
+/// Orders two choices of equal score: the faster one, then the smaller file.
+fn faster(a: (&CatalogModel, &Variant), b: (&CatalogModel, &Variant), info: &SystemInfo) -> std::cmp::Ordering {
+    expected_tps(a.0, a.1, info)
+        .total_cmp(&expected_tps(b.0, b.1, info))
+        .then(b.1.size_bytes.cmp(&a.1.size_bytes))
+}
+
+/// The best version of `model` for this Mac: highest score that fits
+/// comfortably, else highest that fits at all. Ties go to the faster one.
 pub fn best_variant<'a>(model: &'a CatalogModel, info: &SystemInfo, ctx: u32) -> Option<&'a Variant> {
     let pick = |want: Fit| {
         model
             .variants
             .iter()
             .filter(|v| plan(model, v, info, ctx).fit == want)
-            .max_by(|a, b| score(model, a, info).cmp(&score(model, b, info)).then(b.size_bytes.cmp(&a.size_bytes)))
+            .max_by(|a, b| score(model, a, info).cmp(&score(model, b, info)).then(faster((model, a), (model, b), info)))
     };
     pick(Fit::Great).or_else(|| pick(Fit::Tight))
 }
 
+/// How far below the most capable choice a recommendation may be for the
+/// sake of speed, unless the user asked for faster answers.
+const QUALITY_FLOOR: i32 = 8;
+
 /// The recommended chat model + version for this Mac.
 pub fn recommend<'a>(catalog: &'a Catalog, info: &SystemInfo, ctx: u32) -> Option<(&'a CatalogModel, &'a Variant)> {
-    catalog
-        .models
-        .iter()
-        .filter(|m| m.role == Role::Chat)
-        .filter_map(|m| best_variant(m, info, ctx).map(|v| (m, v)))
-        .max_by(|(ma, va), (mb, vb)| {
-            let comfy = |m: &CatalogModel, v: &Variant| plan(m, v, info, ctx).fit == Fit::Great;
+    let comfy = |m: &CatalogModel, v: &Variant| plan(m, v, info, ctx).fit == Fit::Great;
+    let options: Vec<(&CatalogModel, &Variant)> =
+        catalog.models.iter().filter(|m| m.role == Role::Chat).filter_map(|m| best_variant(m, info, ctx).map(|v| (m, v))).collect();
+    // Accuracy first: never trade more than a few quality points for speed
+    // unless the user chose "Faster".
+    let top = options.iter().filter(|(m, v)| comfy(m, v)).map(|(m, v)| effective_quality(m, v)).max();
+    let floor = match (info.speed_pref, top) {
+        (crate::settings::SpeedPref::Speed, _) | (_, None) => i32::MIN,
+        (_, Some(t)) => t - QUALITY_FLOOR,
+    };
+    options
+        .into_iter()
+        .filter(|(m, v)| !comfy(m, v) || effective_quality(m, v) >= floor)
+        .max_by(|&(ma, va), &(mb, vb)| {
             comfy(ma, va)
                 .cmp(&comfy(mb, vb))
                 .then(score(ma, va, info).cmp(&score(mb, vb, info)))
-                .then(vb.size_bytes.cmp(&va.size_bytes))
+                .then(faster((ma, va), (mb, vb), info))
         })
 }
 
@@ -485,6 +548,8 @@ pub struct VariantStatus {
     pub min_ram_gb: u32,
     /// Expected speed on this Mac's chip.
     pub speed: crate::chip::SpeedEstimate,
+    /// Writing speed measured on this Mac by tuning (tokens/sec).
+    pub measured_tps: Option<f64>,
     /// Fits in the memory left next to the models already running.
     pub fits_alongside: bool,
 }
@@ -540,6 +605,7 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
                     let k = key(m, v);
                     let alongside = plan(m, v, &lc.info.clone().minus(lc.loaded_bytes), crate::engine::EXTRA_CONTEXT);
                     VariantStatus {
+                        measured_tps: lc.info.measured.get(&k).copied(),
                         fits_alongside: lc.loaded_bytes > 0 && alongside.fit != system::Fit::TooBig,
                         downloading: lc.downloading.contains(&k),
                         partial_bytes: if installed { 0 } else { bytes_on_disk(lc.models_dir, v) },
@@ -860,6 +926,9 @@ mod tests {
             apple_silicon: true,
             chip_info: crate::chip::identify("Apple M4", Some(10)),
             speed_pref: Default::default(),
+            boost: false,
+            measured: Default::default(),
+            calibration: None,
         }
     }
 
@@ -994,6 +1063,62 @@ mod tests {
             effective_quality(m, v)
         };
         assert!(q(&smart) >= q(&balanced));
+    }
+
+    #[test]
+    fn measured_speed_beats_the_estimate() {
+        let c = Catalog::embedded();
+        let pick = |info: &SystemInfo| recommend(&c, info, 16384).map(|(m, v)| key(m, v)).unwrap();
+        assert_eq!(pick(&mac(16)), "qwen3.5-9b:Q6_K");
+        // Tuning found the 6-bit version slow on this Mac: the 4-bit one wins.
+        let mut slow = mac(16);
+        slow.measured.insert("qwen3.5-9b:Q6_K".into(), 6.5);
+        let slow = calibrate(slow, &c);
+        assert!(slow.calibration.is_some_and(|r| r < 0.6));
+        assert_eq!(pick(&slow), "qwen3.5-9b:Q4_K_M");
+        // Estimates for other models are corrected by the same factor.
+        let (m, v) = c.resolve("qwen3.5-4b:Q6_K").unwrap();
+        assert!(expected_tps(m, v, &slow) < expected_tps(m, v, &mac(16)) * 0.6);
+        // Speed boost raises estimates only for models that have a helper.
+        let mut boosted = mac(16);
+        boosted.boost = true;
+        let (m, v) = c.resolve("qwen3.5-9b:Q6_K").unwrap();
+        assert!(expected_tps(m, v, &boosted) > expected_tps(m, v, &mac(16)));
+        let (m, v) = c.resolve("gpt-oss-20b:MXFP4").unwrap();
+        assert!(has_helper(m), "gpt-oss ships an EAGLE-3 head");
+    }
+
+    #[test]
+    fn equal_quality_goes_to_the_faster_model() {
+        let c = Catalog::embedded();
+        let mut big = mac(128);
+        big.chip_info = crate::chip::identify("Apple M4 Max", Some(40));
+        let (m, v) = recommend(&c, &big, 16384).unwrap();
+        let best_q = c
+            .models
+            .iter()
+            .filter(|m| m.role == Role::Chat)
+            .filter_map(|m| best_variant(m, &big, 16384).map(|v| effective_quality(m, v)))
+            .max()
+            .unwrap();
+        assert!(effective_quality(m, v) >= best_q - QUALITY_FLOOR);
+        assert!(expected_tps(m, v, &big) > 50.0, "{} is too slow", key(m, v));
+    }
+
+    #[test]
+    fn speed_heads_download_by_key() {
+        let c = Catalog::embedded();
+        let (repo, v, k) = c.download_target("gemma-4-12b:speed-head").unwrap();
+        assert_eq!((repo.as_str(), k.as_str()), ("unsloth/gemma-4-12b-it-GGUF", "gemma-4-12b:speed-head"));
+        assert!(v.files[0].name.starts_with("mtp-") && v.size_bytes < 1_000_000_000);
+        assert!(c.download_target("qwen3.5-9b:speed-head").is_err());
+        assert_eq!(c.download_target("qwen3.5-9b:Q6_K").unwrap().2, "qwen3.5-9b:Q6_K");
+        let dir = tempfile::tempdir().unwrap();
+        let h = helper_for(&c, c.model("gemma-4-12b").unwrap(), dir.path()).unwrap();
+        assert_eq!((h.kind, h.key.as_str()), (HelperKind::Mtp, "gemma-4-12b:speed-head"));
+        assert!(!h.installed(dir.path()));
+        // Without a head, the family drafter is used.
+        assert_eq!(helper_for(&c, c.model("qwen3.5-9b").unwrap(), dir.path()).unwrap().kind, HelperKind::Draft);
     }
 
     #[test]
@@ -1175,6 +1300,9 @@ fn dump_models_for_ui() {
         cpu_cores: 10,
         apple_silicon: true,
         speed_pref: Default::default(),
+        boost: false,
+        measured: Default::default(),
+        calibration: None,
         chip_info: crate::chip::identify(
             &std::env::var("BYTE_DUMP_CHIP").unwrap_or_else(|_| {
                 match gb {
