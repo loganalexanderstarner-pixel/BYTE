@@ -79,11 +79,34 @@ the `keyring` crate (Keychain). If it fails, fix it before anything else.
 - Private chats never go to the cloud, in any tab.
 
 ### 3.3 Then Phase 4 — Files & knowledge base (local)
-File attachments in local chats (PDF/DOCX/PPTX/XLSX/TXT/CSV parsers in Rust), OCR with Apple Vision
-(`objc2-vision`, macOS-only, stubbed on Linux), an on-demand embeddings engine (llama-server `--embedding`,
-nomic-embed), a knowledge base (DB schema v4: sources + chunks + FTS5 + embeddings, folder watcher, hybrid
-BM25 + cosine with reciprocal-rank fusion), a `search_my_files` agent tool, a reader view with highlighted
-citations, and a Settings → Knowledge base tab. Full spec: PROJECT_GUIDE "Phase 4".
+The owner chose "reads my files" and a personal knowledge base early on. Plan (not started):
+1. **File attachments in local chats** (`src-tauri/src/files/{mod,pdf,office,text}.rs`, new): drop/paste/pick
+   in the composer → `file_ingest(path)` → `{name, kind, pages, text, truncated}`. PDF via `pdf-extract`,
+   DOCX/PPTX/XLSX via `zip` + `quick-xml`, TXT/MD/CSV/JSON/code as UTF-8, HTML via `dom_smoothie`. Caps: 25 MB,
+   200 pages. Short files go in whole; long ones are chunked and the best passages picked with
+   `tools::fetch::relevant_passages` (then embeddings once item 3 exists). Store attachment text (capped) in
+   the message JSON so reloads and edits work. (The cloud tab already has its own attachments — share the chip
+   UI in `src/components/chat/Attachments.tsx`.)
+2. **OCR** (`files/ocr.rs`): Apple Vision `VNRecognizeTextRequest` via `objc2-vision` behind
+   `#[cfg(target_os = "macos")]`, Linux stub returns "OCR needs macOS". Scanned PDFs: render pages with PDFKit
+   (`objc2-pdf-kit`) and OCR them.
+3. **Embeddings engine**: an embedding-mode llama-server (`--embedding --pooling mean`, catalog helper
+   `nomic-embed-v1.5`, ~0.15 GB) via the existing `Extras`/`Engine`, started on demand and stopped after 5 idle
+   minutes; `embed(texts) -> Vec<Vec<f32>>` batching `/v1/embeddings`.
+4. **Knowledge base** (`kb.rs`, **DB schema v4** — v3 is taken by `cloud_id`): `kb_sources` (folder/file, last
+   scan), `kb_chunks` (text, file, page, heading, f32 embedding BLOB) + FTS5. Indexer walks folders (skip
+   hidden/huge/binary), ~700-token chunks with overlap, progress events `kb://progress`; `notify` watcher
+   re-indexes changes. Hybrid search: BM25 + cosine merged by reciprocal-rank fusion.
+5. **Agent tool `search_my_files`**: offered when the KB has content and a "My files" composer toggle is on;
+   results are numbered sources (file + page). Questions mentioning "my notes/files/docs" force a first KB
+   search (same pattern as the forced web search in `agent.rs`).
+6. **Reader view** (`components/reader/Reader.tsx`): side panel with the extracted text, cited passage
+   highlighted and scrolled into view.
+7. **Settings → Knowledge base** tab: folders, file counts, index status, re-index, storage used.
+
+Verify with small fixture files in `src-tauri/tests/fixtures/` (PDF, DOCX, PPTX, XLSX, CSV), unit tests for the
+chunker, RRF merge, migration v4 and cosine, a real-engine embeddings test (nomic-embed, cached in
+`mac-engine.yml`), vitest for the UI, screenshots, then a test build for the owner to try OCR and a real folder.
 
 ### 3.4 After that
 Phases 5–12 per PROJECT_GUIDE. The owner prioritizes **answer quality**, then stability, then looks, then
@@ -105,8 +128,9 @@ feature count.
   = Qwen3.5 2B + 0.8B Q4_K_M, `BYTE_TEST_HEAD_MAIN`/`BYTE_TEST_HEAD` = Gemma 4 E2B Q3_K_M + its MTP head).
   All are public Hugging Face downloads (URLs in the workflow). Run with `cargo test e2e -- --ignored
   --test-threads=1`. Don't run two engines at once on a small box.
-- **UI screenshots:** build (`npm run build`), serve (`npx vite preview`), and drive it with Playwright using a
-  mocked Tauri `invoke` (mock every command the screen calls). Check the pictures before claiming UI works.
+- **UI screenshots:** `tools/ui-shots/` (see its README): build, serve with `npx vite preview`, run
+  `node shots.mjs`; it mocks every Tauri command and walks the main screens. Add mocks for new commands, and
+  look at the pictures before claiming UI works.
 - **CI:** `ci.yml` (frontend + Linux Rust tests + secret scan) on every push; `mac-engine.yml` (real engine on
   macOS/Metal) only when engine/chat/agent/tools/speed/tune/summarize/Cargo.lock/LLAMA_TAG change.
 - **Test build:** `node scripts/bump.mjs 1.0.0-test.N` → commit → push → run the `release.yml` workflow with
