@@ -242,3 +242,50 @@ New users sign up through an invite link; there is no open registration. If
 the app is shared, the onboarding needs to account for that: a key cannot be
 created without an account, and an account cannot be created without an
 invite.
+
+---
+
+## What cloud mode actually gives you
+
+Not just "a bigger model". byte-ai already has several things working that
+appear in this project's roadmap as **Planned** — reachable today through one
+bearer token, while the native versions get built.
+
+| capability | byte-ai today | this app |
+|---|---|---|
+| Documents: PDF, PPTX, DOCX, flyer, worksheet | **working** — real renderers, template library, page-image previews | Phase 5, planned |
+| Web search with citations | **working** — self-hosted SearXNG, numbered sources, relevance filtering | Phase 2 done (DDG) |
+| Knowledge base / reference extraction | **working** — upload a PDF/DOCX/PPTX, use its text as source material | Phase 4, planned |
+| Long-term memory across devices | **working** — semantic recall, same memory from any client | Phase 3 done (local only) |
+| Vision | **working** — the MoE is a vision-language model | Phase 11, planned |
+| Runnable code projects | **working** — generated, verified, zipped | not on the roadmap |
+| Conversation sync | **working** — the same chats on Mac, phone and web | not on the roadmap |
+
+The last two are worth sitting with. **Conversation sync** is something a
+local-only app structurally cannot do, and it is one of the clearest reasons
+a user would turn cloud mode on: start on the Mac, continue on the phone.
+
+### A suggestion about sequencing
+
+Phases 5 and 6 are large — document renderers, chart pipelines, academic
+search, citation styles. All of that exists and is tested on the cluster.
+
+Shipping cloud mode early would mean the app can **do** documents and
+research before it can do them locally, and the native implementations then
+become an offline capability rather than a blocker for the feature existing
+at all. That is a smaller, safer path to a v1.0 that does a lot.
+
+Worth weighing against the "build everything, then one public v1.0" plan —
+this is Logan's call, not mine, but the option is real and it is cheap.
+
+### A stale constraint worth checking
+
+`PROJECT_GUIDE.md` lists under *Not wanted*: **"paid Apple Developer ID
+signing/notarization, iPhone app"**.
+
+Logan now wants sideloadable iPhone/iPad as a later goal. Same situation as
+the macOS-only line in `CLAUDE.md` — a constraint that has moved. It matters
+architecturally rather than cosmetically: **iOS cannot spawn a child
+process**, so the engine abstraction in `docs/DESIGN-AND-PLATFORMS.md` is
+what makes it possible at all, and cloud mode is what makes it *useful*,
+since a phone will only ever run very small models locally.
