@@ -12,9 +12,9 @@ and `docs/CLOUD-MODE.md` (BYTE as a remote backend — built, deployed, tested).
 
 - **macOS and Apple Silicon first — but Windows and Linux are now targets too**
   (changed by the owner, 2026-09-27; superseded "macOS only, no Windows/Intel work").
-  Each should feel native to its own OS rather than one build for all three. iOS/iPadOS
-  sideloading is a later goal, which matters *now* because iOS cannot spawn processes —
-  see `docs/DESIGN-AND-PLATFORMS.md` for the engine abstraction this implies.
+  Each should feel native to its own OS rather than one build for all three.
+  **No iOS/iPadOS app** — dropped by the owner 2026-09-27; `PROJECT_GUIDE.md` was
+  right to exclude it. Three desktop platforms, nothing else.
 - **Never require a paid Apple Developer account.** Builds are ad-hoc / self-signed. README explains "Open Anyway".
 - **The assistant's name is BYTE.** It never calls itself Qwen or another model (it may say it runs Qwen3 locally
   if asked). Tone: normal, friendly, direct — *not* cyberpunk-talk. The *visual* style is neon/cyberpunk.

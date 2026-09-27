@@ -109,9 +109,13 @@ surfaces, do the same.
 
 > macOS only, Apple Silicon only. No Windows/Intel work.
 
-**Logan has changed this.** The target is macOS, Windows and Linux, and
-sideloadable iOS/iPadOS later. Each should feel native to its own OS, not
-identical across three.
+**Logan has changed this.** The target is macOS, Windows and Linux — three
+desktop platforms, each feeling native to its own OS rather than identical
+across all three.
+
+**iOS/iPadOS is not a target.** Considered and dropped on 2026-09-27;
+`PROJECT_GUIDE.md`'s original "no iPhone app" line stands. Don't design for
+it, don't leave hooks for it.
 
 ### Do the abstraction now, the ports later
 
@@ -123,8 +127,13 @@ designing one would triple the work at the worst possible time.
 ### The engine layer is the whole problem
 
 `Engine::spawn` starts `llama-server` as a child process via
-`tauri_plugin_shell`. That is fine on desktop and **impossible on iOS**,
-which does not permit launching arbitrary executables.
+`tauri_plugin_shell`. That works on all three desktop platforms, but the
+binary, its path, and its acceleration flags differ on every one — and cloud
+mode is not a spawned process at all.
+
+That last point is what makes the abstraction necessary even with iOS off the
+table: a remote HTTP engine and a local child process are two implementations
+of the same thing, and chat code should not be able to tell them apart.
 
 So the boundary that matters is roughly:
 
@@ -133,14 +142,13 @@ So the boundary that matters is roughly:
         fn capabilities(&self) -> Caps;     // context, vision, tools
     }
 
-with four implementations over time:
+with three implementations:
 
 | backend | platform | notes |
 |---|---|---|
 | spawned `llama-server` | macOS (Metal) | what exists today |
 | spawned `llama-server` | Windows (CUDA / Vulkan), Linux (CUDA / ROCm / CPU) | different binary, different path, different acceleration |
 | **cloud (BYTE)** | all | see `docs/CLOUD-MODE.md` — already built and live |
-| in-process llama.cpp / MLX | iOS, iPadOS | the only option where spawning is banned |
 
 If chat code talks to that trait, a new platform is a new backend. If it
 talks to `Engine` directly, each platform is a rewrite.
@@ -211,40 +219,13 @@ Don't buy a Windows cert either. OV certificates run a few hundred dollars a
 year and **do not remove the warning** on their own — only EV certificates get
 immediate reputation, and those cost more and need a hardware token.
 
-### iOS: build a PWA, not a native app
+### There is no iOS section
 
-This is where "no paid account" stops being a speed bump. Free Apple ID
-provisioning gives you:
+Dropped 2026-09-27, and the cost side is why: free Apple provisioning issues a
+**7-day** certificate with a 3-app device limit, so a sideloaded build stops
+launching every week. That is not an app you hand to someone, and the only
+capability a native iOS app would add over reaching byteai.bytebylogan.xyz in
+Safari is running a model on the device — which a phone cannot usefully do.
 
-* a **7-day** signing certificate — the app stops launching after a week
-* **3 apps** maximum per device
-* re-signing requires Xcode and the device
-
-SideStore and AltStore automate the weekly refresh over Wi-Fi, but the 7-day
-expiry is enforced by Apple and cannot be extended. TrollStore is not an
-option — it depended on a CoreTrust bug patched years ago.
-
-So a native iOS build is not an app you hand to somebody. It is a thing that
-breaks every Tuesday.
-
-**The good news is that the iOS app already exists and it is byte-ai.**
-Installed to the home screen from Safari it gets its own icon, launches
-standalone with no browser chrome, and can receive push notifications. It
-never expires, needs no Apple relationship, and costs nothing.
-
-What a native iOS app would add over that is essentially **one** capability:
-running a model locally on the device. And a phone cannot meaningfully run a
-useful model anyway — which means **cloud mode is not a compromise on iOS, it
-is the whole point.** Nothing is given up.
-
-Concretely, what makes the web app feel like an app on a phone:
-
-* a web app manifest with `display: standalone`, `theme_color`, and real icons
-* `apple-touch-icon` link tags — iOS still prefers these over the manifest
-* a service worker caching the shell, so a cold launch is not a white screen
-* `viewport-fit=cover` plus safe-area insets, so it sits correctly under the
-  notch and above the home indicator
-
-That is a small amount of work on byte-ai, entirely free, and it delivers the
-iPhone experience the native app was supposed to. Treat native iOS as
-permanently off the roadmap unless Logan decides to pay Apple later.
+So nothing of value is lost, and the roadmap keeps three platforms instead of
+four. If Logan wants phone access later, the web app is already there.

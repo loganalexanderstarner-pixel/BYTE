@@ -265,27 +265,27 @@ The last two are worth sitting with. **Conversation sync** is something a
 local-only app structurally cannot do, and it is one of the clearest reasons
 a user would turn cloud mode on: start on the Mac, continue on the phone.
 
-### A suggestion about sequencing
+### Build every phase anyway
 
-Phases 5 and 6 are large — document renderers, chart pipelines, academic
-search, citation styles. All of that exists and is tested on the cluster.
+To be explicit, because an earlier draft of this file suggested otherwise and
+Logan overruled it on 2026-09-27: **all 14 phases still get built natively.**
+Cloud mode does not replace any of them and is not a shortcut past Phase 5.
 
-Shipping cloud mode early would mean the app can **do** documents and
-research before it can do them locally, and the native implementations then
-become an offline capability rather than a blocker for the feature existing
-at all. That is a smaller, safer path to a v1.0 that does a lot.
+What it changes is that you are no longer building them blind. byte-ai is a
+**working reference implementation** of phases 4, 5 and 6, running in
+production, with the defects already found and fixed. When you build the
+native document pipeline you have something to compare output against — and
+the cluster session can tell you what broke the first time.
 
-Worth weighing against the "build everything, then one public v1.0" plan —
-this is Logan's call, not mine, but the option is real and it is cheap.
+A concrete example, because it is the kind of thing that only shows up in a
+real deployment: the deck generator produced *unreadable* slides for months.
+Title contrast measured 2.59:1 against a requirement of 4.5:1. Nobody caught
+it, because every improvement was written and shipped without anyone ever
+looking at a rendered slide. The fix was a rendering sidecar that turns
+generated documents into page images so they can be inspected. **Build the
+looking-at-it step at the same time as the generator**, not after.
 
-### A stale constraint worth checking
-
-`PROJECT_GUIDE.md` lists under *Not wanted*: **"paid Apple Developer ID
-signing/notarization, iPhone app"**.
-
-Logan now wants sideloadable iPhone/iPad as a later goal. Same situation as
-the macOS-only line in `CLAUDE.md` — a constraint that has moved. It matters
-architecturally rather than cosmetically: **iOS cannot spawn a child
-process**, so the engine abstraction in `docs/DESIGN-AND-PLATFORMS.md` is
-what makes it possible at all, and cloud mode is what makes it *useful*,
-since a phone will only ever run very small models locally.
+Cloud mode's own value, then, is what a local engine structurally cannot do:
+conversation sync across devices, vision, persistent semantic memory, and a
+much larger model than a 16 GB laptop can hold — available in parallel with
+the native features, not instead of them.
