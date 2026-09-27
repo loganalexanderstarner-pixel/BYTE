@@ -366,7 +366,33 @@ pub fn delete(models_dir: &Path, v: &Variant) -> AppResult<()> {
 // ---------- fit & recommendations ----------
 
 pub fn plan(model: &CatalogModel, v: &Variant, info: &SystemInfo, desired_ctx: u32) -> FitPlan {
-    system::plan_fit(v.size_bytes, model.arch, desired_ctx, info.total_ram_bytes, info.gpu_budget_bytes)
+    let p = system::plan_fit(v.size_bytes, model.arch, desired_ctx, info.total_ram_bytes, info.gpu_budget_bytes);
+    if p.fit != Fit::TooBig {
+        return p;
+    }
+    system::plan_offload(v.size_bytes, model.arch, desired_ctx, info.total_ram_bytes, info.gpu_budget_bytes, expert_share(model)).unwrap_or(p)
+}
+
+/// Speed factor when part of the model runs on the CPU: expert layers cost
+/// little (few experts per token), dense layers on the CPU cost more.
+pub fn offload_slowdown(model: &CatalogModel, p: &FitPlan) -> f64 {
+    let layers = model.arch.n_layer.max(1) as f64;
+    if p.cpu_moe_layers > 0 {
+        1.0 / (1.0 + 0.8 * p.cpu_moe_layers as f64 / layers)
+    } else if let Some(on) = p.gpu_layers {
+        1.0 / (1.0 + 2.0 * (layers - on as f64).max(0.0) / layers)
+    } else {
+        1.0
+    }
+}
+
+/// Rough share of a mixture-of-experts model's weights that are experts
+/// (everything not used by every token). 0 for dense models.
+pub fn expert_share(model: &CatalogModel) -> f64 {
+    match (model.params_b, model.active_b) {
+        (Some(t), Some(a)) if t > 0.0 && a > 0.0 && a < t => (1.0 - a as f64 / t as f64).clamp(0.0, 0.95),
+        _ => 0.0,
+    }
 }
 
 /// Quality after quantization: very low-bit versions lose accuracy.
@@ -497,7 +523,11 @@ pub fn best_variant<'a>(model: &'a CatalogModel, info: &SystemInfo, ctx: u32) ->
         model
             .variants
             .iter()
-            .filter(|v| plan(model, v, info, ctx).fit == want)
+            // Stretch mode (dense layers on the CPU) is never suggested; people can still pick it.
+            .filter(|v| {
+                let p = plan(model, v, info, ctx);
+                p.fit == want && p.gpu_layers.is_none()
+            })
             .max_by(|a, b| score(model, a, info).cmp(&score(model, b, info)).then(faster((model, a), (model, b), info)))
     };
     pick(Fit::Great).or_else(|| pick(Fit::Tight))
@@ -616,7 +646,14 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
                         installed,
                         quality: effective_quality(m, v),
                         min_ram_gb: system::ram_tier_gb(min_plan.needed_bytes),
-                        speed: crate::chip::estimate(&lc.info.chip_info, v.size_bytes, m.params_b, m.active_b),
+                        speed: {
+                            let mut e = crate::chip::estimate(&lc.info.chip_info, v.size_bytes, m.params_b, m.active_b);
+                            let f = offload_slowdown(m, &fit);
+                            e.tokens_per_sec *= f;
+                            e.reply_secs /= f;
+                            e.reply_thinking_secs /= f;
+                            e
+                        },
                         fit,
                     }
                 })
@@ -1119,6 +1156,28 @@ mod tests {
         assert!(!h.installed(dir.path()));
         // Without a head, the family drafter is used.
         assert_eq!(helper_for(&c, c.model("qwen3.5-9b").unwrap(), dir.path()).unwrap().kind, HelperKind::Draft);
+    }
+
+    #[test]
+    fn big_moe_models_run_partly_on_the_cpu() {
+        let c = Catalog::embedded();
+        let m16 = mac(16);
+        // gpt-oss 20B (12.1 GB) is over a 16 GB Mac's GPU share but fits in RAM:
+        // a few expert layers go to the CPU.
+        let (m, v) = c.resolve("gpt-oss-20b:MXFP4").unwrap();
+        let p = plan(m, v, &m16, 16384);
+        assert_eq!(p.fit, Fit::Tight);
+        assert!(p.cpu_moe_layers > 0 && p.cpu_moe_layers < m.arch.n_layer / 2 && p.gpu_layers.is_none(), "{p:?}");
+        assert!(offload_slowdown(m, &p) > 0.8);
+        // A dense model slightly too big runs in stretch mode but is never recommended.
+        let (m, v) = c.resolve("qwen3.8-27b:UD-IQ3_XXS").unwrap();
+        let p = plan(m, v, &m16, 16384);
+        assert!(p.gpu_layers.is_some_and(|n| n < m.arch.n_layer), "{p:?}");
+        assert_ne!(best_variant(m, &m16, 16384).map(|v| v.quant.as_str()), Some("UD-IQ3_XXS"));
+        assert!(!recommend(&c, &m16, 16384).map(|(m, v)| plan(m, v, &m16, 16384).offloaded()).unwrap());
+        // Far too big stays too big.
+        let (m, v) = c.resolve("qwen3.8-27b:Q8_0").unwrap();
+        assert_eq!(plan(m, v, &m16, 16384).fit, Fit::TooBig);
     }
 
     #[test]

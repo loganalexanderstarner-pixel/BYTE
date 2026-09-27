@@ -52,6 +52,15 @@ export interface Tuning {
   ngram: boolean;
 }
 
+/** How much memory macOS lets the GPU use (raising it needs the admin password; lasts until restart). */
+export interface GpuShare {
+  supported: boolean;
+  currentBytes: number;
+  defaultBytes: number;
+  raisedBytes: number;
+  raised: boolean;
+}
+
 /** "draft": a separate small model; the others are the model's own speed-up head. */
 export type HelperKind = "draft" | "mtp" | "eagle3" | "dspark";
 

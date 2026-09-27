@@ -69,6 +69,7 @@ fn to_opts(t: &Tuning, helper: Option<Draft>) -> LaunchOpts {
         flash_attn_off: !t.flash_attn,
         draft_n_max: (same_kind && t.draft_n_max > 0 && t.draft_n_max != n_default).then_some(t.draft_n_max),
         draft_p_min: (same_kind && (t.draft_p_min - 0.75).abs() > 0.001).then_some(t.draft_p_min),
+        ..Default::default()
     }
 }
 

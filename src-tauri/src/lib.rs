@@ -148,6 +148,8 @@ pub fn run() {
             commands::data_wipe,
             commands::chat_autotitle,
             commands::speed_boost_info,
+            commands::gpu_share_info,
+            commands::gpu_share_set,
             commands::engine_tune,
             commands::engine_tune_all,
             commands::projects_list,

@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.0.0-test.9 — Fastest possible on every Mac, without losing accuracy
+
+- **Models' own speed-up heads**: Gemma 4 (E2B, E4B, 12B, 26B-A4B, 31B), Qwen3.8 27B and Flash-Next,
+  gpt-oss 20B/120B and DeepSeek V4 Flash ship a small "multi-token prediction" (or EAGLE-3/DSpark) file
+  trained with the model. Speed boost now uses it instead of a separate model: more guesses are right and
+  it's a smaller download. In a CPU test Gemma 4 E2B went from ~14.5 to ~22 tokens/sec on an edit.
+- **Repeated-text guessing** for every model (no download): when an answer repeats text from the chat —
+  code you pasted, a paragraph being fixed — BYTE guesses it ahead. Edits were ~20% faster in tests. Tuning
+  keeps it only if it helps on your Mac. Answers never change: your model still checks every word.
+- **Recommendations use real measured speed** from tuning on your Mac, count Speed boost, and prefer the
+  faster model when quality is equal (big Macs now get gpt-oss 120B at ~60–150 tokens/sec instead of a
+  27B at ~10–20). Unless you choose *Faster*, BYTE never picks a model more than a few points less capable
+  just to be quicker. Model cards show "measured on this Mac".
+- **More models fit**: mixture-of-experts models slightly bigger than the GPU's memory share now run with
+  some expert layers on the CPU (a little slower). On 16 GB that adds gpt-oss 20B and Qwen3.6 35B-A3B.
+  Dense models a bit too big run in "stretch mode" (noticeably slower; never suggested automatically).
+- **Bigger GPU memory share** (Settings → Engine, needs your Mac password, resets on restart): lets the GPU
+  use all but 4 GB, so bigger models run fully on it.
+- **Thinking is accuracy-first**: in Auto mode BYTE now thinks unless the message is clearly simple
+  (hi/thanks, rewrite or translate this, a plain sum the calculator answers), with a short budget for short
+  questions and the full budget for reasoning questions.
+- If a speed-up helper ever stops the engine from starting, BYTE starts again without it.
+
 ## 1.0.0-test.8 — Every model tuned for its best quality and speed
 
 - **Each model family now uses its publisher's recommended settings.** Until now every model used Qwen's

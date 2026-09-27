@@ -3,6 +3,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type {
   BoostInfo,
+  GpuShare,
   ChatSummary,
   TuneProgress,
   Tuning,
@@ -56,6 +57,8 @@ export const api = {
   engineRestart: () => invoke<void>("engine_restart"),
   engineLog: () => invoke<string[]>("engine_log"),
   speedBoostInfo: () => invoke<BoostInfo>("speed_boost_info"),
+  gpuShareInfo: () => invoke<GpuShare>("gpu_share_info"),
+  gpuShareSet: (raise: boolean) => invoke<GpuShare>("gpu_share_set", { raise }),
   /** Measures and keeps the fastest engine settings for the active model (quick 1–2 min, thorough ~5 min). */
   engineTune: (thorough = false) => invoke<Tuning>("engine_tune", { thorough }),
   /** Tunes every downloaded model that fits, then returns to the one in use. Returns how many. */

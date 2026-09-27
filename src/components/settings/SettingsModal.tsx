@@ -7,7 +7,7 @@ import { Logo } from "../../design/Logo";
 import { api, errorText } from "../../lib/api";
 import { bytes, contextLabel, ramSize } from "../../lib/format";
 import { displayName } from "../../lib/models";
-import type { BoostInfo, Memory, Profiles, Settings } from "../../lib/types";
+import type { BoostInfo, GpuShare, Memory, Profiles, Settings } from "../../lib/types";
 import { useStore, type SettingsTab } from "../../state/store";
 import { CatalogBrowser } from "../models/CatalogBrowser";
 
@@ -396,6 +396,7 @@ function SpeedSection() {
           Tune all
         </button>
       </div>
+      <GpuShareRow onError={setError} />
       <div className="field">
         <label>
           Tune new models automatically
@@ -403,6 +404,44 @@ function SpeedSection() {
         </label>
         <input type="checkbox" checked={settings.autoTune} onChange={(e) => void update({ autoTune: e.target.checked })} aria-label="Tune new models automatically" />
       </div>
+    </div>
+  );
+}
+
+/** Optional: let the GPU use more memory so bigger models run fully on it. */
+function GpuShareRow({ onError }: { onError: (e: string | null) => void }) {
+  const [share, setShare] = useState<GpuShare | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    api.gpuShareInfo().then(setShare).catch(() => setShare(null));
+  }, []);
+  if (!share?.supported || (!share.raised && share.raisedBytes <= share.defaultBytes)) return null;
+  const set = async (raise: boolean) => {
+    onError(null);
+    setBusy(true);
+    try {
+      setShare(await api.gpuShareSet(raise));
+      await api.engineRestart().catch(() => undefined);
+    } catch (e) {
+      const msg = errorText(e);
+      if (msg !== "Cancelled.") onError(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="field">
+      <label>
+        Bigger GPU memory share
+        <small>
+          {share.raised
+            ? `Raised: the GPU may use ${bytes(share.currentBytes)} (normally ${bytes(share.defaultBytes)}). Bigger models run fully on the GPU. Resets when the Mac restarts.`
+            : `macOS lets the GPU use ${bytes(share.defaultBytes)} of memory. Raising it to ${bytes(share.raisedBytes)} lets bigger models run fully on the GPU (faster). Needs your Mac password; lasts until restart.`}
+        </small>
+      </label>
+      <button className="btn sm" disabled={busy} onClick={() => void set(!share.raised)}>
+        {share.raised ? "Reset" : "Raise"}
+      </button>
     </div>
   );
 }

@@ -171,6 +171,18 @@ pub async fn speed_boost_info(state: State<'_, AppState>) -> AppResult<BoostInfo
     })
 }
 
+#[tauri::command]
+pub async fn gpu_share_info() -> AppResult<system::GpuShare> {
+    Ok(system::gpu_share())
+}
+
+/// Raises or resets the GPU's share of memory (asks for the admin password).
+/// The UI restarts the engine afterwards so the model can use it.
+#[tauri::command]
+pub async fn gpu_share_set(raise: bool) -> AppResult<system::GpuShare> {
+    tauri::async_runtime::spawn_blocking(move || system::set_gpu_share(raise)).await.map_err(|e| AppError::msg(e.to_string()))?
+}
+
 /// Measures and keeps the fastest engine settings for the active model on
 /// this Mac (1–2 minutes; progress on `engine://tune`).
 #[tauri::command]

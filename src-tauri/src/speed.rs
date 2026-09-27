@@ -140,8 +140,8 @@ mod tests {
             return;
         };
         for opts in [
-            crate::engine::LaunchOpts { draft: Some(crate::engine::Draft::model(&draft)), ngram: true, kv_f16: true, ubatch: Some(2048), flash_attn_off: true, draft_n_max: Some(24), draft_p_min: Some(0.6) },
-            crate::engine::LaunchOpts { draft: Some(crate::engine::Draft::model(&draft)), ngram: false, kv_f16: false, ubatch: Some(256), flash_attn_off: false, draft_n_max: Some(8), draft_p_min: Some(0.9) },
+            crate::engine::LaunchOpts { draft: Some(crate::engine::Draft::model(&draft)), ngram: true, kv_f16: true, ubatch: Some(2048), flash_attn_off: true, draft_n_max: Some(24), draft_p_min: Some(0.6), ..Default::default() },
+            crate::engine::LaunchOpts { draft: Some(crate::engine::Draft::model(&draft)), ngram: false, kv_f16: false, ubatch: Some(256), flash_attn_off: false, draft_n_max: Some(8), draft_p_min: Some(0.9), ..Default::default() },
         ] {
             let Some((_server, ep)) = crate::chat::e2e_support::start_server_with(&main, &[], Some(&opts)).await else { return };
             let s = measure_both(&crate::chat::local_client(), &ep).await.unwrap();

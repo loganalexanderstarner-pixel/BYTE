@@ -47,6 +47,25 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
   → + f16 KV (≥3%, only if the same context fits) → + ubatch 1024 (keep if reading ≥10% faster without
   slower writing). Saved in `settings.tuning[key]` with the chip name; `tune::launch_opts` applies it on
   every start. `state.tuning` blocks chat while it runs; progress on `engine://tune`.
+- **Speed-up heads** (`models::{HelperKind, SpeedHead, Helper, helper_for}`): catalog entries may carry
+  `speedHead` (MTP / EAGLE-3 / DSpark file shipped in the model's repo; `build-catalog.mjs pickSpeedHead`).
+  `helper_for` prefers the head over the family drafter; downloads use key `"<id>:speed-head"`
+  (`Catalog::download_target`). `engine::Draft { path, kind }` → `--spec-type draft-mtp|draft-eagle3|…`,
+  default look-ahead per kind (16/3/8/7), `--spec-draft-p-min` only for separate models.
+- **Repeated-text guessing** (`LaunchOpts.ngram`): `ngram-mod` with a 4-token match (llama.cpp's 24 suits
+  code files, not chat); a tuner candidate on every model; `speed::PROMPTS` includes an edit prompt.
+- If the engine fails to start with a helper, `Engine::start` retries once without it.
+- **Recommendations** use measured speed (`SystemInfo::with_settings` → `measured`; `models::calibrate`
+  scales every estimate by the median measured/estimated ratio), count Speed boost (×1.3) for models with a
+  helper, break ties toward the faster model, and (outside "Faster") stay within `QUALITY_FLOOR` (8) of the
+  most capable comfortable model.
+- **CPU offload** (`system::plan_offload`, used by `models::plan` when a model is over the GPU share but
+  fits RAM): MoE models keep N expert layers for the CPU (`--n-cpu-moe`); dense models ≤15% over run in
+  stretch mode (`--n-gpu-layers k`), never auto-recommended. `models::offload_slowdown` adjusts the shown speed.
+- **Bigger GPU share** (`system::set_gpu_share`): `osascript … sysctl iogpu.wired_limit_mb` with admin
+  rights, to all but max(4 GB, 12.5%) of RAM; resets on reboot; Settings → Engine.
+- **Thinking router** (`router::effort`): accuracy first. Auto mode skips thinking only for small talk,
+  rewrites/translations and sums the calculator answers; budget 384 (short) / 1024 / 2048 (reasoning).
 
 ## Chats & memory (Phase 3, `db.rs`, `export.rs`)
 

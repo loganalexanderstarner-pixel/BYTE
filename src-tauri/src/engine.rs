@@ -88,6 +88,10 @@ pub struct LaunchOpts {
     /// Speed boost look-ahead: how many words the helper drafts, and how sure it must be.
     pub draft_n_max: Option<u32>,
     pub draft_p_min: Option<f32>,
+    /// Set by the memory planner, not tuning: expert layers kept for the CPU
+    /// and, for dense models in stretch mode, how many layers go on the GPU.
+    pub cpu_moe_layers: u32,
+    pub gpu_layers: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -189,7 +193,7 @@ impl Engine {
         reserved: u64,
         opts: LaunchOpts,
     ) -> AppResult<()> {
-        let LaunchOpts { draft, ngram, mut kv_f16, ubatch, mut flash_attn_off, draft_n_max, draft_p_min } = opts;
+        let LaunchOpts { draft, ngram, mut kv_f16, ubatch, mut flash_attn_off, draft_n_max, draft_p_min, .. } = opts;
         let (model, variant) = catalog.resolve(key)?;
         if !models::is_installed(&models_dir, variant) {
             self.set_status(app, EngineStatus::NoModel).await;
@@ -224,6 +228,9 @@ impl Engine {
             flash_attn_off = false;
         }
         let extra = draft_extra + if kv_f16 { kv_extra } else { 0 };
+        if plan.offloaded() {
+            log::info!("{} runs partly on the CPU: {}", model.name, plan.note);
+        }
         if plan.fit == system::Fit::TooBig {
             let message = if reserved > 0 {
                 format!("{} doesn't fit next to the models already loaded. Unload one first, or pick a smaller version.", model.name)
@@ -243,7 +250,17 @@ impl Engine {
             key: models::key(model, variant),
             path: models::entry_path(&models_dir, variant),
             context: plan.context,
-            opts: LaunchOpts { draft, ngram, kv_f16, ubatch, flash_attn_off, draft_n_max, draft_p_min },
+            opts: LaunchOpts {
+                draft,
+                ngram,
+                kv_f16,
+                ubatch,
+                flash_attn_off,
+                draft_n_max,
+                draft_p_min,
+                cpu_moe_layers: plan.cpu_moe_layers,
+                gpu_layers: plan.gpu_layers,
+            },
         };
         let result = self.spawn(app.clone(), launch.clone()).await;
         // A helper that doesn't work with this engine build must never leave
@@ -655,6 +672,14 @@ pub fn apply_opts(args: &mut Vec<String>, opts: &LaunchOpts) {
             args[i + 1] = "off".into();
         }
     }
+    if let Some(n) = opts.gpu_layers {
+        if let Some(i) = args.iter().position(|a| a == "--n-gpu-layers") {
+            args[i + 1] = n.to_string();
+        }
+    }
+    if opts.cpu_moe_layers > 0 {
+        args.extend(["--n-cpu-moe".into(), opts.cpu_moe_layers.to_string()]);
+    }
     if let Some(ub) = opts.ubatch {
         args.extend(["--ubatch-size".into(), ub.to_string(), "--batch-size".into(), ub.max(2048).to_string()]);
     }
@@ -732,7 +757,7 @@ mod tests {
     #[test]
     fn tuned_options_change_the_arguments() {
         let mut a = server_args(std::path::Path::new("/m/q.gguf"), 1, "k", "m", 4096);
-        apply_opts(&mut a, &LaunchOpts { draft: Some(Draft::model("/m/d.gguf")), ngram: false, kv_f16: true, ubatch: Some(1024), flash_attn_off: true, draft_n_max: Some(8), draft_p_min: Some(0.6) });
+        apply_opts(&mut a, &LaunchOpts { draft: Some(Draft::model("/m/d.gguf")), kv_f16: true, ubatch: Some(1024), flash_attn_off: true, draft_n_max: Some(8), draft_p_min: Some(0.6), ..Default::default() });
         let j = a.join(" ");
         assert!(j.contains("--cache-type-k f16") && j.contains("--cache-type-v f16"), "{j}");
         assert!(j.contains("--flash-attn off") && j.contains("--spec-draft-n-max 8") && j.contains("--spec-draft-p-min 0.60"), "{j}");
@@ -743,6 +768,13 @@ mod tests {
         assert!(c.join(" ").contains("--flash-attn on"));
         assert!(j.contains("--ubatch-size 1024") && j.contains("--batch-size 2048"), "{j}");
         assert!(j.contains("--model-draft /m/d.gguf"));
+        // Planner offload: expert layers for the CPU, or fewer GPU layers.
+        let mut m = server_args(std::path::Path::new("/m/q.gguf"), 1, "k", "m", 4096);
+        apply_opts(&mut m, &LaunchOpts { cpu_moe_layers: 6, ..Default::default() });
+        assert!(m.join(" ").contains("--n-cpu-moe 6") && m.join(" ").contains("--n-gpu-layers 999"));
+        let mut st = server_args(std::path::Path::new("/m/q.gguf"), 1, "k", "m", 4096);
+        apply_opts(&mut st, &LaunchOpts { gpu_layers: Some(30), ..Default::default() });
+        assert!(st.join(" ").contains("--n-gpu-layers 30") && !st.join(" ").contains("n-cpu-moe"));
         let mut b = server_args(std::path::Path::new("/m/q.gguf"), 1, "k", "m", 4096);
         apply_opts(&mut b, &LaunchOpts::default());
         assert_eq!(b, server_args(std::path::Path::new("/m/q.gguf"), 1, "k", "m", 4096));
