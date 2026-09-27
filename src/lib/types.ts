@@ -39,21 +39,41 @@ export interface FitPlan {
   note: string;
 }
 
-export interface ModelStatus {
-  id: string;
-  name: string;
-  tagline: string;
-  repo: string;
-  file: string;
+export interface VariantStatus {
+  /** "modelId:quant", e.g. "qwen3.8-27b:UD-IQ3_XXS". */
+  key: string;
+  quant: string;
+  bits: number;
   sizeBytes: number;
-  role: "chat" | "draft" | "embed";
-  recommended: boolean;
-  thinking: boolean;
-  speedHint: string;
   installed: boolean;
   partialBytes: number;
   downloading: boolean;
+  /** Model quality adjusted for this quantization (0–100). */
+  quality: number;
   fit: FitPlan;
+  /** Smallest standard Mac memory size this version needs. */
+  minRamGb: number;
+}
+
+export interface ModelStatus {
+  id: string;
+  name: string;
+  family: string | null;
+  released: string | null;
+  tagline: string;
+  tags: string[];
+  thinking: boolean;
+  tools: boolean;
+  license: string | null;
+  quality: number;
+  repo: string;
+  role: "chat" | "draft" | "embed";
+  sizeLabel: string | null;
+  maxContext: number;
+  variants: VariantStatus[];
+  /** Key of the best version for this Mac, or null if none fits. */
+  best: string | null;
+  minRamGb: number;
 }
 
 export type EngineStatus =

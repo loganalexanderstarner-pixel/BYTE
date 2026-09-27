@@ -1,0 +1,282 @@
+{
+  "$comment": "Curated model list. `node scripts/build-catalog.mjs` looks up exact file sizes, SHA-256 and architecture on Hugging Face and writes src-tauri/catalog/models.json. Only ungated repos. Variants are listed smallest to largest. `quality` (0-100) is a curated overall-capability score used to recommend the best model that fits a Mac.",
+  "models": [
+    {
+      "id": "qwen3.5-0.8b",
+      "name": "Qwen3.5 0.8B",
+      "family": "Qwen",
+      "released": "2026-02",
+      "tagline": "Tiny and instant \u2014 runs on any Mac",
+      "tags": [
+        "fast",
+        "small"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "unsloth/Qwen3.5-0.8B-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q8_0"
+      ],
+      "quality": 35
+    },
+    {
+      "id": "qwen3.5-2b",
+      "name": "Qwen3.5 2B",
+      "family": "Qwen",
+      "released": "2026-02",
+      "tagline": "Small and quick for everyday questions",
+      "tags": [
+        "fast",
+        "small"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "unsloth/Qwen3.5-2B-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q8_0"
+      ],
+      "quality": 48
+    },
+    {
+      "id": "lfm2.5-2.6b",
+      "name": "LFM2.5 2.6B",
+      "family": "Liquid",
+      "released": "2026-08",
+      "tagline": "Very fast hybrid model, great on 8 GB Macs",
+      "tags": [
+        "fast",
+        "small"
+      ],
+      "thinking": false,
+      "tools": true,
+      "license": "LFM Open License",
+      "repo": "LiquidAI/LFM2.5-2.6B-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q8_0"
+      ],
+      "quality": 52
+    },
+    {
+      "id": "qwen3.5-4b",
+      "name": "Qwen3.5 4B",
+      "family": "Qwen",
+      "released": "2026-03",
+      "tagline": "Strong reasoning for its size; best pick for 8 GB Macs",
+      "tags": [
+        "reasoning",
+        "small"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "unsloth/Qwen3.5-4B-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q6_K",
+        "Q8_0"
+      ],
+      "quality": 66
+    },
+    {
+      "id": "gemma-4-e4b",
+      "name": "Gemma 4 E4B",
+      "family": "Gemma",
+      "released": "2026-04",
+      "tagline": "Google's efficient model, good at writing and languages",
+      "tags": [
+        "writing",
+        "multilingual",
+        "small"
+      ],
+      "thinking": false,
+      "tools": true,
+      "license": "Gemma",
+      "repo": "ggml-org/gemma-4-E4B-it-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q8_0"
+      ],
+      "quality": 62
+    },
+    {
+      "id": "qwen3.5-9b",
+      "name": "Qwen3.5 9B",
+      "family": "Qwen",
+      "released": "2026-02",
+      "tagline": "Smart and fast \u2014 excellent all-rounder for 16 GB",
+      "tags": [
+        "reasoning",
+        "coding",
+        "recommended-16"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "unsloth/Qwen3.5-9B-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q5_K_M",
+        "Q6_K",
+        "Q8_0"
+      ],
+      "quality": 80
+    },
+    {
+      "id": "gemma-4-12b",
+      "name": "Gemma 4 12B",
+      "family": "Gemma",
+      "released": "2026-05",
+      "tagline": "Polished writing and broad knowledge",
+      "tags": [
+        "writing",
+        "multilingual"
+      ],
+      "thinking": false,
+      "tools": true,
+      "license": "Gemma",
+      "repo": "unsloth/gemma-4-12b-it-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q6_K",
+        "Q8_0"
+      ],
+      "quality": 77
+    },
+    {
+      "id": "qwen3-14b",
+      "name": "Qwen3 14B",
+      "family": "Qwen",
+      "released": "2025-04",
+      "tagline": "Proven reasoning model",
+      "tags": [
+        "reasoning"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "Qwen/Qwen3-14B-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q8_0"
+      ],
+      "quality": 72
+    },
+    {
+      "id": "qwen3.8-27b",
+      "name": "Qwen3.8 27B",
+      "family": "Qwen",
+      "released": "2026-08",
+      "tagline": "Newest Qwen \u2014 top reasoning, research and coding",
+      "tags": [
+        "reasoning",
+        "coding",
+        "flagship"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "unsloth/Qwen3.8-27B-GGUF",
+      "variants": [
+        "UD-IQ2_XXS",
+        "UD-IQ2_S",
+        "UD-IQ3_XXS",
+        "UD-IQ4_XS",
+        "UD-Q4_K_M",
+        "UD-Q5_K_M",
+        "UD-Q6_K",
+        "Q8_0"
+      ],
+      "quality": 94
+    },
+    {
+      "id": "qwen3.6-35b-a3b",
+      "name": "Qwen3.6 35B-A3B",
+      "family": "Qwen",
+      "released": "2026-04",
+      "tagline": "Mixture-of-experts: big-model knowledge at small-model speed",
+      "tags": [
+        "reasoning",
+        "coding",
+        "fast"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+      "variants": [
+        "UD-IQ2_M",
+        "UD-IQ3_XXS",
+        "UD-IQ4_XS",
+        "UD-Q4_K_M",
+        "UD-Q6_K",
+        "Q8_0"
+      ],
+      "quality": 90
+    },
+    {
+      "id": "gpt-oss-20b",
+      "name": "gpt-oss 20B",
+      "family": "OpenAI",
+      "released": "2025-08",
+      "tagline": "OpenAI's open model \u2014 fast reasoning with tools",
+      "tags": [
+        "reasoning",
+        "fast"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "ggml-org/gpt-oss-20b-GGUF",
+      "variants": [
+        "MXFP4"
+      ],
+      "quality": 82
+    },
+    {
+      "id": "gpt-oss-120b",
+      "name": "gpt-oss 120B",
+      "family": "OpenAI",
+      "released": "2025-08",
+      "tagline": "Frontier-class open model for 96 GB+ Macs",
+      "tags": [
+        "reasoning",
+        "flagship"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "ggml-org/gpt-oss-120b-GGUF",
+      "variants": [
+        "MXFP4"
+      ],
+      "quality": 96
+    }
+  ],
+  "helpers": [
+    {
+      "id": "qwen3-0.6b",
+      "name": "Qwen3 0.6B",
+      "role": "draft",
+      "tagline": "Speeds up answers and routes requests",
+      "repo": "Qwen/Qwen3-0.6B-GGUF",
+      "variants": [
+        "Q8_0"
+      ]
+    },
+    {
+      "id": "nomic-embed-v1.5",
+      "name": "Nomic Embed v1.5",
+      "role": "embed",
+      "tagline": "Powers your knowledge base and answer cache",
+      "repo": "nomic-ai/nomic-embed-text-v1.5-GGUF",
+      "variants": [
+        "Q8_0"
+      ]
+    }
+  ]
+}

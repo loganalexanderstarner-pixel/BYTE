@@ -39,6 +39,7 @@ pub fn run() {
             };
             let engine = state.engine.clone();
             engine.reap_stale();
+            let catalog = state.catalog.get();
             let models_dir = state.paths.models.clone();
             app.manage(state);
 
@@ -66,12 +67,26 @@ pub fn run() {
                 });
             }
 
+            // Check for a newer model catalog in the background.
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let state = handle.state::<AppState>();
+                    let url = state.settings.lock().await.catalog_url.clone().unwrap_or_else(|| models::DEFAULT_CATALOG_URL.to_string());
+                    match state.catalog.refresh(&state.net, &url).await {
+                        Ok(true) => log::info!("model catalog updated from {url}"),
+                        Ok(false) => {}
+                        Err(e) => log::info!("model catalog not refreshed ({e}); using the built-in one"),
+                    }
+                });
+            }
+
             // Preload the model at launch so the first answer is fast.
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 match active {
                     Some((model, ctx)) => {
-                        if let Err(e) = engine.start(&handle, models_dir, &model, ctx).await {
+                        if let Err(e) = engine.start(&handle, models_dir, &catalog, &model, ctx).await {
                             log::warn!("engine did not start at launch: {e}");
                         }
                     }
@@ -87,6 +102,8 @@ pub fn run() {
             commands::settings_get,
             commands::settings_update,
             commands::models_list,
+            commands::model_recommend,
+            commands::catalog_refresh,
             commands::model_download,
             commands::model_pause,
             commands::model_delete,

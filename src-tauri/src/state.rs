@@ -18,6 +18,8 @@ pub struct AppState {
     pub local_http: reqwest::Client,
     /// Log of every tool call (web searches, pages read, calculations).
     pub actions: crate::tools::ActionLog,
+    /// Model catalog (built in, refreshed from the web).
+    pub catalog: crate::models::CatalogStore,
 }
 
 impl AppState {
@@ -31,6 +33,7 @@ impl AppState {
             net: crate::tools::fetch::web_client(),
             local_http: crate::chat::local_client(),
             actions: crate::tools::ActionLog::new(paths.data.join("actions.jsonl")),
+            catalog: crate::models::CatalogStore::load(paths.data.join("catalog.json")),
             paths,
         }
     }

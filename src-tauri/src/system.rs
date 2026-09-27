@@ -81,11 +81,15 @@ pub fn free_disk_for(path: &std::path::Path) -> u64 {
         .unwrap_or(0)
 }
 
-/// Shape of a transformer that matters for KV-cache size.
-#[derive(Debug, Clone, Copy, Serialize)]
+/// Shape of a transformer that matters for KV-cache size (read from the GGUF
+/// header by scripts/build-catalog.mjs).
+#[derive(Debug, Clone, Copy, Serialize, serde::Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelArch {
     pub n_layer: u32,
+    /// Layers that keep a KV cache. Hybrid models (Qwen3.5+, LFM2) only cache
+    /// their full-attention layers, which makes long contexts much cheaper.
+    pub kv_layers: u32,
     pub n_head_kv: u32,
     pub head_dim: u32,
     pub max_ctx: u32,
@@ -94,9 +98,23 @@ pub struct ModelArch {
 impl ModelArch {
     /// Bytes of KV cache per token with q8_0 K and V (34 bytes per 32 values).
     pub fn kv_bytes_per_token(&self) -> u64 {
-        let values = 2 * self.n_layer as u64 * self.n_head_kv as u64 * self.head_dim as u64;
+        let layers = if self.kv_layers > 0 { self.kv_layers } else { self.n_layer };
+        let values = 2 * layers as u64 * self.n_head_kv as u64 * self.head_dim as u64;
         values * 34 / 32
     }
+}
+
+/// Smallest standard Mac memory size (GB) that can run a model needing
+/// `needed_bytes` of GPU memory, given macOS's GPU share of RAM.
+pub fn ram_tier_gb(needed_bytes: u64) -> u32 {
+    const TIERS: [u32; 11] = [8, 16, 24, 32, 36, 48, 64, 96, 128, 192, 256];
+    for t in TIERS {
+        let total = t as u64 * GIB;
+        if gpu_budget(total, None) >= needed_bytes && total >= needed_bytes + OS_RESERVE {
+            return t;
+        }
+    }
+    512
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -126,7 +144,12 @@ const RUNTIME_OVERHEAD: u64 = 700 * 1_000_000;
 const MIN_CONTEXT: u32 = 4096;
 /// What macOS and a browser need to stay responsive.
 const OS_RESERVE: u64 = 3 * GB;
-const COMFORT_RESERVE: u64 = 5 * GB;
+
+/// Memory to leave for other apps before calling a fit "comfortable":
+/// 30% of RAM, between 3 and 5 GB.
+fn comfort_reserve(total_ram: u64) -> u64 {
+    (total_ram * 3 / 10).clamp(3 * GB, 5 * GB)
+}
 
 pub fn plan_fit(
     weights_bytes: u64,
@@ -164,7 +187,7 @@ pub fn plan_fit(
     let context = (affordable.min(desired) / 1024 * 1024).max(MIN_CONTEXT);
     let needed = base + per_tok * context as u64;
     let left = total_ram.saturating_sub(needed);
-    let (fit, note) = if left >= COMFORT_RESERVE && context >= desired {
+    let (fit, note) = if left >= comfort_reserve(total_ram) && context >= desired {
         (Fit::Great, "Runs comfortably on this Mac.".to_string())
     } else if context < desired {
         (
@@ -192,13 +215,13 @@ mod tests {
     const RAM24: u64 = 24 * GIB;
 
     fn qwen14() -> ModelArch {
-        ModelArch { n_layer: 40, n_head_kv: 8, head_dim: 128, max_ctx: 32768 }
+        ModelArch { n_layer: 40, kv_layers: 40, n_head_kv: 8, head_dim: 128, max_ctx: 32768 }
     }
     fn qwen8() -> ModelArch {
-        ModelArch { n_layer: 36, n_head_kv: 8, head_dim: 128, max_ctx: 32768 }
+        ModelArch { n_layer: 36, kv_layers: 36, n_head_kv: 8, head_dim: 128, max_ctx: 32768 }
     }
     fn qwen30a3() -> ModelArch {
-        ModelArch { n_layer: 48, n_head_kv: 4, head_dim: 128, max_ctx: 32768 }
+        ModelArch { n_layer: 48, kv_layers: 48, n_head_kv: 4, head_dim: 128, max_ctx: 32768 }
     }
 
     #[test]
@@ -235,6 +258,21 @@ mod tests {
         assert_eq!(p.fit, Fit::Tight);
         assert!(p.context < 32768 && p.context >= 16384, "{p:?}");
         assert_eq!(p.context % 1024, 0);
+    }
+
+    #[test]
+    fn hybrid_models_only_count_attention_layers() {
+        let hybrid = ModelArch { n_layer: 64, kv_layers: 16, n_head_kv: 4, head_dim: 256, max_ctx: 262144 };
+        let full = ModelArch { kv_layers: 64, ..hybrid };
+        assert_eq!(full.kv_bytes_per_token(), hybrid.kv_bytes_per_token() * 4);
+    }
+
+    #[test]
+    fn ram_tiers() {
+        assert_eq!(ram_tier_gb(3 * GB), 8);
+        assert_eq!(ram_tier_gb(10 * GB), 16);
+        assert_eq!(ram_tier_gb(15 * GB), 24);
+        assert_eq!(ram_tier_gb(64 * GB), 96);
     }
 
     #[test]

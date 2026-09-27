@@ -22,10 +22,12 @@ export const api = {
   settingsUpdate: (patch: Partial<Settings>) => invoke<Settings>("settings_update", { patch }),
 
   modelsList: () => invoke<ModelStatus[]>("models_list"),
-  modelDownload: (id: string) => invoke<void>("model_download", { id }),
-  modelPause: (id: string) => invoke<void>("model_pause", { id }),
-  modelDelete: (id: string) => invoke<void>("model_delete", { id }),
-  modelActivate: (id: string) => invoke<void>("model_activate", { id }),
+  modelRecommend: () => invoke<string | null>("model_recommend"),
+  catalogRefresh: () => invoke<boolean>("catalog_refresh"),
+  modelDownload: (key: string) => invoke<void>("model_download", { key }),
+  modelPause: (key: string) => invoke<void>("model_pause", { key }),
+  modelDelete: (key: string) => invoke<void>("model_delete", { key }),
+  modelActivate: (key: string) => invoke<void>("model_activate", { key }),
 
   engineStatus: () => invoke<EngineStatus>("engine_status"),
   engineRestart: () => invoke<void>("engine_restart"),

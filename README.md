@@ -47,15 +47,26 @@ BYTE is being built in phases. PDF/PowerPoint/Word export, file and knowledge-ba
 
 ## Models
 
-| Model | Download | Best for | Speed on a base M4 |
-|---|---|---|---|
-| **Qwen3 14B** (default) | 9.0 GB | Best reasoning that fits in 16 GB | ~12–15 tokens/s |
-| Qwen3 8B | 5.0 GB | Faster replies, a little less capable | ~22–28 tokens/s |
-| Qwen3 30B-A3B | 14.7 GB | Macs with 24 GB+ | ~30–40 tokens/s |
+BYTE has a built-in **model catalog** (Settings → Models) that checks every model against your Mac's memory and
+recommends the best one. Examples of what it picks:
 
-Models are stored in `~/Library/Application Support/com.loganstarner.byte/models/` and can be deleted from **Settings → Models**.
+| Your Mac | BYTE's pick | Download |
+|---|---|---|
+| 8 GB | Qwen3.5 4B (Q6_K) | 3.5 GB |
+| 16 GB | Qwen3.5 9B (Q6_K) | 7.5 GB |
+| 32 GB | Qwen3.8 27B (Q5_K_M) | 19.8 GB |
+| 96–128 GB | Qwen3.8 27B (Q6_K) or gpt-oss 120B | 22–63 GB |
 
-**Honest expectations:** a 14B model running locally is very capable, but it won't match the largest cloud models at writing or reasoning. It's fast for everyday questions. Deep and Extended answers can take a minute or more, especially on a fanless MacBook Air during long runs.
+The catalog lists 12 chat models (0.5–63 GB) with several sizes each, labelled *Great fit*, *Fits*, or *Needs N GB*.
+You can filter by memory size and strength. The list itself is tiny (about 13 KB) and refreshes from the web, so new
+models appear without an app update. Model files download from Hugging Face only when you choose them and are
+stored in `~/Library/Application Support/com.loganstarner.byte/models/`.
+
+To regenerate the catalog after editing `scripts/catalog-sources.json`: `node scripts/build-catalog.mjs` (it reads
+exact file sizes, checksums and architecture from Hugging Face without downloading the models).
+
+**Honest expectations:** local models are very capable but won't match the largest cloud models at writing or
+reasoning. Deep and Extended answers can take a minute or more, especially on a fanless MacBook Air.
 
 ## Privacy
 

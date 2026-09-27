@@ -41,6 +41,8 @@ pub struct Settings {
     pub web_search: bool,
     /// What BYTE calls the user (asked during setup).
     pub user_name: Option<String>,
+    /// Where to fetch model catalog updates (default: the BYTE repository).
+    pub catalog_url: Option<String>,
 }
 
 impl Default for Settings {
@@ -58,6 +60,7 @@ impl Default for Settings {
             show_stats: true,
             web_search: true,
             user_name: None,
+            catalog_url: None,
         }
     }
 }

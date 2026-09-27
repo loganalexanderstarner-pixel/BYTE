@@ -64,6 +64,8 @@ interface State {
   settings: Settings | null;
   system: SystemInfo | null;
   models: ModelStatus[];
+  /** Key of the model + version BYTE recommends for this Mac. */
+  recommended: string | null;
   engine: EngineStatus;
   downloads: Record<string, DownloadState>;
   conversations: Conversation[];
@@ -233,6 +235,7 @@ export const useStore = create<State>((set, get) => {
     settings: null,
     system: null,
     models: [],
+    recommended: null,
     engine: { state: "stopped" },
     downloads: {},
     conversations: [],
@@ -281,7 +284,8 @@ export const useStore = create<State>((set, get) => {
 
     async refreshModels() {
       if (!inTauri) return;
-      set({ models: await api.modelsList() });
+      const [models, recommended] = await Promise.all([api.modelsList(), api.modelRecommend().catch(() => null)]);
+      set({ models, recommended });
     },
 
     newChat() {

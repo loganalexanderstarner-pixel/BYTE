@@ -21,6 +21,17 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 | 11 | Input & windows: voice, vision, Quick Ask, floating widget, menu-bar popover, palette, notes | Planned |
 | 12 | Privacy & polish: offline, Touch ID, permissions dashboard, 20 themes, sharing, v1.0 | Planned |
 
+## Model catalog (added after Phase 2)
+
+- `scripts/catalog-sources.json` (curated list: repo, variants, quality score, tags) →
+  `scripts/build-catalog.mjs` → `src-tauri/catalog/models.json` (compiled in, ~13 KB).
+- The app refreshes the catalog from `settings.catalogUrl` (default: raw GitHub URL of this repo's main branch);
+  a newer `generated` date wins and is cached in the data folder. If the repo becomes private, point
+  `catalogUrl` at a public host (e.g. the owner's cluster).
+- Model keys are `"<id>:<quant>"`; older keys like `"qwen3-14b"` resolve to the Q4_K_M file older builds downloaded.
+- Recommendation: highest effective quality (curated score minus a low-bit penalty) among versions that fit
+  comfortably, else that fit at all; ties go to the smaller file.
+
 ## Verification log (Phase 2)
 
 - Search parsers tested on real saved DuckDuckGo and Bing result pages; article extraction on a real page.

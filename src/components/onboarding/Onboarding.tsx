@@ -20,21 +20,19 @@ import { useEffect, useMemo, useState } from "react";
 import { Logo } from "../../design/Logo";
 import { api, errorText } from "../../lib/api";
 import { bytes, contextLabel, ramSize } from "../../lib/format";
-import type { ModelStatus } from "../../lib/types";
+import { findVariant, quantLabel, shortQuant } from "../../lib/models";
+import type { ModelStatus, VariantStatus } from "../../lib/types";
 import { useStore } from "../../state/store";
 import { DownloadProgress, FitPill } from "../models/ModelCard";
 
 const STEPS = 5;
 
-/** Picks the best chat model that runs well on this Mac. */
-export function pickDefault(models: ModelStatus[]): ModelStatus | undefined {
-  const chat = models.filter((m) => m.role === "chat" && m.fit.fit !== "toobig");
-  return (
-    chat.find((m) => m.installed && m.recommended) ??
-    chat.find((m) => m.recommended && m.fit.fit === "great") ??
-    chat.find((m) => m.fit.fit === "great") ??
-    chat[0]
-  );
+/** Chat models with a version that runs on this Mac, best first. */
+export function runnable(models: ModelStatus[]): { model: ModelStatus; variant: VariantStatus }[] {
+  return models
+    .filter((m) => m.role === "chat" && m.best)
+    .map((m) => ({ model: m, variant: m.variants.find((v) => v.key === m.best)! }))
+    .sort((a, b) => b.variant.quality - a.variant.quality || a.variant.sizeBytes - b.variant.sizeBytes);
 }
 
 export function Onboarding() {
@@ -49,12 +47,26 @@ export function Onboarding() {
   const [name, setName] = useState("");
 
   useEffect(() => {
-    if (!choice && models.length) setChoice(pickDefault(models)?.id ?? null);
+    if (choice || !models.length) return;
+    // Prefer something already downloaded, else BYTE's recommendation.
+    const installed = models.flatMap((m) => (m.role === "chat" ? m.variants : [])).find((v) => v.installed && v.fit.fit !== "toobig");
+    if (installed) setChoice(installed.key);
+    else {
+      const fallback = () => runnable(models)[0]?.variant.key ?? null;
+      api
+        .modelRecommend()
+        .then((k) => setChoice(k ?? fallback()))
+        .catch(() => setChoice(fallback()));
+    }
   }, [models, choice]);
 
-  const chosen = models.find((m) => m.id === choice);
+  const hit = findVariant(models, choice);
+  const chosen = hit?.variant;
+  const chosenModel = hit?.model;
   const dl = choice ? downloads[choice] : undefined;
   const installed = !!chosen?.installed || dl?.phase === "finished";
+  const [showAll, setShowAll] = useState(false);
+  const options = runnable(models);
 
   // Move on automatically once the download completes.
   useEffect(() => {
@@ -168,36 +180,38 @@ export function Onboarding() {
             {step === 2 && (
               <>
                 <h1>Choose your model</h1>
-                <p className="lead">This is BYTE's brain. You can download others later in Settings.</p>
+                <p className="lead">
+                  This is BYTE's brain. These run well on your {system ? ramSize(system.totalRamBytes) : ""} Mac — the first one is BYTE's pick. You can try
+                  others any time in Settings → Models.
+                </p>
                 <div className="model-list">
-                  {models
-                    .filter((m) => m.role === "chat")
-                    .map((m) => {
-                      const disabled = m.fit.fit === "toobig";
-                      return (
-                        <button
-                          key={m.id}
-                          className={`model-card selectable ${disabled ? "disabled" : ""}`}
-                          aria-pressed={choice === m.id}
-                          disabled={disabled}
-                          onClick={() => setChoice(m.id)}
-                        >
-                          <div className="title">
-                            {m.name}
-                            {m.recommended && <span className="pill accent">Recommended</span>}
-                            {m.installed && <span className="pill ok">Downloaded</span>}
-                          </div>
-                          <div className="muted" style={{ fontSize: "0.92em" }}>{m.tagline}</div>
-                          <div className="meta">
-                            <span>{bytes(m.sizeBytes)} download</span>
-                            <span>· {m.speedHint} on M4</span>
-                            <span style={{ marginLeft: "auto" }}><FitPill model={m} /></span>
-                          </div>
-                          {disabled && <div className="faint" style={{ fontSize: "0.85em" }}>{m.fit.note}</div>}
-                        </button>
-                      );
-                    })}
+                  {(showAll ? options : options.slice(0, 4)).map(({ model: m, variant: v }, i) => (
+                    <button
+                      key={v.key}
+                      className="model-card selectable"
+                      aria-pressed={choice === v.key}
+                      onClick={() => setChoice(v.key)}
+                    >
+                      <div className="title">
+                        {m.name}
+                        {i === 0 && <span className="pill accent">Best for this Mac</span>}
+                        {v.installed && <span className="pill ok">Downloaded</span>}
+                      </div>
+                      <div className="muted" style={{ fontSize: "0.92em" }}>{m.tagline}</div>
+                      <div className="meta">
+                        <span>{bytes(v.sizeBytes)} download</span>
+                        <span>· {quantLabel(v.bits)}</span>
+                        {m.thinking && <span>· Thinking</span>}
+                        <span style={{ marginLeft: "auto" }}><FitPill v={v} /></span>
+                      </div>
+                    </button>
+                  ))}
                 </div>
+                {options.length > 4 && (
+                  <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => setShowAll(!showAll)}>
+                    {showAll ? "Show fewer" : `Show all ${options.length} models that fit`}
+                  </button>
+                )}
                 {system && chosen && !chosen.installed && system.freeDiskBytes > 0 && system.freeDiskBytes < chosen.sizeBytes + 1e9 && (
                   <div className="banner danger" style={{ marginTop: 12 }}>
                     <TriangleAlert size={18} />
@@ -214,17 +228,17 @@ export function Onboarding() {
               </>
             )}
 
-            {step === 3 && chosen && (
+            {step === 3 && chosen && chosenModel && (
               <>
-                <h1>{installed ? "All set." : `Downloading ${chosen.name}`}</h1>
+                <h1>{installed ? "All set." : `Downloading ${chosenModel.name}`}</h1>
                 <p className="lead">
                   {installed
                     ? "The model is verified and ready."
                     : "This is a one-time download. You can pause and resume any time — even after quitting."}
                 </p>
                 <div className="model-card">
-                  <div className="title">{chosen.name}</div>
-                  <DownloadProgress model={chosen} dl={dl ?? (installed ? { phase: "finished", bytes: chosen.sizeBytes, total: chosen.sizeBytes, bytesPerSec: 0 } : undefined)} />
+                  <div className="title">{chosenModel.name} <span className="faint" style={{ fontWeight: 500 }}>{shortQuant(chosen.quant)}</span></div>
+                  <DownloadProgress variant={chosen} dl={dl ?? (installed ? { phase: "finished", bytes: chosen.sizeBytes, total: chosen.sizeBytes, bytesPerSec: 0 } : undefined)} />
                 </div>
                 {dl?.phase === "failed" && (
                   <div className="banner danger" style={{ marginTop: 12 }}>
@@ -239,7 +253,7 @@ export function Onboarding() {
                       <button className="btn" onClick={startDownload}>Resume</button>
                     )}
                     {!installed && dl?.phase !== "paused" && dl?.phase !== "failed" && (
-                      <button className="btn" onClick={() => void api.modelPause(chosen.id)}>Pause</button>
+                      <button className="btn" onClick={() => void api.modelPause(chosen.key)}>Pause</button>
                     )}
                     <button className="btn lg primary" onClick={() => setStep(4)} disabled={!installed}>
                       Continue
@@ -286,9 +300,9 @@ export function Onboarding() {
                   </label>
                   <input className="text-input" value={name} maxLength={40} placeholder="Your name" onChange={(e) => setName(e.target.value)} />
                 </div>
-                {chosen && (
+                {chosen && chosenModel && (
                   <p className="faint" style={{ fontSize: "0.88em", marginTop: 16 }}>
-                    {chosen.name} will use about {bytes(chosen.fit.neededBytes)} of memory with a {contextLabel(chosen.fit.context)}-token context.
+                    {chosenModel.name} will use about {bytes(chosen.fit.neededBytes)} of memory with a {contextLabel(chosen.fit.context)}-token context.
                   </p>
                 )}
                 {error && <div className="banner danger">{error}</div>}

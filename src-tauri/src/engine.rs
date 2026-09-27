@@ -14,7 +14,7 @@ use tauri_plugin_shell::ShellExt;
 use tokio::sync::Mutex;
 
 use crate::error::{AppError, AppResult};
-use crate::models::{self, CatalogEntry};
+use crate::models::{self, Catalog};
 use crate::system;
 
 pub const STATUS_EVENT: &str = "engine://status";
@@ -33,6 +33,14 @@ pub enum EngineStatus {
     Starting { model: String },
     Ready { model: String, context: u32 },
     Error { message: String },
+}
+
+/// What to run: model key, file to load, and context size.
+#[derive(Debug, Clone)]
+struct Launch {
+    key: String,
+    path: PathBuf,
+    context: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -94,49 +102,38 @@ impl Engine {
         let _ = app.emit(STATUS_EVENT, status);
     }
 
-    /// Starts (or restarts) the engine with the given catalog model.
-    pub async fn start(&self, app: &AppHandle, models_dir: PathBuf, model_id: &str, ctx_override: Option<u32>) -> AppResult<()> {
-        let entry = models::find(model_id)?;
-        if !models::is_installed(&models_dir, entry) {
+    /// Starts (or restarts) the engine with a catalog model key ("id:quant").
+    pub async fn start(&self, app: &AppHandle, models_dir: PathBuf, catalog: &Catalog, key: &str, ctx_override: Option<u32>) -> AppResult<()> {
+        let (model, variant) = catalog.resolve(key)?;
+        if !models::is_installed(&models_dir, variant) {
             self.set_status(app, EngineStatus::NoModel).await;
-            return Err(AppError::msg(format!("{} is not downloaded yet", entry.name)));
+            return Err(AppError::msg(format!("{} ({}) is not downloaded yet", model.name, variant.quant)));
         }
         let info = system::system_info(&models_dir);
-        let plan = system::plan_fit(
-            entry.size_bytes,
-            entry.arch,
-            ctx_override.unwrap_or(DEFAULT_CONTEXT),
-            info.total_ram_bytes,
-            info.gpu_budget_bytes,
-        );
+        let plan = models::plan(model, variant, &info, ctx_override.unwrap_or(DEFAULT_CONTEXT));
         if plan.fit == system::Fit::TooBig {
-            let message = format!("{} can't run on this Mac. {}", entry.name, plan.note);
+            let message = format!("{} can't run on this Mac. {}", model.name, plan.note);
             self.set_status(app, EngineStatus::Error { message: message.clone() }).await;
             return Err(AppError::msg(message));
         }
         self.stop().await;
         self.inner.lock().await.restarts = 0;
-        self.spawn(app.clone(), models_dir, entry, plan.context).await
+        let launch = Launch { key: models::key(model, variant), path: models::entry_path(&models_dir, variant), context: plan.context };
+        self.spawn(app.clone(), launch).await
     }
 
     /// Boxed with an explicit type so the crash-restart path (which calls back
     /// into `spawn`) doesn't create a recursive `impl Future` type.
-    fn spawn(
-        &self,
-        app: AppHandle,
-        models_dir: PathBuf,
-        entry: &'static CatalogEntry,
-        context: u32,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = AppResult<()>> + Send + '_>> {
-        Box::pin(self.spawn_inner(app, models_dir, entry, context))
+    fn spawn(&self, app: AppHandle, launch: Launch) -> std::pin::Pin<Box<dyn std::future::Future<Output = AppResult<()>> + Send + '_>> {
+        Box::pin(self.spawn_inner(app, launch))
     }
 
-    async fn spawn_inner(&self, app: AppHandle, models_dir: PathBuf, entry: &'static CatalogEntry, context: u32) -> AppResult<()> {
-        self.set_status(&app, EngineStatus::Starting { model: entry.id.into() }).await;
+    async fn spawn_inner(&self, app: AppHandle, launch: Launch) -> AppResult<()> {
+        let context = launch.context;
+        self.set_status(&app, EngineStatus::Starting { model: launch.key.clone() }).await;
         let port = free_port()?;
         let api_key = uuid::Uuid::new_v4().simple().to_string();
-        let model_path = models::model_path(&models_dir, entry);
-        let args = server_args(&model_path, port, &api_key, entry.id, context);
+        let args = server_args(&launch.path, port, &api_key, &launch.key, context);
 
         let command = match app.shell().sidecar(SIDECAR) {
             Ok(c) => c,
@@ -162,12 +159,12 @@ impl Engine {
             inner.endpoint = None;
             inner.generation
         };
-        log::info!("llama-server starting on port {port} with {} (ctx {context})", entry.id);
+        log::info!("llama-server starting on port {port} with {} (ctx {context})", launch.key);
 
         // Pump process output into the ring buffer and watch for exits.
         let this = self.clone();
         let app_for_events = app.clone();
-        let dir_for_restart = models_dir.clone();
+        let relaunch = launch.clone();
         tauri::async_runtime::spawn(async move {
             while let Some(ev) = rx.recv().await {
                 match ev {
@@ -180,7 +177,7 @@ impl Engine {
                         inner.log.push_back(text);
                     }
                     CommandEvent::Terminated(payload) => {
-                        this.on_exit(&app_for_events, &dir_for_restart, entry, context, generation, payload.code).await;
+                        this.on_exit(&app_for_events, relaunch, generation, payload.code).await;
                         break;
                     }
                     CommandEvent::Error(err) => log::warn!("llama-server: {err}"),
@@ -192,7 +189,7 @@ impl Engine {
         let base_url = format!("http://127.0.0.1:{port}");
         match self.wait_healthy(&base_url, generation).await {
             Ok(()) => {
-                let endpoint = Endpoint { base_url, api_key, model: entry.id.into(), context };
+                let endpoint = Endpoint { base_url, api_key, model: launch.key.clone(), context };
                 self.warm_up(&endpoint).await;
                 {
                     let mut inner = self.inner.lock().await;
@@ -201,8 +198,8 @@ impl Engine {
                     }
                     inner.endpoint = Some(endpoint);
                 }
-                log::info!("engine ready: {} with {context}-token context", entry.id);
-                self.set_status(&app, EngineStatus::Ready { model: entry.id.into(), context }).await;
+                log::info!("engine ready: {} with {context}-token context", launch.key);
+                self.set_status(&app, EngineStatus::Ready { model: launch.key.clone(), context }).await;
                 Ok(())
             }
             Err(e) => {
@@ -220,7 +217,7 @@ impl Engine {
         }
     }
 
-    async fn on_exit(&self, app: &AppHandle, models_dir: &PathBuf, entry: &'static CatalogEntry, context: u32, generation: u64, code: Option<i32>) {
+    async fn on_exit(&self, app: &AppHandle, launch: Launch, generation: u64, code: Option<i32>) {
         let restart = {
             let mut inner = self.inner.lock().await;
             if inner.generation != generation {
@@ -239,7 +236,7 @@ impl Engine {
         log::warn!("llama-server exited unexpectedly (code {code:?})");
         if restart {
             tokio::time::sleep(Duration::from_secs(1)).await;
-            let _ = self.spawn(app.clone(), models_dir.clone(), entry, context).await;
+            let _ = self.spawn(app.clone(), launch).await;
         } else {
             let hint = diagnose(&self.log_tail().await);
             self.set_status(app, EngineStatus::Error { message: format!("The AI engine keeps stopping (exit code {code:?}).{hint}") }).await;

@@ -1,4 +1,3 @@
-import { ask } from "@tauri-apps/plugin-dialog";
 import { Cpu, HardDrive, Info, Palette, RefreshCw, ShieldCheck, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -6,8 +5,9 @@ import { THEMES } from "../../design/themes";
 import { Logo } from "../../design/Logo";
 import { api, errorText } from "../../lib/api";
 import { bytes, contextLabel, ramSize } from "../../lib/format";
+import { displayName } from "../../lib/models";
 import { useStore, type SettingsTab } from "../../state/store";
-import { ModelCard } from "../models/ModelCard";
+import { CatalogBrowser } from "../models/CatalogBrowser";
 
 const TABS: { id: SettingsTab; label: string; icon: typeof Cpu }[] = [
   { id: "models", label: "Models", icon: HardDrive },
@@ -53,72 +53,13 @@ export function SettingsModal() {
 }
 
 function ModelsTab() {
-  const models = useStore((s) => s.models);
-  const downloads = useStore((s) => s.downloads);
-  const settings = useStore((s) => s.settings);
-  const system = useStore((s) => s.system);
-  const refresh = useStore((s) => s.refreshModels);
-  const [error, setError] = useState<string | null>(null);
-
-  const run = async (fn: () => Promise<unknown>) => {
-    setError(null);
-    try {
-      await fn();
-    } catch (e) {
-      setError(errorText(e));
-    }
-    await refresh();
-  };
-
-  const chat = models.filter((m) => m.role === "chat");
-  const helpers = models.filter((m) => m.role !== "chat");
-
   return (
     <>
       <h3>Models</h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        Models run on this Mac's GPU. {system && <>You have <b>{ramSize(system.totalRamBytes)}</b> of memory and <b>{bytes(system.freeDiskBytes)}</b> free on disk.</>}
+        Pick the brain BYTE runs on. Everything runs on this Mac's GPU; files download from Hugging Face only when you choose them.
       </p>
-      {error && <div className="banner danger">{error}</div>}
-      <div className="section">
-        <h4>Chat models</h4>
-        <div className="model-list">
-          {chat.map((m) => (
-            <ModelCard
-              key={m.id}
-              model={m}
-              dl={downloads[m.id]}
-              active={settings?.activeModel === m.id && m.installed}
-              onDownload={() => run(() => api.modelDownload(m.id))}
-              onPause={() => run(() => api.modelPause(m.id))}
-              onActivate={() => run(() => api.modelActivate(m.id))}
-              onDelete={async () => {
-                if (await ask(`Delete ${m.name}? You can download it again later.`, { title: "Delete model", kind: "warning" })) {
-                  await run(() => api.modelDelete(m.id));
-                }
-              }}
-            />
-          ))}
-        </div>
-      </div>
-      <div className="section">
-        <h4>Helper models</h4>
-        <p className="faint" style={{ marginTop: 0, fontSize: "0.9em" }}>
-          Optional. Upcoming features (faster replies, knowledge base search) use these small models.
-        </p>
-        <div className="model-list">
-          {helpers.map((m) => (
-            <ModelCard
-              key={m.id}
-              model={m}
-              dl={downloads[m.id]}
-              onDownload={() => run(() => api.modelDownload(m.id))}
-              onPause={() => run(() => api.modelPause(m.id))}
-              onDelete={() => run(() => api.modelDelete(m.id))}
-            />
-          ))}
-        </div>
-      </div>
+      <CatalogBrowser />
     </>
   );
 }
@@ -195,7 +136,6 @@ function EngineTab() {
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const active = models.find((m) => m.id === settings?.activeModel);
 
   const loadLog = async () => setLog(await api.engineLog());
   useEffect(() => {
@@ -224,7 +164,7 @@ function EngineTab() {
         <label>
           Status
           <small>
-            {engine.state === "ready" && `Running ${active?.name ?? engine.model} with a ${contextLabel(engine.context)} context`}
+            {engine.state === "ready" && `Running ${displayName(models, engine.model, true)} with a ${contextLabel(engine.context)} context`}
             {engine.state === "starting" && "Loading the model…"}
             {engine.state === "noModel" && "No model downloaded yet"}
             {engine.state === "stopped" && "Stopped"}

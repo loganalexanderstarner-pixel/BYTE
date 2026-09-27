@@ -36,46 +36,76 @@ pub async fn settings_update(state: State<'_, AppState>, patch: serde_json::Valu
 pub async fn models_list(state: State<'_, AppState>) -> AppResult<Vec<ModelStatus>> {
     let ctx = state.settings.lock().await.context_size.unwrap_or(DEFAULT_CONTEXT);
     let active = state.downloads.active_ids().await;
-    Ok(models::list(&state.paths.models, ctx, &active))
+    let info = system::system_info(&state.paths.data);
+    let catalog = state.catalog.get();
+    Ok(models::list(&catalog, &models::ListContext { models_dir: &state.paths.models, info: &info, ctx, downloading: &active }))
+}
+
+/// The best chat model + version for this Mac, as a key like "qwen3.5-9b:Q6_K".
+#[tauri::command]
+pub async fn model_recommend(state: State<'_, AppState>) -> AppResult<Option<String>> {
+    let ctx = state.settings.lock().await.context_size.unwrap_or(DEFAULT_CONTEXT);
+    let info = system::system_info(&state.paths.data);
+    let catalog = state.catalog.get();
+    Ok(models::recommend(&catalog, &info, ctx).map(|(m, v)| models::key(m, v)))
+}
+
+/// Fetches a newer catalog if one is published. Returns true if it changed.
+#[tauri::command]
+pub async fn catalog_refresh(state: State<'_, AppState>) -> AppResult<bool> {
+    let url = state.settings.lock().await.catalog_url.clone().unwrap_or_else(|| models::DEFAULT_CATALOG_URL.to_string());
+    state.catalog.refresh(&state.net, &url).await
 }
 
 #[tauri::command]
-pub async fn model_download(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<()> {
-    state.downloads.start(app, state.net.clone(), state.paths.models.clone(), id).await
+pub async fn model_download(app: AppHandle, state: State<'_, AppState>, key: String) -> AppResult<()> {
+    let catalog = state.catalog.get();
+    let (model, variant) = catalog.resolve(&key)?;
+    let key = models::key(model, variant);
+    state
+        .downloads
+        .start(app, state.net.clone(), state.paths.models.clone(), model.repo.clone(), variant.clone(), key)
+        .await
 }
 
 #[tauri::command]
-pub async fn model_pause(state: State<'_, AppState>, id: String) -> AppResult<()> {
-    state.downloads.pause(&id).await;
+pub async fn model_pause(state: State<'_, AppState>, key: String) -> AppResult<()> {
+    state.downloads.pause(&key).await;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn model_delete(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<()> {
-    state.downloads.pause(&id).await;
+pub async fn model_delete(app: AppHandle, state: State<'_, AppState>, key: String) -> AppResult<()> {
+    state.downloads.pause(&key).await;
+    let catalog = state.catalog.get();
+    let (model, variant) = catalog.resolve(&key)?;
+    let key = models::key(model, variant);
     let active = state.settings.lock().await.active_model.clone();
-    if active.as_deref() == Some(id.as_str()) {
+    let active_key = active.as_deref().and_then(|a| catalog.resolve(a).ok()).map(|(m, v)| models::key(m, v));
+    if active_key.as_deref() == Some(key.as_str()) {
         state.engine.stop().await;
         let _ = tauri::Emitter::emit(&app, crate::engine::STATUS_EVENT, EngineStatus::NoModel);
     }
-    models::delete(&state.paths.models, &id)
+    models::delete(&state.paths.models, variant)
 }
 
-/// Makes `id` the active chat model and (re)starts the engine with it.
+/// Makes `key` the active chat model and (re)starts the engine with it.
 #[tauri::command]
-pub async fn model_activate(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<()> {
-    let entry = models::find(&id)?;
-    if entry.role != models::Role::Chat {
-        return Err(AppError::msg(format!("{} is a helper model and can't be used for chat", entry.name)));
+pub async fn model_activate(app: AppHandle, state: State<'_, AppState>, key: String) -> AppResult<()> {
+    let catalog = state.catalog.get();
+    let (model, variant) = catalog.resolve(&key)?;
+    if model.role != models::Role::Chat {
+        return Err(AppError::msg(format!("{} is a helper model and can't be used for chat", model.name)));
     }
+    let key = models::key(model, variant);
     let ctx = {
         let mut s = state.settings.lock().await;
-        let next = s.merged(serde_json::json!({ "activeModel": id }))?;
+        let next = s.merged(serde_json::json!({ "activeModel": key }))?;
         next.save(&state.paths.settings_file)?;
         *s = next;
         s.context_size
     };
-    state.engine.start(&app, state.paths.models.clone(), &id, ctx).await
+    state.engine.start(&app, state.paths.models.clone(), &catalog, &key, ctx).await
 }
 
 #[tauri::command]
@@ -90,7 +120,8 @@ pub async fn engine_restart(app: AppHandle, state: State<'_, AppState>) -> AppRe
         (s.active_model.clone(), s.context_size)
     };
     let model = model.ok_or_else(|| AppError::msg("choose a model first"))?;
-    state.engine.start(&app, state.paths.models.clone(), &model, ctx).await
+    let catalog = state.catalog.get();
+    state.engine.start(&app, state.paths.models.clone(), &catalog, &model, ctx).await
 }
 
 #[tauri::command]

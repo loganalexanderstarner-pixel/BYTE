@@ -1,11 +1,12 @@
 import { contextLabel } from "../lib/format";
+import { displayName } from "../lib/models";
 import { useStore } from "../state/store";
 
 export function EngineBadge() {
   const engine = useStore((s) => s.engine);
   const models = useStore((s) => s.models);
   const openSettings = useStore((s) => s.openSettings);
-  const name = (id: string) => models.find((m) => m.id === id)?.name ?? id;
+  const name = (key: string) => displayName(models, key);
 
   let cls = "pill";
   let dot = "";

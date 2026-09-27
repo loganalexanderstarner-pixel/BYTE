@@ -1,6 +1,16 @@
 # Changelog
 
-## 1.0.0-test.2 — Phase 2: web search with sources
+## 1.0.0-test.2 — Phase 2: web search with sources + model catalog
+
+- **Hardware-aware model catalog**: 12 chat models from 0.5 GB to 63 GB (Qwen3.5 0.8B/2B/4B/9B, Qwen3.8 27B,
+  Qwen3.6 35B-A3B, Gemma 4 E4B/12B, gpt-oss 20B/120B, LFM2.5, Qwen3 14B) with several sizes each. BYTE checks
+  every version against this Mac's memory, marks it *Great fit*, *Fits*, or *Needs N GB*, and picks
+  **BYTE's pick** for your Mac (16 GB → Qwen3.5 9B; 32 GB+ → Qwen3.8 27B). Filter by memory size (8–128 GB)
+  or strength (reasoning, coding, writing, languages, fast, small).
+- The catalog is a 13 KB list built into the app and refreshed from the web ("Check for new models"); model
+  files download from Hugging Face only when chosen. Multi-part files for very large models are supported.
+- The memory planner understands hybrid models (only attention layers use context memory), so new Qwen
+  models get long contexts cheaply.
 
 - **Web search** without accounts: DuckDuckGo, falling back to DuckDuckGo Lite and then Bing. Requests are
   spaced out so search engines don't throttle BYTE.
