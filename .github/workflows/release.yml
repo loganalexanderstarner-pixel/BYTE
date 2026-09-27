@@ -5,10 +5,11 @@ name: Release BYTE
 on:
   push:
     tags: ["v*"]
+  # Manual runs build the chosen branch and create the tag + release for it.
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to (re)build, e.g. v1.0.0-test.1"
+        description: "Tag to create for this build, e.g. v1.0.0-test.1"
         required: true
 
 permissions:
@@ -25,8 +26,6 @@ jobs:
       TAG: ${{ github.event.inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -59,6 +58,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         with:
           tagName: ${{ env.TAG }}
+          releaseCommitish: ${{ github.sha }}
           releaseName: "BYTE ${{ env.TAG }}"
           releaseBody: |
             **Apple Silicon Macs (M1 or newer), macOS 13.3+.** Download the `.dmg`, open it, and drag BYTE to Applications.
