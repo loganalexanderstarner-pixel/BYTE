@@ -55,6 +55,10 @@ pub struct Tuning {
     pub draft_p_min: f32,
     /// Whether the thorough tune (more settings, ~5 minutes) was run.
     pub thorough: bool,
+    /// Which kind of helper the look-ahead was tuned for.
+    pub helper_kind: crate::models::HelperKind,
+    /// Repeated-text guessing (llama.cpp ngram-mod) won.
+    pub ngram: bool,
 }
 
 impl Default for Tuning {
@@ -71,6 +75,8 @@ impl Default for Tuning {
             draft_n_max: 16,
             draft_p_min: 0.75,
             thorough: false,
+            helper_kind: crate::models::HelperKind::Draft,
+            ngram: false,
         }
     }
 }

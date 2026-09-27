@@ -285,9 +285,11 @@ function SpeedSection() {
           </span>
           <small>
             {!info.available
-              ? "Not available for this model (no small helper from the same family)."
+              ? "No helper for this model; after tuning, BYTE can still guess from text already in the chat."
               : boosted
-                ? `On: ${info.helperName} drafts a few words ahead and your model checks them. Same answers, usually faster.`
+                ? info.kind && info.kind !== "draft"
+                  ? `On: ${info.helperName} guesses a few words ahead and your model checks them. Same answers, usually faster.`
+                  : `On: ${info.helperName} drafts a few words ahead and your model checks them. Same answers, usually faster.`
                 : settings.speedBoost && !info.installed
                   ? `Needs the ${info.helperName} helper (${bytes(info.helperBytes)} download).`
                   : settings.speedBoost
@@ -338,6 +340,7 @@ function SpeedSection() {
                 ? `${tuned.tokensPerSec.toFixed(1)} tokens/sec writing · ${Math.round(tuned.promptPerSec)} tokens/sec reading · ` +
                   [
                     tuned.boost ? `Speed boost on (looks ${tuned.draftNMax} ahead)` : "Speed boost off",
+                    ...(tuned.ngram ? ["repeated-text guessing"] : []),
                     tuned.kvF16 ? "full-precision memory" : "compact memory",
                     tuned.flashAttn ? "flash attention" : "no flash attention",
                     `batch ${tuned.ubatch}`,
@@ -350,7 +353,7 @@ function SpeedSection() {
           <button
             className="btn sm"
             disabled={!!tune || engine.state !== "ready"}
-            title="Tries Speed boost, memory precision and batch size (1–2 minutes)"
+            title="Tries Speed boost, repeated-text guessing, memory precision and batch size (1–2 minutes)"
             onClick={() =>
               void guard(async () => {
                 await api.engineTune(false);

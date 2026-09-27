@@ -78,12 +78,8 @@ pub async fn catalog_refresh(state: State<'_, AppState>) -> AppResult<bool> {
 #[tauri::command]
 pub async fn model_download(app: AppHandle, state: State<'_, AppState>, key: String) -> AppResult<()> {
     let catalog = state.catalog.get();
-    let (model, variant) = catalog.resolve(&key)?;
-    let key = models::key(model, variant);
-    state
-        .downloads
-        .start(app, state.net.clone(), state.paths.models.clone(), model.repo.clone(), variant.clone(), key)
-        .await
+    let (repo, variant, key) = catalog.download_target(&key)?;
+    state.downloads.start(app, state.net.clone(), state.paths.models.clone(), repo, variant, key).await
 }
 
 #[tauri::command]
@@ -96,6 +92,10 @@ pub async fn model_pause(state: State<'_, AppState>, key: String) -> AppResult<(
 pub async fn model_delete(app: AppHandle, state: State<'_, AppState>, key: String) -> AppResult<()> {
     state.downloads.pause(&key).await;
     let catalog = state.catalog.get();
+    if key.ends_with(&format!(":{}", models::HEAD_QUANT)) {
+        let (_, head, _) = catalog.download_target(&key)?;
+        return models::delete(&state.paths.models, &head);
+    }
     let (model, variant) = catalog.resolve(&key)?;
     let key = models::key(model, variant);
     let active = state.settings.lock().await.active_model.clone();
@@ -141,11 +141,13 @@ pub struct BoostInfo {
     pub enabled: bool,
     /// Whether the main model has a helper at all.
     pub available: bool,
-    /// Key of the helper version ("id:quant") and whether it's downloaded.
+    /// Download key of the helper ("id:quant", or "id:speed-head") and whether it's downloaded.
     pub helper_key: Option<String>,
     pub helper_name: Option<String>,
     pub helper_bytes: u64,
     pub installed: bool,
+    /// "draft" (separate small model), "mtp", "eagle3" or "dspark" (the model's own head).
+    pub kind: Option<models::HelperKind>,
 }
 
 #[tauri::command]
@@ -158,18 +160,18 @@ pub async fn speed_boost_info(state: State<'_, AppState>) -> AppResult<BoostInfo
     let helper = active
         .as_deref()
         .and_then(|k| catalog.resolve(k).ok())
-        .and_then(|(m, _)| models::drafter_for(&catalog, m))
-        .map(|d| (d, models::drafter_variant(d, &state.paths.models)));
+        .and_then(|(m, _)| models::helper_for(&catalog, m, &state.paths.models));
     Ok(match helper {
-        Some((d, (v, installed))) => BoostInfo {
+        Some(h) => BoostInfo {
             enabled,
             available: true,
-            helper_key: Some(models::key(d, v)),
-            helper_name: Some(d.name.clone()),
-            helper_bytes: v.size_bytes,
-            installed,
+            installed: h.installed(&state.paths.models),
+            helper_bytes: h.variant.size_bytes,
+            helper_key: Some(h.key),
+            helper_name: Some(h.name),
+            kind: Some(h.kind),
         },
-        None => BoostInfo { enabled, available: false, helper_key: None, helper_name: None, helper_bytes: 0, installed: false },
+        None => BoostInfo { enabled, available: false, helper_key: None, helper_name: None, helper_bytes: 0, installed: false, kind: None },
     })
 }
 

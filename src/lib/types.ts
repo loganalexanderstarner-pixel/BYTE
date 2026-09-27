@@ -46,7 +46,14 @@ export interface Tuning {
   draftPMin: number;
   /** The thorough tune (more settings, ~5 minutes) was run. */
   thorough: boolean;
+  /** Kind of helper the look-ahead was tuned for. */
+  helperKind: HelperKind;
+  /** Repeated-text guessing won. */
+  ngram: boolean;
 }
+
+/** "draft": a separate small model; the others are the model's own speed-up head. */
+export type HelperKind = "draft" | "mtp" | "eagle3" | "dspark";
 
 export interface TuneProgress {
   model: string;
@@ -66,6 +73,7 @@ export interface BoostInfo {
   helperName: string | null;
   helperBytes: number;
   installed: boolean;
+  kind: HelperKind | null;
 }
 
 

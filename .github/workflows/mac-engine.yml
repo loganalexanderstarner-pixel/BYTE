@@ -12,6 +12,7 @@ on:
       - "src-tauri/src/agent.rs"
       - "src-tauri/src/tools/**"
       - "src-tauri/src/speed.rs"
+      - "src-tauri/src/tune.rs"
       - "src-tauri/src/summarize.rs"
       - "src-tauri/Cargo.lock"
       - "scripts/LLAMA_TAG"
@@ -77,6 +78,17 @@ jobs:
             f=.cache/boost/$m-Q4_K_M.gguf
             [ -f "$f" ] || curl -fsSL -o "$f" "https://huggingface.co/unsloth/$m-GGUF/resolve/main/$m-Q4_K_M.gguf?download=true"
           done
+      - name: Cache speed-up head test models
+        uses: actions/cache@v4
+        with:
+          path: .cache/head
+          key: head-gemma-4-e2b-q3km-mtp
+      - name: Download speed-up head test models (Gemma 4 E2B + its MTP head)
+        run: |
+          mkdir -p .cache/head
+          for f in gemma-4-E2B-it-Q3_K_M.gguf mtp-gemma-4-E2B-it.gguf; do
+            [ -f ".cache/head/$f" ] || curl -fsSL -o ".cache/head/$f" "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/$f?download=true"
+          done
       - name: End-to-end test against the real engine
         working-directory: src-tauri
         env:
@@ -84,4 +96,6 @@ jobs:
           BYTE_TEST_MODEL: ${{ github.workspace }}/.cache/models/Qwen3-0.6B-Q8_0.gguf
           BYTE_TEST_MAIN_MODEL: ${{ github.workspace }}/.cache/boost/Qwen3.5-2B-Q4_K_M.gguf
           BYTE_TEST_DRAFT_MODEL: ${{ github.workspace }}/.cache/boost/Qwen3.5-0.8B-Q4_K_M.gguf
+          BYTE_TEST_HEAD_MAIN: ${{ github.workspace }}/.cache/head/gemma-4-E2B-it-Q3_K_M.gguf
+          BYTE_TEST_HEAD: ${{ github.workspace }}/.cache/head/mtp-gemma-4-E2B-it.gguf
         run: cargo test --locked e2e -- --ignored --nocapture --test-threads=1

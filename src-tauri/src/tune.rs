@@ -12,7 +12,8 @@
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
-use crate::engine::{EngineStatus, LaunchOpts};
+use crate::engine::{Draft, EngineStatus, LaunchOpts};
+use crate::models::HelperKind;
 use crate::error::{AppError, AppResult};
 use crate::settings::Tuning;
 use crate::speed::Speed;
@@ -49,30 +50,46 @@ pub async fn saved(state: &AppState, key: &str) -> Option<Tuning> {
 /// The options to start `key` with: tuned ones if measured, else the defaults.
 pub async fn launch_opts(state: &AppState, catalog: &crate::models::Catalog, key: &str) -> LaunchOpts {
     let boost_allowed = state.settings.lock().await.speed_boost;
-    let helper = if boost_allowed { helper_path(state, catalog, key) } else { None };
+    let helper = if boost_allowed { helper(state, catalog, key) } else { None };
     match saved(state, key).await {
         Some(t) => to_opts(&t, helper),
         None => LaunchOpts { draft: helper, ..Default::default() },
     }
 }
 
-fn to_opts(t: &Tuning, helper: Option<std::path::PathBuf>) -> LaunchOpts {
+fn to_opts(t: &Tuning, helper: Option<Draft>) -> LaunchOpts {
+    // A look-ahead tuned for another kind of helper (say the catalog added a
+    // speed-up head since) doesn't carry over.
+    let same_kind = helper.as_ref().is_some_and(|h| h.kind == t.helper_kind);
+    let n_default = t.helper_kind.default_lookahead();
     LaunchOpts {
         draft: helper.filter(|_| t.boost),
+        ngram: t.ngram,
         kv_f16: t.kv_f16,
         ubatch: (t.ubatch != 512 && t.ubatch > 0).then_some(t.ubatch),
         flash_attn_off: !t.flash_attn,
-        draft_n_max: (t.draft_n_max != 16).then_some(t.draft_n_max),
-        draft_p_min: ((t.draft_p_min - 0.75).abs() > 0.001).then_some(t.draft_p_min),
+        draft_n_max: (same_kind && t.draft_n_max > 0 && t.draft_n_max != n_default).then_some(t.draft_n_max),
+        draft_p_min: (same_kind && (t.draft_p_min - 0.75).abs() > 0.001).then_some(t.draft_p_min),
     }
 }
 
-/// The downloaded Speed boost helper for `key`'s model, if any.
-pub fn helper_path(state: &AppState, catalog: &crate::models::Catalog, key: &str) -> Option<std::path::PathBuf> {
+/// The downloaded Speed boost helper for `key`'s model, if any: its own
+/// speed-up head when it has one, else a small model from the same family.
+pub fn helper(state: &AppState, catalog: &crate::models::Catalog, key: &str) -> Option<Draft> {
     let (model, _) = catalog.resolve(key).ok()?;
-    let d = crate::models::drafter_for(catalog, model)?;
-    let (v, installed) = crate::models::drafter_variant(d, &state.paths.models);
-    installed.then(|| crate::models::entry_path(&state.paths.models, v))
+    let h = crate::models::helper_for(catalog, model, &state.paths.models)?;
+    h.installed(&state.paths.models).then(|| Draft { path: h.path(&state.paths.models), kind: h.kind })
+}
+
+/// Shorter and longer look-ahead to try for each kind of helper.
+fn lookaheads(kind: HelperKind) -> (u32, Option<u32>) {
+    match kind {
+        HelperKind::Draft => (8, Some(24)),
+        HelperKind::Mtp => (2, Some(5)),
+        HelperKind::Eagle3 => (5, Some(12)),
+        // DSpark drafts a fixed-size block; only shorter makes sense.
+        HelperKind::Dspark => (4, None),
+    }
 }
 
 /// Keeps a candidate only if it's clearly better.
@@ -94,7 +111,7 @@ pub enum Kind {
 /// not applicable), and what "better" means for it.
 struct Candidate {
     label: &'static str,
-    change: fn(&LaunchOpts, &Option<std::path::PathBuf>) -> Option<LaunchOpts>,
+    change: fn(&LaunchOpts, &Option<Draft>) -> Option<LaunchOpts>,
     kind: Kind,
 }
 
@@ -105,11 +122,29 @@ fn plan(thorough: bool) -> Vec<Candidate> {
         kind: Kind::Generate(0.05),
     }];
     if thorough {
-        c.push(Candidate { label: "Trying a shorter Speed boost look-ahead", change: |o, _| o.draft.is_some().then(|| LaunchOpts { draft_n_max: Some(8), ..o.clone() }), kind: Kind::Generate(0.03) });
-        c.push(Candidate { label: "Trying a longer Speed boost look-ahead", change: |o, _| o.draft.is_some().then(|| LaunchOpts { draft_n_max: Some(24), ..o.clone() }), kind: Kind::Generate(0.03) });
-        c.push(Candidate { label: "Letting the helper guess more boldly", change: |o, _| o.draft.is_some().then(|| LaunchOpts { draft_p_min: Some(0.6), ..o.clone() }), kind: Kind::Generate(0.03) });
-        c.push(Candidate { label: "Letting the helper guess more carefully", change: |o, _| o.draft.is_some().then(|| LaunchOpts { draft_p_min: Some(0.9), ..o.clone() }), kind: Kind::Generate(0.03) });
+        c.push(Candidate {
+            label: "Trying a shorter Speed boost look-ahead",
+            change: |o, _| o.draft.as_ref().map(|d| LaunchOpts { draft_n_max: Some(lookaheads(d.kind).0), ..o.clone() }),
+            kind: Kind::Generate(0.03),
+        });
+        c.push(Candidate {
+            label: "Trying a longer Speed boost look-ahead",
+            change: |o, _| o.draft.as_ref().and_then(|d| lookaheads(d.kind).1).map(|n| LaunchOpts { draft_n_max: Some(n), ..o.clone() }),
+            kind: Kind::Generate(0.03),
+        });
+        c.push(Candidate {
+            label: "Letting the helper guess more boldly",
+            change: |o, _| o.draft.as_ref().filter(|d| d.kind == HelperKind::Draft).map(|_| LaunchOpts { draft_p_min: Some(0.6), ..o.clone() }),
+            kind: Kind::Generate(0.03),
+        });
+        c.push(Candidate {
+            label: "Letting the helper guess more carefully",
+            change: |o, _| o.draft.as_ref().filter(|d| d.kind == HelperKind::Draft).map(|_| LaunchOpts { draft_p_min: Some(0.9), ..o.clone() }),
+            kind: Kind::Generate(0.03),
+        });
     }
+    // Lossless and free: reuse text already in the conversation (code, quotes, edits).
+    c.push(Candidate { label: "Trying repeated-text guessing", change: |o, _| Some(LaunchOpts { ngram: true, ..o.clone() }), kind: Kind::Generate(0.03) });
     c.push(Candidate { label: "Trying full-precision memory", change: |o, _| Some(LaunchOpts { kv_f16: true, ..o.clone() }), kind: Kind::Generate(0.03) });
     if thorough {
         c.push(Candidate {
@@ -198,8 +233,8 @@ async fn tune_model(app: &AppHandle, state: &AppState, key: &str, thorough: bool
     let key = crate::models::key(model, variant);
     let reserved = state.extras.reserved().await;
     let boost_allowed = state.settings.lock().await.speed_boost;
-    let has_drafter = boost_allowed && crate::models::drafter_for(&catalog, model).is_some();
-    let needs_helper = has_drafter && helper_path(state, &catalog, &key).is_none();
+    let wanted = if boost_allowed { crate::models::helper_for(&catalog, model, &state.paths.models) } else { None };
+    let needs_helper = wanted.as_ref().is_some_and(|h| !h.installed(&state.paths.models));
     let candidates = plan(thorough);
     let total = 1 + needs_helper as u32 + candidates.len() as u32;
     let progress = |step: u32, label: &str| {
@@ -221,12 +256,12 @@ async fn tune_model(app: &AppHandle, state: &AppState, key: &str, thorough: bool
     // Get the Speed boost helper first (small; skipped if it can't be downloaded).
     if needs_helper {
         progress(step, "Downloading the Speed boost helper");
-        if let Err(e) = fetch_helper(app, state, &catalog, model).await {
+        if let Err(e) = fetch_helper(app, state, wanted.as_ref().expect("checked above")).await {
             log::info!("speed boost helper not downloaded: {e}");
         }
         step += 1;
     }
-    let helper = if boost_allowed { helper_path(state, &catalog, &key) } else { None };
+    let helper = if boost_allowed { helper(state, &catalog, &key) } else { None };
 
     let outcome: AppResult<(LaunchOpts, Speed)> = async {
         progress(step, "Measuring the standard settings");
@@ -273,8 +308,11 @@ async fn tune_model(app: &AppHandle, state: &AppState, key: &str, thorough: bool
     };
     // Run with the winner (the last candidate may not be it).
     start(opts.clone()).await?;
+    let helper_kind = opts.draft.as_ref().or(helper.as_ref()).map(|d| d.kind).unwrap_or_default();
     let t = Tuning {
         boost: opts.draft.is_some(),
+        ngram: opts.ngram,
+        helper_kind,
         kv_f16: opts.kv_f16,
         ubatch: opts.ubatch.unwrap_or(512),
         tokens_per_sec: speed.generate,
@@ -282,7 +320,7 @@ async fn tune_model(app: &AppHandle, state: &AppState, key: &str, thorough: bool
         chip: chip_id(state),
         tested_at: chrono::Utc::now().timestamp_millis(),
         flash_attn: !opts.flash_attn_off,
-        draft_n_max: opts.draft_n_max.unwrap_or(16),
+        draft_n_max: opts.draft_n_max.unwrap_or(helper_kind.default_lookahead()),
         draft_p_min: opts.draft_p_min.unwrap_or(0.75),
         thorough,
     };
@@ -297,23 +335,20 @@ async fn tune_model(app: &AppHandle, state: &AppState, key: &str, thorough: bool
     Ok(t)
 }
 
-/// Downloads the Speed boost helper for `model` and waits for it (up to 15 minutes).
-async fn fetch_helper(app: &AppHandle, state: &AppState, catalog: &crate::models::Catalog, model: &crate::models::CatalogModel) -> AppResult<()> {
-    let d = crate::models::drafter_for(catalog, model).ok_or_else(|| AppError::msg("no helper"))?;
-    let (v, installed) = crate::models::drafter_variant(d, &state.paths.models);
-    if installed {
+/// Downloads the Speed boost helper and waits for it (up to 15 minutes).
+async fn fetch_helper(app: &AppHandle, state: &AppState, h: &crate::models::Helper) -> AppResult<()> {
+    if h.installed(&state.paths.models) {
         return Ok(());
     }
-    let key = crate::models::key(d, v);
-    if !state.downloads.active_ids().await.contains(&key) {
-        state.downloads.start(app.clone(), state.net.clone(), state.paths.models.clone(), d.repo.clone(), v.clone(), key.clone()).await?;
+    if !state.downloads.active_ids().await.contains(&h.key) {
+        state.downloads.start(app.clone(), state.net.clone(), state.paths.models.clone(), h.repo.clone(), h.variant.clone(), h.key.clone()).await?;
     }
     for _ in 0..450 {
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-        if crate::models::is_installed(&state.paths.models, v) {
+        if h.installed(&state.paths.models) {
             return Ok(());
         }
-        if !state.downloads.active_ids().await.contains(&key) {
+        if !state.downloads.active_ids().await.contains(&h.key) {
             break; // paused or failed
         }
     }
@@ -336,10 +371,11 @@ mod tests {
 
     #[test]
     fn plans_try_the_right_settings() {
-        let helper = Some(std::path::PathBuf::from("/m/d.gguf"));
+        let helper = Some(Draft::model("/m/d.gguf"));
         let base = LaunchOpts::default();
         let quick = plan(false);
-        assert_eq!(quick.len(), 3);
+        assert_eq!(quick.len(), 4);
+        assert!(quick.iter().any(|c| (c.change)(&base, &None).is_some_and(|o| o.ngram)));
         let thorough = plan(true);
         assert!(thorough.len() >= 9);
         // Look-ahead tweaks only apply once Speed boost is on.
@@ -347,6 +383,13 @@ mod tests {
         assert!((lookahead.change)(&base, &helper).is_none());
         let boosted = LaunchOpts { draft: helper.clone(), ..Default::default() };
         assert_eq!((lookahead.change)(&boosted, &helper).unwrap().draft_n_max, Some(8));
+        // A model's own head gets its own look-ahead range and no confidence tweaks.
+        let head = Some(Draft { path: "/m/mtp.gguf".into(), kind: HelperKind::Mtp });
+        let with_head = LaunchOpts { draft: head.clone(), ..Default::default() };
+        assert_eq!((lookahead.change)(&with_head, &head).unwrap().draft_n_max, Some(2));
+        let bold = thorough.iter().find(|c| c.label.contains("boldly")).unwrap();
+        assert!((bold.change)(&with_head, &head).is_none());
+        assert!((bold.change)(&boosted, &helper).is_some());
         // Without a helper, Speed boost isn't tried.
         assert!((quick[0].change)(&base, &None).is_none());
         // Turning flash attention off always comes with a full-precision cache.
@@ -358,12 +401,18 @@ mod tests {
     #[test]
     fn tuned_settings_round_trip_to_launch_options() {
         let t = Tuning { boost: true, kv_f16: true, ubatch: 1024, flash_attn: false, draft_n_max: 24, draft_p_min: 0.6, ..Default::default() };
-        let o = to_opts(&t, Some("/m/d.gguf".into()));
-        assert_eq!(o.draft.as_deref(), Some(std::path::Path::new("/m/d.gguf")));
+        let o = to_opts(&t, Some(Draft::model("/m/d.gguf")));
+        assert_eq!(o.draft, Some(Draft::model("/m/d.gguf")));
         assert!(o.kv_f16 && o.flash_attn_off);
         assert_eq!((o.ubatch, o.draft_n_max, o.draft_p_min), (Some(1024), Some(24), Some(0.6)));
         // Defaults map to "no override", and a missing helper means no boost.
         let d = to_opts(&Tuning::default(), None);
         assert_eq!(d, LaunchOpts::default());
+        // A head's default look-ahead (3) is "no override"; a draft-model tuning doesn't carry over to a head.
+        let head = Draft { path: "/m/mtp.gguf".into(), kind: HelperKind::Mtp };
+        let tm = Tuning { boost: true, helper_kind: HelperKind::Mtp, draft_n_max: 3, ngram: true, ..Default::default() };
+        let om = to_opts(&tm, Some(head.clone()));
+        assert_eq!((om.draft_n_max, om.ngram), (None, true));
+        assert_eq!(to_opts(&t, Some(head)).draft_n_max, None);
     }
 }

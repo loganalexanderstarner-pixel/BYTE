@@ -8,10 +8,15 @@ use serde_json::{json, Value};
 use crate::engine::Endpoint;
 use crate::error::{AppError, AppResult};
 
-/// Prompts with a typical mix: code (very predictable) and prose.
-const PROMPTS: [&str; 2] = [
+/// Prompts with a typical mix: code (very predictable), prose, and an edit
+/// that repeats given text (where repeated-text guessing shines).
+const PROMPTS: [&str; 3] = [
     "Write a Python function that checks whether a string is a palindrome, with a docstring and three doctests.",
     "Explain in two short paragraphs why the sky is blue.",
+    "Fix the spelling in this paragraph and return the whole corrected paragraph, nothing else:\n\n\
+The quick brown fox jumpd over the lazy dog while the farmer watchd from the porch. \
+Every mornign the fox came back to the same feild, looking for the chickens that the farmer kept \
+behind the old red barn. The farmer never minded, becuase the fox never caught any of them.",
 ];
 
 /// Generation and prompt-reading speed, tokens per second.
@@ -63,7 +68,7 @@ pub async fn measure(http: &reqwest::Client, ep: &Endpoint) -> AppResult<f64> {
     for p in PROMPTS {
         let body = json!({
             "messages": [{ "role": "user", "content": p }],
-            "max_tokens": 160,
+            "max_tokens": 120,
             "temperature": 0,
             "stream": false,
             "chat_template_kwargs": { "enable_thinking": false },
@@ -103,7 +108,7 @@ mod tests {
             eprintln!("skipping: set BYTE_TEST_MAIN_MODEL and BYTE_TEST_DRAFT_MODEL");
             return;
         };
-        let args = crate::engine::draft_args(std::path::Path::new(&draft), 16, 0.75);
+        let args = crate::engine::draft_args(Some(&crate::engine::Draft::model(draft)), false, None, 0.75);
         let Some((_server, ep)) = crate::chat::e2e_support::start_server_with(&main, &args, None).await else { return };
         let body = json!({
             "messages": [{ "role": "user", "content": PROMPTS[0] }],
@@ -135,14 +140,50 @@ mod tests {
             return;
         };
         for opts in [
-            crate::engine::LaunchOpts { draft: Some(draft.clone().into()), kv_f16: true, ubatch: Some(2048), flash_attn_off: true, draft_n_max: Some(24), draft_p_min: Some(0.6) },
-            crate::engine::LaunchOpts { draft: Some(draft.clone().into()), kv_f16: false, ubatch: Some(256), flash_attn_off: false, draft_n_max: Some(8), draft_p_min: Some(0.9) },
+            crate::engine::LaunchOpts { draft: Some(crate::engine::Draft::model(&draft)), ngram: true, kv_f16: true, ubatch: Some(2048), flash_attn_off: true, draft_n_max: Some(24), draft_p_min: Some(0.6) },
+            crate::engine::LaunchOpts { draft: Some(crate::engine::Draft::model(&draft)), ngram: false, kv_f16: false, ubatch: Some(256), flash_attn_off: false, draft_n_max: Some(8), draft_p_min: Some(0.9) },
         ] {
             let Some((_server, ep)) = crate::chat::e2e_support::start_server_with(&main, &[], Some(&opts)).await else { return };
             let s = measure_both(&crate::chat::local_client(), &ep).await.unwrap();
             eprintln!("{opts:?}: {:.1} tok/s writing, {:.0} reading", s.generate, s.read);
             assert!(s.generate > 0.0 && s.read > 0.0);
         }
+    }
+
+    /// Real engine with a model's own multi-token-prediction head, through
+    /// BYTE's exact arguments. Needs BYTE_TEST_HEAD_MAIN and BYTE_TEST_HEAD
+    /// (e.g. Gemma 4 E2B + mtp-gemma-4-E2B-it.gguf).
+    #[tokio::test]
+    #[ignore]
+    async fn e2e_speed_head_drafts_tokens() {
+        let (Ok(main), Ok(head)) = (std::env::var("BYTE_TEST_HEAD_MAIN"), std::env::var("BYTE_TEST_HEAD")) else {
+            eprintln!("skipping: set BYTE_TEST_HEAD_MAIN and BYTE_TEST_HEAD");
+            return;
+        };
+        let opts = crate::engine::LaunchOpts {
+            draft: Some(crate::engine::Draft { path: head.into(), kind: crate::models::HelperKind::Mtp }),
+            ngram: true,
+            ..Default::default()
+        };
+        let Some((_server, ep)) = crate::chat::e2e_support::start_server_with(&main, &[], Some(&opts)).await else { return };
+        let v = request(&crate::chat::local_client(), &ep, PROMPTS[2], 100).await.unwrap();
+        let t = &v["timings"];
+        eprintln!("drafted {} accepted {} at {:.1} tok/s", t["draft_n"], t["draft_n_accepted"], t["predicted_per_second"].as_f64().unwrap_or(0.0));
+        assert!(t["draft_n_accepted"].as_u64().unwrap_or(0) > 0, "no guesses were used: {t}");
+    }
+
+    /// Real engine: repeated-text guessing alone (no helper file) speeds up an edit.
+    #[tokio::test]
+    #[ignore]
+    async fn e2e_repeated_text_guessing() {
+        let opts = crate::engine::LaunchOpts { ngram: true, ..Default::default() };
+        let Some(model) = std::env::var("BYTE_TEST_MODEL").ok() else { return };
+        let Some((_server, ep)) = crate::chat::e2e_support::start_server_with(&model, &[], Some(&opts)).await else { return };
+        let v = request(&crate::chat::local_client(), &ep, PROMPTS[2], 100).await.unwrap();
+        let t = &v["timings"];
+        eprintln!("drafted {} accepted {}", t["draft_n"], t["draft_n_accepted"]);
+        assert!(v["choices"][0]["message"]["content"].as_str().is_some_and(|c| c.contains("fox")));
+        assert!(t["draft_n"].as_u64().unwrap_or(0) > 0, "nothing was guessed: {t}");
     }
 
     /// Real engine: reports a positive speed.
