@@ -9,8 +9,8 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Foundation: engine sidecar, model catalog/downloader, RAM planner, streaming chat, modes, thinking, onboarding, logo, themes, CI/release | ✅ Done (commit 47d952e) |
-| 2 | Agent & web: tool registry, permission gate, web search/read, citations, calculator, answer cache | ⏳ Next |
-| 3 | Memory: encrypted DB, chats, memory/About me, projects, profiles, branching, pins, export | Planned |
+| 2 | Agent & web: tool registry, action log, web search/read, forced grounding, citations, calculator | ✅ Done (test.2) |
+| 3 | Memory: encrypted DB, chats, memory/About me, projects, profiles, branching, pins, export | ⏳ Next |
 | 4 | Files & knowledge base: parsers, OCR, embeddings, folder indexing, reader | Planned |
 | 5 | Documents: PDF/PPTX/DOCX/HTML, edit existing files, infographics, math/diagrams | Planned |
 | 6 | Research+: Deep/Extended, academic, quote finder, fact-check, compare, web agent, YouTube | Planned |
@@ -20,6 +20,17 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 | 10 | Upkeep & automation: scheduler, briefing, watchers, trackers, connectors, dashboards | Planned |
 | 11 | Input & windows: voice, vision, Quick Ask, floating widget, menu-bar popover, palette, notes | Planned |
 | 12 | Privacy & polish: offline, Touch ID, permissions dashboard, 20 themes, sharing, v1.0 | Planned |
+
+## Verification log (Phase 2)
+
+- Search parsers tested on real saved DuckDuckGo and Bing result pages; article extraction on a real page.
+- Live test from the dev container: 5 real results for a query; rust-lang.org read correctly.
+- Real engine + calculator: the model called `calculate` and answered with the exact result.
+- Real engine + real web: BYTE searched, read releases.rs, and answered "1.98.1" with a citation.
+- Findings fixed: the small model skipped searching and invented citations even with `tool_choice: required`
+  (not enforced by this llama.cpp for Qwen3), so BYTE now runs the first search and top-page reads itself for
+  time-sensitive questions, and strips unmatched citation numbers.
+- Note: the answer cache moves to Phase 4 (it needs the embedding model); the page cache is done.
 
 ## Verification log (Phase 1)
 

@@ -35,6 +35,25 @@ pub fn looks_complex(message: &str) -> bool {
     math >= 2 && digits >= 2
 }
 
+const FRESHNESS_CUES: &[&str] = &[
+    "latest", "newest", "current", "currently", "right now", "today", "tonight", "yesterday", "tomorrow",
+    "this week", "this month", "this year", "last week", "recent", "recently", "news", "update", "price",
+    "cost of", "stock", "weather", "forecast", "score", "who won", "release", "released", "version",
+    "announced", "election", "schedule", "open now", "near me", "search the web", "look up", "google",
+];
+
+/// True when a question depends on up-to-date information, so BYTE should
+/// search before answering instead of relying on training data.
+pub fn needs_fresh_info(message: &str) -> bool {
+    let m = format!(" {} ", message.to_lowercase());
+    if FRESHNESS_CUES.iter().any(|c| m.contains(c)) {
+        return true;
+    }
+    // Mentions of recent years (training data may predate them).
+    let year = chrono::Datelike::year(&chrono::Local::now());
+    (year - 1..=year + 1).any(|y| m.contains(&y.to_string()))
+}
+
 pub fn plan_turn(mode: Mode, pref: ThinkingPref, message: &str) -> TurnPlan {
     let thinking = match pref {
         ThinkingPref::On => true,
@@ -57,6 +76,16 @@ pub fn plan_turn(mode: Mode, pref: ThinkingPref, message: &str) -> TurnPlan {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn detects_time_sensitive_questions() {
+        assert!(needs_fresh_info("What is the latest stable version of Rust?"));
+        assert!(needs_fresh_info("Biggest tech news this week"));
+        let year = chrono::Datelike::year(&chrono::Local::now());
+        assert!(needs_fresh_info(&format!("Best laptops of {year}")));
+        assert!(!needs_fresh_info("Explain how photosynthesis works"));
+        assert!(!needs_fresh_info("Write a poem about the sea"));
+    }
 
     #[test]
     fn small_talk_skips_thinking_in_auto() {

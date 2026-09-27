@@ -11,7 +11,7 @@ use crate::models::{self, ModelStatus};
 use crate::settings::{Mode, Settings, ThinkingPref};
 use crate::state::AppState;
 use crate::system::{self, SystemInfo};
-use crate::{prompt, router};
+use crate::{agent, prompt, router};
 
 #[tauri::command]
 pub fn system_info(state: State<'_, AppState>) -> SystemInfo {
@@ -122,13 +122,27 @@ pub async fn chat_send(state: State<'_, AppState>, request: ChatRequest, on_even
         .map(|m| m.content.as_str())
         .unwrap_or("");
     let plan = router::plan_turn(request.mode, request.thinking, last_user);
-    let system = prompt::system_prompt(chrono::Local::now(), request.mode, false);
+    let (web, user_name) = {
+        let s = state.settings.lock().await;
+        (s.web_search, s.user_name.clone())
+    };
+    let system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());
     let reserve = plan.max_tokens + plan.thinking_budget.max(0) as u32;
     let history = chat::fit_history(&request.messages, &system, ep.context, reserve.min(ep.context / 2));
-    let body = chat::request_body(&system, &history, plan);
 
     let cancel = state.generations.register(&request.request_id).await;
-    let result = chat::stream(&state.local_http, &ep, body, plan, cancel, &on_event).await;
+    let turn = agent::Turn {
+        http: &state.local_http,
+        net: &state.net,
+        ep: &ep,
+        system: &system,
+        history: &history,
+        plan,
+        mode: request.mode,
+        web,
+        log: &state.actions,
+    };
+    let result = agent::run(turn, cancel, &on_event).await;
     state.generations.finish(&request.request_id).await;
     match result {
         Err(AppError::Cancelled) => {

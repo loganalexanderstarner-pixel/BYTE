@@ -72,4 +72,4 @@ jobs:
         env:
           BYTE_TEST_LLAMA_SERVER: ${{ github.workspace }}/src-tauri/binaries/llama-server-aarch64-apple-darwin
           BYTE_TEST_MODEL: ${{ github.workspace }}/.cache/models/Qwen3-0.6B-Q8_0.gguf
-        run: cargo test --locked e2e -- --ignored --nocapture
+        run: cargo test --locked e2e -- --ignored --nocapture --test-threads=1

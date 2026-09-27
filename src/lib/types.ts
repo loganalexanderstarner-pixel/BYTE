@@ -14,6 +14,8 @@ export interface Settings {
   fontScale: number;
   density: "comfortable" | "compact";
   showStats: boolean;
+  webSearch: boolean;
+  userName: string | null;
 }
 
 export interface SystemInfo {
@@ -78,10 +80,22 @@ export interface Stats {
   thinkingMs: number;
 }
 
+export interface Source {
+  n: number;
+  title: string;
+  url: string;
+  snippet: string;
+  /** True when BYTE actually read the page, not just saw it in results. */
+  read: boolean;
+}
+
 export type ChatEvent =
   | { kind: "started"; thinking: boolean; model: string }
   | { kind: "reasoning"; delta: string }
   | { kind: "content"; delta: string }
+  | { kind: "toolCall"; id: string; name: string; args: Record<string, unknown> }
+  | { kind: "toolResult"; id: string; ok: boolean; summary: string }
+  | { kind: "sources"; sources: Source[] }
   | ({ kind: "stats" } & Stats)
   | { kind: "done"; finishReason: string };
 

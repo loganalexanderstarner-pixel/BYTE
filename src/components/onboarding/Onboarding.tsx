@@ -46,6 +46,7 @@ export function Onboarding() {
   const update = useStore((s) => s.updateSettings);
   const [choice, setChoice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState("");
 
   useEffect(() => {
     if (!choice && models.length) setChoice(pickDefault(models)?.id ?? null);
@@ -78,7 +79,7 @@ export function Onboarding() {
   const finish = async () => {
     setError(null);
     try {
-      await update({ onboardingComplete: true, activeModel: choice });
+      await update({ onboardingComplete: true, activeModel: choice, userName: name.trim() || null });
       if (choice) void api.modelActivate(choice).catch(() => {});
     } catch (e) {
       setError(errorText(e));
@@ -275,9 +276,16 @@ export function Onboarding() {
                   </li>
                   <li>
                     <Sparkles size={18} />
-                    <div><b>More is coming.</b> <span className="muted">Web search, documents, file reading and Mac controls arrive in upcoming test builds — BYTE updates itself.</span></div>
+                    <div><b>Stays up to date.</b> <span className="muted">With <b>Web</b> on, BYTE searches and reads the web for current questions and shows numbered sources you can click.</span></div>
                   </li>
                 </ul>
+                <div className="field" style={{ marginTop: 12, borderBottom: 0 }}>
+                  <label>
+                    What should BYTE call you?
+                    <small>Optional — used for friendly greetings.</small>
+                  </label>
+                  <input className="text-input" value={name} maxLength={40} placeholder="Your name" onChange={(e) => setName(e.target.value)} />
+                </div>
                 {chosen && (
                   <p className="faint" style={{ fontSize: "0.88em", marginTop: 16 }}>
                     {chosen.name} will use about {bytes(chosen.fit.neededBytes)} of memory with a {contextLabel(chosen.fit.context)}-token context.

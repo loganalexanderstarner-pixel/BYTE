@@ -13,11 +13,13 @@ No account. No subscription. Your conversations never leave your computer.</p>
 - **Chats with a capable AI model running on your Mac's GPU** (Apple Silicon + Metal), even offline.
 - **Four modes:** ⚡ Fast · 🎚 Auto · 🔭 Deep · 🚀 Extended. They set how long BYTE thinks and how thorough the answer is.
 - **Visible thinking:** turn reasoning on or off per message and open "Thought for…" to see how BYTE worked it out.
+- **Up to date with sources:** BYTE searches and reads the web when a question needs current information, and shows numbered, clickable citations and source cards. No account or API key needed.
+- **Exact math:** a built-in calculator handles arithmetic, percentages and unit conversions.
 - **Guided setup:** checks your Mac, recommends the right model, and downloads it with pause and resume. Every file is checksum-verified.
 - **Memory-aware:** BYTE works out how much memory each model needs and won't run one that doesn't fit. It shrinks the context window automatically when memory is tight.
 - **11 themes**, adjustable text size and density, keyboard shortcuts, and saved chat history with search.
 
-BYTE is being built in phases. Web search with citations, PDF/PowerPoint/Word export, file and knowledge-base reading, Mac app control, voice, and more arrive in upcoming test builds, delivered by auto-update. See [the roadmap](#roadmap).
+BYTE is being built in phases. PDF/PowerPoint/Word export, file and knowledge-base reading, Mac app control, voice, and more arrive in upcoming test builds, delivered by auto-update. See [the roadmap](#roadmap).
 
 ## Requirements
 
@@ -80,7 +82,7 @@ Models are stored in `~/Library/Application Support/com.loganstarner.byte/models
 ## Roadmap
 
 1. ✅ Foundation: built-in engine, model manager, chat, thinking, onboarding, themes
-2. Web search and reading with citations, tool use, answer cache
+2. ✅ Web search and reading with citations, tool use, calculator
 3. Encrypted chat database, memory, projects, profiles, export
 4. File drop (PDF, Word, images with OCR) and personal knowledge base
 5. PDF / PowerPoint / Word / web-page documents with themes and charts
@@ -117,6 +119,8 @@ src-tauri/src/       Rust core
   models.rs          model catalog + resumable, checksum-verified downloader
   system.rs          hardware detection and the RAM planner
   chat.rs            streaming chat (SSE), context-window fitting, cancellation
-  router.rs          per-message thinking and length decisions
+  router.rs          per-message thinking/length decisions, time-sensitive detection
+  agent.rs           tool loop: forced search + auto-read, tool rounds, sources, stats
+  tools/             web search (DuckDuckGo/Bing), page reader (SSRF-safe), calculator, action log
 scripts/             engine build, version bump
 ```

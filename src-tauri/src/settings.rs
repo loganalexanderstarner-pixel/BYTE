@@ -37,6 +37,10 @@ pub struct Settings {
     pub font_scale: f32,
     pub density: String,
     pub show_stats: bool,
+    /// Let BYTE search and read the web when a question needs it.
+    pub web_search: bool,
+    /// What BYTE calls the user (asked during setup).
+    pub user_name: Option<String>,
 }
 
 impl Default for Settings {
@@ -52,6 +56,8 @@ impl Default for Settings {
             font_scale: 1.0,
             density: "comfortable".into(),
             show_stats: true,
+            web_search: true,
+            user_name: None,
         }
     }
 }

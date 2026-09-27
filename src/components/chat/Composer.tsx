@@ -1,4 +1,4 @@
-import { ArrowUp, Brain, Gauge, Rocket, Square, Telescope, Zap } from "lucide-react";
+import { ArrowUp, Brain, Gauge, Globe, Rocket, Square, Telescope, Zap } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import type { Mode, ThinkingPref } from "../../lib/types";
@@ -27,6 +27,8 @@ export function Composer() {
   const setThinking = useStore((s) => s.setThinking);
   const openSettings = useStore((s) => s.openSettings);
   const currentId = useStore((s) => s.currentId);
+  const web = useStore((s) => s.settings?.webSearch ?? true);
+  const toggleWeb = useStore((s) => s.toggleWeb);
   const ready = engine.state === "ready";
 
   useEffect(() => {
@@ -102,6 +104,16 @@ export function Composer() {
           >
             <Brain size={14} />
             {THINKING_LABEL[thinking]}
+          </button>
+          <button
+            className={`pill ${web ? "accent" : ""}`}
+            style={{ cursor: "pointer", height: 30 }}
+            onClick={toggleWeb}
+            aria-pressed={web}
+            title={web ? "Web search is on: BYTE searches when a question needs current information" : "Web search is off: BYTE answers from what it already knows"}
+          >
+            <Globe size={14} />
+            {web ? "Web" : "Web off"}
           </button>
           <span className="spacer" />
           {generating ? (

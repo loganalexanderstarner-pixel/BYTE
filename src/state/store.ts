@@ -9,11 +9,21 @@ import type {
   Mode,
   ModelStatus,
   Settings,
+  Source,
   Stats,
   SystemInfo,
   ThinkingPref,
   WireMessage,
 } from "../lib/types";
+
+/** One tool use shown in the answer's activity list. */
+export interface Step {
+  id: string;
+  name: string;
+  args: Record<string, unknown>;
+  status: "running" | "ok" | "error";
+  summary?: string;
+}
 
 export interface Message {
   id: string;
@@ -24,6 +34,8 @@ export interface Message {
   status: "streaming" | "done" | "error" | "cancelled";
   error?: string;
   stats?: Stats;
+  steps?: Step[];
+  sources?: Source[];
   mode?: Mode;
   model?: string;
   createdAt: number;
@@ -71,6 +83,7 @@ interface State {
   send(text: string): Promise<void>;
   regenerate(): Promise<void>;
   stop(): Promise<void>;
+  toggleWeb(): void;
   setMode(m: Mode): void;
   setThinking(t: ThinkingPref): void;
   toggleSidebar(): void;
@@ -168,6 +181,25 @@ export const useStore = create<State>((set, get) => {
         case "content":
           pendingContent += e.delta;
           schedule();
+          break;
+        case "toolCall":
+          cancelAnimationFrame(frame);
+          flush();
+          patchMessage(convId, reply.id, (m) => ({
+            ...m,
+            steps: [...(m.steps ?? []), { id: e.id, name: e.name, args: e.args, status: "running" }],
+          }));
+          break;
+        case "toolResult":
+          patchMessage(convId, reply.id, (m) => ({
+            ...m,
+            steps: (m.steps ?? []).map((st) =>
+              st.id === e.id ? { ...st, status: e.ok ? "ok" : "error", summary: e.summary } : st,
+            ),
+          }));
+          break;
+        case "sources":
+          patchMessage(convId, reply.id, (m) => ({ ...m, sources: e.sources }));
           break;
         case "stats": {
           const { kind: _kind, ...stats } = e;
@@ -300,6 +332,11 @@ export const useStore = create<State>((set, get) => {
         return { ...c, messages: msgs };
       });
       await generate(convId);
+    },
+
+    toggleWeb() {
+      const s = get().settings;
+      if (s) void get().updateSettings({ webSearch: !s.webSearch });
     },
 
     async stop() {

@@ -6,6 +6,7 @@ use std::time::Instant;
 
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
+#[cfg(test)]
 use tauri::ipc::Channel;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
@@ -26,6 +27,12 @@ pub enum ChatEvent {
     Started { thinking: bool, model: String },
     Reasoning { delta: String },
     Content { delta: String },
+    /// The model asked to use a tool (e.g. a web search).
+    ToolCall { id: String, name: String, args: serde_json::Value },
+    /// A tool finished; `summary` is a short human description.
+    ToolResult { id: String, ok: bool, summary: String },
+    /// The numbered sources gathered so far, for citations.
+    Sources { sources: Vec<crate::tools::Source> },
     Stats(Stats),
     Done { finish_reason: String },
 }
@@ -79,9 +86,20 @@ pub fn local_client() -> reqwest::Client {
         .expect("local http client")
 }
 
-pub fn request_body(system: &str, history: &[ChatMessage], plan: TurnPlan) -> serde_json::Value {
+/// System prompt + history as engine messages.
+pub fn base_messages(system: &str, history: &[ChatMessage]) -> Vec<serde_json::Value> {
     let mut messages = vec![serde_json::json!({ "role": "system", "content": system })];
     messages.extend(history.iter().map(|m| serde_json::json!({ "role": m.role, "content": m.content })));
+    messages
+}
+
+#[cfg(test)]
+pub fn request_body(system: &str, history: &[ChatMessage], plan: TurnPlan) -> serde_json::Value {
+    build_body(base_messages(system, history), plan, None)
+}
+
+/// Full request body; `tools` enables tool calling for this round.
+pub fn build_body(messages: Vec<serde_json::Value>, plan: TurnPlan, tools: Option<Vec<serde_json::Value>>) -> serde_json::Value {
     // Qwen3's recommended sampling for thinking vs. non-thinking turns.
     let (temperature, top_p) = if plan.thinking { (0.6, 0.95) } else { (0.7, 0.8) };
     let mut body = serde_json::json!({
@@ -99,6 +117,11 @@ pub fn request_body(system: &str, history: &[ChatMessage], plan: TurnPlan) -> se
     if plan.thinking && plan.thinking_budget > 0 {
         body["reasoning_budget_tokens"] = plan.thinking_budget.into();
         body["reasoning_budget_message"] = "\n\nI've thought enough; answering now.".into();
+    }
+    if let Some(tools) = tools.filter(|t| !t.is_empty()) {
+        body["tools"] = tools.into();
+        body["tool_choice"] = "auto".into();
+        body["parallel_tool_calls"] = true.into();
     }
     body
 }
@@ -160,6 +183,8 @@ pub enum Delta {
     Content(String),
     Finish(String),
     Timings(Stats),
+    /// A fragment of a streamed tool call; fragments share `index`.
+    ToolCall { index: usize, id: Option<String>, name: Option<String>, args: String },
     Error(String),
     End,
 }
@@ -189,6 +214,17 @@ pub fn parse_payload(data: &str) -> Vec<Delta> {
                     out.push(Delta::Content(c.to_string()));
                 }
             }
+            if let Some(calls) = delta.get("tool_calls").and_then(|x| x.as_array()) {
+                for (i, call) in calls.iter().enumerate() {
+                    let f = call.get("function");
+                    out.push(Delta::ToolCall {
+                        index: call.get("index").and_then(|x| x.as_u64()).map(|x| x as usize).unwrap_or(i),
+                        id: call.get("id").and_then(|x| x.as_str()).filter(|x| !x.is_empty()).map(str::to_string),
+                        name: f.and_then(|f| f.get("name")).and_then(|x| x.as_str()).filter(|x| !x.is_empty()).map(str::to_string),
+                        args: f.and_then(|f| f.get("arguments")).and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                    });
+                }
+            }
         }
         if let Some(f) = choice.get("finish_reason").and_then(|x| x.as_str()) {
             out.push(Delta::Finish(f.to_string()));
@@ -208,24 +244,42 @@ pub fn parse_payload(data: &str) -> Vec<Delta> {
     out
 }
 
-pub async fn stream(
+/// A tool call assembled from streamed fragments.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ToolCallReq {
+    pub id: String,
+    pub name: String,
+    pub arguments: String,
+}
+
+/// Everything one engine request produced.
+#[derive(Debug, Default)]
+pub struct Round {
+    pub content: String,
+    pub reasoning: String,
+    pub tool_calls: Vec<ToolCallReq>,
+    pub finish: String,
+    pub stats: Option<Stats>,
+    /// Time from the request to the first answer token, if thinking happened first.
+    pub thinking_ms: f64,
+}
+
+/// Sends one request and streams reasoning/content deltas to `on_event`.
+/// Tool calls and stats are returned, not emitted, so the caller decides.
+pub async fn stream_round(
     http: &reqwest::Client,
     ep: &Endpoint,
-    body: serde_json::Value,
-    plan: TurnPlan,
-    cancel: CancellationToken,
-    events: &Channel<ChatEvent>,
-) -> AppResult<()> {
-    let send = |e: ChatEvent| events.send(e).map_err(|e| AppError::msg(format!("UI channel closed: {e}")));
-    send(ChatEvent::Started { thinking: plan.thinking, model: ep.model.clone() })?;
-
+    body: &serde_json::Value,
+    cancel: &CancellationToken,
+    on_event: &mut (dyn FnMut(ChatEvent) -> AppResult<()> + Send),
+) -> AppResult<Round> {
     let started = Instant::now();
     let url = format!("{}/v1/chat/completions", ep.base_url);
     let mut attempt = 0;
     let resp = loop {
         attempt += 1;
         let sent = tokio::select! {
-            r = http.post(&url).bearer_auth(&ep.api_key).json(&body).send() => r,
+            r = http.post(&url).bearer_auth(&ep.api_key).json(body).send() => r,
             _ = cancel.cancelled() => return Err(AppError::Cancelled),
         };
         match sent {
@@ -248,11 +302,11 @@ pub async fn stream(
         return Err(AppError::msg(format!("engine returned {status}: {msg}")));
     }
 
+    let mut round = Round { finish: "stop".into(), ..Default::default() };
+    let mut calls: Vec<ToolCallReq> = Vec::new();
     let mut parser = SseParser::default();
     let mut bytes = resp.bytes_stream();
     let mut first_content: Option<Instant> = None;
-    let mut saw_reasoning = false;
-    let mut finish = String::from("stop");
     loop {
         let chunk = tokio::select! {
             c = bytes.next() => c,
@@ -263,29 +317,60 @@ pub async fn stream(
             for d in parse_payload(&payload) {
                 match d {
                     Delta::Reasoning(t) => {
-                        saw_reasoning = true;
-                        send(ChatEvent::Reasoning { delta: t })?
+                        round.reasoning.push_str(&t);
+                        on_event(ChatEvent::Reasoning { delta: t })?
                     }
                     Delta::Content(t) => {
                         first_content.get_or_insert_with(Instant::now);
-                        send(ChatEvent::Content { delta: t })?
+                        round.content.push_str(&t);
+                        on_event(ChatEvent::Content { delta: t })?
                     }
-                    Delta::Finish(f) => finish = f,
-                    Delta::Timings(mut s) => {
-                        if saw_reasoning {
-                            if let Some(fc) = first_content {
-                                s.thinking_ms = (fc - started).as_secs_f64() * 1000.0;
-                            }
+                    Delta::ToolCall { index, id, name, args } => {
+                        if calls.len() <= index {
+                            calls.resize(index + 1, ToolCallReq::default());
                         }
-                        send(ChatEvent::Stats(s))?
+                        let c = &mut calls[index];
+                        if let Some(id) = id {
+                            c.id = id;
+                        }
+                        if let Some(n) = name {
+                            c.name.push_str(&n);
+                        }
+                        c.arguments.push_str(&args);
                     }
+                    Delta::Finish(f) => round.finish = f,
+                    Delta::Timings(s) => round.stats = Some(s),
                     Delta::Error(m) => return Err(AppError::msg(m)),
                     Delta::End => {}
                 }
             }
         }
     }
-    send(ChatEvent::Done { finish_reason: finish })?;
+    if !round.reasoning.is_empty() {
+        round.thinking_ms = first_content.map(|fc| (fc - started).as_secs_f64() * 1000.0).unwrap_or_else(|| started.elapsed().as_secs_f64() * 1000.0);
+    }
+    round.tool_calls = calls.into_iter().filter(|c| !c.name.is_empty()).collect();
+    Ok(round)
+}
+
+/// Single request, no tools (used by the end-to-end test).
+#[cfg(test)]
+pub async fn stream(
+    http: &reqwest::Client,
+    ep: &Endpoint,
+    body: serde_json::Value,
+    plan: TurnPlan,
+    cancel: CancellationToken,
+    events: &Channel<ChatEvent>,
+) -> AppResult<()> {
+    let mut send = |e: ChatEvent| events.send(e).map_err(|e| AppError::msg(format!("UI channel closed: {e}")));
+    send(ChatEvent::Started { thinking: plan.thinking, model: ep.model.clone() })?;
+    let round = stream_round(http, ep, &body, &cancel, &mut send).await?;
+    if let Some(mut s) = round.stats {
+        s.thinking_ms = round.thinking_ms;
+        send(ChatEvent::Stats(s))?;
+    }
+    send(ChatEvent::Done { finish_reason: round.finish })?;
     Ok(())
 }
 
@@ -349,6 +434,15 @@ mod tests {
     }
 
     #[test]
+    fn parses_streamed_tool_call_fragments() {
+        let d = parse_payload(r#"{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"web_search","arguments":"{\"qu"}}]}}]}"#);
+        assert_eq!(d, vec![Delta::ToolCall { index: 0, id: Some("call_1".into()), name: Some("web_search".into()), args: "{\"qu".into() }]);
+        let d = parse_payload(r#"{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"ery\":\"x\"}"}}]},"finish_reason":"tool_calls"}]}"#);
+        assert_eq!(d[0], Delta::ToolCall { index: 0, id: None, name: None, args: "ery\":\"x\"}".into() });
+        assert_eq!(d[1], Delta::Finish("tool_calls".into()));
+    }
+
+    #[test]
     fn parses_errors() {
         assert_eq!(parse_payload(r#"{"error":{"message":"context too long"}}"#), vec![Delta::Error("context too long".into())]);
     }
@@ -368,24 +462,22 @@ mod tests {
     }
 }
 
-/// End-to-end check against a real `llama-server`. Run with:
-/// `BYTE_TEST_LLAMA_SERVER=/path/llama-server BYTE_TEST_MODEL=/path/model.gguf cargo test e2e -- --ignored --nocapture`
+
+/// Helpers shared by the ignored end-to-end tests.
 #[cfg(test)]
-mod e2e {
+pub mod e2e_support {
     use super::*;
-    use crate::router::plan_turn;
-    use crate::settings::{Mode, ThinkingPref};
     use std::sync::Mutex as StdMutex;
     use tauri::ipc::InvokeResponseBody;
 
-    struct Server(std::process::Child);
+    pub struct Server(std::process::Child);
     impl Drop for Server {
         fn drop(&mut self) {
             let _ = self.0.kill();
         }
     }
 
-    fn collecting_channel() -> (Channel<ChatEvent>, Arc<StdMutex<Vec<serde_json::Value>>>) {
+    pub fn collecting_channel() -> (Channel<ChatEvent>, Arc<StdMutex<Vec<serde_json::Value>>>) {
         let seen = Arc::new(StdMutex::new(Vec::new()));
         let sink = seen.clone();
         let ch = Channel::new(move |body: InvokeResponseBody| {
@@ -397,16 +489,12 @@ mod e2e {
         (ch, seen)
     }
 
-    fn text_of(events: &[serde_json::Value], kind: &str) -> String {
-        events.iter().filter(|e| e["kind"] == kind).filter_map(|e| e["delta"].as_str()).collect()
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn e2e_streams_from_real_llama_server() {
+    /// Starts llama-server from BYTE_TEST_LLAMA_SERVER with BYTE_TEST_MODEL,
+    /// using BYTE's real arguments. Returns None (skip) if they aren't set.
+    pub async fn start_server() -> Option<(Server, Endpoint)> {
         let (Ok(bin), Ok(model)) = (std::env::var("BYTE_TEST_LLAMA_SERVER"), std::env::var("BYTE_TEST_MODEL")) else {
             eprintln!("skipping: set BYTE_TEST_LLAMA_SERVER and BYTE_TEST_MODEL");
-            return;
+            return None;
         };
         let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
         let key = "test-key";
@@ -417,27 +505,46 @@ mod e2e {
             .stderr(std::process::Stdio::null())
             .spawn()
             .expect("spawn llama-server");
-        let _guard = Server(child);
+        let server = Server(child);
         let http = local_client();
         let base = format!("http://127.0.0.1:{port}");
-        let mut healthy = false;
-        for _ in 0..300 {
+        // Loading can be slow on a busy CI machine; allow up to 3 minutes.
+        for _ in 0..900 {
             if let Ok(r) = http.get(format!("{base}/health")).send().await {
                 if r.status().is_success() {
-                    healthy = true;
-                    break;
+                    return Some((server, Endpoint { base_url: base, api_key: key.into(), model: "test".into(), context: 4096 }));
                 }
             }
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         }
-        assert!(healthy, "server never became healthy (flags rejected?)");
+        panic!("server never became healthy (flags rejected?)");
+    }
+}
 
+/// End-to-end check against a real `llama-server`. Run with:
+/// `BYTE_TEST_LLAMA_SERVER=/path/llama-server BYTE_TEST_MODEL=/path/model.gguf cargo test e2e -- --ignored --nocapture`
+#[cfg(test)]
+mod e2e {
+    use super::e2e_support::collecting_channel;
+    use super::*;
+    use crate::router::plan_turn;
+    use crate::settings::{Mode, ThinkingPref};
+
+    fn text_of(events: &[serde_json::Value], kind: &str) -> String {
+        events.iter().filter(|e| e["kind"] == kind).filter_map(|e| e["delta"].as_str()).collect()
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn e2e_streams_from_real_llama_server() {
+        let Some((_server, ep)) = e2e_support::start_server().await else { return };
+        let http = local_client();
+        let base = ep.base_url.clone();
         // Requests without the API key must be refused.
         let unauth = http.post(format!("{base}/v1/chat/completions")).json(&serde_json::json!({"messages":[]})).send().await.unwrap();
         assert_eq!(unauth.status(), 401);
 
-        let ep = Endpoint { base_url: base.clone(), api_key: key.into(), model: "test".into(), context: 4096 };
-        let sys = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, false);
+        let sys = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, false, None);
         let hist = vec![ChatMessage { role: "user".into(), content: "What is 12 + 30? Reply with just the number.".into() }];
 
         // Thinking on, with a budget: reasoning arrives separately from the answer.

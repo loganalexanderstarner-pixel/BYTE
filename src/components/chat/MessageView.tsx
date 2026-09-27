@@ -6,6 +6,7 @@ import { Logo } from "../../design/Logo";
 import { duration, tokensPerSec } from "../../lib/format";
 import { closeOpenFences, renderMarkdown } from "../../lib/markdown";
 import { useStore, type Message } from "../../state/store";
+import { Activity, Sources } from "./Activity";
 
 function openLinksExternally(e: MouseEvent<HTMLDivElement>) {
   const a = (e.target as HTMLElement).closest("a");
@@ -35,11 +36,12 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
   const showStats = useStore((s) => s.settings?.showStats ?? true);
   const [copied, setCopied] = useState(false);
   const html = useMemo(
-    () => renderMarkdown(generating ? closeOpenFences(message.content) : message.content),
-    [message.content, generating],
+    () => renderMarkdown(generating ? closeOpenFences(message.content) : message.content, message.sources ?? []),
+    [message.content, generating, message.sources],
   );
-  const thinkingLive = generating && !!message.reasoning && message.content.length === 0;
-  const waiting = generating && !message.reasoning && message.content.length === 0;
+  const toolRunning = !!message.steps?.some((st) => st.status === "running");
+  const thinkingLive = generating && !!message.reasoning && message.content.length === 0 && !toolRunning;
+  const waiting = generating && !message.reasoning && message.content.length === 0 && !message.steps?.length;
   const s = message.stats;
 
   const copy = async () => {
@@ -57,6 +59,7 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
       {message.reasoning && message.reasoning.trim().length > 0 && (
         <Thinking text={message.reasoning} live={thinkingLive} ms={s?.thinkingMs} />
       )}
+      {message.steps && message.steps.length > 0 && <Activity steps={message.steps} live={generating && message.content.length === 0} />}
       {waiting && (
         <div className="typing" aria-label="BYTE is working">
           <i />
@@ -71,6 +74,7 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
           dangerouslySetInnerHTML={{ __html: html }}
         />
       )}
+      {!generating && message.sources && message.sources.length > 0 && message.content && <Sources sources={message.sources} />}
       {message.status === "error" && (
         <div className="msg-error" role="alert">
           <TriangleAlert size={18} style={{ color: "var(--danger)", flex: "none" }} />

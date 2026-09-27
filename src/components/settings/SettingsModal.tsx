@@ -265,7 +265,9 @@ function EngineTab() {
 
 function AboutTab() {
   const system = useStore((s) => s.system);
+  const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
+  const [name, setName] = useState(settings?.userName ?? "");
   return (
     <>
       <div className="row" style={{ gap: 16 }}>
@@ -276,12 +278,30 @@ function AboutTab() {
         </div>
       </div>
       <div className="section">
+        <h4>You</h4>
+        <div className="field">
+          <label>
+            Your name
+            <small>BYTE uses it to greet you. Leave empty to skip.</small>
+          </label>
+          <input
+            className="text-input"
+            value={name}
+            maxLength={40}
+            placeholder="Your name"
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => void update({ userName: name.trim() || null })}
+          />
+        </div>
+      </div>
+      <div className="section">
         <h4>Privacy</h4>
         <p className="row" style={{ alignItems: "flex-start" }}>
           <ShieldCheck size={18} style={{ color: "var(--ok)", flex: "none", marginTop: 3 }} />
           <span>
             Your conversations and files never leave this Mac. The AI model runs locally on your GPU. BYTE only goes online to download models
-            and, in upcoming versions, to search the web when you ask a question that needs it.
+            and to search and read the web when a question needs current information (turn this off with the Web button). Searches are
+            sent to DuckDuckGo (or Bing as a fallback) without any account or identifying data.
           </span>
         </p>
       </div>

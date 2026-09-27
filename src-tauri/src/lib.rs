@@ -1,3 +1,4 @@
+mod agent;
 mod chat;
 mod commands;
 mod engine;
@@ -9,6 +10,7 @@ mod router;
 mod settings;
 mod state;
 mod system;
+mod tools;
 
 use tauri::{Manager, RunEvent};
 

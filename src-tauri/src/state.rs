@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use tokio::sync::Mutex;
 
 use crate::chat::Generations;
@@ -18,6 +16,8 @@ pub struct AppState {
     pub net: reqwest::Client,
     /// Client for the local engine: no proxy, no timeout on streaming bodies.
     pub local_http: reqwest::Client,
+    /// Log of every tool call (web searches, pages read, calculations).
+    pub actions: crate::tools::ActionLog,
 }
 
 impl AppState {
@@ -28,13 +28,9 @@ impl AppState {
             engine: Engine::new(paths.data.join("engine.pid")),
             downloads: Downloads::default(),
             generations: Generations::default(),
-            net: reqwest::Client::builder()
-                .user_agent(concat!("BYTE/", env!("CARGO_PKG_VERSION"), " (macOS; local AI assistant)"))
-                .connect_timeout(Duration::from_secs(20))
-                .read_timeout(Duration::from_secs(60))
-                .build()
-                .expect("http client"),
+            net: crate::tools::fetch::web_client(),
             local_http: crate::chat::local_client(),
+            actions: crate::tools::ActionLog::new(paths.data.join("actions.jsonl")),
             paths,
         }
     }
