@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#17173a"/>
+      <stop offset="0.55" stop-color="#0a0a1c"/>
+      <stop offset="1" stop-color="#05050d"/>
+    </linearGradient>
+    <radialGradient id="haze" cx="0.3" cy="0.2" r="0.9">
+      <stop offset="0" stop-color="#00f0ff" stop-opacity="0.16"/>
+      <stop offset="0.6" stop-color="#00f0ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="haze2" cx="0.85" cy="0.95" r="0.7">
+      <stop offset="0" stop-color="#ff2bd6" stop-opacity="0.18"/>
+      <stop offset="0.7" stop-color="#ff2bd6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="neon" gradientUnits="userSpaceOnUse" x1="250" y1="290" x2="720" y2="740">
+      <stop offset="0" stop-color="#00f0ff"/>
+      <stop offset="0.55" stop-color="#7a7bff"/>
+      <stop offset="1" stop-color="#ff2bd6"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00f0ff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ff2bd6" stop-opacity="0.35"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+    <clipPath id="tile">
+      <rect x="100" y="100" width="824" height="824" rx="185"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#tile)">
+    <rect x="100" y="100" width="824" height="824" fill="url(#bg)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#haze)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#haze2)"/>
+    <!-- faint circuit grid -->
+    <g stroke="#7a84ff" stroke-opacity="0.07" stroke-width="2">
+      <path d="M100 260H924M100 420H924M100 604H924M100 764H924M260 100V924M764 100V924"/>
+    </g>
+  </g>
+  <rect x="102" y="102" width="820" height="820" rx="183" fill="none" stroke="url(#rim)" stroke-width="4"/>
+
+  <g transform="translate(25 0)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- glow pass -->
+    <g stroke="url(#neon)" stroke-width="64" opacity="0.85" filter="url(#glow)">
+      <path d="M360 300V724"/>
+      <path d="M360 300H556a106 106 0 0 1 0 212H360"/>
+      <path d="M360 512H586a106 106 0 0 1 0 212H360"/>
+      <path d="M250 346H300M250 446H300M250 578H300M250 678H300"/>
+    </g>
+    <!-- sharp pass -->
+    <g stroke="url(#neon)" stroke-width="56">
+      <path d="M360 300V724"/>
+      <path d="M360 300H556a106 106 0 0 1 0 212H360"/>
+      <path d="M360 512H586a106 106 0 0 1 0 212H360"/>
+    </g>
+    <!-- chip pins: one byte = eight bits, four drawn per side of the stem -->
+    <g stroke="url(#neon)" stroke-width="30">
+      <path d="M250 346H300M250 446H300M250 578H300M250 678H300"/>
+    </g>
+    <!-- highlight -->
+    <path d="M360 300H556a106 106 0 0 1 0 212" stroke="#ffffff" stroke-opacity="0.35" stroke-width="10"/>
+  </g>
+</svg>

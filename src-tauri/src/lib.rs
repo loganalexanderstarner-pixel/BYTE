@@ -1,14 +1,169 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+mod agent;
+mod chat;
+mod chip;
+mod commands;
+mod db;
+mod engine;
+mod export;
+mod error;
+mod models;
+mod paths;
+mod profiles;
+mod prompt;
+mod router;
+mod settings;
+mod state;
+mod summarize;
+mod system;
+mod tools;
+
+use tauri::{Manager, RunEvent};
+
+use crate::state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .max_file_size(5_000_000)
+                .build(),
+        )
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .setup(|app| {
+            let paths = paths::Paths::resolve(app.handle())?;
+            let state = AppState::new(paths);
+            let active = {
+                let s = state.settings.blocking_lock();
+                s.active_model.clone().map(|m| (m, s.context_size))
+            };
+            let engine = state.engine.clone();
+            engine.reap_stale();
+            state.extras.reap_stale();
+            let catalog = state.catalog.get();
+            let models_dir = state.paths.models.clone();
+            app.manage(state);
+
+            // Logout, shutdown and `kill` send signals rather than quitting
+            // through the menu; stop the engine so it can't outlive BYTE.
+            #[cfg(unix)]
+            {
+                let engine = engine.clone();
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    use tokio::signal::unix::{signal, SignalKind};
+                    let (Ok(mut term), Ok(mut int), Ok(mut hup)) =
+                        (signal(SignalKind::terminate()), signal(SignalKind::interrupt()), signal(SignalKind::hangup()))
+                    else {
+                        return;
+                    };
+                    tokio::select! {
+                        _ = term.recv() => {}
+                        _ = int.recv() => {}
+                        _ = hup.recv() => {}
+                    }
+                    log::info!("termination signal received; stopping engine");
+                    engine.kill_now();
+                    handle.state::<AppState>().extras.kill_all_now();
+                    handle.exit(0);
+                });
+            }
+
+            // Check for a newer model catalog in the background.
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let state = handle.state::<AppState>();
+                    let url = state.settings.lock().await.catalog_url.clone().unwrap_or_else(|| models::DEFAULT_CATALOG_URL.to_string());
+                    match state.catalog.refresh(&state.net, &url).await {
+                        Ok(true) => log::info!("model catalog updated from {url}"),
+                        Ok(false) => {}
+                        Err(e) => log::info!("model catalog not refreshed ({e}); using the built-in one"),
+                    }
+                });
+            }
+
+            // Preload the model at launch so the first answer is fast.
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                match active {
+                    Some((model, ctx)) => {
+                        if let Err(e) = engine.start(&handle, models_dir, &catalog, &model, ctx, 0).await {
+                            log::warn!("engine did not start at launch: {e}");
+                            return;
+                        }
+                        // Bring back the models that were loaded alongside it.
+                        let state = handle.state::<AppState>();
+                        let extra = state.settings.lock().await.loaded_alongside.clone();
+                        for key in extra {
+                            if let Err(e) = commands::load_extra(&handle, &state, &key).await {
+                                log::warn!("couldn't reload {key} alongside the main model: {e}");
+                            }
+                        }
+                    }
+                    None => {
+                        let _ = tauri::Emitter::emit(&handle, engine::STATUS_EVENT, engine::EngineStatus::NoModel);
+                    }
+                }
+            });
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::system_info,
+            commands::settings_get,
+            commands::settings_update,
+            commands::models_list,
+            commands::model_recommend,
+            commands::catalog_refresh,
+            commands::model_download,
+            commands::model_pause,
+            commands::model_delete,
+            commands::model_activate,
+            commands::models_loaded,
+            commands::model_load,
+            commands::model_unload,
+            commands::chats_list,
+            commands::chat_load,
+            commands::chat_save,
+            commands::chat_delete,
+            commands::chat_update,
+            commands::chats_search,
+            commands::chats_import,
+            commands::chats_export,
+            commands::memories_list,
+            commands::memory_add,
+            commands::memory_update,
+            commands::memory_delete,
+            commands::data_wipe,
+            commands::chat_autotitle,
+            commands::projects_list,
+            commands::project_save,
+            commands::project_delete,
+            commands::profiles_list,
+            commands::profile_create,
+            commands::profile_rename,
+            commands::profile_delete,
+            commands::profile_switch,
+            commands::engine_status,
+            commands::engine_restart,
+            commands::engine_log,
+            commands::chat_send,
+            commands::chat_cancel,
+        ])
+        .build(tauri::generate_context!())
+        .expect("error while building BYTE");
+
+    app.run(|handle, event| {
+        if let RunEvent::Exit = event {
+            if let Some(state) = handle.try_state::<AppState>() {
+                state.engine.kill_now();
+                state.extras.kill_all_now();
+            }
+        }
+    });
 }

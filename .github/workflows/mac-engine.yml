@@ -1,0 +1,71 @@
+name: Mac engine test
+
+# Builds llama-server with Metal and runs the end-to-end tests against a real
+# model. Runs only when engine-related code changes (or by hand) because
+# macOS minutes are expensive on private repositories.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "src-tauri/src/engine.rs"
+      - "src-tauri/src/chat.rs"
+      - "src-tauri/src/agent.rs"
+      - "src-tauri/src/tools/**"
+      - "src-tauri/Cargo.lock"
+      - "scripts/LLAMA_TAG"
+      - "scripts/build-llama-server.sh"
+      - ".github/workflows/mac-engine.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: mac-engine-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  engine:
+    name: Real engine on macOS (Metal)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Cache llama.cpp build
+        uses: actions/cache@v4
+        with:
+          path: .cache/llama.cpp
+          key: llama-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/LLAMA_TAG', 'scripts/build-llama-server.sh') }}
+      - name: Build engine (llama-server, Metal)
+        run: scripts/build-llama-server.sh
+      - name: Build frontend (embedded into the app)
+        run: npm ci && npm run build
+      - name: Unit tests
+        working-directory: src-tauri
+        run: cargo test --locked
+      - name: Cache test model
+        uses: actions/cache@v4
+        with:
+          path: .cache/models
+          key: test-model-qwen3-0.6b-q8
+      - name: Download small test model
+        run: |
+          mkdir -p .cache/models
+          f=.cache/models/Qwen3-0.6B-Q8_0.gguf
+          [ -f "$f" ] || curl -fsSL -o "$f" "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf?download=true"
+          echo "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031  $f" | shasum -a 256 -c
+      - name: End-to-end test against the real engine
+        working-directory: src-tauri
+        env:
+          BYTE_TEST_LLAMA_SERVER: ${{ github.workspace }}/src-tauri/binaries/llama-server-aarch64-apple-darwin
+          BYTE_TEST_MODEL: ${{ github.workspace }}/.cache/models/Qwen3-0.6B-Q8_0.gguf
+        run: cargo test --locked e2e -- --ignored --nocapture --test-threads=1
