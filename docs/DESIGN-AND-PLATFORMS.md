@@ -179,3 +179,72 @@ Apple Silicon does — a 4090 will outrun an M4 badly, a laptop iGPU will be
 far slower. The RAM planner in `system.rs` needs a VRAM equivalent, and the
 same honesty: say what this machine will actually do before downloading nine
 gigabytes onto it.
+
+---
+
+## Distribution without paying Apple (or Microsoft)
+
+Logan's constraint, stated 2026-09-27: **no paid developer subscriptions.**
+No Apple Developer Program, no Windows code-signing certificate. This is a
+hard requirement, not a preference, and it changes the answer on one platform
+completely.
+
+### Desktop: fine, with a first-run speed bump
+
+| platform | unsigned reality | friction |
+|---|---|---|
+| **Linux** | No signing gate exists. AppImage: `chmod +x` and run. `.deb` installs normally. | **none** |
+| **macOS** | Ad-hoc sign locally (`codesign -s -`) for free. No notarization, so Gatekeeper warns on first open. | one-time, per machine |
+| **Windows** | Unsigned `.exe`/`.msi` runs. SmartScreen shows "Windows protected your PC". | one-time, per download |
+
+The macOS bypass is worth getting right in the release notes, because **the
+old advice is wrong now**: right-click → Open stopped working as a Gatekeeper
+bypass in macOS Sequoia. The current path is *System Settings → Privacy &
+Security → Open Anyway*, after attempting to open once. From a terminal,
+`xattr -d com.apple.quarantine /Applications/Byte.app` also clears it.
+
+Windows: *More info → Run anyway*. SmartScreen reputation accrues with
+download volume, which at two users it never will — so the warning is
+permanent, and the README should just say so rather than implying it fades.
+
+Don't buy a Windows cert either. OV certificates run a few hundred dollars a
+year and **do not remove the warning** on their own — only EV certificates get
+immediate reputation, and those cost more and need a hardware token.
+
+### iOS: build a PWA, not a native app
+
+This is where "no paid account" stops being a speed bump. Free Apple ID
+provisioning gives you:
+
+* a **7-day** signing certificate — the app stops launching after a week
+* **3 apps** maximum per device
+* re-signing requires Xcode and the device
+
+SideStore and AltStore automate the weekly refresh over Wi-Fi, but the 7-day
+expiry is enforced by Apple and cannot be extended. TrollStore is not an
+option — it depended on a CoreTrust bug patched years ago.
+
+So a native iOS build is not an app you hand to somebody. It is a thing that
+breaks every Tuesday.
+
+**The good news is that the iOS app already exists and it is byte-ai.**
+Installed to the home screen from Safari it gets its own icon, launches
+standalone with no browser chrome, and can receive push notifications. It
+never expires, needs no Apple relationship, and costs nothing.
+
+What a native iOS app would add over that is essentially **one** capability:
+running a model locally on the device. And a phone cannot meaningfully run a
+useful model anyway — which means **cloud mode is not a compromise on iOS, it
+is the whole point.** Nothing is given up.
+
+Concretely, what makes the web app feel like an app on a phone:
+
+* a web app manifest with `display: standalone`, `theme_color`, and real icons
+* `apple-touch-icon` link tags — iOS still prefers these over the manifest
+* a service worker caching the shell, so a cold launch is not a white screen
+* `viewport-fit=cover` plus safe-area insets, so it sits correctly under the
+  notch and above the home indicator
+
+That is a small amount of work on byte-ai, entirely free, and it delivers the
+iPhone experience the native app was supposed to. Treat native iOS as
+permanently off the roadmap unless Logan decides to pay Apple later.
