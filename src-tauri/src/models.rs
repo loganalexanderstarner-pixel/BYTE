@@ -329,6 +329,8 @@ pub struct VariantStatus {
     pub min_ram_gb: u32,
     /// Expected speed on this Mac's chip.
     pub speed: crate::chip::SpeedEstimate,
+    /// Fits in the memory left next to the models already running.
+    pub fits_alongside: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -363,6 +365,8 @@ pub struct ListContext<'a> {
     pub info: &'a SystemInfo,
     pub ctx: u32,
     pub downloading: &'a [String],
+    /// Memory already used by running engines (for "load alongside").
+    pub loaded_bytes: u64,
 }
 
 pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
@@ -378,7 +382,9 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
                     let min_plan = system::plan_fit(v.size_bytes, m.arch, 4096, u64::MAX / 4, u64::MAX / 4);
                     let installed = is_installed(lc.models_dir, v);
                     let k = key(m, v);
+                    let alongside = plan(m, v, &lc.info.clone().minus(lc.loaded_bytes), crate::engine::EXTRA_CONTEXT);
                     VariantStatus {
+                        fits_alongside: lc.loaded_bytes > 0 && alongside.fit != system::Fit::TooBig,
                         downloading: lc.downloading.contains(&k),
                         partial_bytes: if installed { 0 } else { bytes_on_disk(lc.models_dir, v) },
                         key: k,
@@ -768,13 +774,31 @@ mod tests {
         let c = Catalog::embedded();
         let dir = tempfile::tempdir().unwrap();
         let info = mac(16);
-        let list = list(&c, &ListContext { models_dir: dir.path(), info: &info, ctx: 16384, downloading: &[] });
+        let list = list(&c, &ListContext { models_dir: dir.path(), info: &info, ctx: 16384, downloading: &[], loaded_bytes: 0 });
         let big = list.iter().find(|m| m.id == "gpt-oss-120b").unwrap();
         assert!(big.best.is_none());
         assert!(big.min_ram_gb >= 96, "{}", big.min_ram_gb);
         let tiny = list.iter().find(|m| m.id == "qwen3.5-0.8b").unwrap();
         assert_eq!(tiny.min_ram_gb, 8);
         assert!(tiny.best.is_some());
+    }
+
+    #[test]
+    fn fits_alongside_accounts_for_loaded_models() {
+        let c = Catalog::embedded();
+        let dir = tempfile::tempdir().unwrap();
+        let info = mac(16);
+        let status = |loaded_bytes: u64, id: &str, quant: &str| {
+            let l = list(&c, &ListContext { models_dir: dir.path(), info: &info, ctx: 16384, downloading: &[], loaded_bytes });
+            let m = l.into_iter().find(|m| m.id == id).unwrap();
+            m.variants.into_iter().find(|v| v.quant == quant).unwrap().fits_alongside
+        };
+        // Nothing loaded: "alongside" doesn't apply.
+        assert!(!status(0, "qwen3.5-0.8b", "Q8_0"));
+        // A 9B Q6_K (~8.5 GB planned) leaves room for a small model on 16 GB, not for another 9B.
+        let nine = 8_500_000_000;
+        assert!(status(nine, "qwen3.5-0.8b", "Q8_0"));
+        assert!(!status(nine, "qwen3.5-9b", "Q6_K"));
     }
 
     #[test]
@@ -970,7 +994,7 @@ fn dump_models_for_ui() {
     };
     let dir = tempfile::tempdir().unwrap();
     let c = Catalog::embedded();
-    let list = list(&c, &ListContext { models_dir: dir.path(), info: &info, ctx: 16384, downloading: &[] });
+    let list = list(&c, &ListContext { models_dir: dir.path(), info: &info, ctx: 16384, downloading: &[], loaded_bytes: 0 });
     let rec = recommend(&c, &info, 16384).map(|(m, v)| key(m, v));
     std::fs::write(out, serde_json::to_string(&serde_json::json!({ "models": list, "recommend": rec, "system": info })).unwrap()).unwrap();
 }

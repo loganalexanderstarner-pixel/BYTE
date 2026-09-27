@@ -1,5 +1,5 @@
 import { ask } from "@tauri-apps/plugin-dialog";
-import { ChevronRight, Cpu, HardDrive, MemoryStick, RefreshCw, Search, Sparkles } from "lucide-react";
+import { ChevronRight, Cpu, HardDrive, Layers, MemoryStick, RefreshCw, Search, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { api, errorText } from "../../lib/api";
@@ -31,6 +31,8 @@ export function CatalogBrowser() {
   const system = useStore((s) => s.system);
   const refresh = useStore((s) => s.refreshModels);
   const recommended = useStore((s) => s.recommended);
+  const loaded = useStore((s) => s.loaded);
+  const refreshLoaded = useStore((s) => s.refreshLoaded);
   const [error, setError] = useState<string | null>(null);
   const [tier, setTier] = useState<number | "mine" | "downloaded">("mine");
   const [cap, setCap] = useState<string | null>(null);
@@ -39,6 +41,7 @@ export function CatalogBrowser() {
   const [showBig, setShowBig] = useState(false);
   const [limit, setLimit] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const run = async (fn: () => Promise<unknown>) => {
     setError(null);
@@ -57,6 +60,14 @@ export function CatalogBrowser() {
     onDownload: (k: string) => run(() => api.modelDownload(k)),
     onPause: (k: string) => run(() => api.modelPause(k)),
     onActivate: (k: string) => run(() => api.modelActivate(k)),
+    loaded,
+    onLoad: (k: string) => run(async () => {
+      const load = api.modelLoad(k);
+      // Show "Loading…" right away; the load itself can take a while.
+      setTimeout(() => void refreshLoaded(), 300);
+      await load;
+    }),
+    onUnload: (k: string) => run(() => api.modelUnload(k)),
     onDelete: async (k: string) => {
       if (await ask(`Delete ${displayName(models, k, true)}? You can download it again later.`, { title: "Delete model", kind: "warning" })) {
         await run(() => api.modelDelete(k));
@@ -120,7 +131,14 @@ export function CatalogBrowser() {
           disabled={refreshing}
           onClick={async () => {
             setRefreshing(true);
-            await run(() => api.catalogRefresh());
+            setNotice(null);
+            try {
+              const changed = await api.catalogRefresh();
+              setNotice(changed ? "Model list updated." : "You already have the newest model list.");
+            } catch (e) {
+              setNotice(errorText(e));
+            }
+            await refresh();
             setRefreshing(false);
           }}
           title="Check for new models"
@@ -128,6 +146,37 @@ export function CatalogBrowser() {
           <RefreshCw size={13} className={refreshing ? "spin" : undefined} /> Check for new models
         </button>
       </div>
+
+      {loaded.length > 0 && (
+        <div className="loaded-strip">
+          <div className="row" style={{ gap: 8 }}>
+            <Layers size={15} style={{ color: "var(--accent)" }} />
+            <b>In memory now</b>
+            <span className="faint">
+              · {bytes(loaded.reduce((s, l) => s + l.neededBytes, 0))} of {system ? ramSize(system.totalRamBytes) : "?"}
+            </span>
+          </div>
+          {loaded.map((l) => (
+            <div key={l.key} className="loaded-row">
+              <span className="grow">
+                {displayName(models, l.key, true)}
+                <span className="faint">
+                  {" "}· {l.primary ? "main" : "alongside"} · {bytes(l.neededBytes)} · {Math.round(l.context / 1024)}k context
+                  {l.status.state === "starting" ? " · loading…" : l.status.state === "error" ? " · failed" : ""}
+                </span>
+              </span>
+              {!l.primary && (
+                <button className="btn sm ghost" onClick={() => handlers.onUnload(l.key)}>Unload</button>
+              )}
+            </div>
+          ))}
+          {loaded.length === 1 && (
+            <p className="faint" style={{ margin: "4px 0 0", fontSize: "0.85em" }}>
+              Tip: downloaded models that fit in the memory left show <b>Load alongside</b>. Then choose which one answers in the chat box, or compare their answers side by side.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="storage-bar">
         <HardDrive size={15} style={{ color: "var(--accent)" }} />
@@ -171,6 +220,7 @@ export function CatalogBrowser() {
         </div>
       </div>
 
+      {notice && <div className="banner">{notice}</div>}
       {error && <div className="banner danger">{error}</div>}
       {chat.length === 0 && <p className="faint" style={{ marginTop: 16 }}>No models match these filters.</p>}
 

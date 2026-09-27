@@ -28,11 +28,16 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
   name allowlist, excludes uncensored/abliterated/RP/vision/merges) → `scripts/build-catalog.mjs` (picks
   variants, drops auxiliary/draft files and duplicate single-vs-split copies, size sanity check, reads the
   GGUF header for architecture via HTTP Range, computes MoE active params) → `src-tauri/catalog/models.json`
-  (compiled in, ~0.4 MB). Result: 184 chat models, 1,003 versions, 52 MoE.
+  (compiled in, ~0.7 MB). Result: 332 chat models, 1,800 versions, 77 MoE.
 - `src-tauri/src/chip.rs`: identifies the chip from the CPU brand + GPU core count (ioreg) → bandwidth,
   GPU TFLOPS, Neural Engine TOPS. Speed estimate: tok/s = bandwidth × efficiency (0.8 dense, 0.6 MoE) ÷ bytes
   of active weights; prompt speed from TFLOPS; typical reply = 1,500-token prompt + 450-token answer
   (+700 thinking tokens). Versions under 8 tok/s get a recommendation penalty.
+- **Several models at once** (`engine::Extras`): up to 3 extra llama-server processes (8k context each,
+  PID files `engine-extra-N.pid`, reaped at launch) next to the main engine. Each start plans memory with
+  `SystemInfo::minus(already loaded)`. `ChatRequest.model` picks the engine; the UI's "Compare all" sends the
+  same history to every loaded model in parallel (answers share a `group`; only the main model's answer
+  goes back into history). Extras aren't restored after a restart yet.
 - The Neural Engine is not used for chat (llama.cpp runs on the GPU); it is planned for OCR and voice.
 - The app refreshes the catalog from `settings.catalogUrl` (default: raw GitHub URL of this repo's main branch);
   a newer `generated` date wins and is cached in the data folder. If the repo becomes private, point

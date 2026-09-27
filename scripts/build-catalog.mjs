@@ -157,6 +157,10 @@ function archFrom(kv) {
   const kvArr = Array.isArray(headsKv) ? headsKv : null;
   const nHeadKv = kvArr ? Math.max(...kvArr) : headsKv;
   const headCount = Array.isArray(heads) ? Math.max(...heads) : heads;
+  // Pure state-space models (Mamba) have no attention and no KV cache.
+  if (!headCount) {
+    return { arch: a, nLayer, kvLayers: 0, nHeadKv: 0, headDim: 0, maxCtx: g("context_length") ?? 8192, experts: 0, expertsUsed: 0 };
+  }
   const keyLen = g("attention.key_length") ?? Math.round(g("embedding_length") / headCount);
   const valLen = g("attention.value_length") ?? keyLen;
   // Layers that keep a KV cache: hybrid models (Qwen3.5+, LFM2) only cache

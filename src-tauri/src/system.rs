@@ -21,6 +21,16 @@ pub struct SystemInfo {
     pub chip_info: crate::chip::ChipInfo,
 }
 
+impl SystemInfo {
+    /// This Mac with `bytes` already taken by other loaded models, for
+    /// planning a model that runs alongside them.
+    pub fn minus(mut self, bytes: u64) -> Self {
+        self.gpu_budget_bytes = self.gpu_budget_bytes.saturating_sub(bytes);
+        self.total_ram_bytes = self.total_ram_bytes.saturating_sub(bytes);
+        self
+    }
+}
+
 pub fn system_info(data_dir: &std::path::Path) -> SystemInfo {
     let mut sys = System::new();
     sys.refresh_memory();

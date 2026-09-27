@@ -1,9 +1,9 @@
-import { Brain, CircleCheck, Clock, Download, Gauge, Pause, Play, Sparkles, Trash2, TriangleAlert, Wrench } from "lucide-react";
+import { Brain, CircleCheck, Clock, Download, Gauge, Layers, Pause, Play, Sparkles, Trash2, TriangleAlert, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { bytes, contextLabel, eta } from "../../lib/format";
 import { approxDuration, paramsLabel, quantLabel, shortQuant, speedClass, TAG_LABELS } from "../../lib/models";
-import type { ModelStatus, VariantStatus } from "../../lib/types";
+import type { LoadedModel, ModelStatus, VariantStatus } from "../../lib/types";
 import type { DownloadState } from "../../state/store";
 
 /** How well one version fits this Mac. */
@@ -63,10 +63,14 @@ interface Props {
   onPause(key: string): void;
   onDelete?(key: string): void;
   onActivate?(key: string): void;
+  /** Models in memory, for "Load alongside" / "Unload". */
+  loaded?: LoadedModel[];
+  onLoad?(key: string): void;
+  onUnload?(key: string): void;
 }
 
 /** A catalog model with a version picker, fit for this Mac, and actions. */
-export function ModelCard({ model, recommended, downloads, activeKey, onDownload, onPause, onDelete, onActivate }: Props) {
+export function ModelCard({ model, recommended, downloads, activeKey, onDownload, onPause, onDelete, onActivate, loaded = [], onLoad, onUnload }: Props) {
   const initial =
     model.variants.find((v) => v.key === activeKey) ??
     model.variants.find((v) => v.downloading || v.partialBytes > 0) ??
@@ -85,6 +89,8 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
   const active = activeKey === v.key && v.installed;
   const installedOthers = model.variants.filter((x) => x.installed && x.key !== v.key);
   const isPick = !!recommended && model.variants.some((x) => x.key === recommended);
+  const extra = loaded.find((l) => l.key === v.key && !l.primary);
+  const canChat = v.installed && model.role === "chat";
 
   return (
     <div className={`model-card ${active ? "active" : ""}`}>
@@ -95,6 +101,11 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
             {paramsLabel(model) && <span className="faint" style={{ fontWeight: 500, fontSize: "0.85em" }}>{paramsLabel(model)}</span>}
             {isPick && <span className="pill accent"><Sparkles size={11} /> BYTE's pick</span>}
             {active && <span className="pill ok"><CircleCheck size={12} /> In use</span>}
+            {extra && (
+              <span className="pill accent" title="Loaded alongside the main model">
+                <Layers size={11} /> {extra.status.state === "starting" ? "Loading…" : "Loaded"}
+              </span>
+            )}
           </div>
           <div className="muted" style={{ fontSize: "0.92em" }}>{model.tagline}</div>
           {model.usedFor && (
@@ -104,8 +115,16 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
           )}
         </div>
         <div className="row" style={{ gap: 6, flex: "none" }}>
-          {v.installed && model.role === "chat" && !active && onActivate && (
-            <button className="btn sm primary" onClick={() => onActivate(v.key)} disabled={tooBig}>Use</button>
+          {canChat && !active && !extra && v.fitsAlongside && onLoad && (
+            <button className="btn sm" onClick={() => onLoad(v.key)} title="Keep this model in memory next to the main one, to switch instantly or compare answers">
+              <Layers size={14} /> Load alongside
+            </button>
+          )}
+          {extra && onUnload && (
+            <button className="btn sm ghost" onClick={() => onUnload(v.key)}>Unload</button>
+          )}
+          {canChat && !active && onActivate && (
+            <button className="btn sm primary" onClick={() => onActivate(v.key)} disabled={tooBig} title="Make this the main model">Use</button>
           )}
           {!v.installed && !downloading && (
             <button className="btn sm" onClick={() => onDownload(v.key)} disabled={tooBig} title={tooBig ? v.fit.note : undefined}>

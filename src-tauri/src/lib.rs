@@ -40,6 +40,7 @@ pub fn run() {
             };
             let engine = state.engine.clone();
             engine.reap_stale();
+            state.extras.reap_stale();
             let catalog = state.catalog.get();
             let models_dir = state.paths.models.clone();
             app.manage(state);
@@ -64,6 +65,7 @@ pub fn run() {
                     }
                     log::info!("termination signal received; stopping engine");
                     engine.kill_now();
+                    handle.state::<AppState>().extras.kill_all_now();
                     handle.exit(0);
                 });
             }
@@ -87,7 +89,7 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 match active {
                     Some((model, ctx)) => {
-                        if let Err(e) = engine.start(&handle, models_dir, &catalog, &model, ctx).await {
+                        if let Err(e) = engine.start(&handle, models_dir, &catalog, &model, ctx, 0).await {
                             log::warn!("engine did not start at launch: {e}");
                         }
                     }
@@ -109,6 +111,9 @@ pub fn run() {
             commands::model_pause,
             commands::model_delete,
             commands::model_activate,
+            commands::models_loaded,
+            commands::model_load,
+            commands::model_unload,
             commands::engine_status,
             commands::engine_restart,
             commands::engine_log,
@@ -122,6 +127,7 @@ pub fn run() {
         if let RunEvent::Exit = event {
             if let Some(state) = handle.try_state::<AppState>() {
                 state.engine.kill_now();
+                state.extras.kill_all_now();
             }
         }
     });

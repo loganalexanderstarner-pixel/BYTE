@@ -5,7 +5,7 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, State};
 
 use crate::chat::{self, ChatEvent, ChatMessage};
-use crate::engine::{EngineStatus, DEFAULT_CONTEXT};
+use crate::engine::{EngineStatus, LoadedModel, DEFAULT_CONTEXT, EXTRA_CONTEXT};
 use crate::error::{AppError, AppResult};
 use crate::models::{self, ModelStatus};
 use crate::settings::{Mode, Settings, ThinkingPref};
@@ -38,7 +38,8 @@ pub async fn models_list(state: State<'_, AppState>) -> AppResult<Vec<ModelStatu
     let active = state.downloads.active_ids().await;
     let info = system::system_info(&state.paths.data);
     let catalog = state.catalog.get();
-    Ok(models::list(&catalog, &models::ListContext { models_dir: &state.paths.models, info: &info, ctx, downloading: &active }))
+    let loaded_bytes = loaded_bytes(&state).await;
+    Ok(models::list(&catalog, &models::ListContext { models_dir: &state.paths.models, info: &info, ctx, downloading: &active, loaded_bytes }))
 }
 
 /// The best chat model + version for this Mac, as a key like "qwen3.5-9b:Q6_K".
@@ -54,7 +55,15 @@ pub async fn model_recommend(state: State<'_, AppState>) -> AppResult<Option<Str
 #[tauri::command]
 pub async fn catalog_refresh(state: State<'_, AppState>) -> AppResult<bool> {
     let url = state.settings.lock().await.catalog_url.clone().unwrap_or_else(|| models::DEFAULT_CATALOG_URL.to_string());
-    state.catalog.refresh(&state.net, &url).await
+    // A private repository (or no internet) makes the online list unreachable;
+    // the list built into the app keeps working, so say that plainly.
+    state.catalog.refresh(&state.net, &url).await.map_err(|e| {
+        log::info!("catalog refresh from {url} failed: {e}");
+        AppError::msg(format!(
+            "Couldn't reach the online model list, so BYTE is using the list built into this version ({} models). New BYTE versions include the newest models.",
+            state.catalog.get().models.len()
+        ))
+    })
 }
 
 #[tauri::command]
@@ -82,6 +91,7 @@ pub async fn model_delete(app: AppHandle, state: State<'_, AppState>, key: Strin
     let key = models::key(model, variant);
     let active = state.settings.lock().await.active_model.clone();
     let active_key = active.as_deref().and_then(|a| catalog.resolve(a).ok()).map(|(m, v)| models::key(m, v));
+    state.extras.remove(&app, &key).await;
     if active_key.as_deref() == Some(key.as_str()) {
         state.engine.stop().await;
         let _ = tauri::Emitter::emit(&app, crate::engine::STATUS_EVENT, EngineStatus::NoModel);
@@ -105,7 +115,60 @@ pub async fn model_activate(app: AppHandle, state: State<'_, AppState>, key: Str
         *s = next;
         s.context_size
     };
-    state.engine.start(&app, state.paths.models.clone(), &catalog, &key, ctx).await
+    // A model that was loaded alongside becomes the main one: don't run it twice.
+    state.extras.remove(&app, &key).await;
+    let reserved = state.extras.reserved().await;
+    state.engine.start(&app, state.paths.models.clone(), &catalog, &key, ctx, reserved).await
+}
+
+/// Memory used by every running engine (main + extras).
+async fn loaded_bytes(state: &AppState) -> u64 {
+    state.engine.loaded().await.map(|l| l.needed_bytes).unwrap_or(0) + state.extras.reserved().await
+}
+
+/// Every model in memory: the main one first, then those loaded alongside.
+#[tauri::command]
+pub async fn models_loaded(state: State<'_, AppState>) -> AppResult<Vec<LoadedModel>> {
+    let mut out = Vec::new();
+    if let Some(m) = state.engine.describe().await {
+        out.push(m);
+    }
+    for e in state.extras.all().await {
+        if let Some(m) = e.describe().await {
+            out.push(m);
+        }
+    }
+    Ok(out)
+}
+
+/// Loads `key` alongside the main model so both can answer.
+#[tauri::command]
+pub async fn model_load(app: AppHandle, state: State<'_, AppState>, key: String) -> AppResult<()> {
+    let catalog = state.catalog.get();
+    let (model, variant) = catalog.resolve(&key)?;
+    if model.role != models::Role::Chat {
+        return Err(AppError::msg(format!("{} is a helper model and can't be used for chat", model.name)));
+    }
+    let key = models::key(model, variant);
+    if state.engine.loaded().await.is_some_and(|l| l.key == key) {
+        return Err(AppError::msg(format!("{} is already the main model.", model.name)));
+    }
+    if state.extras.get(&key).await.is_some() {
+        return Ok(());
+    }
+    let reserved = loaded_bytes(&state).await;
+    let engine = state.extras.add(&key).await?;
+    let result = engine.start(&app, state.paths.models.clone(), &catalog, &key, Some(EXTRA_CONTEXT), reserved).await;
+    if result.is_err() {
+        state.extras.remove(&app, &key).await;
+    }
+    result
+}
+
+/// Stops a model that was loaded alongside the main one.
+#[tauri::command]
+pub async fn model_unload(app: AppHandle, state: State<'_, AppState>, key: String) -> AppResult<bool> {
+    Ok(state.extras.remove(&app, &key).await)
 }
 
 #[tauri::command]
@@ -121,7 +184,8 @@ pub async fn engine_restart(app: AppHandle, state: State<'_, AppState>) -> AppRe
     };
     let model = model.ok_or_else(|| AppError::msg("choose a model first"))?;
     let catalog = state.catalog.get();
-    state.engine.start(&app, state.paths.models.clone(), &catalog, &model, ctx).await
+    let reserved = state.extras.reserved().await;
+    state.engine.start(&app, state.paths.models.clone(), &catalog, &model, ctx, reserved).await
 }
 
 #[tauri::command]
@@ -136,15 +200,25 @@ pub struct ChatRequest {
     pub messages: Vec<ChatMessage>,
     pub mode: Mode,
     pub thinking: ThinkingPref,
+    /// Answer with this loaded model instead of the main one ("id:quant").
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
 #[tauri::command]
 pub async fn chat_send(state: State<'_, AppState>, request: ChatRequest, on_event: Channel<ChatEvent>) -> AppResult<()> {
-    let ep = state
-        .engine
-        .endpoint()
-        .await
-        .ok_or_else(|| AppError::msg("The AI engine isn't ready yet. It usually takes a few seconds after launch."))?;
+    let main_key = state.engine.loaded().await.map(|l| l.key);
+    let ep = match request.model.as_deref() {
+        Some(k) if main_key.as_deref() != Some(k) => {
+            let engine = state.extras.get(k).await.ok_or_else(|| AppError::msg(format!("{k} isn't loaded. Load it in Settings → Models.")))?;
+            engine.endpoint().await.ok_or_else(|| AppError::msg("That model is still loading. Try again in a few seconds."))?
+        }
+        _ => state
+            .engine
+            .endpoint()
+            .await
+            .ok_or_else(|| AppError::msg("The AI engine isn't ready yet. It usually takes a few seconds after launch."))?,
+    };
     let last_user = request
         .messages
         .iter()

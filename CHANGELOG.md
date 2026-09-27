@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.0-test.4 — Hundreds of models, run several at once
+
+- **332 chat models, 1,800 versions, 77 mixture-of-experts.** A 16 GB Mac can run 206 of them, an 8 GB Mac 156.
+  Added Llama 3.x/4, Qwen2.5 (and Coder/Math), Gemma 2/3/3n, Mistral Small/Nemo/Large, Ministral, Devstral,
+  Phi 3.5/4, DeepSeek R1 distills and V3, GLM 4.x, Granite 3/4, EXAONE, Falcon 3/H1, OLMo, SmolLM, Hunyuan,
+  ERNIE, Yi, Aya, Hermes, Nemotron and more. Only official models from their publishers (or faithful
+  re-uploads of them); community fine-tunes, role-play and uncensored models are filtered out.
+- **Run several models at once.** Downloaded models that fit in the memory left show *Load alongside*.
+  Up to three can run next to the main one; BYTE checks the combined memory first.
+  - Pick which loaded model answers in the chat box, or **Compare all** to get answers side by side.
+  - Settings → Models shows what's in memory now and how much it uses, with *Unload*.
+- The Check for new models button now says plainly when the online list can't be reached (for example
+  when the repository is private); the list built into the app keeps working.
+- CI: unit tests run on Linux; the real-engine test runs on macOS only when engine code changes, to save
+  macOS minutes on a private repository.
+
 ## 1.0.0-test.3 — Big model catalog + chip-aware speed
 
 - **184 chat models, 1,003 downloadable versions**, from 0.4 GB phone-size models to 400+ GB giants, including

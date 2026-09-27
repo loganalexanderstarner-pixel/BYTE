@@ -4,6 +4,7 @@ import { memo, useMemo, useState, type MouseEvent } from "react";
 
 import { Logo } from "../../design/Logo";
 import { duration, tokensPerSec } from "../../lib/format";
+import { displayName } from "../../lib/models";
 import { closeOpenFences, renderMarkdown } from "../../lib/markdown";
 import { useStore, type Message } from "../../state/store";
 import { Activity, Sources } from "./Activity";
@@ -34,6 +35,9 @@ function Thinking({ text, live, ms }: { text: string; live: boolean; ms?: number
 function AssistantMessage({ message, isLast, generating }: { message: Message; isLast: boolean; generating: boolean }) {
   const regenerate = useStore((s) => s.regenerate);
   const showStats = useStore((s) => s.settings?.showStats ?? true);
+  const models = useStore((s) => s.models);
+  // Name the model when it isn't simply the main one.
+  const modelLabel = message.model && (message.group || message.picked) ? displayName(models, message.model, true) : null;
   const [copied, setCopied] = useState(false);
   const html = useMemo(
     () => renderMarkdown(generating ? closeOpenFences(message.content) : message.content, message.sources ?? []),
@@ -55,6 +59,7 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
       <div className="head">
         <Logo size={16} glow={false} />
         BYTE
+        {modelLabel && <span className="model-label">{modelLabel}</span>}
       </div>
       {message.reasoning && message.reasoning.trim().length > 0 && (
         <Thinking text={message.reasoning} live={thinkingLive} ms={s?.thinkingMs} />

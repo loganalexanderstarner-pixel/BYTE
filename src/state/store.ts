@@ -6,6 +6,7 @@ import type {
   ChatEvent,
   DownloadEvent,
   EngineStatus,
+  LoadedModel,
   Mode,
   ModelStatus,
   Settings,
@@ -38,6 +39,12 @@ export interface Message {
   sources?: Source[];
   mode?: Mode;
   model?: string;
+  /** Answers to the same question from several models share a group id. */
+  group?: string;
+  /** A side-by-side answer that isn't sent back as history (the main model's is). */
+  alt?: boolean;
+  /** The user chose a model other than the main one for this answer. */
+  picked?: boolean;
   createdAt: number;
 }
 
@@ -71,6 +78,12 @@ interface State {
   conversations: Conversation[];
   currentId: string | null;
   generating: string | null;
+  /** Every answer currently streaming (several when comparing models). */
+  running: string[];
+  /** Models in memory: the main one and any loaded alongside. */
+  loaded: LoadedModel[];
+  /** Who answers the next message: "main", a loaded model's key, or "compare". */
+  answerWith: string;
   mode: Mode;
   thinking: ThinkingPref;
   sidebarOpen: boolean;
@@ -79,6 +92,8 @@ interface State {
   init(): Promise<void>;
   updateSettings(patch: Partial<Settings>): Promise<void>;
   refreshModels(): Promise<void>;
+  refreshLoaded(): Promise<void>;
+  setAnswerWith(v: string): void;
   newChat(): void;
   selectChat(id: string): void;
   deleteChat(id: string): void;
@@ -123,10 +138,11 @@ function saveConversations(list: Conversation[]) {
 
 const uid = () => crypto.randomUUID();
 
-/** Messages sent to the model: finished turns only, in order. */
+/** Messages sent to the model: finished turns only, in order. Side-by-side
+ * alternatives are left out so each question has one answer in the history. */
 export function toWire(messages: Message[]): WireMessage[] {
   return messages
-    .filter((m) => m.role === "user" || (m.status === "done" && m.content.trim().length > 0))
+    .filter((m) => m.role === "user" || (!m.alt && m.status === "done" && m.content.trim().length > 0))
     .map((m) => ({ role: m.role, content: m.content }));
 }
 
@@ -144,15 +160,28 @@ export const useStore = create<State>((set, get) => {
       messages: c.messages.map((m) => (m.id === msgId ? fn(m) : m)),
     }));
 
-  /** Streams an assistant reply for the conversation's current history. */
-  const generate = async (convId: string) => {
+  /** Streams an assistant reply for the conversation's current history.
+   * `model` picks a loaded model other than the main one. */
+  const generate = async (convId: string, opts: { model?: string; group?: string; alt?: boolean } = {}) => {
     const conv = get().conversations.find((c) => c.id === convId);
     if (!conv) return;
     const { mode, thinking } = get();
     const history = toWire(conv.messages);
-    const reply: Message = { id: uid(), role: "assistant", content: "", reasoning: "", status: "streaming", mode, createdAt: Date.now() };
+    const reply: Message = {
+      id: uid(),
+      role: "assistant",
+      content: "",
+      reasoning: "",
+      status: "streaming",
+      mode,
+      model: opts.model,
+      group: opts.group,
+      alt: opts.alt,
+      picked: !!opts.model && !opts.group,
+      createdAt: Date.now(),
+    };
     patchConversation(convId, (c) => ({ ...c, messages: [...c.messages, reply] }));
-    set({ generating: reply.id });
+    set({ generating: get().generating ?? reply.id, running: [...get().running, reply.id] });
 
     // Batch token deltas into one render per animation frame.
     let pendingContent = "";
@@ -220,14 +249,30 @@ export const useStore = create<State>((set, get) => {
     };
 
     try {
-      await api.chatSend({ requestId: reply.id, messages: history, mode, thinking }, onEvent);
+      await api.chatSend({ requestId: reply.id, messages: history, mode, thinking, model: opts.model }, onEvent);
     } catch (err) {
       cancelAnimationFrame(frame);
       flush();
       patchMessage(convId, reply.id, (m) => ({ ...m, status: "error", error: errorText(err) }));
     } finally {
-      if (get().generating === reply.id) set({ generating: null });
+      const running = get().running.filter((id) => id !== reply.id);
+      set({ running, generating: running.length ? (get().generating === reply.id ? running[0] : get().generating) : null });
     }
+  };
+
+  /** Answers the last question with the model(s) chosen in the composer. */
+  const answer = async (convId: string) => {
+    const { answerWith, loaded } = get();
+    const ready = loaded.filter((l) => l.status.state === "ready");
+    if (answerWith === "compare" && ready.length > 1) {
+      // The main model answers first; its answer is the one kept in history.
+      const keys = [...ready].sort((a, b) => Number(b.primary) - Number(a.primary)).map((l) => l.key);
+      const group = uid();
+      await Promise.all(keys.map((model, i) => generate(convId, { model, group, alt: i > 0 })));
+      return;
+    }
+    const pick = ready.find((l) => l.key === answerWith && !l.primary);
+    await generate(convId, { model: pick?.key });
   };
 
   return {
@@ -241,6 +286,9 @@ export const useStore = create<State>((set, get) => {
     conversations: [],
     currentId: null,
     generating: null,
+    running: [],
+    loaded: [],
+    answerWith: "main",
     mode: "auto",
     thinking: "auto",
     sidebarOpen: true,
@@ -255,7 +303,12 @@ export const useStore = create<State>((set, get) => {
       }
       await events.onEngineStatus((engine) => {
         set({ engine });
+        void get().refreshLoaded();
         if (engine.state === "ready" || engine.state === "noModel") void get().refreshModels();
+      });
+      await events.onExtras(() => {
+        void get().refreshLoaded();
+        void get().refreshModels();
       });
       await events.onDownload((e) => handleDownload(e));
       const [settings, system, models, engine] = await Promise.all([
@@ -275,11 +328,25 @@ export const useStore = create<State>((set, get) => {
         mode: settings.defaultMode,
         thinking: settings.thinking,
       });
+      void get().refreshLoaded();
     },
 
     async updateSettings(patch) {
       const settings = await api.settingsUpdate(patch);
       set({ settings });
+    },
+
+    async refreshLoaded() {
+      if (!inTauri) return;
+      const loaded = await api.modelsLoaded().catch(() => get().loaded);
+      // Forget a choice whose model was unloaded.
+      const { answerWith } = get();
+      const still = answerWith === "main" || (answerWith === "compare" ? loaded.length > 1 : loaded.some((l) => l.key === answerWith));
+      set({ loaded, answerWith: still ? answerWith : "main" });
+    },
+
+    setAnswerWith(answerWith) {
+      set({ answerWith });
     },
 
     async refreshModels() {
@@ -324,7 +391,7 @@ export const useStore = create<State>((set, get) => {
       const conversations = get().conversations;
       const idx = conversations.findIndex((c) => c.id === convId);
       if (idx > 0) set({ conversations: [conversations[idx], ...conversations.filter((_, i) => i !== idx)] });
-      await generate(convId);
+      await answer(convId);
     },
 
     async regenerate() {
@@ -335,7 +402,7 @@ export const useStore = create<State>((set, get) => {
         while (msgs.length && msgs[msgs.length - 1].role === "assistant") msgs.pop();
         return { ...c, messages: msgs };
       });
-      await generate(convId);
+      await answer(convId);
     },
 
     toggleWeb() {
@@ -344,8 +411,7 @@ export const useStore = create<State>((set, get) => {
     },
 
     async stop() {
-      const id = get().generating;
-      if (id) await api.chatCancel(id);
+      await Promise.all(get().running.map((id) => api.chatCancel(id)));
     },
 
     setMode(mode) {

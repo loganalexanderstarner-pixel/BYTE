@@ -1,6 +1,7 @@
-import { ArrowUp, Brain, Gauge, Globe, Rocket, Square, Telescope, Zap } from "lucide-react";
+import { ArrowUp, Brain, Columns2, Cpu, Gauge, Globe, Rocket, Square, Telescope, Zap } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
+import { displayName } from "../../lib/models";
 import type { Mode, ThinkingPref } from "../../lib/types";
 import { useStore } from "../../state/store";
 
@@ -29,6 +30,11 @@ export function Composer() {
   const currentId = useStore((s) => s.currentId);
   const web = useStore((s) => s.settings?.webSearch ?? true);
   const toggleWeb = useStore((s) => s.toggleWeb);
+  const loaded = useStore((s) => s.loaded);
+  const models = useStore((s) => s.models);
+  const answerWith = useStore((s) => s.answerWith);
+  const setAnswerWith = useStore((s) => s.setAnswerWith);
+  const readyModels = loaded.filter((l) => l.status.state === "ready");
   const ready = engine.state === "ready";
 
   useEffect(() => {
@@ -115,6 +121,20 @@ export function Composer() {
             <Globe size={14} />
             {web ? "Web" : "Web off"}
           </button>
+          {readyModels.length > 1 && (
+            <label className={`pill model-pick ${answerWith !== "main" ? "accent" : ""}`} title="Which loaded model answers">
+              {answerWith === "compare" ? <Columns2 size={14} /> : <Cpu size={14} />}
+              <select value={answerWith} onChange={(e) => setAnswerWith(e.target.value)} aria-label="Answer with">
+                {readyModels.map((l) => (
+                  <option key={l.key} value={l.primary ? "main" : l.key}>
+                    {displayName(models, l.key)}
+                    {l.primary ? " (main)" : ""}
+                  </option>
+                ))}
+                <option value="compare">Compare all</option>
+              </select>
+            </label>
+          )}
           <span className="spacer" />
           {generating ? (
             <button className="send-btn stop" onClick={() => void stop()} title="Stop (Esc)" aria-label="Stop generating">

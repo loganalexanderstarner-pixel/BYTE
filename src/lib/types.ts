@@ -76,6 +76,8 @@ export interface VariantStatus {
   minRamGb: number;
   /** Expected speed on this Mac. */
   speed: SpeedEstimate;
+  /** Fits in the memory left next to the models already running. */
+  fitsAlongside: boolean;
 }
 
 export interface ModelStatus {
@@ -111,6 +113,15 @@ export type EngineStatus =
   | { state: "starting"; model: string }
   | { state: "ready"; model: string; context: number }
   | { state: "error"; message: string };
+
+/** A model running in memory (the main one, or one loaded alongside). */
+export interface LoadedModel {
+  key: string;
+  primary: boolean;
+  status: EngineStatus;
+  context: number;
+  neededBytes: number;
+}
 
 export type DownloadEvent =
   | { kind: "resuming"; id: string; bytes: number }

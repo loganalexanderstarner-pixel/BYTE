@@ -1,6 +1,11 @@
 //! Supervises the bundled `llama-server` process: picks a port, starts it with
 //! the right model and context, waits until it is healthy, warms it up, and
 //! restarts it if it crashes.
+//!
+//! BYTE can run several models at once: the *main* engine serves the active
+//! model and reports on `engine://status`; `Extras` holds up to three more
+//! engines ("loaded alongside") that each run their own llama-server. The RAM
+//! planner counts memory already used by the others before starting one.
 
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -18,6 +23,12 @@ use crate::models::{self, Catalog};
 use crate::system;
 
 pub const STATUS_EVENT: &str = "engine://status";
+/// Emitted (no payload) whenever an extra engine changes state.
+pub const EXTRAS_EVENT: &str = "engine://extras";
+/// Context for models loaded alongside the main one: enough for normal chats
+/// while keeping their memory use modest.
+pub const EXTRA_CONTEXT: u32 = 8192;
+pub const MAX_EXTRAS: usize = 3;
 const SIDECAR: &str = "llama-server";
 const HEALTH_TIMEOUT: Duration = Duration::from_secs(300);
 const MAX_RESTARTS: u32 = 3;
@@ -51,8 +62,17 @@ pub struct Endpoint {
     pub context: u32,
 }
 
+/// What an engine is running and how much memory it was planned to use.
+#[derive(Debug, Clone)]
+pub struct LoadInfo {
+    pub key: String,
+    pub context: u32,
+    pub needed_bytes: u64,
+}
+
 struct Inner {
     status: EngineStatus,
+    loaded: Option<LoadInfo>,
     child: Option<CommandChild>,
     endpoint: Option<Endpoint>,
     /// Bumped on every start/stop so stale exit events are ignored.
@@ -67,13 +87,21 @@ pub struct Engine {
     http: reqwest::Client,
     /// Records the running engine's PID so a crash can be cleaned up on the next launch.
     pid_file: PathBuf,
+    /// The main engine reports status on `engine://status`; extras on `engine://extras`.
+    primary: bool,
 }
 
 impl Engine {
     pub fn new(pid_file: PathBuf) -> Self {
+        Self::with_role(pid_file, true)
+    }
+
+    fn with_role(pid_file: PathBuf, primary: bool) -> Self {
         Engine {
             pid_file,
+            primary,
             inner: Arc::new(Mutex::new(Inner {
+                loaded: None,
                 status: EngineStatus::Stopped,
                 child: None,
                 endpoint: None,
@@ -97,27 +125,53 @@ impl Engine {
         self.inner.lock().await.log.iter().cloned().collect()
     }
 
+    /// The model this engine runs (or is starting) and its planned memory use.
+    pub async fn loaded(&self) -> Option<LoadInfo> {
+        self.inner.lock().await.loaded.clone()
+    }
+
     async fn set_status(&self, app: &AppHandle, status: EngineStatus) {
         self.inner.lock().await.status = status.clone();
-        let _ = app.emit(STATUS_EVENT, status);
+        if self.primary {
+            let _ = app.emit(STATUS_EVENT, status);
+        } else {
+            let _ = app.emit(EXTRAS_EVENT, ());
+        }
     }
 
     /// Starts (or restarts) the engine with a catalog model key ("id:quant").
-    pub async fn start(&self, app: &AppHandle, models_dir: PathBuf, catalog: &Catalog, key: &str, ctx_override: Option<u32>) -> AppResult<()> {
+    /// `reserved` is memory already used by other running engines.
+    pub async fn start(
+        &self,
+        app: &AppHandle,
+        models_dir: PathBuf,
+        catalog: &Catalog,
+        key: &str,
+        ctx_override: Option<u32>,
+        reserved: u64,
+    ) -> AppResult<()> {
         let (model, variant) = catalog.resolve(key)?;
         if !models::is_installed(&models_dir, variant) {
             self.set_status(app, EngineStatus::NoModel).await;
             return Err(AppError::msg(format!("{} ({}) is not downloaded yet", model.name, variant.quant)));
         }
-        let info = system::system_info(&models_dir);
+        let info = system::system_info(&models_dir).minus(reserved);
         let plan = models::plan(model, variant, &info, ctx_override.unwrap_or(DEFAULT_CONTEXT));
         if plan.fit == system::Fit::TooBig {
-            let message = format!("{} can't run on this Mac. {}", model.name, plan.note);
+            let message = if reserved > 0 {
+                format!("{} doesn't fit next to the models already loaded. Unload one first, or pick a smaller version.", model.name)
+            } else {
+                format!("{} can't run on this Mac. {}", model.name, plan.note)
+            };
             self.set_status(app, EngineStatus::Error { message: message.clone() }).await;
             return Err(AppError::msg(message));
         }
         self.stop().await;
-        self.inner.lock().await.restarts = 0;
+        {
+            let mut inner = self.inner.lock().await;
+            inner.restarts = 0;
+            inner.loaded = Some(LoadInfo { key: models::key(model, variant), context: plan.context, needed_bytes: plan.needed_bytes });
+        }
         let launch = Launch { key: models::key(model, variant), path: models::entry_path(&models_dir, variant), context: plan.context };
         self.spawn(app.clone(), launch).await
     }
@@ -287,6 +341,7 @@ impl Engine {
             let mut inner = self.inner.lock().await;
             inner.generation += 1;
             inner.endpoint = None;
+            inner.loaded = None;
             inner.child.take()
         };
         if let Some(c) = child {
@@ -317,6 +372,109 @@ impl Engine {
             }
         }
         let _ = std::fs::remove_file(&self.pid_file);
+    }
+}
+
+/// A model running in memory, for the "Loaded models" list.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoadedModel {
+    pub key: String,
+    /// True for the main (active) model.
+    pub primary: bool,
+    pub status: EngineStatus,
+    pub context: u32,
+    pub needed_bytes: u64,
+}
+
+impl Engine {
+    pub async fn describe(&self) -> Option<LoadedModel> {
+        let inner = self.inner.lock().await;
+        let l = inner.loaded.clone()?;
+        Some(LoadedModel { key: l.key, primary: self.primary, status: inner.status.clone(), context: l.context, needed_bytes: l.needed_bytes })
+    }
+}
+
+/// Engines for models loaded alongside the main one, keyed by model key.
+pub struct Extras {
+    dir: PathBuf,
+    slots: Mutex<Vec<(String, Engine)>>,
+}
+
+impl Extras {
+    pub fn new(dir: PathBuf) -> Self {
+        Extras { dir, slots: Mutex::new(Vec::new()) }
+    }
+
+    pub async fn get(&self, key: &str) -> Option<Engine> {
+        self.slots.lock().await.iter().find(|(k, _)| k == key).map(|(_, e)| e.clone())
+    }
+
+    pub async fn all(&self) -> Vec<Engine> {
+        self.slots.lock().await.iter().map(|(_, e)| e.clone()).collect()
+    }
+
+    /// Memory planned for all extra engines.
+    pub async fn reserved(&self) -> u64 {
+        let mut total = 0;
+        for e in self.all().await {
+            total += e.loaded().await.map(|l| l.needed_bytes).unwrap_or(0);
+        }
+        total
+    }
+
+    /// Adds an engine slot for `key` (not started yet).
+    pub async fn add(&self, key: &str) -> AppResult<Engine> {
+        let mut slots = self.slots.lock().await;
+        if let Some((_, e)) = slots.iter().find(|(k, _)| k == key) {
+            return Ok(e.clone());
+        }
+        if slots.len() >= MAX_EXTRAS {
+            return Err(AppError::msg(format!("Up to {} extra models can be loaded at once. Unload one first.", MAX_EXTRAS)));
+        }
+        // Reuse the lowest free PID-file number so stale ones are overwritten.
+        let n = (1..).find(|n| !slots.iter().any(|(_, e)| e.pid_file == self.pid_file(*n))).unwrap_or(1);
+        let engine = Engine::with_role(self.pid_file(n), false);
+        slots.push((key.to_string(), engine.clone()));
+        Ok(engine)
+    }
+
+    /// Stops and forgets the engine for `key`. Returns true if one was loaded.
+    pub async fn remove(&self, app: &AppHandle, key: &str) -> bool {
+        let engine = {
+            let mut slots = self.slots.lock().await;
+            let idx = slots.iter().position(|(k, _)| k == key);
+            idx.map(|i| slots.remove(i).1)
+        };
+        match engine {
+            Some(e) => {
+                e.stop().await;
+                let _ = app.emit(EXTRAS_EVENT, ());
+                true
+            }
+            None => false,
+        }
+    }
+
+    fn pid_file(&self, n: usize) -> PathBuf {
+        self.dir.join(format!("engine-extra-{n}.pid"))
+    }
+
+    pub fn kill_all_now(&self) {
+        if let Ok(slots) = self.slots.try_lock() {
+            for (_, e) in slots.iter() {
+                e.kill_now();
+            }
+        } else {
+            self.reap_stale();
+        }
+    }
+
+    /// Kills extra engines left over from a previous session.
+    pub fn reap_stale(&self) {
+        for n in 1..=MAX_EXTRAS {
+            Engine::with_role(self.pid_file(n), false).reap_stale();
+        }
     }
 }
 
@@ -420,6 +578,25 @@ mod tests {
         std::fs::write(&pid_file, "not a pid").unwrap();
         Engine::new(pid_file.clone()).reap_stale();
         Engine::new(pid_file).reap_stale();
+    }
+
+    #[tokio::test]
+    async fn extras_have_a_limit_and_separate_pid_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let x = Extras::new(dir.path().to_path_buf());
+        for i in 0..MAX_EXTRAS {
+            x.add(&format!("m{i}:Q4_K_M")).await.unwrap();
+        }
+        assert!(x.add("one-more:Q4_K_M").await.is_err());
+        // Adding an already-loaded key returns it instead of failing.
+        assert!(x.add("m0:Q4_K_M").await.is_ok());
+        let pids: std::collections::HashSet<_> = x.all().await.iter().map(|e| e.pid_file.clone()).collect();
+        assert_eq!(pids.len(), MAX_EXTRAS);
+        assert!(x.all().await.iter().all(|e| !e.primary));
+        // Nothing started yet, so nothing is reserved.
+        assert_eq!(x.reserved().await, 0);
+        assert!(x.get("m1:Q4_K_M").await.is_some());
+        assert!(x.get("nope").await.is_none());
     }
 
     #[test]

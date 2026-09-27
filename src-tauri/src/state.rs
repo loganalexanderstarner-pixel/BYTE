@@ -1,7 +1,7 @@
 use tokio::sync::Mutex;
 
 use crate::chat::Generations;
-use crate::engine::Engine;
+use crate::engine::{Engine, Extras};
 use crate::models::Downloads;
 use crate::paths::Paths;
 use crate::settings::Settings;
@@ -10,6 +10,8 @@ pub struct AppState {
     pub paths: Paths,
     pub settings: Mutex<Settings>,
     pub engine: Engine,
+    /// Models loaded alongside the main one.
+    pub extras: Extras,
     pub downloads: Downloads,
     pub generations: Generations,
     /// Client for the internet (downloads, later web search).
@@ -28,6 +30,7 @@ impl AppState {
         AppState {
             settings: Mutex::new(settings),
             engine: Engine::new(paths.data.join("engine.pid")),
+            extras: Extras::new(paths.data.clone()),
             downloads: Downloads::default(),
             generations: Generations::default(),
             net: crate::tools::fetch::web_client(),

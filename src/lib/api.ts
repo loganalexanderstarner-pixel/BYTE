@@ -2,6 +2,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type {
+  LoadedModel,
   ChatEvent,
   DownloadEvent,
   EngineStatus,
@@ -28,13 +29,17 @@ export const api = {
   modelPause: (key: string) => invoke<void>("model_pause", { key }),
   modelDelete: (key: string) => invoke<void>("model_delete", { key }),
   modelActivate: (key: string) => invoke<void>("model_activate", { key }),
+  modelsLoaded: () => invoke<LoadedModel[]>("models_loaded"),
+  /** Loads a model alongside the main one (both stay in memory). */
+  modelLoad: (key: string) => invoke<void>("model_load", { key }),
+  modelUnload: (key: string) => invoke<boolean>("model_unload", { key }),
 
   engineStatus: () => invoke<EngineStatus>("engine_status"),
   engineRestart: () => invoke<void>("engine_restart"),
   engineLog: () => invoke<string[]>("engine_log"),
 
   chatSend: (
-    request: { requestId: string; messages: WireMessage[]; mode: Mode; thinking: ThinkingPref },
+    request: { requestId: string; messages: WireMessage[]; mode: Mode; thinking: ThinkingPref; model?: string },
     onEvent: (e: ChatEvent) => void,
   ) => {
     const channel = new Channel<ChatEvent>();
@@ -47,6 +52,8 @@ export const api = {
 export const events = {
   onEngineStatus: (cb: (s: EngineStatus) => void): Promise<UnlistenFn> =>
     listen<EngineStatus>("engine://status", (e) => cb(e.payload)),
+  /** A model loaded alongside the main one changed state. */
+  onExtras: (cb: () => void): Promise<UnlistenFn> => listen("engine://extras", () => cb()),
   onDownload: (cb: (e: DownloadEvent) => void): Promise<UnlistenFn> =>
     listen<DownloadEvent>("models://download", (e) => cb(e.payload)),
 };
