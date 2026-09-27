@@ -32,6 +32,9 @@ src-tauri/                Rust core (Tauri 2)
   src/lib.rs              builder, plugins, startup (engine preload, stale-engine reaping, signal handling)
   src/engine.rs           llama-server supervisor (port, API key, health, warm-up, restart, PID file)
   src/models.rs           catalog + resumable SHA-256-verified downloader
+  src/db.rs               encrypted SQLite (SQLCipher): chats, FTS search, memories
+  src/export.rs           export chats to Markdown + JSON
+  src/chip.rs             Apple Silicon chip detection + speed estimates
   src/system.rs           hardware info + RAM planner (fit, context size)
   src/chat.rs             SSE streaming client, context fitting, cancellation, e2e test
   src/router.rs           per-turn thinking/length plan by mode

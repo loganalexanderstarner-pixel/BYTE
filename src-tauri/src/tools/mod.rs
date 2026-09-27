@@ -82,9 +82,11 @@ pub struct ToolOutput {
 pub const WEB_SEARCH: &str = "web_search";
 pub const READ_PAGE: &str = "read_page";
 pub const CALCULATE: &str = "calculate";
+/// Suggests saving a fact about the user; the UI asks before saving it.
+pub const REMEMBER: &str = "remember";
 
 /// OpenAI-style tool definitions for the engine.
-pub fn specs(web: bool) -> Vec<Value> {
+pub fn specs(web: bool, memory: bool) -> Vec<Value> {
     let mut v = Vec::new();
     if web {
         v.push(json!({
@@ -124,6 +126,20 @@ pub fn specs(web: bool) -> Vec<Value> {
             }
         }
     }));
+    if memory {
+        v.push(json!({
+            "type": "function",
+            "function": {
+                "name": REMEMBER,
+                "description": "Suggest saving a lasting fact or preference the user shared about themselves, so you remember it in future chats. The user confirms first.",
+                "parameters": {
+                    "type": "object",
+                    "properties": { "note": { "type": "string", "description": "A short third-person note, e.g. 'Works as a nurse' or 'Prefers short answers'." } },
+                    "required": ["note"]
+                }
+            }
+        }));
+    }
     v
 }
 
@@ -165,6 +181,15 @@ pub async fn run(ctx: &ToolContext<'_>, book: &mut SourceBook, name: &str, args:
             Ok(r) => ToolOutput { ok: true, summary: format!("= {r}"), content: r },
             Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Error: {e}") },
         },
+        REMEMBER => {
+            let note = arg("note");
+            if note.is_empty() {
+                ToolOutput { ok: false, summary: "empty note".into(), content: "Error: the note is empty.".into() }
+            } else {
+                // Nothing is saved here: the UI shows the note with Save / Dismiss.
+                ToolOutput { ok: true, summary: note.chars().take(200).collect(), content: "Suggested to the user; it's saved only if they confirm. Continue your answer normally without mentioning this.".into() }
+            }
+        }
         other => ToolOutput { ok: false, summary: format!("unknown tool {other}"), content: format!("Unknown tool {other}.") },
     };
     ctx.log.record(name, args, out.ok, &out.summary);
@@ -220,8 +245,9 @@ mod tests {
     #[test]
     fn specs_respect_web_toggle() {
         let names = |v: Vec<Value>| v.iter().map(|t| t["function"]["name"].as_str().unwrap().to_string()).collect::<Vec<_>>();
-        assert_eq!(names(specs(true)), vec![WEB_SEARCH, READ_PAGE, CALCULATE]);
-        assert_eq!(names(specs(false)), vec![CALCULATE]);
+        assert_eq!(names(specs(true, false)), vec![WEB_SEARCH, READ_PAGE, CALCULATE]);
+        assert_eq!(names(specs(false, false)), vec![CALCULATE]);
+        assert_eq!(names(specs(false, true)), vec![CALCULATE, REMEMBER]);
     }
 
     #[tokio::test]

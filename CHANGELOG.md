@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.0-test.5 — Phase 3 (part 1): saved chats and memory
+
+- **Chats are saved in an encrypted database** on your Mac (SQLCipher). Chats from earlier test builds are
+  moved in automatically the first time.
+- **Search every chat**: the sidebar search looks through every message, not just titles, and shows the
+  matching sentence.
+- **Pin chats, put them in folders, rename them** from the ⋯ menu on each chat.
+- **Private chats** (eye icon next to New chat): never saved, and BYTE doesn't use or add memories.
+- **Memory**: Settings → Memory & chats has an *About me* box and a list of things BYTE remembers about
+  you. BYTE uses them in every chat. When you mention something lasting about yourself, BYTE asks
+  *Remember this?* under its answer; nothing is saved unless you click Save. Edit or delete any memory,
+  or turn memory off.
+- **Export all chats** to a folder (a Markdown file per chat plus one JSON file), or erase everything.
+- Models loaded alongside the main one come back automatically after BYTE restarts.
+- The calculator runs automatically for sums in your question, so small models can't get the math wrong.
+
 ## 1.0.0-test.4 — Hundreds of models, run several at once
 
 - **332 chat models, 1,800 versions, 77 mixture-of-experts.** A 16 GB Mac can run 206 of them, an 8 GB Mac 156.

@@ -2,7 +2,10 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type {
+  ConversationMeta,
   LoadedModel,
+  Memory,
+  SearchHit,
   ChatEvent,
   DownloadEvent,
   EngineStatus,
@@ -39,7 +42,7 @@ export const api = {
   engineLog: () => invoke<string[]>("engine_log"),
 
   chatSend: (
-    request: { requestId: string; messages: WireMessage[]; mode: Mode; thinking: ThinkingPref; model?: string },
+    request: { requestId: string; messages: WireMessage[]; mode: Mode; thinking: ThinkingPref; model?: string; private?: boolean },
     onEvent: (e: ChatEvent) => void,
   ) => {
     const channel = new Channel<ChatEvent>();
@@ -47,6 +50,25 @@ export const api = {
     return invoke<void>("chat_send", { request, onEvent: channel });
   },
   chatCancel: (requestId: string) => invoke<boolean>("chat_cancel", { requestId }),
+
+  // Saved chats (encrypted database)
+  chatsList: () => invoke<ConversationMeta[]>("chats_list"),
+  chatLoad: (id: string) => invoke<unknown | null>("chat_load", { id }),
+  chatSave: (conversation: unknown) => invoke<void>("chat_save", { conversation }),
+  chatDelete: (id: string) => invoke<void>("chat_delete", { id }),
+  chatUpdate: (id: string, patch: { title?: string; pinned?: boolean; folder?: string }) => invoke<void>("chat_update", { id, patch }),
+  chatsSearch: (query: string) => invoke<SearchHit[]>("chats_search", { query }),
+  chatsImport: (conversations: unknown[]) => invoke<number>("chats_import", { conversations }),
+  /** Exports every chat into a new folder inside `dir`; returns its path. */
+  chatsExport: (dir: string) => invoke<string>("chats_export", { dir }),
+
+  // Memory
+  memoriesList: () => invoke<Memory[]>("memories_list"),
+  memoryAdd: (text: string, source: "user" | "chat" = "user") => invoke<Memory>("memory_add", { text, source }),
+  memoryUpdate: (id: string, text: string) => invoke<void>("memory_update", { id, text }),
+  memoryDelete: (id: string) => invoke<void>("memory_delete", { id }),
+  /** Erases every saved chat and memory. */
+  dataWipe: () => invoke<void>("data_wipe"),
 };
 
 export const events = {

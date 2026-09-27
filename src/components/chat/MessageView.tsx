@@ -1,12 +1,12 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Brain, Check, ChevronRight, Copy, RefreshCw, TriangleAlert } from "lucide-react";
+import { Brain, Check, ChevronRight, Copy, Lightbulb, RefreshCw, TriangleAlert } from "lucide-react";
 import { memo, useMemo, useState, type MouseEvent } from "react";
 
 import { Logo } from "../../design/Logo";
 import { duration, tokensPerSec } from "../../lib/format";
 import { displayName } from "../../lib/models";
 import { closeOpenFences, renderMarkdown } from "../../lib/markdown";
-import { useStore, type Message } from "../../state/store";
+import { useStore, type Message, type Step } from "../../state/store";
 import { Activity, Sources } from "./Activity";
 
 function openLinksExternally(e: MouseEvent<HTMLDivElement>) {
@@ -32,6 +32,28 @@ function Thinking({ text, live, ms }: { text: string; live: boolean; ms?: number
   );
 }
 
+/** BYTE suggests remembering something; nothing is saved until the user agrees. */
+function MemorySuggestion({ messageId, step }: { messageId: string; step: Step }) {
+  const resolve = useStore((s) => s.resolveMemory);
+  if (!step.summary || step.status !== "ok") return null;
+  if (step.decision === "dismissed") return null;
+  return (
+    <div className="memory-suggest">
+      <Lightbulb size={15} style={{ color: "var(--accent)", flex: "none" }} />
+      <span className="grow">
+        {step.decision === "saved" ? "Saved to memory: " : "Remember this? "}
+        <b>{step.summary}</b>
+      </span>
+      {step.decision !== "saved" && (
+        <>
+          <button className="btn sm primary" onClick={() => void resolve(messageId, step.id, true)}>Save</button>
+          <button className="btn sm ghost" onClick={() => void resolve(messageId, step.id, false)}>No thanks</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function AssistantMessage({ message, isLast, generating }: { message: Message; isLast: boolean; generating: boolean }) {
   const regenerate = useStore((s) => s.regenerate);
   const showStats = useStore((s) => s.settings?.showStats ?? true);
@@ -43,6 +65,8 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
     () => renderMarkdown(generating ? closeOpenFences(message.content) : message.content, message.sources ?? []),
     [message.content, generating, message.sources],
   );
+  const toolSteps = (message.steps ?? []).filter((st) => st.name !== "remember");
+  const memorySteps = (message.steps ?? []).filter((st) => st.name === "remember");
   const toolRunning = !!message.steps?.some((st) => st.status === "running");
   const thinkingLive = generating && !!message.reasoning && message.content.length === 0 && !toolRunning;
   const waiting = generating && !message.reasoning && message.content.length === 0 && !message.steps?.length;
@@ -64,7 +88,7 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
       {message.reasoning && message.reasoning.trim().length > 0 && (
         <Thinking text={message.reasoning} live={thinkingLive} ms={s?.thinkingMs} />
       )}
-      {message.steps && message.steps.length > 0 && <Activity steps={message.steps} live={generating && message.content.length === 0} />}
+      {toolSteps.length > 0 && <Activity steps={toolSteps} live={generating && message.content.length === 0} />}
       {waiting && (
         <div className="typing" aria-label="BYTE is working">
           <i />
@@ -80,6 +104,7 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
         />
       )}
       {!generating && message.sources && message.sources.length > 0 && message.content && <Sources sources={message.sources} />}
+      {!generating && memorySteps.map((st) => <MemorySuggestion key={st.id} messageId={message.id} step={st} />)}
       {message.status === "error" && (
         <div className="msg-error" role="alert">
           <TriangleAlert size={18} style={{ color: "var(--danger)", flex: "none" }} />

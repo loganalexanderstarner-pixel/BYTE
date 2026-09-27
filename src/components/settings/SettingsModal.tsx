@@ -1,4 +1,5 @@
-import { Cpu, HardDrive, Info, Palette, RefreshCw, ShieldCheck, X } from "lucide-react";
+import { open as openDialog, ask } from "@tauri-apps/plugin-dialog";
+import { Brain, Cpu, Download, HardDrive, Info, Palette, Plus, RefreshCw, ShieldCheck, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { THEMES } from "../../design/themes";
@@ -6,11 +7,13 @@ import { Logo } from "../../design/Logo";
 import { api, errorText } from "../../lib/api";
 import { bytes, contextLabel, ramSize } from "../../lib/format";
 import { displayName } from "../../lib/models";
+import type { Memory } from "../../lib/types";
 import { useStore, type SettingsTab } from "../../state/store";
 import { CatalogBrowser } from "../models/CatalogBrowser";
 
 const TABS: { id: SettingsTab; label: string; icon: typeof Cpu }[] = [
   { id: "models", label: "Models", icon: HardDrive },
+  { id: "memory", label: "Memory & chats", icon: Brain },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "engine", label: "Engine", icon: Cpu },
   { id: "about", label: "About", icon: Info },
@@ -43,6 +46,7 @@ export function SettingsModal() {
             <X size={18} />
           </button>
           {tab === "models" && <ModelsTab />}
+          {tab === "memory" && <MemoryTab />}
           {tab === "appearance" && <AppearanceTab />}
           {tab === "engine" && <EngineTab />}
           {tab === "about" && <AboutTab />}
@@ -60,6 +64,139 @@ function ModelsTab() {
         Pick the brain BYTE runs on. Everything runs on this Mac's GPU; files download from Hugging Face only when you choose them.
       </p>
       <CatalogBrowser />
+    </>
+  );
+}
+
+function MemoryTab() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const reloadChats = useStore((s) => s.reloadChats);
+  const [memories, setMemories] = useState<Memory[]>([]);
+  const [about, setAbout] = useState(settings?.aboutMe ?? "");
+  const [draft, setDraft] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = () => api.memoriesList().then(setMemories).catch((e) => setError(errorText(e)));
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  const guard = async (fn: () => Promise<unknown>) => {
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
+
+  if (!settings) return null;
+  return (
+    <>
+      <h3>Memory & chats</h3>
+      <p className="muted" style={{ marginTop: 0 }}>
+        What BYTE remembers about you, and your saved chats. Everything is stored encrypted on this Mac only.
+      </p>
+      {error && <div className="banner danger">{error}</div>}
+      {notice && <div className="banner">{notice}</div>}
+
+      <div className="section">
+        <label className="row" style={{ gap: 10, cursor: "pointer" }}>
+          <input type="checkbox" checked={settings.memoryEnabled} onChange={(e) => void update({ memoryEnabled: e.target.checked })} />
+          <span>
+            <b>Use memory</b>
+            <span className="faint" style={{ display: "block", fontSize: "0.88em" }}>
+              BYTE uses what's below in every chat and suggests new things to remember (you confirm each one).
+            </span>
+          </span>
+        </label>
+      </div>
+
+      <div className="section">
+        <h4>About me</h4>
+        <textarea
+          className="about-me"
+          rows={4}
+          value={about}
+          maxLength={1500}
+          placeholder="For example: I'm a nurse in Denver. I like short answers with bullet points, and metric units."
+          onChange={(e) => setAbout(e.target.value)}
+          onBlur={() => about !== (settings.aboutMe ?? "") && void update({ aboutMe: about.trim() || null })}
+        />
+      </div>
+
+      <div className="section">
+        <h4>Saved memories ({memories.length})</h4>
+        <div className="memory-list">
+          {memories.length === 0 && <p className="faint" style={{ margin: 0 }}>Nothing yet. BYTE will suggest things as you chat, or add your own.</p>}
+          {memories.map((m) => (
+            <div key={m.id} className="memory-item">
+              <input
+                defaultValue={m.text}
+                aria-label="Memory"
+                onBlur={(e) => e.target.value !== m.text && void guard(async () => { await api.memoryUpdate(m.id, e.target.value); await refresh(); })}
+              />
+              <span className="faint" style={{ fontSize: "0.78em" }}>{m.source === "chat" ? "from a chat" : "added by you"}</span>
+              <button className="icon-btn" title="Forget this" onClick={() => void guard(async () => { await api.memoryDelete(m.id); await refresh(); })}>
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <form
+          className="row"
+          style={{ gap: 8 }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!draft.trim()) return;
+            void guard(async () => {
+              await api.memoryAdd(draft);
+              setDraft("");
+              await refresh();
+            });
+          }}
+        >
+          <input className="text-input grow" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Add something BYTE should remember" aria-label="New memory" />
+          <button className="btn sm" type="submit" disabled={!draft.trim()}><Plus size={14} /> Add</button>
+        </form>
+      </div>
+
+      <div className="section">
+        <h4>Your chats</h4>
+        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+          <button
+            className="btn sm"
+            onClick={() =>
+              void guard(async () => {
+                const dir = await openDialog({ directory: true, title: "Choose where to save the export" });
+                if (typeof dir !== "string") return;
+                const out = await api.chatsExport(dir);
+                setNotice(`Exported to ${out} (a Markdown file per chat, plus byte-chats.json).`);
+              })
+            }
+          >
+            <Download size={14} /> Export all chats
+          </button>
+          <button
+            className="btn sm ghost"
+            style={{ color: "var(--danger)" }}
+            onClick={() =>
+              void guard(async () => {
+                const ok = await ask("Erase every saved chat and memory? This can't be undone.", { title: "Erase everything", kind: "warning" });
+                if (!ok) return;
+                await api.dataWipe();
+                await reloadChats();
+                await refresh();
+                setNotice("All chats and memories were erased.");
+              })
+            }
+          >
+            <Trash2 size={14} /> Erase all chats & memories
+          </button>
+        </div>
+      </div>
     </>
   );
 }

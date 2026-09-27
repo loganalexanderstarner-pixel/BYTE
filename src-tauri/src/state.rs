@@ -20,6 +20,8 @@ pub struct AppState {
     pub local_http: reqwest::Client,
     /// Log of every tool call (web searches, pages read, calculations).
     pub actions: crate::tools::ActionLog,
+    /// Encrypted database: chats, search index, memories.
+    pub db: crate::db::Db,
     /// Model catalog (built in, refreshed from the web).
     pub catalog: crate::models::CatalogStore,
 }
@@ -37,6 +39,11 @@ impl AppState {
             local_http: crate::chat::local_client(),
             actions: crate::tools::ActionLog::new(paths.data.join("actions.jsonl")),
             catalog: crate::models::CatalogStore::load(paths.data.join("catalog.json")),
+            db: crate::db::Db::open(&paths.data).unwrap_or_else(|e| {
+                // Chats still work for this session; they just aren't kept.
+                log::error!("database unavailable, chats won't be saved this session: {e}");
+                crate::db::Db::open_with_key(std::path::Path::new(":memory:"), "x'00'").expect("in-memory database")
+            }),
             paths,
         }
     }

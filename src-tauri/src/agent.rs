@@ -50,6 +50,8 @@ pub struct Turn<'a> {
     pub plan: TurnPlan,
     pub mode: Mode,
     pub web: bool,
+    /// Offer the `remember` tool (memory is on).
+    pub memory: bool,
     pub log: &'a ActionLog,
 }
 
@@ -77,7 +79,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     let lim = limits(turn.mode);
     let question = turn.history.iter().rev().find(|m| m.role == "user").map(|m| m.content.clone()).unwrap_or_default();
     let ctx = ToolContext { net: turn.net, question: &question, max_results: lim.max_results, page_chars: lim.page_chars, log: turn.log };
-    let specs = tools::specs(turn.web);
+    let specs = tools::specs(turn.web, turn.memory);
     let mut messages = chat::base_messages(turn.system, turn.history);
     let mut book = SourceBook::default();
     let mut totals = Stats::default();
@@ -275,7 +277,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, false, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, log: &log };
+        let turn = Turn { http: &http, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let calls: Vec<_> = ev.iter().filter(|e| e["kind"] == "toolCall").collect();
@@ -307,7 +309,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, true, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, log: &log };
+        let turn = Turn { http: &http, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let mut counts = std::collections::BTreeMap::new();

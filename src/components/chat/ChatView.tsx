@@ -1,3 +1,4 @@
+import { EyeOff } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import { currentConversation, useStore, type Message } from "../../state/store";
@@ -30,10 +31,17 @@ export function ChatView() {
     if (el && pinned.current) el.scrollTop = el.scrollHeight;
   }, [lastLen, conv?.messages.length]);
 
+  const privateNote = conv?.private && (
+    <div className="private-banner">
+      <EyeOff size={14} /> Private chat: not saved, and BYTE won't use or add memories.
+    </div>
+  );
+
   if (!conv || conv.messages.length === 0) {
     return (
       <div className="chat-scroll">
         <div className="chat-column">
+          {privateNote}
           <EmptyState />
         </div>
       </div>
@@ -43,6 +51,7 @@ export function ChatView() {
   return (
     <div className="chat-scroll" ref={scroller} onScroll={onScroll}>
       <div className="chat-column" role="log" aria-live="polite">
+        {privateNote}
         {groupAnswers(conv.messages).map((item, i, all) => {
           const isLast = i === all.length - 1;
           if (Array.isArray(item)) {

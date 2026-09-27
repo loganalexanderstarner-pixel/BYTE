@@ -84,3 +84,53 @@ mod tests {
         assert_eq!(a, b);
     }
 }
+
+/// Maximum characters of memory put into the prompt (keeps the prompt cache small).
+const MEMORY_BUDGET: usize = 4000;
+
+/// What BYTE knows about the user: their "About me" text and saved memories,
+/// plus how to suggest new memories when that's allowed.
+pub fn memory_section(about_me: Option<&str>, memories: &[String], can_remember: bool) -> String {
+    let mut lines = Vec::new();
+    if let Some(a) = about_me.map(str::trim).filter(|a| !a.is_empty()) {
+        lines.push(format!("- In their own words: {}", a.chars().take(1500).collect::<String>()));
+    }
+    let mut used: usize = lines.iter().map(|l| l.len()).sum();
+    for m in memories {
+        let line = format!("- {}", m.trim());
+        if used + line.len() > MEMORY_BUDGET {
+            break;
+        }
+        used += line.len();
+        lines.push(line);
+    }
+    let mut p = String::new();
+    if !lines.is_empty() {
+        p.push_str("\n\nWhat you know about the user (from their saved memory). Use it when it's relevant; don't recite it or mention that you have a memory unless asked:\n");
+        p.push_str(&lines.join("\n"));
+    }
+    if can_remember {
+        p.push_str(
+            "\n\nIf the user tells you a lasting fact or preference about themselves (their job, where they live, how they like \
+answers), call the remember tool with a short note such as \"Prefers metric units\". The user confirms before anything is \
+saved. Don't use it for one-off requests, and never for passwords, health or financial details.",
+        );
+    }
+    p
+}
+
+#[cfg(test)]
+mod memory_tests {
+    use super::*;
+
+    #[test]
+    fn memory_section_lists_facts_within_budget() {
+        let s = memory_section(Some("I'm a nurse in Denver."), &["Prefers metric units".into()], true);
+        assert!(s.contains("In their own words: I'm a nurse in Denver."));
+        assert!(s.contains("- Prefers metric units"));
+        assert!(s.contains("remember tool"));
+        let many: Vec<String> = (0..500).map(|i| format!("Fact number {i} about the user")).collect();
+        assert!(memory_section(None, &many, false).len() < MEMORY_BUDGET + 400);
+        assert_eq!(memory_section(Some("  "), &[], false), "");
+    }
+}

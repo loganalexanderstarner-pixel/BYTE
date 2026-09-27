@@ -2,7 +2,9 @@ mod agent;
 mod chat;
 mod chip;
 mod commands;
+mod db;
 mod engine;
+mod export;
 mod error;
 mod models;
 mod paths;
@@ -91,6 +93,15 @@ pub fn run() {
                     Some((model, ctx)) => {
                         if let Err(e) = engine.start(&handle, models_dir, &catalog, &model, ctx, 0).await {
                             log::warn!("engine did not start at launch: {e}");
+                            return;
+                        }
+                        // Bring back the models that were loaded alongside it.
+                        let state = handle.state::<AppState>();
+                        let extra = state.settings.lock().await.loaded_alongside.clone();
+                        for key in extra {
+                            if let Err(e) = commands::load_extra(&handle, &state, &key).await {
+                                log::warn!("couldn't reload {key} alongside the main model: {e}");
+                            }
                         }
                     }
                     None => {
@@ -114,6 +125,19 @@ pub fn run() {
             commands::models_loaded,
             commands::model_load,
             commands::model_unload,
+            commands::chats_list,
+            commands::chat_load,
+            commands::chat_save,
+            commands::chat_delete,
+            commands::chat_update,
+            commands::chats_search,
+            commands::chats_import,
+            commands::chats_export,
+            commands::memories_list,
+            commands::memory_add,
+            commands::memory_update,
+            commands::memory_delete,
+            commands::data_wipe,
             commands::engine_status,
             commands::engine_restart,
             commands::engine_log,

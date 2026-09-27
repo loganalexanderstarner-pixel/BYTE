@@ -47,7 +47,7 @@ export function Shell() {
                 <button className="icon-btn" onClick={toggleSidebar} title="Show sidebar (⌘\)">
                   <PanelLeft size={18} />
                 </button>
-                <button className="icon-btn" onClick={newChat} title="New chat (⌘N)">
+                <button className="icon-btn" onClick={() => newChat()} title="New chat (⌘N)">
                   <SquarePen size={18} />
                 </button>
               </>

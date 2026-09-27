@@ -16,6 +16,40 @@ export interface Settings {
   showStats: boolean;
   webSearch: boolean;
   userName: string | null;
+  /** Free-form "About me", included in every conversation. */
+  aboutMe: string | null;
+  /** Use saved memories and let BYTE suggest new ones. */
+  memoryEnabled: boolean;
+  /** Models reloaded alongside the main one at launch. */
+  loadedAlongside: string[];
+}
+
+/** A saved chat in the sidebar (messages load when it's opened). */
+export interface ConversationMeta {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  pinned: boolean;
+  folder: string | null;
+  messageCount: number;
+}
+
+export interface SearchHit {
+  conversationId: string;
+  messageId: string;
+  title: string;
+  /** Matching text with hits wrapped in «». */
+  snippet: string;
+  updatedAt: number;
+}
+
+export interface Memory {
+  id: string;
+  text: string;
+  /** "user" (typed in Settings) or "chat" (suggested by BYTE, confirmed). */
+  source: string;
+  createdAt: number;
 }
 
 export interface SystemInfo {

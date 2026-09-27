@@ -5,6 +5,7 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, State};
 
 use crate::chat::{self, ChatEvent, ChatMessage};
+use crate::db::{ConversationMeta, Memory, MetaPatch, SearchHit};
 use crate::engine::{EngineStatus, LoadedModel, DEFAULT_CONTEXT, EXTRA_CONTEXT};
 use crate::error::{AppError, AppResult};
 use crate::models::{self, ModelStatus};
@@ -92,6 +93,7 @@ pub async fn model_delete(app: AppHandle, state: State<'_, AppState>, key: Strin
     let active = state.settings.lock().await.active_model.clone();
     let active_key = active.as_deref().and_then(|a| catalog.resolve(a).ok()).map(|(m, v)| models::key(m, v));
     state.extras.remove(&app, &key).await;
+    remember_alongside(&state, |list| list.retain(|k| k != &key)).await?;
     if active_key.as_deref() == Some(key.as_str()) {
         state.engine.stop().await;
         let _ = tauri::Emitter::emit(&app, crate::engine::STATUS_EVENT, EngineStatus::NoModel);
@@ -117,6 +119,7 @@ pub async fn model_activate(app: AppHandle, state: State<'_, AppState>, key: Str
     };
     // A model that was loaded alongside becomes the main one: don't run it twice.
     state.extras.remove(&app, &key).await;
+    remember_alongside(&state, |list| list.retain(|k| k != &key)).await?;
     let reserved = state.extras.reserved().await;
     state.engine.start(&app, state.paths.models.clone(), &catalog, &key, ctx, reserved).await
 }
@@ -144,8 +147,19 @@ pub async fn models_loaded(state: State<'_, AppState>) -> AppResult<Vec<LoadedMo
 /// Loads `key` alongside the main model so both can answer.
 #[tauri::command]
 pub async fn model_load(app: AppHandle, state: State<'_, AppState>, key: String) -> AppResult<()> {
+    let key = load_extra(&app, &state, &key).await?;
+    remember_alongside(&state, |list| {
+        if !list.contains(&key) {
+            list.push(key.clone());
+        }
+    })
+    .await
+}
+
+/// Starts an extra engine for `key`; returns the canonical key.
+pub async fn load_extra(app: &AppHandle, state: &AppState, key: &str) -> AppResult<String> {
     let catalog = state.catalog.get();
-    let (model, variant) = catalog.resolve(&key)?;
+    let (model, variant) = catalog.resolve(key)?;
     if model.role != models::Role::Chat {
         return Err(AppError::msg(format!("{} is a helper model and can't be used for chat", model.name)));
     }
@@ -154,20 +168,32 @@ pub async fn model_load(app: AppHandle, state: State<'_, AppState>, key: String)
         return Err(AppError::msg(format!("{} is already the main model.", model.name)));
     }
     if state.extras.get(&key).await.is_some() {
-        return Ok(());
+        return Ok(key);
     }
-    let reserved = loaded_bytes(&state).await;
+    let reserved = loaded_bytes(state).await;
     let engine = state.extras.add(&key).await?;
-    let result = engine.start(&app, state.paths.models.clone(), &catalog, &key, Some(EXTRA_CONTEXT), reserved).await;
-    if result.is_err() {
-        state.extras.remove(&app, &key).await;
+    let result = engine.start(app, state.paths.models.clone(), &catalog, &key, Some(EXTRA_CONTEXT), reserved).await;
+    if let Err(e) = result {
+        state.extras.remove(app, &key).await;
+        return Err(e);
     }
-    result
+    Ok(key)
+}
+
+/// Updates the list of models to reload alongside the main one at launch.
+async fn remember_alongside(state: &AppState, f: impl FnOnce(&mut Vec<String>)) -> AppResult<()> {
+    let mut s = state.settings.lock().await;
+    let mut next = s.clone();
+    f(&mut next.loaded_alongside);
+    next.save(&state.paths.settings_file)?;
+    *s = next;
+    Ok(())
 }
 
 /// Stops a model that was loaded alongside the main one.
 #[tauri::command]
 pub async fn model_unload(app: AppHandle, state: State<'_, AppState>, key: String) -> AppResult<bool> {
+    remember_alongside(&state, |list| list.retain(|k| k != &key)).await?;
     Ok(state.extras.remove(&app, &key).await)
 }
 
@@ -203,6 +229,9 @@ pub struct ChatRequest {
     /// Answer with this loaded model instead of the main one ("id:quant").
     #[serde(default)]
     pub model: Option<String>,
+    /// Private chat: saved memories aren't used and nothing new is suggested.
+    #[serde(default)]
+    pub private: bool,
 }
 
 #[tauri::command]
@@ -227,11 +256,15 @@ pub async fn chat_send(state: State<'_, AppState>, request: ChatRequest, on_even
         .map(|m| m.content.as_str())
         .unwrap_or("");
     let plan = router::plan_turn(request.mode, request.thinking, last_user);
-    let (web, user_name) = {
+    let (web, user_name, memory, about_me) = {
         let s = state.settings.lock().await;
-        (s.web_search, s.user_name.clone())
+        (s.web_search, s.user_name.clone(), s.memory_enabled && !request.private, s.about_me.clone())
     };
-    let system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());
+    let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());
+    if memory {
+        let memories: Vec<String> = state.db.memories()?.into_iter().map(|m| m.text).collect();
+        system.push_str(&prompt::memory_section(about_me.as_deref(), &memories, true));
+    }
     let reserve = plan.max_tokens + plan.thinking_budget.max(0) as u32;
     let history = chat::fit_history(&request.messages, &system, ep.context, reserve.min(ep.context / 2));
 
@@ -245,6 +278,7 @@ pub async fn chat_send(state: State<'_, AppState>, request: ChatRequest, on_even
         plan,
         mode: request.mode,
         web,
+        memory,
         log: &state.actions,
     };
     let result = agent::run(turn, cancel, &on_event).await;
@@ -261,4 +295,87 @@ pub async fn chat_send(state: State<'_, AppState>, request: ChatRequest, on_even
 #[tauri::command]
 pub async fn chat_cancel(state: State<'_, AppState>, request_id: String) -> AppResult<bool> {
     Ok(state.generations.cancel(&request_id).await)
+}
+
+// ---------- chats & memory (Phase 3) ----------
+
+#[tauri::command]
+pub fn chats_list(state: State<'_, AppState>) -> AppResult<Vec<ConversationMeta>> {
+    state.db.list()
+}
+
+#[tauri::command]
+pub fn chat_load(state: State<'_, AppState>, id: String) -> AppResult<Option<serde_json::Value>> {
+    state.db.load(&id)
+}
+
+#[tauri::command]
+pub fn chat_save(state: State<'_, AppState>, conversation: serde_json::Value) -> AppResult<()> {
+    state.db.save(&conversation)
+}
+
+#[tauri::command]
+pub fn chat_delete(state: State<'_, AppState>, id: String) -> AppResult<()> {
+    state.db.delete(&id)
+}
+
+#[tauri::command]
+pub fn chat_update(state: State<'_, AppState>, id: String, patch: MetaPatch) -> AppResult<()> {
+    state.db.update_meta(&id, &patch)
+}
+
+#[tauri::command]
+pub fn chats_search(state: State<'_, AppState>, query: String) -> AppResult<Vec<SearchHit>> {
+    state.db.search(&query, 30)
+}
+
+/// One-time move of chats kept in the old in-browser storage into the database.
+/// Chats that already exist are left alone. Returns how many were imported.
+#[tauri::command]
+pub fn chats_import(state: State<'_, AppState>, conversations: Vec<serde_json::Value>) -> AppResult<usize> {
+    let existing: std::collections::HashSet<String> = state.db.list()?.into_iter().map(|c| c.id).collect();
+    let mut n = 0;
+    for c in conversations {
+        let id = c.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+        let has_messages = c.get("messages").and_then(|m| m.as_array()).is_some_and(|m| !m.is_empty());
+        if !id.is_empty() && has_messages && !existing.contains(id) {
+            state.db.save(&c)?;
+            n += 1;
+        }
+    }
+    Ok(n)
+}
+
+/// Exports every chat into a new folder inside `dir`; returns that folder.
+#[tauri::command]
+pub fn chats_export(state: State<'_, AppState>, dir: String) -> AppResult<String> {
+    let chats = state.db.export_all()?;
+    let out = crate::export::export_chats(std::path::Path::new(&dir), &chats)?;
+    Ok(out.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn memories_list(state: State<'_, AppState>) -> AppResult<Vec<Memory>> {
+    state.db.memories()
+}
+
+#[tauri::command]
+pub fn memory_add(state: State<'_, AppState>, text: String, source: Option<String>) -> AppResult<Memory> {
+    state.db.add_memory(&text, source.as_deref().unwrap_or("user"))
+}
+
+#[tauri::command]
+pub fn memory_update(state: State<'_, AppState>, id: String, text: String) -> AppResult<()> {
+    state.db.update_memory(&id, &text)
+}
+
+#[tauri::command]
+pub fn memory_delete(state: State<'_, AppState>, id: String) -> AppResult<()> {
+    state.db.delete_memory(&id)
+}
+
+/// Erases every saved chat and memory.
+#[tauri::command]
+pub fn data_wipe(state: State<'_, AppState>) -> AppResult<()> {
+    state.db.wipe()
 }

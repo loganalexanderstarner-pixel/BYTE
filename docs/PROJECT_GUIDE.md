@@ -10,7 +10,7 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 |---|---|---|
 | 1 | Foundation: engine sidecar, model catalog/downloader, RAM planner, streaming chat, modes, thinking, onboarding, logo, themes, CI/release | ✅ Done (commit 47d952e) |
 | 2 | Agent & web: tool registry, action log, web search/read, forced grounding, citations, calculator | ✅ Done (test.2) |
-| 3 | Memory: encrypted DB, chats, memory/About me, projects, profiles, branching, pins, export | ⏳ Next |
+| 3 | Memory: encrypted DB, chats, memory/About me, projects, profiles, branching, pins, export | 🟡 Part 1 done: encrypted DB, search, pins, folders, private chats, memory + About me, export. Next: branching/edit, auto summaries & tags, projects, profiles |
 | 4 | Files & knowledge base: parsers, OCR, embeddings, folder indexing, reader | Planned |
 | 5 | Documents: PDF/PPTX/DOCX/HTML, edit existing files, infographics, math/diagrams | Planned |
 | 6 | Research+: Deep/Extended, academic, quote finder, fact-check, compare, web agent, YouTube | Planned |
@@ -20,6 +20,21 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 | 10 | Upkeep & automation: scheduler, briefing, watchers, trackers, connectors, dashboards | Planned |
 | 11 | Input & windows: voice, vision, Quick Ask, floating widget, menu-bar popover, palette, notes | Planned |
 | 12 | Privacy & polish: offline, Touch ID, permissions dashboard, 20 themes, sharing, v1.0 | Planned |
+
+## Chats & memory (Phase 3, `db.rs`, `export.rs`)
+
+- `byte.db` in the app data folder, SQLCipher (rusqlite `bundled-sqlcipher-vendored-openssl`). Key: 256 random
+  bits in `db.key` (mode 0600). Moving the key to the Keychain behind Touch ID waits for the self-signed
+  certificate (Phase 12); with ad-hoc signing macOS would re-ask for Keychain access after every update.
+  A database that can't be decrypted is renamed `byte.db.unreadable-<time>`, never deleted.
+- Tables: `conversations` (title, pinned, folder), `messages` (UI JSON in `data`), `messages_fts` (FTS5,
+  porter stemming; content + title), `memories`. Schema version in `PRAGMA user_version`.
+- The UI saves a whole chat per `chat_save` (debounced: 300 ms, 2 s while streaming). Chats load lazily on
+  open. Older builds' localStorage chats are imported once (`chats_import`).
+- Private chats live only in the UI state; `chat_send` gets `private: true` and skips memory.
+- Memory: `settings.aboutMe` + `memories` rows go into the system prompt (`prompt::memory_section`, 4 KB cap).
+  The `remember` tool only *suggests*; the UI shows Save / No thanks and calls `memory_add(text, "chat")`.
+- `settings.loadedAlongside` lists extra models to reload after the main engine starts (`commands::load_extra`).
 
 ## Model catalog (added after Phase 2)
 

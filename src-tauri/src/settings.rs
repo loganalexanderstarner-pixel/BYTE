@@ -43,6 +43,12 @@ pub struct Settings {
     pub user_name: Option<String>,
     /// Where to fetch model catalog updates (default: the BYTE repository).
     pub catalog_url: Option<String>,
+    /// Free-form "About me" the user writes; included in every conversation.
+    pub about_me: Option<String>,
+    /// Use saved memories in answers and let BYTE suggest new ones.
+    pub memory_enabled: bool,
+    /// Models loaded alongside the main one; reloaded at launch.
+    pub loaded_alongside: Vec<String>,
 }
 
 impl Default for Settings {
@@ -61,6 +67,9 @@ impl Default for Settings {
             web_search: true,
             user_name: None,
             catalog_url: None,
+            about_me: None,
+            memory_enabled: true,
+            loaded_alongside: Vec::new(),
         }
     }
 }

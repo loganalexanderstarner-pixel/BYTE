@@ -4,6 +4,7 @@ import { api, errorText, events, inTauri } from "../lib/api";
 import { titleFrom } from "../lib/format";
 import type {
   ChatEvent,
+  ConversationMeta,
   DownloadEvent,
   EngineStatus,
   LoadedModel,
@@ -24,6 +25,8 @@ export interface Step {
   args: Record<string, unknown>;
   status: "running" | "ok" | "error";
   summary?: string;
+  /** For "remember" suggestions: what the user decided. */
+  decision?: "saved" | "dismissed";
 }
 
 export interface Message {
@@ -54,7 +57,18 @@ export interface Conversation {
   createdAt: number;
   updatedAt: number;
   messages: Message[];
+  pinned?: boolean;
+  folder?: string | null;
+  /** Private chats are never saved and don't use memory. */
+  private?: boolean;
+  /** Messages have been loaded from the database. */
+  loaded?: boolean;
+  /** Message count from the database (before messages are loaded). */
+  messageCount?: number;
 }
+
+/** Has anything been said in this chat (loaded or not)? */
+export const hasMessages = (c: Conversation) => c.messages.length > 0 || (c.messageCount ?? 0) > 0;
 
 export interface DownloadState {
   phase: "resuming" | "downloading" | "verifying" | "paused" | "failed" | "finished";
@@ -64,7 +78,7 @@ export interface DownloadState {
   error?: string;
 }
 
-export type SettingsTab = "models" | "appearance" | "engine" | "about";
+export type SettingsTab = "models" | "memory" | "appearance" | "engine" | "about";
 
 interface State {
   ready: boolean;
@@ -94,9 +108,14 @@ interface State {
   refreshModels(): Promise<void>;
   refreshLoaded(): Promise<void>;
   setAnswerWith(v: string): void;
-  newChat(): void;
-  selectChat(id: string): void;
+  newChat(isPrivate?: boolean): void;
+  selectChat(id: string): Promise<void>;
   deleteChat(id: string): void;
+  updateChat(id: string, patch: { title?: string; pinned?: boolean; folder?: string }): Promise<void>;
+  /** Save or dismiss a "remember" suggestion shown under an answer. */
+  resolveMemory(msgId: string, stepId: string, save: boolean): Promise<void>;
+  /** Reload the chat list from the database (after an erase or import). */
+  reloadChats(): Promise<void>;
   send(text: string): Promise<void>;
   regenerate(): Promise<void>;
   stop(): Promise<void>;
@@ -125,16 +144,61 @@ function loadConversations(): Conversation[] {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
-function saveConversations(list: Conversation[]) {
+/** Browser-only fallback (dev without Tauri): keep chats in localStorage. */
+function saveConversationsLocally(list: Conversation[]) {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list.filter((c) => c.messages.length > 0)));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list.filter((c) => c.messages.length > 0 && !c.private)));
     } catch {
       /* storage full or unavailable: chats stay in memory */
     }
   }, 400);
 }
+
+/** What gets written to the database for a chat. */
+function toStored(c: Conversation) {
+  const { loaded: _l, messageCount: _n, private: _p, ...rest } = c;
+  return rest;
+}
+
+const pendingSaves = new Map<string, ReturnType<typeof setTimeout>>();
+/** Saves one chat to the encrypted database, debounced (longer while streaming). */
+function scheduleSave(c: Conversation, delay: number) {
+  if (c.private || c.messages.length === 0 || !c.loaded) return;
+  clearTimeout(pendingSaves.get(c.id));
+  pendingSaves.set(
+    c.id,
+    setTimeout(() => {
+      pendingSaves.delete(c.id);
+      api.chatSave(toStored(c)).catch((e) => console.error("couldn't save chat", e));
+    }, delay),
+  );
+}
+
+/** Moves chats kept by older builds in localStorage into the database, once. */
+async function importLocalChats() {
+  const old = loadConversations();
+  if (old.length === 0) return;
+  try {
+    await api.chatsImport(old);
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (e) {
+    console.error("couldn't import old chats", e);
+  }
+}
+
+const fromMeta = (m: ConversationMeta): Conversation => ({
+  id: m.id,
+  title: m.title,
+  createdAt: m.createdAt,
+  updatedAt: m.updatedAt,
+  pinned: m.pinned,
+  folder: m.folder,
+  messageCount: m.messageCount,
+  messages: [],
+  loaded: false,
+});
 
 const uid = () => crypto.randomUUID();
 
@@ -150,7 +214,12 @@ export const useStore = create<State>((set, get) => {
   const patchConversation = (id: string, fn: (c: Conversation) => Conversation) => {
     const conversations = get().conversations.map((c) => (c.id === id ? fn(c) : c));
     set({ conversations });
-    saveConversations(conversations);
+    if (!inTauri) {
+      saveConversationsLocally(conversations);
+      return;
+    }
+    const c = conversations.find((x) => x.id === id);
+    if (c) scheduleSave(c, get().running.length ? 2000 : 300);
   };
 
   const patchMessage = (convId: string, msgId: string, fn: (m: Message) => Message) =>
@@ -249,7 +318,7 @@ export const useStore = create<State>((set, get) => {
     };
 
     try {
-      await api.chatSend({ requestId: reply.id, messages: history, mode, thinking, model: opts.model }, onEvent);
+      await api.chatSend({ requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private }, onEvent);
     } catch (err) {
       cancelAnimationFrame(frame);
       flush();
@@ -257,6 +326,8 @@ export const useStore = create<State>((set, get) => {
     } finally {
       const running = get().running.filter((id) => id !== reply.id);
       set({ running, generating: running.length ? (get().generating === reply.id ? running[0] : get().generating) : null });
+      const done = get().conversations.find((c) => c.id === convId);
+      if (done && inTauri) scheduleSave(done, 100);
     }
   };
 
@@ -296,11 +367,13 @@ export const useStore = create<State>((set, get) => {
 
     async init() {
       if (get().ready) return;
-      const conversations = loadConversations();
       if (!inTauri) {
-        set({ ready: true, conversations });
+        const conversations = loadConversations().map((c) => ({ ...c, loaded: true }));
+        set({ ready: true, conversations, currentId: conversations[0]?.id ?? null });
         return;
       }
+      await importLocalChats();
+      const conversations = (await api.chatsList().catch(() => [] as ConversationMeta[])).map(fromMeta);
       await events.onEngineStatus((engine) => {
         set({ engine });
         void get().refreshLoaded();
@@ -324,11 +397,14 @@ export const useStore = create<State>((set, get) => {
         models,
         engine,
         conversations,
-        currentId: conversations[0]?.id ?? null,
+        currentId: null,
         mode: settings.defaultMode,
         thinking: settings.thinking,
       });
       void get().refreshLoaded();
+      // Open the most recent chat.
+      const first = conversations.find((c) => !c.pinned) ?? conversations[0];
+      if (first) await get().selectChat(first.id);
     },
 
     async updateSettings(patch) {
@@ -355,21 +431,81 @@ export const useStore = create<State>((set, get) => {
       set({ models, recommended });
     },
 
-    newChat() {
-      const current = get().conversations.find((c) => c.id === get().currentId);
-      if (current && current.messages.length === 0) return;
-      const conv: Conversation = { id: uid(), title: "New chat", createdAt: Date.now(), updatedAt: Date.now(), messages: [] };
+    newChat(isPrivate = false) {
+      // Reuse an empty chat of the same kind instead of stacking empty ones.
+      const empty = get().conversations.find((c) => c.messages.length === 0 && !hasMessages(c) && !!c.private === isPrivate);
+      if (empty) {
+        set({ currentId: empty.id });
+        return;
+      }
+      const conv: Conversation = {
+        id: uid(),
+        title: isPrivate ? "Private chat" : "New chat",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        messages: [],
+        private: isPrivate,
+        loaded: true,
+      };
       set({ conversations: [conv, ...get().conversations], currentId: conv.id });
     },
 
-    selectChat(id) {
+    async selectChat(id) {
       set({ currentId: id });
+      const c = get().conversations.find((x) => x.id === id);
+      if (!c || c.loaded || !inTauri) return;
+      try {
+        const full = (await api.chatLoad(id)) as Conversation | null;
+        const messages = (full?.messages ?? []).map((m) => (m.status === "streaming" ? { ...m, status: "cancelled" as const } : m));
+        set({ conversations: get().conversations.map((x) => (x.id === id ? { ...x, messages, loaded: true } : x)) });
+      } catch (e) {
+        console.error("couldn't load chat", e);
+      }
     },
 
     deleteChat(id) {
+      const target = get().conversations.find((c) => c.id === id);
       const conversations = get().conversations.filter((c) => c.id !== id);
-      set({ conversations, currentId: get().currentId === id ? (conversations[0]?.id ?? null) : get().currentId });
-      saveConversations(conversations);
+      set({ conversations, currentId: get().currentId === id ? null : get().currentId });
+      clearTimeout(pendingSaves.get(id));
+      if (!inTauri) saveConversationsLocally(conversations);
+      else if (target && !target.private) void api.chatDelete(id);
+    },
+
+    async updateChat(id, patch) {
+      const c = get().conversations.find((x) => x.id === id);
+      if (!c) return;
+      set({
+        conversations: get().conversations.map((x) =>
+          x.id === id
+            ? {
+                ...x,
+                title: patch.title?.trim() || x.title,
+                pinned: patch.pinned ?? x.pinned,
+                folder: patch.folder === undefined ? x.folder : patch.folder.trim() || null,
+              }
+            : x,
+        ),
+      });
+      if (inTauri && !c.private) await api.chatUpdate(id, patch);
+    },
+
+    async resolveMemory(msgId, stepId, save) {
+      const conv = currentConversation(get());
+      const msg = conv?.messages.find((m) => m.id === msgId);
+      const step = msg?.steps?.find((st) => st.id === stepId);
+      if (!conv || !step) return;
+      if (save) await api.memoryAdd(step.summary ?? "", "chat");
+      patchMessage(conv.id, msgId, (m) => ({
+        ...m,
+        steps: (m.steps ?? []).map((st) => (st.id === stepId ? { ...st, decision: save ? "saved" : "dismissed" } : st)),
+      }));
+    },
+
+    async reloadChats() {
+      if (!inTauri) return;
+      const conversations = (await api.chatsList()).map(fromMeta);
+      set({ conversations, currentId: null });
     },
 
     async send(text) {
@@ -377,7 +513,7 @@ export const useStore = create<State>((set, get) => {
       if (!content || get().generating) return;
       let convId = get().currentId;
       if (!convId || !get().conversations.some((c) => c.id === convId)) {
-        const conv: Conversation = { id: uid(), title: "New chat", createdAt: Date.now(), updatedAt: Date.now(), messages: [] };
+        const conv: Conversation = { id: uid(), title: "New chat", createdAt: Date.now(), updatedAt: Date.now(), messages: [], loaded: true };
         set({ conversations: [conv, ...get().conversations], currentId: conv.id });
         convId = conv.id;
       }
