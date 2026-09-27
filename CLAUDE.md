@@ -5,10 +5,16 @@ inference engine (llama.cpp `llama-server`, Metal) as a Tauri sidecar, downloads
 and runs everything on-device. Only web search/reading and model downloads use the internet.
 
 Read `docs/PROJECT_GUIDE.md` for the full feature catalog, architecture, decisions, and phase status.
+Also read `docs/DESIGN-AND-PLATFORMS.md` (byte-ai's design tokens + the cross-platform plan)
+and `docs/CLOUD-MODE.md` (BYTE as a remote backend — built, deployed, tested).
 
 ## Non-negotiable decisions (from the owner)
 
-- **macOS only, Apple Silicon only.** No Windows/Intel work.
+- **macOS and Apple Silicon first — but Windows and Linux are now targets too**
+  (changed by the owner, 2026-09-27; superseded "macOS only, no Windows/Intel work").
+  Each should feel native to its own OS rather than one build for all three. iOS/iPadOS
+  sideloading is a later goal, which matters *now* because iOS cannot spawn processes —
+  see `docs/DESIGN-AND-PLATFORMS.md` for the engine abstraction this implies.
 - **Never require a paid Apple Developer account.** Builds are ad-hoc / self-signed. README explains "Open Anyway".
 - **The assistant's name is BYTE.** It never calls itself Qwen or another model (it may say it runs Qwen3 locally
   if asked). Tone: normal, friendly, direct — *not* cyberpunk-talk. The *visual* style is neon/cyberpunk.
