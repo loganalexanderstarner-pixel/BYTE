@@ -15,7 +15,8 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 | 5 | Documents: PDF/PPTX/DOCX/HTML, edit existing files, infographics, math/diagrams | Planned |
 | 6 | Research+: Deep/Extended, academic, quote finder, fact-check, compare, web agent, YouTube | Planned |
 | 7 | Writing & learning: studio, long-form, style, flashcards, quizzes, tutor, custom assistants | Planned |
-| 8 | Speed (Speed boost + speed test + preference done early in test.7): speculative decoding, routing, model lab | Planned |
+| 8 | Speed: Speed boost (drafters + MTP/EAGLE-3/DSpark heads), repeated-text guessing, per-Mac tuning, measured-speed recommendations, CPU offload, GPU share, thinking router | ✅ Mostly done (test.7–test.9); model lab left |
+| Cloud | BYTE cloud backend: chat, streaming, actions, attachments, documents with approval, account data | ✅ Built (test.10), awaiting real-cluster check; tab redesign + "Both" next (see HANDOFF) |
 | 9 | Mac control: Apple apps, Shortcuts, files, clipboard, undo & dry-run | Planned |
 | 10 | Upkeep & automation: scheduler, briefing, watchers, trackers, connectors, dashboards | Planned |
 | 11 | Input & windows: voice, vision, Quick Ask, floating widget, menu-bar popover, palette, notes | Planned |
@@ -34,8 +35,8 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 - Measured with the pinned engine on CPU: p-min 0.75 raised acceptance from 38–59% to 70–97%. The real
   speed-up can only be measured on Metal, so `engine_speed_test` measures both ways on the user's Mac and
   keeps the faster (`speed::boost_wins`, ≥ 5% better).
-- Some repos ship MTP heads (`MTP/mtp-*.gguf` for Qwen3.8 27B and Gemma 4 12B, `--spec-type draft-mtp`);
-  the catalog builder currently skips them as auxiliary files. Using them is a follow-up.
+- Models whose repos ship their own speed-up head (MTP / EAGLE-3 / DSpark) use it instead of a drafter
+  (catalog `speedHead`, see "Speed-up heads" below).
 - `settings.speedPref` (speed / balanced / quality) changes the tokens/sec target in `models::score`
   (22 / 8 / 5).
 - **Per-model profiles** (`modelcfg.rs`): recommended sampling per family (think / plain) and thinking

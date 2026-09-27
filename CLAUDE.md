@@ -4,7 +4,8 @@ BYTE is a **local-first AI assistant for Apple Silicon Macs** (target: MacBook A
 inference engine (llama.cpp `llama-server`, Metal) as a Tauri sidecar, downloads Qwen3 GGUF models on first launch,
 and runs everything on-device. Only web search/reading and model downloads use the internet.
 
-Read `docs/PROJECT_GUIDE.md` for the full feature catalog, architecture, decisions, and phase status.
+**Start with `docs/HANDOFF.md`** (current state, next tasks, how to work here), then `docs/PROJECT_GUIDE.md` for the
+full feature catalog, architecture, decisions, and phase status, and `docs/CLOUD-MODE.md` for the cloud API.
 
 ## Non-negotiable decisions (from the owner)
 
@@ -49,7 +50,8 @@ src-tauri/                Rust core (Tauri 2)
   src/settings.rs         persisted settings (camelCase JSON)
   binaries/               sidecars, built by scripts (gitignored)
 scripts/                  build-llama-server.sh, LLAMA_TAG (pinned), bump.mjs
-.github/workflows/        ci.yml (frontend + macOS Rust + real-engine e2e), release.yml (dmg)
+.github/workflows/        ci.yml (frontend + Linux Rust tests + secret scan), mac-engine.yml (real engine on macOS),
+                          release.yml (dmg, workflow_dispatch with a tag)
 ```
 
 ## Commands
@@ -63,7 +65,8 @@ scripts/                  build-llama-server.sh, LLAMA_TAG (pinned), bump.mjs
 | Rust tests | `cd src-tauri && cargo test` |
 | Real-engine e2e | `BYTE_TEST_LLAMA_SERVER=<bin> BYTE_TEST_MODEL=<Qwen3-0.6B gguf> cargo test e2e -- --ignored` |
 | Set version everywhere | `node scripts/bump.mjs 1.0.0-test.N` |
-| Publish a test build | bump → commit → `git tag v1.0.0-test.N && git push origin v1.0.0-test.N` |
+| Publish a test build | bump → commit → push → run `release.yml` (workflow_dispatch, input `tag=v1.0.0-test.N`) |
+| Secret scan | `scripts/check-secrets.sh` (also in CI) |
 
 On Linux, Tauri needs `libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libsoup-3.0-dev`.
 `tauri-build` requires a sidecar file to exist at `src-tauri/binaries/llama-server-<host-triple>`.
