@@ -20,6 +20,10 @@
   it's made; finished documents preview page by page, download to Documents/BYTE, can be revised with an
   instruction, or turned into another format. A source document (PDF, Word, slides, text) can be used as
   material.
+- **Your cloud account on the Mac** (Settings → Cloud): memories, knowledge (text or uploaded files), saved
+  prompts, recipes, "about you" and the default mode, search across cloud chats (opens them here), and export
+  everything as a .zip.
+- **Saved prompts as / commands**: type / in the chat box to pick one.
 - **If the cloud can't be reached**, BYTE answers on this Mac instead and says so. A slow start is normal (the
   cluster may be busy) and is never retried into the queue. Private chats never leave this Mac.
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isImage, jobState, listOf, readOutline, writeOutline } from "./cloudDocs";
+import { bodyOf, isImage, jobState, listOf, readOutline, writeOutline } from "./cloudDocs";
 
 describe("cloud replies", () => {
   it("finds lists however they're wrapped", () => {
@@ -32,5 +32,11 @@ describe("cloud replies", () => {
     expect(isImage({ content_type: "image/jpeg" })).toBe(true);
     expect(isImage({ filename: "IMG_1.HEIC" })).toBe(true);
     expect(isImage({ filename: "report.pdf" })).toBe(false);
+  });
+
+  it("reads item text under any common name", () => {
+    expect(bodyOf({ content: "a" })).toBe("a");
+    expect(bodyOf({ prompt: "b" })).toBe("b");
+    expect(bodyOf({ id: 1 })).toBe("");
   });
 });

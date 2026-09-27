@@ -91,6 +91,9 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 - Attachments: `store.pending` → `message.attachments` → `CloudTurn.attachmentIds`; Library =
   `GET /api/attachments`. Documents: `components/documents/DocumentsPanel.tsx` (create → poll job →
   `OutlineReview` with templates → approve/reject → document previews, download, revise, render).
+- Account data: `components/settings/CloudAccount.tsx` (memories, knowledge, saved prompts, recipes,
+  personal context + default mode, search → `cloud_import`, export zip). Saved prompts double as `/`
+  commands in the composer (`store.savedPrompts`).
 - Tests: `cloud/tests.rs` with `wiremock` (fake keys only). `scripts/check-secrets.sh` runs in CI.
 
 ## Chats & memory (Phase 3, `db.rs`, `export.rs`)

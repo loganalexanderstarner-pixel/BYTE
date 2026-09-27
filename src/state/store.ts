@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { api, errorText, events, inTauri, type ChatPatch, type CloudTurn } from "../lib/api";
-import { idOf, isImage } from "../lib/cloudDocs";
+import { idOf, isImage, listOf, str, titleOf } from "../lib/cloudDocs";
 import { branchAt, switchVersion, versionsAt } from "../lib/branches";
 import { titleFrom } from "../lib/format";
 import type {
@@ -174,6 +174,9 @@ interface State {
   attaching: number;
   attachError: string | null;
   attachFiles(paths: string[]): Promise<void>;
+  /** Saved prompts from the cloud, used as "/" commands in the chat box. */
+  savedPrompts: { id: string; title: string; text: string }[] | null;
+  loadSavedPrompts(force?: boolean): Promise<void>;
   attachExisting(a: Attachment): void;
   removePending(id: string): void;
   refreshCloud(): Promise<void>;
@@ -528,6 +531,7 @@ export const useStore = create<State>((set, get) => {
     answerWith: "main",
     cloud: null,
     pending: [],
+    savedPrompts: null,
     attaching: 0,
     attachError: null,
     mode: "auto",
@@ -829,6 +833,20 @@ export const useStore = create<State>((set, get) => {
         } finally {
           set({ attaching: Math.max(0, get().attaching - 1) });
         }
+      }
+    },
+
+    async loadSavedPrompts(force = false) {
+      if (!inTauri || !get().settings?.cloudConnected || (get().savedPrompts && !force)) return;
+      try {
+        const rows = listOf(await api.cloudGet("/api/saved-prompts"));
+        set({
+          savedPrompts: rows
+            .map((r) => ({ id: idOf(r) ?? "", title: titleOf(r), text: str(r.content) ?? str(r.prompt) ?? str(r.text) ?? "" }))
+            .filter((p) => p.text),
+        });
+      } catch (e) {
+        console.warn("saved prompts unavailable", e);
       }
     },
 

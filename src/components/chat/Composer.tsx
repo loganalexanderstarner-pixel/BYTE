@@ -64,6 +64,18 @@ export function Composer() {
   const attachFiles = useStore((s) => s.attachFiles);
   const removePending = useStore((s) => s.removePending);
   const [library, setLibrary] = useState(false);
+  const savedPrompts = useStore((s) => s.savedPrompts);
+  const loadSavedPrompts = useStore((s) => s.loadSavedPrompts);
+  // "/" at the start of the message lists saved prompts from the cloud.
+  const slash = cloudConnected && /^\/\S*$/.test(text) ? text.slice(1).toLowerCase() : null;
+  const slashMatches = slash === null ? [] : (savedPrompts ?? []).filter((p) => p.title.toLowerCase().includes(slash)).slice(0, 8);
+  useEffect(() => {
+    if (slash !== null) void loadSavedPrompts();
+  }, [slash !== null, loadSavedPrompts]);
+  const usePrompt = (t: string) => {
+    setText(t);
+    ref.current?.focus();
+  };
   const [dragging, setDragging] = useState(false);
 
   // Drop photos/files onto the window to attach them (cloud chats).
@@ -114,6 +126,11 @@ export function Composer() {
   };
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (slashMatches.length && (e.key === "Enter" || e.key === "Tab")) {
+      e.preventDefault();
+      usePrompt(slashMatches[0].text);
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       submit();
@@ -175,6 +192,20 @@ export function Composer() {
           </div>
         )}
         {library && <LibraryPicker onClose={() => setLibrary(false)} />}
+        {slash !== null && (
+          <div className="slash-pop" role="listbox" aria-label="Saved prompts">
+            {savedPrompts === null && <div className="faint">Loading saved prompts…</div>}
+            {savedPrompts !== null && slashMatches.length === 0 && (
+              <div className="faint">{savedPrompts.length ? "No saved prompt matches." : "No saved prompts yet (Settings → Cloud → Saved prompts)."}</div>
+            )}
+            {slashMatches.map((p, i) => (
+              <button key={p.id || p.title} role="option" aria-selected={i === 0} className="slash-item" onClick={() => usePrompt(p.text)}>
+                <b>/{p.title}</b>
+                <span className="faint">{p.text.slice(0, 90)}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <textarea
           ref={ref}
           rows={1}

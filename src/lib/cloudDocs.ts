@@ -26,6 +26,9 @@ export const idOf = (r: Row | null | undefined): string | undefined => (r ? (str
 export const titleOf = (r: Row): string =>
   str(r.title) ?? str(r.name) ?? str(r.filename) ?? str(r.heading) ?? str(r.topic) ?? str(r.prompt)?.slice(0, 80) ?? "Untitled";
 
+/** Text of a stored item (memory, prompt, recipe…), whatever the field is called. */
+export const bodyOf = (r: Row): string => str(r.content) ?? str(r.text) ?? str(r.prompt) ?? str(r.body) ?? str(r.summary) ?? "";
+
 /** Document kinds the cloud generates, in the order shown. */
 export const DOC_KINDS = [
   { id: "pdf", label: "PDF report" },

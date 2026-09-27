@@ -3,6 +3,7 @@ import { Cloud, Download, KeyRound, LogOut, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
 import { api, errorText } from "../../lib/api";
+import { CloudAccount } from "./CloudAccount";
 import { useStore } from "../../state/store";
 
 /** Items in a list reply, whatever it's wrapped in. */
@@ -220,6 +221,7 @@ export function CloudTab() {
               </div>
             </div>
           </div>
+          <CloudAccount />
         </>
       )}
     </>
