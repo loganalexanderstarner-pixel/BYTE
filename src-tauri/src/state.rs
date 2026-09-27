@@ -20,6 +20,8 @@ pub struct AppState {
     pub local_http: reqwest::Client,
     /// Log of every tool call (web searches, pages read, calculations).
     pub actions: crate::tools::ActionLog,
+    /// True while "Tune for this Mac" is restarting the engine.
+    pub tuning: std::sync::atomic::AtomicBool,
     /// Encrypted database: chats, search index, memories.
     pub db: crate::db::Db,
     /// Model catalog (built in, refreshed from the web).
@@ -39,6 +41,7 @@ impl AppState {
             local_http: crate::chat::local_client(),
             actions: crate::tools::ActionLog::new(paths.data.join("actions.jsonl")),
             catalog: crate::models::CatalogStore::load(paths.root.join("catalog.json")),
+            tuning: std::sync::atomic::AtomicBool::new(false),
             db: crate::db::Db::open(&paths.data).unwrap_or_else(|e| {
                 // Chats still work for this session; they just aren't kept.
                 log::error!("database unavailable, chats won't be saved this session: {e}");

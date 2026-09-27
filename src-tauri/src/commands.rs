@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::chat::{self, ChatEvent, ChatMessage};
 use crate::db::{ConversationMeta, Memory, MetaPatch, Project, SearchHit};
@@ -129,19 +129,10 @@ pub async fn model_activate(app: AppHandle, state: State<'_, AppState>, key: Str
     state.extras.remove(&app, &key).await;
     remember_alongside(&state, |list| list.retain(|k| k != &key)).await?;
     let reserved = state.extras.reserved().await;
-    let draft = boost_draft(&state, &catalog, &key).await;
-    state.engine.start(&app, state.paths.models.clone(), &catalog, &key, ctx, reserved, draft).await
-}
-
-/// The downloaded helper model for Speed boost, if it's on and one exists.
-pub async fn boost_draft(state: &AppState, catalog: &models::Catalog, key: &str) -> Option<std::path::PathBuf> {
-    if !state.settings.lock().await.speed_boost {
-        return None;
-    }
-    let (model, _) = catalog.resolve(key).ok()?;
-    let d = models::drafter_for(catalog, model)?;
-    let (v, installed) = models::drafter_variant(d, &state.paths.models);
-    installed.then(|| models::entry_path(&state.paths.models, v))
+    let opts = crate::tune::launch_opts(&state, &catalog, &key).await;
+    state.engine.start(&app, state.paths.models.clone(), &catalog, &key, ctx, reserved, opts).await?;
+    auto_tune(&app);
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
@@ -182,52 +173,32 @@ pub async fn speed_boost_info(state: State<'_, AppState>) -> AppResult<BoostInfo
     })
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SpeedTest {
-    pub with_boost: Option<f64>,
-    pub without_boost: f64,
-    pub boost_kept: bool,
+/// Measures and keeps the fastest engine settings for the active model on
+/// this Mac (1–2 minutes; progress on `engine://tune`).
+#[tauri::command]
+pub async fn engine_tune(app: AppHandle, state: State<'_, AppState>) -> AppResult<crate::settings::Tuning> {
+    crate::tune::run(&app, &state).await
 }
 
-/// Measures tokens/sec with and without Speed boost on this Mac, keeps the
-/// faster setting and leaves the engine running with it. Takes about a minute.
-#[tauri::command]
-pub async fn engine_speed_test(app: AppHandle, state: State<'_, AppState>) -> AppResult<SpeedTest> {
-    let (model, ctx) = {
-        let s = state.settings.lock().await;
-        (s.active_model.clone(), s.context_size)
-    };
-    let model = model.ok_or_else(|| AppError::msg("choose a model first"))?;
-    let catalog = state.catalog.get();
-    let reserved = state.extras.reserved().await;
-    let draft = catalog
-        .resolve(&model)
-        .ok()
-        .and_then(|(m, _)| models::drafter_for(&catalog, m))
-        .map(|d| models::drafter_variant(d, &state.paths.models))
-        .filter(|(_, installed)| *installed)
-        .map(|(v, _)| models::entry_path(&state.paths.models, v));
-    let endpoint = || async { state.engine.endpoint().await.ok_or_else(|| AppError::msg("the engine isn't running")) };
-
-    state.engine.start(&app, state.paths.models.clone(), &catalog, &model, ctx, reserved, None).await?;
-    let without = crate::speed::measure(&state.local_http, &endpoint().await?).await?;
-    let mut with = None;
-    if let Some(d) = draft {
-        state.engine.start(&app, state.paths.models.clone(), &catalog, &model, ctx, reserved, Some(d.clone())).await?;
-        if matches!(state.engine.status().await, EngineStatus::Ready { boosted: true, .. }) {
-            with = Some(crate::speed::measure(&state.local_http, &endpoint().await?).await?);
+/// Tunes the active model in the background if it hasn't been tuned on this Mac.
+pub fn auto_tune(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let state = app.state::<AppState>();
+        let (enabled, key) = {
+            let s = state.settings.lock().await;
+            (s.auto_tune, s.active_model.clone())
+        };
+        let Some(key) = key.filter(|_| enabled) else { return };
+        let catalog = state.catalog.get();
+        let Ok((m, v)) = catalog.resolve(&key) else { return };
+        if crate::tune::saved(&state, &models::key(m, v)).await.is_some() {
+            return;
         }
-        let keep = crate::speed::boost_wins(with, without);
-        if !keep {
-            state.engine.start(&app, state.paths.models.clone(), &catalog, &model, ctx, reserved, None).await?;
+        if let Err(e) = crate::tune::run(&app, &state).await {
+            log::warn!("automatic tuning didn't finish: {e}");
         }
-        let mut s = state.settings.lock().await;
-        let next = s.merged(serde_json::json!({ "speedBoost": keep }))?;
-        next.save(&state.paths.settings_file)?;
-        *s = next;
-    }
-    Ok(SpeedTest { with_boost: with, without_boost: without, boost_kept: crate::speed::boost_wins(with, without) })
+    });
 }
 
 /// Memory used by every running engine (main + extras).
@@ -278,7 +249,7 @@ pub async fn load_extra(app: &AppHandle, state: &AppState, key: &str) -> AppResu
     }
     let reserved = loaded_bytes(state).await;
     let engine = state.extras.add(&key).await?;
-    let result = engine.start(app, state.paths.models.clone(), &catalog, &key, Some(EXTRA_CONTEXT), reserved, None).await;
+    let result = engine.start(app, state.paths.models.clone(), &catalog, &key, Some(EXTRA_CONTEXT), reserved, Default::default()).await;
     if let Err(e) = result {
         state.extras.remove(app, &key).await;
         return Err(e);
@@ -317,8 +288,8 @@ pub async fn engine_restart(app: AppHandle, state: State<'_, AppState>) -> AppRe
     let model = model.ok_or_else(|| AppError::msg("choose a model first"))?;
     let catalog = state.catalog.get();
     let reserved = state.extras.reserved().await;
-    let draft = boost_draft(&state, &catalog, &model).await;
-    state.engine.start(&app, state.paths.models.clone(), &catalog, &model, ctx, reserved, draft).await
+    let opts = crate::tune::launch_opts(&state, &catalog, &model).await;
+    state.engine.start(&app, state.paths.models.clone(), &catalog, &model, ctx, reserved, opts).await
 }
 
 #[tauri::command]
@@ -346,6 +317,9 @@ pub struct ChatRequest {
 
 #[tauri::command]
 pub async fn chat_send(state: State<'_, AppState>, request: ChatRequest, on_event: Channel<ChatEvent>) -> AppResult<()> {
+    if state.tuning.load(std::sync::atomic::Ordering::SeqCst) {
+        return Err(AppError::msg("BYTE is tuning itself for this Mac (about a minute). Try again when it's done."));
+    }
     let main_key = state.engine.loaded().await.map(|l| l.key);
     let ep = match request.model.as_deref() {
         Some(k) if main_key.as_deref() != Some(k) => {
@@ -365,7 +339,9 @@ pub async fn chat_send(state: State<'_, AppState>, request: ChatRequest, on_even
         .find(|m| m.role == "user")
         .map(|m| m.content.as_str())
         .unwrap_or("");
-    let plan = router::plan_turn(request.mode, request.thinking, last_user);
+    let catalog = state.catalog.get();
+    let profile = catalog.resolve(&ep.model).map(|(m, _)| crate::modelcfg::profile(m)).unwrap_or_default();
+    let plan = router::plan_turn(request.mode, request.thinking, last_user).for_model(profile);
     let (web, user_name, memory, about_me) = {
         let s = state.settings.lock().await;
         (s.web_search, s.user_name.clone(), s.memory_enabled && !request.private, s.about_me.clone())

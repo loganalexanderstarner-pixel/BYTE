@@ -26,6 +26,29 @@ export interface Settings {
   speedBoost: boolean;
   /** What BYTE favours when recommending a model version. */
   speedPref: "speed" | "balanced" | "quality";
+  /** Measure and apply the fastest engine settings the first time a model loads. */
+  autoTune: boolean;
+  /** Measured best settings per model key. */
+  tuning: Record<string, Tuning>;
+}
+
+/** Engine settings measured to be fastest for one model on this Mac. */
+export interface Tuning {
+  boost: boolean;
+  kvF16: boolean;
+  ubatch: number;
+  tokensPerSec: number;
+  promptPerSec: number;
+  chip: string;
+  testedAt: number;
+}
+
+export interface TuneProgress {
+  model: string;
+  step: number;
+  total: number;
+  label: string;
+  done: boolean;
 }
 
 export interface BoostInfo {
@@ -37,11 +60,7 @@ export interface BoostInfo {
   installed: boolean;
 }
 
-export interface SpeedTest {
-  withBoost: number | null;
-  withoutBoost: number;
-  boostKept: boolean;
-}
+
 
 /** A saved chat in the sidebar (messages load when it's opened). */
 export interface ConversationMeta {

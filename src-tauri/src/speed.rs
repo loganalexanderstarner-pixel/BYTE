@@ -14,13 +14,56 @@ const PROMPTS: [&str; 2] = [
     "Explain in two short paragraphs why the sky is blue.",
 ];
 
+/// Generation and prompt-reading speed, tokens per second.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Speed {
+    pub generate: f64,
+    pub read: f64,
+}
+
+/// A ~1,500-token document, like a pasted article, to time prompt reading.
+fn long_document() -> String {
+    let para = "BYTE runs language models on the Mac's GPU. Reading a long prompt is limited by compute, \
+while writing each new word is limited by how fast the model's weights can be read from memory. ";
+    format!("Here is a document:\n\n{}\n\nSummarize it in three bullet points.", para.repeat(40))
+}
+
+/// Measures both speeds (thinking off, fixed lengths). Takes 10–40 seconds.
+pub async fn measure_both(http: &reqwest::Client, ep: &Endpoint) -> AppResult<Speed> {
+    let generate = measure(http, ep).await?;
+    let v = request(http, ep, &long_document(), 32).await?;
+    let read = v["timings"]["prompt_per_second"].as_f64().unwrap_or(0.0);
+    Ok(Speed { generate, read })
+}
+
+async fn request(http: &reqwest::Client, ep: &Endpoint, prompt: &str, max_tokens: u32) -> AppResult<Value> {
+    let body = json!({
+        "messages": [{ "role": "user", "content": prompt }],
+        "max_tokens": max_tokens,
+        "temperature": 0,
+        "stream": false,
+        "cache_prompt": false,
+        "chat_template_kwargs": { "enable_thinking": false },
+    });
+    Ok(http
+        .post(format!("{}/v1/chat/completions", ep.base_url))
+        .bearer_auth(&ep.api_key)
+        .timeout(Duration::from_secs(300))
+        .json(&body)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?)
+}
+
 /// Average tokens/sec over the test prompts (thinking off, fixed length).
 pub async fn measure(http: &reqwest::Client, ep: &Endpoint) -> AppResult<f64> {
     let mut rates = Vec::new();
     for p in PROMPTS {
         let body = json!({
             "messages": [{ "role": "user", "content": p }],
-            "max_tokens": 200,
+            "max_tokens": 160,
             "temperature": 0,
             "stream": false,
             "chat_template_kwargs": { "enable_thinking": false },
@@ -46,21 +89,9 @@ pub async fn measure(http: &reqwest::Client, ep: &Endpoint) -> AppResult<f64> {
     Ok(rates.iter().sum::<f64>() / rates.len() as f64)
 }
 
-/// Keep Speed boost only if it's clearly faster (5%+) on this Mac.
-pub fn boost_wins(with: Option<f64>, without: f64) -> bool {
-    with.is_some_and(|w| w > without * 1.05)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn boost_must_be_clearly_faster() {
-        assert!(boost_wins(Some(20.0), 13.0));
-        assert!(!boost_wins(Some(13.3), 13.0));
-        assert!(!boost_wins(None, 13.0));
-    }
 
     /// Real engine with BYTE's exact Speed boost arguments: the server accepts
     /// them and the helper's guesses are used. Needs BYTE_TEST_MAIN_MODEL and
@@ -100,8 +131,8 @@ mod tests {
     #[ignore]
     async fn e2e_measures_speed() {
         let Some((_server, ep)) = crate::chat::e2e_support::start_server().await else { return };
-        let tps = measure(&crate::chat::local_client(), &ep).await.unwrap();
-        eprintln!("{tps:.1} tok/s");
-        assert!(tps > 0.0);
+        let s = measure_both(&crate::chat::local_client(), &ep).await.unwrap();
+        eprintln!("{:.1} tok/s writing, {:.0} tok/s reading", s.generate, s.read);
+        assert!(s.generate > 0.0 && s.read > 0.0);
     }
 }

@@ -6,6 +6,7 @@ mod db;
 mod engine;
 mod export;
 mod error;
+mod modelcfg;
 mod models;
 mod paths;
 mod profiles;
@@ -17,6 +18,7 @@ mod state;
 mod summarize;
 mod system;
 mod tools;
+mod tune;
 
 use tauri::{Manager, RunEvent};
 
@@ -94,8 +96,8 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 match active {
                     Some((model, ctx)) => {
-                        let draft = commands::boost_draft(&handle.state::<AppState>(), &catalog, &model).await;
-                        if let Err(e) = engine.start(&handle, models_dir, &catalog, &model, ctx, 0, draft).await {
+                        let opts = tune::launch_opts(&handle.state::<AppState>(), &catalog, &model).await;
+                        if let Err(e) = engine.start(&handle, models_dir, &catalog, &model, ctx, 0, opts).await {
                             log::warn!("engine did not start at launch: {e}");
                             return;
                         }
@@ -107,6 +109,8 @@ pub fn run() {
                                 log::warn!("couldn't reload {key} alongside the main model: {e}");
                             }
                         }
+                        // First time this model runs on this Mac: find its fastest settings.
+                        commands::auto_tune(&handle);
                     }
                     None => {
                         let _ = tauri::Emitter::emit(&handle, engine::STATUS_EVENT, engine::EngineStatus::NoModel);
@@ -144,7 +148,7 @@ pub fn run() {
             commands::data_wipe,
             commands::chat_autotitle,
             commands::speed_boost_info,
-            commands::engine_speed_test,
+            commands::engine_tune,
             commands::projects_list,
             commands::project_save,
             commands::project_delete,

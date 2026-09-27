@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -33,6 +34,24 @@ pub enum SpeedPref {
     Quality,
 }
 
+/// Engine settings measured to be fastest for one model on this Mac.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Tuning {
+    /// Use the Speed boost helper.
+    pub boost: bool,
+    /// Keep the conversation memory (KV cache) at full precision instead of 8-bit.
+    pub kv_f16: bool,
+    /// Tokens processed per GPU batch while reading the prompt.
+    pub ubatch: u32,
+    /// Measured speeds with these settings.
+    pub tokens_per_sec: f64,
+    pub prompt_per_sec: f64,
+    /// Chip it was measured on (re-tune on another Mac).
+    pub chip: String,
+    pub tested_at: i64,
+}
+
 /// Persistent user settings. Unknown or missing fields fall back to defaults so
 /// older settings files keep loading after upgrades.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,6 +83,10 @@ pub struct Settings {
     /// Speculative decoding with a small same-family helper model.
     pub speed_boost: bool,
     pub speed_pref: SpeedPref,
+    /// Measure and apply the fastest engine settings the first time a model loads.
+    pub auto_tune: bool,
+    /// Measured best settings per model key ("id:quant").
+    pub tuning: HashMap<String, Tuning>,
 }
 
 impl Default for Settings {
@@ -87,6 +110,8 @@ impl Default for Settings {
             loaded_alongside: Vec::new(),
             speed_boost: true,
             speed_pref: SpeedPref::Balanced,
+            auto_tune: true,
+            tuning: HashMap::new(),
         }
     }
 }

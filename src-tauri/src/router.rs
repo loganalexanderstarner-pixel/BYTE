@@ -5,13 +5,41 @@ use serde::Serialize;
 
 use crate::settings::{Mode, ThinkingPref};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TurnPlan {
     pub thinking: bool,
     /// Max tokens the model may spend thinking (-1 = unlimited).
     pub thinking_budget: i32,
     pub max_tokens: u32,
+    pub mode: Mode,
+    /// The running model's recommended sampling and thinking control.
+    #[serde(skip)]
+    pub profile: crate::modelcfg::ModelProfile,
+}
+
+impl TurnPlan {
+    /// Adapts the plan to the running model: models that always think do,
+    /// models that can't think don't, and sampling follows the model card.
+    pub fn for_model(mut self, profile: crate::modelcfg::ModelProfile) -> Self {
+        self.profile = profile;
+        let thinking = profile.thinks(self.thinking);
+        if thinking != self.thinking {
+            self.thinking = thinking;
+            self.thinking_budget = if thinking { mode_limits(self.mode).0 } else { 0 };
+        }
+        self
+    }
+}
+
+/// (thinking budget, max tokens) per mode.
+fn mode_limits(mode: Mode) -> (i32, u32) {
+    match mode {
+        Mode::Fast => (512, 1536),
+        Mode::Auto => (2048, 4096),
+        Mode::Deep => (6144, 8192),
+        Mode::Extended => (-1, 12288),
+    }
 }
 
 const REASONING_CUES: &[&str] = &[
@@ -64,13 +92,8 @@ pub fn plan_turn(mode: Mode, pref: ThinkingPref, message: &str) -> TurnPlan {
             Mode::Deep | Mode::Extended => true,
         },
     };
-    let (budget, max_tokens) = match mode {
-        Mode::Fast => (512, 1536),
-        Mode::Auto => (2048, 4096),
-        Mode::Deep => (6144, 8192),
-        Mode::Extended => (-1, 12288),
-    };
-    TurnPlan { thinking, thinking_budget: if thinking { budget } else { 0 }, max_tokens }
+    let (budget, max_tokens) = mode_limits(mode);
+    TurnPlan { thinking, thinking_budget: if thinking { budget } else { 0 }, max_tokens, mode, profile: Default::default() }
 }
 
 /// An arithmetic question in the user's message ("what's 1234 * 5678?",

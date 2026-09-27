@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.0-test.8 — Every model tuned for its best quality and speed
+
+- **Each model family now uses its publisher's recommended settings.** Until now every model used Qwen's
+  sampling, which hurt other families. Gemma uses temperature 1.0 with top-k 64, Llama 0.6 / top-p 0.9,
+  Mistral Small 0.15, DeepSeek-R1 distills 0.6 / 0.95, LFM min-p 0.15, gpt-oss 1.0, and so on.
+- **Thinking works the right way for each model**: switched on/off per question for Qwen-style models,
+  always on for reasoning models (R1, QwQ, Phi-4 reasoning…), never forced on models that can't think,
+  and gpt-oss gets reasoning effort low / medium / high from the mode.
+- **Automatic tuning for this Mac**: the first time a model loads, BYTE spends 1–2 minutes measuring a few
+  engine settings on your Mac and keeps the fastest for that model: Speed boost on/off (its helper is
+  downloaded automatically), full-precision vs compact conversation memory, and a bigger batch for
+  reading long prompts. A banner shows progress; chat waits until it's done. Results and *Tune again* are
+  in Settings → Engine; turn automatic tuning off there. Tuning is redone on a different Mac.
+
 ## 1.0.0-test.7 — Speed boost
 
 - **Speed boost (speculative decoding)**: a tiny model from the same family (e.g. Qwen3.5 0.8B for

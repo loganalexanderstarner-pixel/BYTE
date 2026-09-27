@@ -53,8 +53,18 @@ struct Launch {
     key: String,
     path: PathBuf,
     context: u32,
+    opts: LaunchOpts,
+}
+
+/// Performance options for one engine start (see `tune.rs`).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct LaunchOpts {
     /// Small same-family model for speculative decoding ("Speed boost").
-    draft: Option<PathBuf>,
+    pub draft: Option<PathBuf>,
+    /// Full-precision KV cache instead of 8-bit (faster on some Macs, uses more memory).
+    pub kv_f16: bool,
+    /// Physical batch size for prompt processing (llama.cpp default 512).
+    pub ubatch: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -71,6 +81,8 @@ pub struct LoadInfo {
     pub key: String,
     pub context: u32,
     pub needed_bytes: u64,
+    /// Whether the full-precision KV cache was actually used (memory allowing).
+    pub kv_f16: bool,
 }
 
 struct Inner {
@@ -152,8 +164,9 @@ impl Engine {
         key: &str,
         ctx_override: Option<u32>,
         reserved: u64,
-        draft: Option<PathBuf>,
+        opts: LaunchOpts,
     ) -> AppResult<()> {
+        let LaunchOpts { draft, mut kv_f16, ubatch } = opts;
         let (model, variant) = catalog.resolve(key)?;
         if !models::is_installed(&models_dir, variant) {
             self.set_status(app, EngineStatus::NoModel).await;
@@ -172,8 +185,18 @@ impl Engine {
             }
             ok
         });
-        let extra = draft.as_ref().and_then(|d| std::fs::metadata(d).ok()).map(|m| m.len() + DRAFT_OVERHEAD).unwrap_or(0);
-        let plan = models::plan(model, variant, &info.clone().minus(extra), desired_ctx);
+        let draft_extra = draft.as_ref().and_then(|d| std::fs::metadata(d).ok()).map(|m| m.len() + DRAFT_OVERHEAD).unwrap_or(0);
+        let plan = models::plan(model, variant, &info.clone().minus(draft_extra), desired_ctx);
+        // A full-precision KV cache takes about twice the memory: only when it still fits the same context.
+        let kv_extra = model.arch.kv_bytes_per_token() * plan.context as u64;
+        if kv_f16 {
+            let bigger = models::plan(model, variant, &info.clone().minus(draft_extra + kv_extra), desired_ctx);
+            if bigger.fit == system::Fit::TooBig || bigger.context < plan.context {
+                log::info!("full-precision KV cache skipped: not enough memory");
+                kv_f16 = false;
+            }
+        }
+        let extra = draft_extra + if kv_f16 { kv_extra } else { 0 };
         if plan.fit == system::Fit::TooBig {
             let message = if reserved > 0 {
                 format!("{} doesn't fit next to the models already loaded. Unload one first, or pick a smaller version.", model.name)
@@ -187,9 +210,14 @@ impl Engine {
         {
             let mut inner = self.inner.lock().await;
             inner.restarts = 0;
-            inner.loaded = Some(LoadInfo { key: models::key(model, variant), context: plan.context, needed_bytes: plan.needed_bytes + extra });
+            inner.loaded = Some(LoadInfo { key: models::key(model, variant), context: plan.context, needed_bytes: plan.needed_bytes + extra, kv_f16 });
         }
-        let launch = Launch { key: models::key(model, variant), path: models::entry_path(&models_dir, variant), context: plan.context, draft };
+        let launch = Launch {
+            key: models::key(model, variant),
+            path: models::entry_path(&models_dir, variant),
+            context: plan.context,
+            opts: LaunchOpts { draft, kv_f16, ubatch },
+        };
         self.spawn(app.clone(), launch).await
     }
 
@@ -205,9 +233,7 @@ impl Engine {
         let port = free_port()?;
         let api_key = uuid::Uuid::new_v4().simple().to_string();
         let mut args = server_args(&launch.path, port, &api_key, &launch.key, context);
-        if let Some(d) = &launch.draft {
-            args.extend(draft_args(d));
-        }
+        apply_opts(&mut args, &launch.opts);
 
         let command = match app.shell().sidecar(SIDECAR) {
             Ok(c) => c,
@@ -273,7 +299,7 @@ impl Engine {
                     inner.endpoint = Some(endpoint);
                 }
                 // llama-server keeps running without speculation if the helper doesn't match.
-                let boosted = launch.draft.is_some() && !speculation_failed(&self.log_tail().await);
+                let boosted = launch.opts.draft.is_some() && !speculation_failed(&self.log_tail().await);
                 log::info!("engine ready: {} with {context}-token context (speed boost: {boosted})", launch.key);
                 self.set_status(&app, EngineStatus::Ready { model: launch.key.clone(), context, boosted }).await;
                 Ok(())
@@ -577,6 +603,23 @@ pub fn draft_args(draft: &std::path::Path) -> Vec<String> {
     .collect()
 }
 
+/// Adds tuned performance options to the base arguments.
+pub fn apply_opts(args: &mut Vec<String>, opts: &LaunchOpts) {
+    if opts.kv_f16 {
+        for i in 0..args.len().saturating_sub(1) {
+            if args[i] == "--cache-type-k" || args[i] == "--cache-type-v" {
+                args[i + 1] = "f16".into();
+            }
+        }
+    }
+    if let Some(ub) = opts.ubatch {
+        args.extend(["--ubatch-size".into(), ub.to_string(), "--batch-size".into(), ub.max(2048).to_string()]);
+    }
+    if let Some(d) = &opts.draft {
+        args.extend(draft_args(d));
+    }
+}
+
 fn speculation_failed(log: &[String]) -> bool {
     log.iter().any(|l| l.contains("failed to initialize speculative") || l.contains("vocabs are not compatible"))
 }
@@ -619,6 +662,19 @@ mod tests {
         assert!(a.contains("--model-draft /m/d.gguf") && a.contains("--spec-draft-p-min 0.75"), "{a}");
         assert!(speculation_failed(&["E srv load_model: failed to initialize speculative decoding context".into()]));
         assert!(!speculation_failed(&["srv loaded".into()]));
+    }
+
+    #[test]
+    fn tuned_options_change_the_arguments() {
+        let mut a = server_args(std::path::Path::new("/m/q.gguf"), 1, "k", "m", 4096);
+        apply_opts(&mut a, &LaunchOpts { draft: Some("/m/d.gguf".into()), kv_f16: true, ubatch: Some(1024) });
+        let j = a.join(" ");
+        assert!(j.contains("--cache-type-k f16") && j.contains("--cache-type-v f16"), "{j}");
+        assert!(j.contains("--ubatch-size 1024") && j.contains("--batch-size 2048"), "{j}");
+        assert!(j.contains("--model-draft /m/d.gguf"));
+        let mut b = server_args(std::path::Path::new("/m/q.gguf"), 1, "k", "m", 4096);
+        apply_opts(&mut b, &LaunchOpts::default());
+        assert_eq!(b, server_args(std::path::Path::new("/m/q.gguf"), 1, "k", "m", 4096));
     }
 
     #[test]

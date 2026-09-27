@@ -104,19 +104,22 @@ pub fn request_body(system: &str, history: &[ChatMessage], plan: TurnPlan) -> se
 
 /// Full request body; `tools` enables tool calling for this round.
 pub fn build_body(messages: Vec<serde_json::Value>, plan: TurnPlan, tools: Option<Vec<serde_json::Value>>) -> serde_json::Value {
-    // Qwen3's recommended sampling for thinking vs. non-thinking turns.
-    let (temperature, top_p) = if plan.thinking { (0.6, 0.95) } else { (0.7, 0.8) };
+    // The running model's recommended sampling (see modelcfg.rs).
+    let sp = plan.profile.sampling(plan.thinking);
+    // f32 → tidy f64 (0.7, not 0.699999988).
+    let r = |x: f32| (x as f64 * 1000.0).round() / 1000.0;
     let mut body = serde_json::json!({
         "messages": messages,
         "stream": true,
         "max_tokens": plan.max_tokens,
-        "temperature": temperature,
-        "top_p": top_p,
-        "top_k": 20,
-        "min_p": 0.0,
+        "temperature": r(sp.temperature),
+        "top_p": r(sp.top_p),
+        "top_k": sp.top_k,
+        "min_p": r(sp.min_p),
+        "repeat_penalty": r(sp.repeat_penalty),
         "cache_prompt": true,
         "timings_per_token": false,
-        "chat_template_kwargs": { "enable_thinking": plan.thinking },
+        "chat_template_kwargs": plan.profile.template_kwargs(plan.thinking, plan.mode),
     });
     if plan.thinking && plan.thinking_budget > 0 {
         body["reasoning_budget_tokens"] = plan.thinking_budget.into();
@@ -456,12 +459,12 @@ mod tests {
     #[test]
     fn body_toggles_thinking_and_budget() {
         let hist = vec![ChatMessage { role: "user".into(), content: "hi".into() }];
-        let b = request_body("sys", &hist, TurnPlan { thinking: true, thinking_budget: 1024, max_tokens: 2000 });
+        let b = request_body("sys", &hist, TurnPlan { thinking: true, thinking_budget: 1024, max_tokens: 2000, mode: crate::settings::Mode::Auto, profile: Default::default() });
         assert_eq!(b["chat_template_kwargs"]["enable_thinking"], true);
         assert_eq!(b["reasoning_budget_tokens"], 1024);
         assert_eq!(b["messages"][0]["role"], "system");
         assert_eq!(b["messages"][1]["content"], "hi");
-        let b = request_body("sys", &hist, TurnPlan { thinking: false, thinking_budget: 0, max_tokens: 500 });
+        let b = request_body("sys", &hist, TurnPlan { thinking: false, thinking_budget: 0, max_tokens: 500, mode: crate::settings::Mode::Auto, profile: Default::default() });
         assert_eq!(b["chat_template_kwargs"]["enable_thinking"], false);
         assert!(b.get("reasoning_budget_tokens").is_none());
         assert_eq!(b["temperature"], 0.7);

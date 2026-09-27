@@ -35,7 +35,8 @@ export function Composer() {
   const answerWith = useStore((s) => s.answerWith);
   const setAnswerWith = useStore((s) => s.setAnswerWith);
   const readyModels = loaded.filter((l) => l.status.state === "ready");
-  const ready = engine.state === "ready";
+  const tune = useStore((s) => s.tune);
+  const ready = engine.state === "ready" && !tune;
 
   useEffect(() => {
     ref.current?.focus();
@@ -64,7 +65,9 @@ export function Composer() {
 
   const placeholder = ready
     ? "Ask BYTE anything…"
-    : engine.state === "starting"
+    : tune
+      ? "Tuning BYTE for this Mac — one moment…"
+      : engine.state === "starting"
       ? "Loading the model — one moment…"
       : engine.state === "noModel"
         ? "Download a model in Settings to start chatting"
@@ -72,7 +75,17 @@ export function Composer() {
 
   return (
     <div className="composer-wrap">
-      {!ready && engine.state !== "starting" && (
+      {tune && (
+        <div className="banner tune-banner">
+          <span className="grow">
+            <b>Tuning BYTE for this Mac</b> (step {tune.step} of {tune.total}): {tune.label}… This happens once per model and finds the fastest settings for your chip.
+          </span>
+          <div className="progress" style={{ width: 120 }}>
+            <span style={{ width: `${(Math.max(0, tune.step - 1) / tune.total) * 100}%` }} />
+          </div>
+        </div>
+      )}
+      {!ready && !tune && engine.state !== "starting" && (
         <div className={`banner ${engine.state === "error" ? "danger" : ""}`}>
           <span className="grow">
             {engine.state === "error" ? engine.message : "BYTE needs a model before it can chat."}

@@ -4,7 +4,8 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   BoostInfo,
   ChatSummary,
-  SpeedTest,
+  TuneProgress,
+  Tuning,
   ConversationMeta,
   Profile,
   Profiles,
@@ -55,8 +56,8 @@ export const api = {
   engineRestart: () => invoke<void>("engine_restart"),
   engineLog: () => invoke<string[]>("engine_log"),
   speedBoostInfo: () => invoke<BoostInfo>("speed_boost_info"),
-  /** Measures tokens/sec with and without Speed boost and keeps the faster (about a minute). */
-  engineSpeedTest: () => invoke<SpeedTest>("engine_speed_test"),
+  /** Measures and keeps the fastest engine settings for the active model (1–2 minutes). */
+  engineTune: () => invoke<Tuning>("engine_tune"),
 
   chatSend: (
     request: { requestId: string; messages: WireMessage[]; mode: Mode; thinking: ThinkingPref; model?: string; private?: boolean; projectId?: string | null },
@@ -105,6 +106,7 @@ export const api = {
 export const events = {
   onEngineStatus: (cb: (s: EngineStatus) => void): Promise<UnlistenFn> =>
     listen<EngineStatus>("engine://status", (e) => cb(e.payload)),
+  onTune: (cb: (p: TuneProgress) => void): Promise<UnlistenFn> => listen<TuneProgress>("engine://tune", (e) => cb(e.payload)),
   /** A model loaded alongside the main one changed state. */
   onExtras: (cb: () => void): Promise<UnlistenFn> => listen("engine://extras", () => cb()),
   onDownload: (cb: (e: DownloadEvent) => void): Promise<UnlistenFn> =>

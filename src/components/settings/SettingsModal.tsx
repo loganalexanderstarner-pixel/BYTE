@@ -7,7 +7,7 @@ import { Logo } from "../../design/Logo";
 import { api, errorText } from "../../lib/api";
 import { bytes, contextLabel, ramSize } from "../../lib/format";
 import { displayName } from "../../lib/models";
-import type { BoostInfo, Memory, Profiles, Settings, SpeedTest } from "../../lib/types";
+import type { BoostInfo, Memory, Profiles, Settings } from "../../lib/types";
 import { useStore, type SettingsTab } from "../../state/store";
 import { CatalogBrowser } from "../models/CatalogBrowser";
 
@@ -243,8 +243,7 @@ function SpeedSection() {
   const update = useStore((s) => s.updateSettings);
   const downloads = useStore((s) => s.downloads);
   const [info, setInfo] = useState<BoostInfo | null>(null);
-  const [testing, setTesting] = useState(false);
-  const [result, setResult] = useState<SpeedTest | null>(null);
+  const tune = useStore((s) => s.tune);
   const [error, setError] = useState<string | null>(null);
   const restarted = useRef(false);
 
@@ -264,6 +263,8 @@ function SpeedSection() {
 
   if (!info || !settings) return null;
   const boosted = engine.state === "ready" && engine.boosted;
+  const activeKey = engine.state === "ready" ? engine.model : (settings.activeModel ?? "");
+  const tuned = settings.tuning?.[activeKey];
   const guard = async (fn: () => Promise<unknown>) => {
     setError(null);
     try {
@@ -328,34 +329,37 @@ function SpeedSection() {
       <div className="field">
         <label>
           <span className="row" style={{ gap: 6 }}>
-            <Gauge size={14} style={{ color: "var(--accent)" }} /> Test speed on this Mac
+            <Gauge size={14} style={{ color: "var(--accent)" }} /> Tuned for this Mac
           </span>
           <small>
-            {result
-              ? `Without boost ${result.withoutBoost.toFixed(1)} tokens/sec` +
-                (result.withBoost != null
-                  ? ` · with boost ${result.withBoost.toFixed(1)} tokens/sec → boost ${result.boostKept ? `kept on (${(result.withBoost / result.withoutBoost).toFixed(1)}× faster)` : "turned off (not faster here)"}`
-                  : "")
-              : "Measures real tokens/sec with and without Speed boost and keeps whichever is faster. Takes about a minute."}
+            {tune
+              ? `Tuning: step ${tune.step} of ${tune.total}, ${tune.label.toLowerCase()}…`
+              : tuned
+                ? `${tuned.tokensPerSec.toFixed(1)} tokens/sec writing · ${Math.round(tuned.promptPerSec)} tokens/sec reading · ` +
+                  [tuned.boost ? "Speed boost on" : "Speed boost off", tuned.kvF16 ? "full-precision memory" : "compact memory", `batch ${tuned.ubatch}`].join(", ") +
+                  ` · measured ${new Date(tuned.testedAt).toLocaleDateString()}`
+                : "Not tuned yet. BYTE measures a few engine settings and keeps the fastest for this model (1–2 minutes)."}
           </small>
         </label>
         <button
           className="btn sm"
-          disabled={testing || engine.state !== "ready"}
+          disabled={!!tune || engine.state !== "ready"}
           onClick={() =>
             void guard(async () => {
-              setTesting(true);
-              try {
-                setResult(await api.engineSpeedTest());
-                await load();
-              } finally {
-                setTesting(false);
-              }
+              await api.engineTune();
+              await load();
             })
           }
         >
-          <Gauge size={14} className={testing ? "spin" : undefined} /> {testing ? "Testing…" : "Test speed"}
+          <Gauge size={14} className={tune ? "spin" : undefined} /> {tune ? "Tuning…" : tuned ? "Tune again" : "Tune now"}
         </button>
+      </div>
+      <div className="field">
+        <label>
+          Tune new models automatically
+          <small>The first time a model loads, BYTE spends a minute or two finding its fastest settings on this Mac.</small>
+        </label>
+        <input type="checkbox" checked={settings.autoTune} onChange={(e) => void update({ autoTune: e.target.checked })} aria-label="Tune new models automatically" />
       </div>
     </div>
   );

@@ -1864,3 +1864,11 @@ kbd {
   margin: 0 0 var(--space-3);
   font-size: 0.9em;
 }
+.tune-banner {
+  align-items: center;
+  gap: var(--space-3);
+}
+.tune-banner {
+  align-items: center;
+  gap: var(--space-3);
+}

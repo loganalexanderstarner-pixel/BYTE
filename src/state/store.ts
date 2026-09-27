@@ -10,6 +10,7 @@ import type {
   EngineStatus,
   LoadedModel,
   Project,
+  TuneProgress,
   Mode,
   ModelStatus,
   Settings,
@@ -105,6 +106,8 @@ interface State {
   generating: string | null;
   /** Every answer currently streaming (several when comparing models). */
   running: string[];
+  /** "Tune for this Mac" progress while it runs (chat waits meanwhile). */
+  tune: TuneProgress | null;
   /** Models in memory: the main one and any loaded alongside. */
   loaded: LoadedModel[];
   /** Who answers the next message: "main", a loaded model's key, or "compare". */
@@ -412,6 +415,7 @@ export const useStore = create<State>((set, get) => {
     running: [],
     loaded: [],
     projects: [],
+    tune: null,
     answerWith: "main",
     mode: "auto",
     thinking: "auto",
@@ -432,6 +436,10 @@ export const useStore = create<State>((set, get) => {
         set({ engine });
         void get().refreshLoaded();
         if (engine.state === "ready" || engine.state === "noModel") void get().refreshModels();
+      });
+      await events.onTune((tune) => {
+        set({ tune: tune.done ? null : tune });
+        if (tune.done) void api.settingsGet().then((settings) => set({ settings }));
       });
       await events.onExtras(() => {
         void get().refreshLoaded();

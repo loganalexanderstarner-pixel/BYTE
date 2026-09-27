@@ -38,6 +38,15 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
   the catalog builder currently skips them as auxiliary files. Using them is a follow-up.
 - `settings.speedPref` (speed / balanced / quality) changes the tokens/sec target in `models::score`
   (22 / 8 / 5).
+- **Per-model profiles** (`modelcfg.rs`): recommended sampling per family (think / plain) and thinking
+  control (`Toggle` via `enable_thinking`, `Always`, `Effort` = gpt-oss `reasoning_effort`, `Never`).
+  `TurnPlan::for_model` applies it; `chat::build_body` sends the sampling and template kwargs.
+- **Per-Mac tuning** (`tune.rs`): on first load of a model (and via `engine_tune`), downloads the Speed
+  boost helper if needed, then restarts the engine with candidates and measures real speed
+  (`speed::measure_both`: writing + reading a ~1.5k-token prompt): standard → + boost (keep if ≥5% faster)
+  → + f16 KV (≥3%, only if the same context fits) → + ubatch 1024 (keep if reading ≥10% faster without
+  slower writing). Saved in `settings.tuning[key]` with the chip name; `tune::launch_opts` applies it on
+  every start. `state.tuning` blocks chat while it runs; progress on `engine://tune`.
 
 ## Chats & memory (Phase 3, `db.rs`, `export.rs`)
 
