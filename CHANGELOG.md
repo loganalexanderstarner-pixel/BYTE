@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (1.0.0-test.11) — Cloud and Both workspaces
+## 1.0.0-test.11 — Cloud and Both workspaces, byte-ai colors, new logo
 
 - **This Mac · Cloud · Both** at the top of the sidebar (once BYTE Cloud is connected) replaces the Cloud /
   This Mac switch in the chat box. Each chat stays in the workspace it was started in; private chats are
