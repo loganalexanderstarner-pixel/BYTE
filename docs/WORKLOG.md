@@ -17,6 +17,19 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### a85f1ea — Phase 5 (light): documents made on this Mac, saved as PDF, PowerPoint or Word
+- **Why:** owner decision: the cloud stays the main document maker; the Mac gets a lighter version for offline,
+  private chats and people without a cloud invite.
+- **What:** `src-tauri/src/docs.rs` (new) + commands `doc_outline`/`doc_write`/`doc_save`; `src/lib/docs/`
+  (new: `spec.ts`, `pdf.ts`, `pptx.ts`, `docx.ts`, `charts.ts`, `render.ts`, tests + `samples.test.ts`
+  generator); `components/documents/LocalDocs.tsx` (new), `DocumentsPanel.tsx` (This Mac / BYTE Cloud),
+  `Shell.tsx` (button always), `api.ts`, `app.css`; npm: `pdfmake`, `pptxgenjs`, `docx`, `chart.js`,
+  `@types/pdfmake`; screenshots `15-*`.
+- **Verify:** `scripts/check-all.sh`; `BYTE_TEST_LLAMA_SERVER=… BYTE_TEST_MODEL=<Qwen3-0.6B> cargo test
+  e2e_plans_and_writes -- --ignored`; `GEN_DOCS_DIR=/tmp/docs npx vitest run src/lib/docs/samples` then open the
+  files. On a Mac: 📄 → This Mac → Plan it → Write it → Save as PDF / PowerPoint / Word.
+- **Undo:** `git revert a85f1ea`.
+
 ### (this commit) — CI fixes: Windows check uses Strawberry Perl; releases keep the .dmg as an artifact
 - **Why:** the Windows job failed configuring SQLCipher's bundled OpenSSL (Git Bash perl lacks modules);
   the test.14 release built but couldn't publish ("Resource not accessible by integration": the repo's
