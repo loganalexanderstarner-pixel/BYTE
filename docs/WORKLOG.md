@@ -17,6 +17,34 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### 567584e — Phase 4 part 1: files and photos in local chats, models that see images
+- **Why:** the owner said "keep going with phase 4": BYTE should read the user's files, and photo buttons should
+  appear only when a model that can see is loaded (owner request, 2026-09-28).
+- **What:**
+  - `src-tauri/src/files.rs` (new): `kind_of`, `ingest` (PDF by page via `pdf-extract`; docx/pptx/xlsx/odt/odp/ods
+    via `zip` + `quick-xml`; HTML via `fetch::extract`; text/code; photos → data URL, HEIC/WebP converted and
+    photos over 2 MB shrunk to 2048 px with `/usr/bin/sips` on macOS). Caps: 25 MB file, 240k chars, 8 MB photo.
+    `for_model` builds `<file name=…>` blocks from `relevant_passages`. Cargo: `pdf-extract`, `quick-xml 0.37`,
+    `zip`; dev `lopdf 0.42`.
+  - `chat.rs`: `ChatMessage.files` / `images`, `with_files` (called in `backend.rs` before `fit_history`),
+    `question_text` (router/agent see only the user's words), image parts in `base_messages`, `IMAGE_TOKENS`.
+  - `engine.rs`: `LaunchOpts.mmproj` → `--mmproj`, memory for the adapter, `Endpoint.vision`,
+    `EngineStatus::Ready.vision`; the last fallback launch drops the adapter.
+  - `models.rs`: `Vision`, `VISION_QUANT`, `download_dir` (adapters in `models/vision/<id>/`), `vision_path`,
+    `ModelStatus.vision`; `download_target` handles `"<id>:vision"`. `commands.rs`: `file_ingest`; download and
+    delete use `download_dir`. `tune.rs` `launch_opts` sets `mmproj` when downloaded.
+  - `scripts/build-catalog.mjs`: `pickVision` (F16, else BF16, else Q8_0; Q8_0 beats a 16-bit file over
+    1.5 GB); `--vision` re-checks the catalog in place. `models.json`: 128 models with `vision`.
+  - UI: `store.ts` (`pendingFiles`, `attachLocal`, `Message.files`, `toWire` sends files, image-reader download
+    restarts the engine when it's the main model's), `Composer.tsx` (paperclip + drop for local chats; photo
+    types only when `engine.vision`), `Attachments.tsx` (`LocalFileChips`, `fileDetail`), `MessageView.tsx`,
+    `ModelCard.tsx` ("Sees images" tag, `VisionRow`), `types.ts` (`LocalFile`, `FileKind`), `api.ts`.
+  - `tools/ui-shots`: `file_ingest` mock, vision state, download mock uses `key`; shots `13-local-files*`.
+- **Verify:** `scripts/check-all.sh`; `cargo test files chat::tests::attached image_adapter fallback`;
+  screenshots `13-local-files.png`, `13b-local-files-sent.png`, `13c-sees-images.png`. On a Mac: download a
+  model's image reader, attach a photo, ask about it; attach a PDF and ask about it.
+- **Undo:** `git revert 567584e`. To turn only photos off: have `tune::launch_opts` leave `mmproj` as `None`.
+
 ### c0f9649 — Repo public: automatic CI back on; version 1.0.0-test.13
 - **Why:** the owner made the repo public (Actions free for public repos).
 - **What:** `ci.yml` on every push (skips docs-only), `mac-engine.yml` on engine-related pushes again; CLAUDE.md
