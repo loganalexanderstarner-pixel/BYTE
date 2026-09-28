@@ -134,6 +134,13 @@ it, don't leave hooks for it.
 
 ### Owner decisions, 2026-09-28: one native app per OS, and any hardware
 
+**Order and testing (2026-09-28):** finish the Mac phases first, not all three in parallel. Meanwhile CI
+compiles the Rust core for Windows too, so Mac-only code can't creep into shared modules (anything
+Mac-specific stays behind `#[cfg(target_os = "macos")]` with a clear fallback, like `ocr.rs`). The owner will
+give access to their gaming PC for real GPU testing when the Windows phase starts (CI runners have no GPUs).
+Rough size: Windows ≈ 40–50% of the Mac effort (GPU/VRAM planner, CUDA/Vulkan engine builds, Phase 9–10
+integrations rebuilt natively), Linux ≈ 30–40% after that.
+
 **Separate apps, each built around its own OS.** Windows and Linux get the same BYTE (layout, look, name,
 chat, cloud, modules, everything the Mac app has), but each is its own app that does things the way that OS
 allows, and does *more* where the OS gives more access. Nothing should be "macOS-shaped" on Windows or Linux.
