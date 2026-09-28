@@ -74,11 +74,30 @@ pub async fn fetch_page(client: &reqwest::Client, raw_url: &str) -> AppResult<Pa
     } else {
         Page { url: final_url.to_string(), title: final_url.to_string(), text: html }
     };
-    if page.text.trim().len() < 80 {
+    // Pages that are an app shell (their content arrives by JavaScript) leave
+    // almost no text; treat them as unreadable so another result is read instead.
+    if page.text.trim().len() < 300 {
         return Err(AppError::msg("couldn't find readable text on that page"));
     }
     cache_put(url.as_str(), page.clone()).await;
     Ok(page)
+}
+
+/// Sites whose pages can't be read without signing in or running their app
+/// (BYTE would get a login wall or an empty shell).
+const UNREADABLE_HOSTS: &[&str] = &[
+    "whatsapp.com", "facebook.com", "instagram.com", "x.com", "twitter.com", "tiktok.com", "linkedin.com",
+    "pinterest.com", "youtube.com", "youtu.be", "threads.net", "snapchat.com", "discord.com", "apps.apple.com",
+    "play.google.com", "quora.com",
+];
+
+/// Whether a search result is worth reading (not a login wall, app, video or file).
+pub fn worth_reading(url: &str) -> bool {
+    let Ok(u) = url::Url::parse(url) else { return false };
+    let host = u.host_str().unwrap_or("").to_ascii_lowercase();
+    let path = u.path().to_ascii_lowercase();
+    !UNREADABLE_HOSTS.iter().any(|h| host == *h || host.ends_with(&format!(".{h}")))
+        && ![".pdf", ".zip", ".mp4", ".mp3", ".dmg", ".exe"].iter().any(|x| path.ends_with(x))
 }
 
 /// Extracts the main article with a Readability port, falling back to all
@@ -252,6 +271,16 @@ async fn cache_put(url: &str, page: Page) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn skips_results_that_cannot_be_read() {
+        assert!(!worth_reading("https://web.whatsapp.com/"));
+        assert!(!worth_reading("https://www.youtube.com/watch?v=x"));
+        assert!(!worth_reading("https://example.com/report.pdf"));
+        assert!(worth_reading("https://www.weather.gov/pbz/"));
+        assert!(worth_reading("https://www.steelers.com/schedule/"));
+        assert!(!worth_reading("not a url"));
+    }
 
     #[test]
     fn extracts_article_from_real_page() {

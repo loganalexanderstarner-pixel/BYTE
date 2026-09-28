@@ -84,6 +84,49 @@ pub fn needs_fresh_info(message: &str) -> bool {
     (year - 1..=year + 1).any(|y| m.contains(&y.to_string()))
 }
 
+/// Requests that are writing or coding jobs, not questions about the world.
+const MAKE_JOBS: &[&str] = &[
+    "write ", "draft ", "compose ", "create a ", "create an ", "generate ", "make me ", "code ", "implement ",
+    "refactor ", "debug this", "fix this code", "poem", "story about", "a joke", "brainstorm",
+];
+
+/// Openers of questions about the world (people, products, places, how-tos).
+const QUESTION_OPENERS: &[&str] = &[
+    "who", "what", "what's", "whats", "when", "where", "which", "why", "how", "is", "are", "was", "were", "do",
+    "does", "did", "can", "could", "should", "will", "would", "tell me", "explain", "compare", "best", "top",
+    "recommend", "find", "list", "review", "price", "cost", "any good",
+];
+
+/// True when BYTE should search the web before the model answers. Answer
+/// quality comes first: small local models often answer from (stale or
+/// wrong) memory instead of choosing to search, so BYTE searches itself for
+/// anything that asks about the world. Small talk, rewrites, writing and
+/// coding jobs, maths and questions about BYTE itself don't need it.
+pub fn wants_web(message: &str) -> bool {
+    if needs_fresh_info(message) {
+        return true;
+    }
+    if effort(message) == Effort::Trivial {
+        return false;
+    }
+    let m = message.trim().to_lowercase().replace('\u{2019}', "'");
+    if m.contains("```") || m.lines().count() > 12 {
+        return false; // pasted code or long text to work on
+    }
+    if MAKE_JOBS.iter().any(|j| m.starts_with(j) || m.starts_with(&format!("please {j}")) || m.starts_with(&format!("can you {j}")) || (j.len() > 6 && m.contains(j.trim()))) {
+        return false;
+    }
+    // Questions about BYTE itself ("what can you do", "who made you").
+    let padded = format!(" {} ", m.trim_end_matches(['?', '!', '.']));
+    if [" you ", " your ", " yourself "].iter().any(|y| padded.contains(y))
+        && !["tell me", "find", "look up", "search", "check"].iter().any(|v| m.contains(v))
+    {
+        return false;
+    }
+    let first = m.split(|c: char| !c.is_alphanumeric() && c != '\'').find(|w| !w.is_empty()).unwrap_or("");
+    m.ends_with('?') || QUESTION_OPENERS.iter().any(|o| if o.contains(' ') { m.starts_with(o) } else { first == *o })
+}
+
 /// How much deliberate reasoning a message needs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Effort {
@@ -310,6 +353,35 @@ mod tests {
         assert!(needs_fresh_info(&format!("Best laptops of {year}")));
         assert!(!needs_fresh_info("Explain how photosynthesis works"));
         assert!(!needs_fresh_info("Write a poem about the sea"));
+    }
+
+    #[test]
+    fn searches_first_for_questions_about_the_world() {
+        for q in [
+            "Who is the CEO of OpenAI?",
+            "How do I fix \"xcrun: error: invalid active developer path\" on my Mac?",
+            "Is the Steam Deck OLED worth buying?",
+            "What is llama.cpp?",
+            "What\u{2019}s the weather in Pittsburgh this weekend?",
+            "best budget mechanical keyboard",
+            "tell me about the history of the Steelers",
+            "Can you tell me the population of Pittsburgh",
+        ] {
+            assert!(wants_web(q), "{q}");
+        }
+        for q in [
+            "hi",
+            "thanks!",
+            "Write a poem about the sea",
+            "write a python function that reverses a list",
+            "Rewrite this to sound friendlier: hey send me the file",
+            "What can you do?",
+            "who are you",
+            "12 * 34",
+            "```rust\nfn main() {}\n``` why doesn't this compile?",
+        ] {
+            assert!(!wants_web(q), "{q}");
+        }
     }
 
     #[test]

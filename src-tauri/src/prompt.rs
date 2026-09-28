@@ -34,6 +34,8 @@ If a calculator result is already in the conversation, use that exact number.",
             "\n\nYou can search and read the web with tools. Search whenever a question depends on recent events, \
 prices, schedules, versions, people, or anything that may have changed after your training; don't search for \
 timeless knowledge or casual chat. Prefer reading one or two of the best pages over guessing from snippets. \
+When search results or pages are already in the conversation, answer from them: they are newer than your \
+training, so trust them over what you remember, and don't search again for the same thing. \
 Cite facts from the web with the source numbers you were given, like [1] or [2][3], right after the sentence \
 they support. Never cite a number you weren't given, and don't add a separate list of links at the end.",
         );
