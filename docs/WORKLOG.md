@@ -17,6 +17,11 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (this commit) — Windows icon (icon.ico) so the Windows compile check gets past tauri-build
+- **Why:** the Windows CI job stopped at "icons/icon.ico not found; required for generating a Windows Resource".
+- **What:** `src-tauri/icons/icon.ico` (16–256 px, made from `icons/icon.png`), listed in `tauri.conf.json`.
+- **Undo:** remove the file and the list entry.
+
 ### a85f1ea — Phase 5 (light): documents made on this Mac, saved as PDF, PowerPoint or Word
 - **Why:** owner decision: the cloud stays the main document maker; the Mac gets a lighter version for offline,
   private chats and people without a cloud invite.
