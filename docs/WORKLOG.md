@@ -17,6 +17,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### 33488f7 — Phase 4: instant answers for questions asked before
+- **Why:** Phase 4 item 8 (instant-answer cache, moved from Phase 2): speed for repeated questions without
+  risking stale answers.
+- **What:** `src-tauri/src/answer_cache.rs` (new: `cacheable`, `put`, `find`, `clear`), `db.rs` schema v5,
+  `backend.rs` `reuse_earlier_answer`, `commands.rs` `answer_cache_put`/`answer_cache_clear` +
+  `ChatRequest.fresh`, `settings.rs` `answer_cache`, `tools::Source` Deserialize, `embed.rs` threshold e2e.
+  UI: `store.ts` `rememberAnswer` + `fresh` on Regenerate, `api.ts`, `types.ts`, `KnowledgeTab.tsx` toggle.
+- **Verify:** `scripts/check-all.sh`; `cargo test answer_cache`; real model:
+  `cargo test e2e_instant_answer_threshold -- --ignored` (with `BYTE_TEST_EMBED_MODEL`).
+- **Undo:** `git revert 33488f7`, or turn "Instant answers" off in Settings → Knowledge base.
+
 ### 902024a — Phase 4: knowledge base, search by meaning, "My files", reader view
 - **Why:** Phase 4 items 3–7 (owner: "keep going with phase 4"): BYTE should answer from the user's own folders
   and cite them.
