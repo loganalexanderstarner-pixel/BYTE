@@ -15,6 +15,8 @@ import { Activity, Sources } from "./Activity";
 import { DecisionTable } from "./Decision";
 import { PlacesCards } from "./Places";
 import { TripCard } from "./Trip";
+import { MealPlanCard, RecipeIdeasCards } from "../kitchen/KitchenCards";
+import { RecipeCard } from "../kitchen/RecipeCard";
 
 function openLinksExternally(e: MouseEvent<HTMLDivElement>) {
   const a = (e.target as HTMLElement).closest("a");
@@ -221,6 +223,9 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
       {message.decision && <DecisionTable decision={message.decision} sources={message.sources} />}
       {message.trip && <TripCard plan={message.trip} sources={message.sources} />}
       {message.places && <PlacesCards found={message.places} />}
+      {message.recipe && <RecipeCard recipe={message.recipe} />}
+      {message.recipeIdeas && <RecipeIdeasCards ideas={message.recipeIdeas} />}
+      {message.mealPlan && <MealPlanCard plan={message.mealPlan} />}
       {message.content && (
         <div
           className={`prose ${generating ? "cursor" : ""}`}

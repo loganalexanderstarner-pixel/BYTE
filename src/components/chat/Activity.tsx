@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { BookOpen, Calculator, CalendarDays, Check, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
+import { BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
 import { Fragment, useState } from "react";
 
 import { CITE_STYLES, cite, citeAll, plainCitation, type CiteStyle } from "../../lib/citations";
@@ -52,6 +52,12 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: CloudSun, text: `Checked the weather for ${arg("place")}` };
     case "write_itinerary":
       return { icon: CalendarDays, text: "Planned each day" };
+    case "write_recipe":
+      return { icon: ChefHat, text: `Wrote the recipe for ${arg("dish")}` };
+    case "recipe_ideas":
+      return { icon: IdeaIcon, text: "Came up with dishes you can make" };
+    case "meal_plan":
+      return { icon: CalendarDays, text: "Planned the meals" };
     default:
       return { icon: CircleCheck, text: s.name };
   }
@@ -71,6 +77,8 @@ export function activitySummary(steps: Step[]): string {
   const tripped = steps.some((s) => s.name === "plan_trip");
   const mapped = steps.some((s) => s.name === "find_places" && s.status === "ok");
   const parts: string[] = [];
+  const cooked = steps.some((s) => ["write_recipe", "recipe_ideas", "meal_plan"].includes(s.name));
+  if (cooked) parts.push("In the kitchen");
   if (tripped) parts.push("Planned the trip");
   else if (mapped) parts.push("Checked the map");
   if (checked) parts.push("Fact-checked");

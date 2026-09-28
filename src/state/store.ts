@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { nextWeb, webState } from "../lib/web";
 import { api, errorText, events, inTauri, type ChatPatch, type CloudTurn } from "../lib/api";
 import { idOf, isImage, listOf, str, titleOf } from "../lib/cloudDocs";
 import { branchAt, switchVersion, versionsAt } from "../lib/branches";
@@ -29,6 +30,9 @@ import type {
   Decision,
   PlacesFound,
   TripPlan,
+  Recipe,
+  RecipeIdeas,
+  MealPlan,
 } from "../lib/types";
 
 /** One tool use shown in the answer's activity list. */
@@ -101,6 +105,10 @@ export interface Message {
   places?: PlacesFound;
   /** A trip plan card. */
   trip?: TripPlan;
+  /** Kitchen cards. */
+  recipe?: Recipe;
+  recipeIdeas?: RecipeIdeas;
+  mealPlan?: MealPlan;
   /** A job this (user) message asked for with a button, e.g. Fact-check. */
   task?: ChatTask;
   /** Thumbs up/down given on the cloud. */
@@ -556,6 +564,21 @@ export const useStore = create<State>((set, get) => {
         case "trip": {
           const { kind: _kind, ...trip } = e;
           patchMessage(convId, reply.id, (m) => ({ ...m, trip }));
+          break;
+        }
+        case "recipe": {
+          const { kind: _kind, ...recipe } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, recipe }));
+          break;
+        }
+        case "recipeIdeas": {
+          const { kind: _kind, ...recipeIdeas } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, recipeIdeas }));
+          break;
+        }
+        case "mealPlan": {
+          const { kind: _kind, ...mealPlan } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, mealPlan }));
           break;
         }
         case "stats": {
@@ -1133,7 +1156,7 @@ export const useStore = create<State>((set, get) => {
 
     toggleWeb() {
       const s = get().settings;
-      if (s) void get().updateSettings({ webSearch: !s.webSearch });
+      if (s) void get().updateSettings(nextWeb(webState(s)));
     },
 
     async stop() {

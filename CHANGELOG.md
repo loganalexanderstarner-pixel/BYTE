@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.4 — Phase 6 improvements: the Kitchen, and Web Auto
+
+- **Web: Off / Auto / Always.** The Web button in the chat box now has three settings. **Auto** (the default)
+  searches when a question needs current or specific information, as before. **Always** searches and reads
+  sources for every real question. **Off** never goes online.
+- **Kitchen.** BYTE cooks like a professional chef teaching a home cook: exact amounts (cups and grams; grams for
+  baking), temperatures in °F and °C, a doneness cue on every step ("golden at the edges, smells nutty"), timers,
+  chef's tips, swaps and storage. Coffee drinks get the dose, ratio, grind, water temperature and brew time.
+  - **"What can I make with eggs, spinach and feta?"**: dish cards to pick from, each saying what else it
+    needs; tap one for the full recipe.
+  - **"How do I make a flat white?" / "Recipe for banana bread"**: a recipe card. With the web on, BYTE reads
+    real recipe pages (their structured recipe data and **photo**) and writes the best version for you, credited.
+    Change the servings and every amount rescales; tick off ingredients (what you have is marked); tap a step's
+    timer.
+  - **"Plan dinners for the week, we have chicken and rice"**: a week card and a grocery list by aisle that
+    leaves out what you have; tap a meal for its recipe; copy the list.
+  - **Recipe box** (📖, top right): **Save recipe** on any card; search and filter by category (coffee, baking,
+    breakfast…); open, copy, save as PDF, delete. "Make my saved lasagne for 8" uses your saved recipe.
+  - Settings → About → Features: turn the Kitchen off to hide it.
+
 ## 0.6.3 — Phase 6 improvements: faster research
 
 - **Searches start sooner.** Deep and Extended research now run your own search while BYTE is still planning

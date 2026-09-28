@@ -15,6 +15,8 @@ export interface Settings {
   density: "comfortable" | "compact";
   showStats: boolean;
   webSearch: boolean;
+  /** With web on: "auto" searches when a question needs it, "always" searches for every real question. */
+  webMode?: WebMode;
   userName: string | null;
   /** The user's town for "near me" questions, e.g. "Pittsburgh, PA". */
   homePlace?: string | null;
@@ -26,6 +28,8 @@ export interface Settings {
   memoryEnabled: boolean;
   /** Knowledge base module ("My files"): index chosen folders and search them in answers. */
   kbEnabled: boolean;
+  /** Kitchen module: recipes, meal plans, the recipe box. */
+  kitchenEnabled?: boolean;
   /** Reuse the answer to a question asked (almost exactly) in the last week. */
   answerCache: boolean;
   /** Models reloaded alongside the main one at launch. */
@@ -354,7 +358,67 @@ export type ChatEvent =
   | { kind: "notice"; text: string }
   | ({ kind: "decision" } & Decision)
   | ({ kind: "places" } & PlacesFound)
-  | ({ kind: "trip" } & TripPlan);
+  | ({ kind: "trip" } & TripPlan)
+  | ({ kind: "recipe" } & Recipe)
+  | ({ kind: "recipeIdeas" } & RecipeIdeas)
+  | ({ kind: "mealPlan" } & MealPlan);
+
+/** A recipe card (Rust `kitchen::Recipe`). */
+export interface Recipe {
+  title: string;
+  description: string;
+  category: string;
+  cuisine: string;
+  servings: number;
+  prepMin: number | null;
+  cookMin: number | null;
+  difficulty: string;
+  equipment: string[];
+  ingredients: Ingredient[];
+  steps: RecipeStep[];
+  tips: string[];
+  substitutions: string[];
+  storage: string;
+  image: string;
+  sourceUrl: string;
+  sourceName: string;
+  emoji: string;
+}
+
+export interface Ingredient {
+  qty: number | null;
+  unit: string;
+  item: string;
+  note: string;
+  have: boolean;
+}
+
+export interface RecipeStep {
+  text: string;
+  minutes: number | null;
+  cue: string;
+}
+
+export interface RecipeIdeas {
+  have: string[];
+  ideas: { title: string; description: string; minutes: number | null; missing: string[]; emoji: string }[];
+}
+
+export interface MealPlan {
+  days: { day: string; meals: { meal: string; title: string; description: string; minutes: number | null; emoji: string }[] }[];
+  grocery: { aisle: string; items: string[] }[];
+  have: string[];
+}
+
+/** A recipe in the recipe box (Rust `kitchen::SavedRecipe`). */
+export interface SavedRecipe {
+  id: number;
+  title: string;
+  category: string;
+  image: string;
+  savedAt: number;
+  recipe: Recipe;
+}
 
 /** A place nearby from OpenStreetMap (Rust `tools::places::Spot`). */
 export interface Spot {
@@ -509,3 +573,6 @@ export interface LocalFile {
   /** The text was read from a scan or photo (text recognition). */
   ocr?: boolean;
 }
+
+/** Web modes shown on the Web pill: off, or on in one of two ways. */
+export type WebMode = "auto" | "always";

@@ -251,6 +251,18 @@ function initScript({ data }) {
             { title: o.sections[2].title, blocks: [ { type: "numbered", items: ["Set up an automatic transfer on payday", "Cut two subscriptions", "Check progress every 3 months"] } ] },
           ] };
         }
+        case "recipes_list":
+          return (data.savedRecipes ?? []).slice();
+        case "recipe_save": {
+          data.savedRecipes = data.savedRecipes ?? [];
+          const id = data.savedRecipes.length + 1;
+          data.savedRecipes.unshift({ id, title: args.recipe.title, category: args.recipe.category, image: args.recipe.image, savedAt: Date.now(), recipe: args.recipe });
+          data.savedRecipes.push({ id: 90, title: "Iced Oat Milk Latte", category: "coffee", image: "", savedAt: Date.now() - 86400000, recipe: { ...args.recipe, title: "Iced Oat Milk Latte", category: "coffee", emoji: "🧋" } });
+          data.savedRecipes.push({ id: 91, title: "Brown Butter Chocolate Chip Cookies", category: "baking", image: "", savedAt: Date.now() - 2 * 86400000, recipe: { ...args.recipe, title: "Brown Butter Chocolate Chip Cookies", category: "baking", emoji: "🍪" } });
+          return id;
+        }
+        case "recipe_delete":
+          return null;
         case "doc_save":
           return null;
         case "kb_status":
@@ -307,6 +319,60 @@ function initScript({ data }) {
             if (args.request.cloud.mode === "keep-streaming") return null;
             send({ kind: "stats", promptTokens: 0, completionTokens: 60, tokensPerSecond: 41.2, promptMs: 0, totalMs: 3100, thinkingMs: 0, draftTokens: 0, draftAccepted: 0 });
             send({ kind: "remote", conversationId: "42", messageId: "421", userMessageId: null });
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
+          if (data.kitchen) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            const q = args.request.messages[args.request.messages.length - 1].content.toLowerCase();
+            if (q.includes("what can i make")) {
+              send({ kind: "toolCall", id: "k0", name: "recipe_ideas", args: { have: ["eggs", "spinach", "feta"] } }); await wait(10);
+              send({ kind: "toolResult", id: "k0", ok: true, summary: "4 ideas" });
+              send({ kind: "recipeIdeas", have: ["eggs", "spinach", "feta"], ideas: [
+                { title: "Spinach & Feta Frittata", description: "Custardy eggs baked with wilted spinach and salty feta.", minutes: 25, missing: [], emoji: "🍳" },
+                { title: "Shakshuka with Feta", description: "Eggs poached in spiced tomato sauce, finished with feta.", minutes: 30, missing: ["canned tomatoes", "onion"], emoji: "🍅" },
+                { title: "Spanakopita Hand Pies", description: "Flaky phyllo parcels of spinach and feta.", minutes: 45, missing: ["phyllo dough"], emoji: "🥟" },
+                { title: "Greek Egg Scramble", description: "Soft scrambled eggs with spinach, feta and dill.", minutes: 10, missing: [], emoji: "🥚" },
+              ]});
+              send({ kind: "content", delta: "I'd go with the **frittata**: it uses all three and looks impressive with almost no effort. Tap a card for the full recipe." });
+            } else if (q.includes("plan")) {
+              send({ kind: "toolCall", id: "k1", name: "meal_plan", args: { days: 5 } }); await wait(10);
+              send({ kind: "toolResult", id: "k1", ok: true, summary: "5 days, 5 meals" });
+              const d = (day, title, minutes, emoji) => ({ day, meals: [{ meal: "Dinner", title, description: "", minutes, emoji }] });
+              send({ kind: "mealPlan", have: ["chicken thighs", "rice"], days: [d("Monday", "Honey-garlic chicken & rice", 35, "🍗"), d("Tuesday", "Beef & broccoli stir-fry", 25, "🥦"), d("Wednesday", "Sheet-pan salmon & potatoes", 30, "🐟"), d("Thursday", "Chicken fried rice", 20, "🍳"), d("Friday", "Homemade margherita pizza", 40, "🍕")],
+                grocery: [{ aisle: "Produce", items: ["2 heads broccoli", "1 lb baby potatoes", "1 head garlic", "Fresh basil"] }, { aisle: "Meat & fish", items: ["1 lb flank steak", "2 salmon fillets"] }, { aisle: "Dairy & eggs", items: ["8 oz fresh mozzarella", "6 eggs"] }, { aisle: "Pantry", items: ["Honey", "Soy sauce", "Pizza dough"] }] });
+              send({ kind: "content", delta: "Tuesday and Thursday are the fastest nights. **Prep tip:** cook a double batch of rice on Monday; day-old rice makes the best fried rice on Thursday." });
+            } else {
+              send({ kind: "toolCall", id: "k2", name: "web_search", args: { query: "spinach feta frittata recipe" } }); await wait(10);
+              send({ kind: "toolResult", id: "k2", ok: true, summary: "8 results" });
+              send({ kind: "toolCall", id: "k3", name: "read_page", args: { url: "https://www.bbcgoodfood.com/recipes/spinach-feta-frittata" } }); await wait(10);
+              send({ kind: "toolResult", id: "k3", ok: true, summary: "recipe: Spinach & feta frittata" });
+              send({ kind: "toolCall", id: "k4", name: "write_recipe", args: { dish: "spinach feta frittata" } }); await wait(10);
+              send({ kind: "toolResult", id: "k4", ok: true, summary: "6 ingredients, 5 steps" });
+              send({ kind: "sources", sources: [{ n: 1, title: "Spinach & feta frittata", url: "https://www.bbcgoodfood.com/recipes/spinach-feta-frittata", snippet: "", read: true }] });
+              send({ kind: "recipe", ...{ title: "Spinach & Feta Frittata", description: "Custardy in the middle, golden on top, and on the table in 25 minutes.", category: "breakfast", cuisine: "Greek", servings: 4, prepMin: 10, cookMin: 15, difficulty: "Easy",
+  equipment: ["10-inch oven-safe nonstick skillet", "Whisk"],
+  ingredients: [
+    { qty: 8, unit: "", item: "large eggs", note: "room temperature", have: true },
+    { qty: 0.33, unit: "cup", item: "whole milk", note: "80 ml", have: false },
+    { qty: 1, unit: "tbsp", item: "olive oil", note: "15 ml", have: false },
+    { qty: 5, unit: "oz", item: "baby spinach", note: "140 g", have: true },
+    { qty: 0.75, unit: "cup", item: "crumbled feta", note: "100 g", have: true },
+    { qty: 0.5, unit: "tsp", item: "kosher salt", note: "", have: false },
+  ],
+  steps: [
+    { text: "Heat the oven to 400°F (200°C) with a rack in the upper third.", minutes: null, cue: "" },
+    { text: "Whisk the eggs, milk and salt until no streaks of white remain.", minutes: 1, cue: "Evenly pale yellow and a little frothy" },
+    { text: "Warm the oil over medium heat and wilt the spinach, stirring.", minutes: 2, cue: "Bright green and collapsed; no water pooling" },
+    { text: "Pour in the eggs, scatter the feta, and cook without stirring until the edges set.", minutes: 3, cue: "Edges pale and firm, center still liquid" },
+    { text: "Bake until just set, then rest in the pan.", minutes: 10, cue: "The center jiggles only slightly when you shake the pan" },
+  ],
+  tips: ["Take it out while the middle still wobbles: it finishes cooking as it rests.", "Squeeze the wilted spinach dry or the frittata turns watery."],
+  substitutions: ["Goat cheese or ricotta for feta", "Kale for spinach (cook 2 minutes longer)"],
+  storage: "Covered in the fridge up to 3 days; eat cold or reheat gently.",
+  image: "", sourceUrl: "https://www.bbcgoodfood.com/recipes/spinach-feta-frittata", sourceName: "bbcgoodfood.com", emoji: "🍳" } });
+              send({ kind: "content", delta: "This version adds a splash of milk for a softer set and starts it on the stove so the bottom browns [1]. The one thing to get right: **pull it while the center still wobbles**. Serve with a lemony arugula salad." });
+            }
             send({ kind: "done", finishReason: "stop" });
             return null;
           }
@@ -857,6 +923,39 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".trip-packing input").first().check();
   await shot(p, "18d-trip-packing");
   console.log("trip errors:", errors);
+  await ctx.close();
+}
+// Kitchen: ideas, a recipe card, a meal plan, the recipe box; the web pill
+{
+  const { p, ctx, errors } = await page(true, "midnight", { kitchen: true });
+  await p.getByLabel("Message BYTE").fill("What can I make with eggs, spinach and feta?");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(700);
+  await p.locator(".ideas").scrollIntoViewIfNeeded();
+  await shot(p, "19-kitchen-ideas");
+  await p.locator(".idea-card").first().click();
+  await p.waitForTimeout(900);
+  await p.locator(".recipe").last().scrollIntoViewIfNeeded();
+  await shot(p, "19b-recipe-card");
+  await p.locator(".recipe").last().evaluate((el) => el.scrollIntoView({ block: "end" }));
+  await p.locator(".step-timer").first().click();
+  await p.waitForTimeout(1100);
+  await shot(p, "19c-recipe-steps");
+  await p.getByRole("button", { name: /Save recipe/ }).last().click();
+  await p.waitForTimeout(200);
+  await p.getByLabel("Message BYTE").fill("Plan dinners for 5 weekdays, we have chicken thighs and rice");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(800);
+  await p.locator(".mealplan").scrollIntoViewIfNeeded();
+  await shot(p, "19d-meal-plan");
+  await p.getByTitle(/Recipe box/).click();
+  await p.waitForTimeout(400);
+  await shot(p, "19e-recipe-box");
+  await p.keyboard.press("Escape");
+  await p.getByRole("button", { name: /Web/ }).first().click();
+  await p.waitForTimeout(200);
+  await p.locator(".composer").screenshot({ path: `${OUT}/19f-web-always.png` });
+  console.log("kitchen errors:", errors);
   await ctx.close();
 }
 // A model that didn't load: what's using memory, with Quit buttons

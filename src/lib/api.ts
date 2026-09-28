@@ -33,6 +33,8 @@ import type {
   Tuning,
   WireMessage,
   ChatTask,
+  Recipe,
+  SavedRecipe,
 } from "./types";
 
 /** True when running inside the Tauri shell (false in a plain browser tab). */
@@ -133,6 +135,9 @@ export const api = {
     return invoke<DocSpec>("doc_write", { request, onEvent: channel });
   },
   docSave: (path: string, data: string) => invoke<void>("doc_save", { path, data }),
+  recipesList: (query?: string) => invoke<SavedRecipe[]>("recipes_list", { query: query ?? null }),
+  recipeSave: (recipe: Recipe) => invoke<number>("recipe_save", { recipe }),
+  recipeDelete: (id: number) => invoke<void>("recipe_delete", { id }),
   /** Saves an .ics file and opens it in the calendar app. */
   calendarOpen: (path: string, data: string) => invoke<void>("calendar_open", { path, data }),
 

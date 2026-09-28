@@ -99,6 +99,10 @@ pub struct Settings {
     pub show_stats: bool,
     /// Let BYTE search and read the web when a question needs it.
     pub web_search: bool,
+    /// With web on: "auto" (search when a question needs it) or "always"
+    /// (search for every real question).
+    #[serde(default = "default_web_mode")]
+    pub web_mode: String,
     /// What BYTE calls the user (asked during setup).
     pub user_name: Option<String>,
     /// The user's town, for "near me" questions ("Pittsburgh, PA"). Never guessed.
@@ -116,6 +120,9 @@ pub struct Settings {
     /// Knowledge base module: index the chosen folders and let BYTE search
     /// them ("My files" in the chat box). Off = no indexing, no tool.
     pub kb_enabled: bool,
+    /// Kitchen module: recipes, meal plans and the recipe box.
+    #[serde(default = "yes")]
+    pub kitchen_enabled: bool,
     /// Reuse the answer to a question asked (almost exactly) in the last week
     /// (needs the search-by-meaning model; see answer_cache.rs).
     pub answer_cache: bool,
@@ -156,6 +163,7 @@ impl Default for Settings {
             density: "comfortable".into(),
             show_stats: true,
             web_search: true,
+            web_mode: default_web_mode(),
             user_name: None,
             home_place: None,
             research_depth: 0,
@@ -163,6 +171,7 @@ impl Default for Settings {
             about_me: None,
             memory_enabled: true,
             kb_enabled: true,
+            kitchen_enabled: true,
             answer_cache: true,
             loaded_alongside: Vec::new(),
             speed_boost: true,
@@ -213,6 +222,15 @@ impl Settings {
         }
         Ok(next)
     }
+}
+
+
+fn yes() -> bool {
+    true
+}
+
+fn default_web_mode() -> String {
+    "auto".into()
 }
 
 #[cfg(test)]

@@ -111,6 +111,12 @@ pub enum ChatEvent {
     Places(crate::tools::PlacesFound),
     /// A trip plan (trip.rs), shown as an itinerary card.
     Trip(crate::trip::TripPlan),
+    /// A recipe card (kitchen.rs).
+    Recipe(crate::kitchen::Recipe),
+    /// Dishes to choose from ("what can I make with…").
+    RecipeIdeas(crate::kitchen::RecipeIdeas),
+    /// A meal plan with a grocery list.
+    MealPlan(crate::kitchen::MealPlan),
 }
 
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]

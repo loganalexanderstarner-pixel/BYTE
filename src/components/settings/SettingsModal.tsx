@@ -675,6 +675,16 @@ function AboutTab() {
           />
         </div>
       </div>
+      <div className="section">
+        <h4>Features</h4>
+        <label className="field">
+          <span>
+            Kitchen
+            <small>Recipes, “what can I make with…”, weekly meal plans and your recipe box (📖). Turn off to hide it.</small>
+          </span>
+          <input type="checkbox" checked={settings?.kitchenEnabled ?? true} onChange={(e) => void update({ kitchenEnabled: e.target.checked })} />
+        </label>
+      </div>
       <ProfilesSection />
       <div className="section">
         <h4>Privacy</h4>

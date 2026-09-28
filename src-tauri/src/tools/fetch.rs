@@ -33,6 +33,32 @@ pub async fn fetch_page(client: &reqwest::Client, raw_url: &str) -> AppResult<Pa
     if let Some(p) = cache_get(url.as_str()).await {
         return Ok(p);
     }
+    let (final_url, body, html_like) = fetch_body(client, url.as_str()).await?;
+    let page = page_from(&final_url, &body, html_like)?;
+    cache_put(url.as_str(), page.clone()).await;
+    Ok(page)
+}
+
+/// A page and its raw HTML (for structured data such as recipes). Not cached.
+pub async fn fetch_html(client: &reqwest::Client, raw_url: &str) -> AppResult<(Page, String)> {
+    let (final_url, body, html_like) = fetch_body(client, raw_url).await?;
+    let page = page_from(&final_url, &body, html_like)?;
+    Ok((page, if html_like { body } else { String::new() }))
+}
+
+fn page_from(final_url: &url::Url, body: &str, html_like: bool) -> AppResult<Page> {
+    let page = if html_like { extract(body, final_url.as_str()) } else { Page { url: final_url.to_string(), title: final_url.to_string(), text: body.to_string() } };
+    // Pages that are an app shell (their content arrives by JavaScript) leave
+    // almost no text; treat them as unreadable so another result is read instead.
+    if page.text.trim().len() < 300 {
+        return Err(AppError::msg("couldn't find readable text on that page"));
+    }
+    Ok(page)
+}
+
+/// Downloads a public page: (final address, body text, whether it's HTML).
+async fn fetch_body(client: &reqwest::Client, raw_url: &str) -> AppResult<(url::Url, String, bool)> {
+    let url = check_url(raw_url).await?;
     let resp = client
         .get(url.clone())
         .header(reqwest::header::USER_AGENT, BROWSER_UA)
@@ -68,19 +94,8 @@ pub async fn fetch_page(client: &reqwest::Client, raw_url: &str) -> AppResult<Pa
             break;
         }
     }
-    let html = String::from_utf8_lossy(&body).into_owned();
-    let page = if ctype.contains("html") || ctype.is_empty() {
-        extract(&html, final_url.as_str())
-    } else {
-        Page { url: final_url.to_string(), title: final_url.to_string(), text: html }
-    };
-    // Pages that are an app shell (their content arrives by JavaScript) leave
-    // almost no text; treat them as unreadable so another result is read instead.
-    if page.text.trim().len() < 300 {
-        return Err(AppError::msg("couldn't find readable text on that page"));
-    }
-    cache_put(url.as_str(), page.clone()).await;
-    Ok(page)
+    let html_like = ctype.contains("html") || ctype.is_empty();
+    Ok((final_url, String::from_utf8_lossy(&body).into_owned(), html_like))
 }
 
 /// Sites whose pages can't be read without signing in or running their app

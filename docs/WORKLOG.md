@@ -17,6 +17,32 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (this commit) — v0.6.4: the Kitchen (recipes, meal plans, recipe box) and Web Off/Auto/Always
+- **Why:** owner: "Web should have a auto mode not just on or off"; and weekly meal planning from ingredients on
+  hand, with pictures, recipes, coffee and baking, saving picks, "a professional chef… using my hands", searching
+  the web when it's on. The original plan's opt-in "Recipes & meal planning" module (K), brought forward.
+- **What:**
+  - Web mode: `settings.web_mode` ("auto" | "always", serde default auto) beside `web_search` (on/off, so old
+    settings still work); `router::wants_web_in(q, always)`, `Turn.web_always`, `research::applies(…, always, …)`;
+    UI `lib/web.ts` (Off → Auto → Always pill), `Composer.tsx`, store `toggleWeb`.
+  - `src-tauri/src/kitchen.rs` (new): `kitchen_ask` (recipe / ideas / plan), `CHEF` rules, `recipe_ld` (schema.org
+    Recipe JSON-LD: @graph, lists, HowToSection, image shapes, ISO durations), web path via
+    `fetch::fetch_html` (new; `fetch_page` refactored onto `fetch_body`), `parse_recipe/ideas/plan` (cleaned,
+    "you have" marks, pantry left off grocery lists), `ChatEvent::{Recipe, RecipeIdeas, MealPlan}`, recipe box
+    (`recipes_list/save/delete`, DB schema v6 `recipes`), "my saved …" lookup. `settings.kitchen_enabled`.
+    Routed in `agent::run` after fact-check, before trips.
+  - UI: `components/kitchen/{RecipeCard,KitchenCards,RecipeBox}.tsx` (servings scaler, ingredient checklist,
+    step timers, Save / Copy / PDF; idea cards → full recipe; week card + grocery list; 📖 recipe box),
+    `lib/recipe.ts` (fractions, scaling, text, DocSpec) + tests, Activity labels, Settings → About → Features.
+  - Version 0.6.4, `docs/releases/v0.6.4.md`, VERSIONS (YouTube → v0.6.5, web agent → v0.6.6), CHANGELOG, HANDOFF,
+    PROJECT_GUIDE; screenshots 19-*.
+- **Verify:** `scripts/check-all.sh` (212 Rust incl. kitchen parsing, JSON-LD fixture, recipe box DB; 98 vitest).
+  `BYTE_TEST_WEB=1 cargo test live_recipe_page -- --ignored` (BBC Good Food: photo, 9 ingredients, 9 steps).
+  Real engine `cargo test e2e_kitchen -- --ignored`: ideas (26 s), recipe (47 s), 3-day plan (23 s) cards all
+  produced; the 0.6B test model's recipe content is poor (it called a flat white a cocktail); real use needs the
+  8B+ models BYTE recommends.
+- **Undo:** revert (DB v6 only adds a table). Turn the Kitchen off in Settings to hide it.
+
 ### (this commit) — v0.6.3: faster research, fewer self-imposed limits
 - **Why:** owner: "how can we unthrottle stuff for free to make it quicker… remove limits", with nothing that needs
   their time or the cluster.

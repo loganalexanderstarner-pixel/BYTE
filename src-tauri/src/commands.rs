@@ -92,6 +92,23 @@ pub async fn calendar_open(app: tauri::AppHandle, path: String, data: String) ->
     app.opener().open_path(&path, None::<&str>).map_err(|e| AppError::msg(format!("couldn't open the calendar file: {e}")))
 }
 
+// ---------- recipe box (kitchen.rs) ----------
+
+#[tauri::command]
+pub async fn recipes_list(state: State<'_, AppState>, query: Option<String>) -> AppResult<Vec<crate::kitchen::SavedRecipe>> {
+    crate::kitchen::recipes_list(&state.db, query.as_deref())
+}
+
+#[tauri::command]
+pub async fn recipe_save(state: State<'_, AppState>, recipe: serde_json::Value) -> AppResult<i64> {
+    crate::kitchen::recipe_save(&state.db, &recipe)
+}
+
+#[tauri::command]
+pub async fn recipe_delete(state: State<'_, AppState>, id: i64) -> AppResult<()> {
+    crate::kitchen::recipe_delete(&state.db, id)
+}
+
 // ---------- knowledge base (kb.rs) ----------
 
 /// The knowledge base at a glance: folders, and the search model's state.

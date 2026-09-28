@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 5;
+const SCHEMA_VERSION: i32 = 6;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -577,7 +577,25 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 5);
+    if version < 6 {
+        // The recipe box (kitchen.rs): saved recipes as JSON.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE recipes (
+                 id INTEGER PRIMARY KEY,
+                 title TEXT NOT NULL,
+                 category TEXT NOT NULL DEFAULT '',
+                 image TEXT NOT NULL DEFAULT '',
+                 source_url TEXT NOT NULL DEFAULT '',
+                 data TEXT NOT NULL,
+                 saved_at INTEGER NOT NULL
+             );
+             CREATE INDEX recipes_by_time ON recipes(saved_at);
+             PRAGMA user_version = 6;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 6);
     Ok(())
 }
 

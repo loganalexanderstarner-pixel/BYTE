@@ -1,10 +1,11 @@
-import { FileText, PanelLeft, Settings as SettingsIcon, SquarePen } from "lucide-react";
+import { BookOpen, FileText, PanelLeft, Settings as SettingsIcon, SquarePen } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ChatView } from "../components/chat/ChatView";
 import { Composer } from "../components/chat/Composer";
 import { EngineBadge } from "../components/EngineBadge";
 import { DocumentsPanel } from "../components/documents/DocumentsPanel";
+import { RecipeBox } from "../components/kitchen/RecipeBox";
 import { Reader } from "../components/reader/Reader";
 import { SettingsModal } from "../components/settings/SettingsModal";
 import { Sidebar } from "../components/Sidebar";
@@ -17,6 +18,8 @@ export function Shell() {
   const openSettings = useStore((s) => s.openSettings);
   const cloudConnected = useStore((s) => !!s.settings?.cloudConnected);
   const [docsOpen, setDocsOpen] = useState(false);
+  const [recipesOpen, setRecipesOpen] = useState(false);
+  const kitchenOn = useStore((s) => s.settings?.kitchenEnabled ?? true);
   const settingsTab = useStore((s) => s.settingsTab);
   const stop = useStore((s) => s.stop);
   const reading = useStore((s) => !!s.reader);
@@ -67,6 +70,11 @@ export function Shell() {
             >
               <FileText size={18} />
             </button>
+            {kitchenOn && (
+              <button className="icon-btn" onClick={() => setRecipesOpen(true)} title="Recipe box: your saved recipes">
+                <BookOpen size={18} />
+              </button>
+            )}
             <button className="icon-btn" onClick={() => openSettings("models")} title="Settings (⌘,)">
               <SettingsIcon size={18} />
             </button>
@@ -78,6 +86,7 @@ export function Shell() {
       {reading && <Reader />}
       {settingsTab && <SettingsModal />}
       {docsOpen && <DocumentsPanel onClose={() => setDocsOpen(false)} />}
+      {recipesOpen && <RecipeBox onClose={() => setRecipesOpen(false)} />}
     </div>
   );
 }

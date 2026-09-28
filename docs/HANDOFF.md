@@ -405,7 +405,12 @@ Open-Meteo archive) → research + sights → `TripPlan` JSON → `Trip.tsx`, `l
 needs them or the cluster):** per-engine pacing (only DuckDuckGo/Bing scraping), `tools/cache.rs` memory caches
 (searches 1 h, papers 24 h, places 1 h), the user's search overlaps the planning call, `settings.researchDepth`
 (Normal/More/Max → `research::depth_at`, `batch`, `scale_pages`). Free keys (OpenAlex/Semantic Scholar) and self-hosted
-Open-Meteo/Overpass on the cluster were offered and declined for now. **Next:** v0.6.4 YouTube, v0.6.5 web agent; self-check / best-of-3 / quote finder with fact-check.
+Open-Meteo/Overpass on the cluster were offered and declined for now. **Done in v0.6.4 (owner requests):** Web
+Off/Auto/Always (`settings.webMode` beside `webSearch`; `router::wants_web_in`, `Turn.web_always`, `lib/web.ts`) and the
+Kitchen module brought forward from K (`kitchen.rs`: `kitchen_ask`, chef rules, JSON-LD recipe reading via
+`fetch::fetch_html` + `recipe_ld`, recipe/ideas/meal-plan cards, recipe box = DB v6 `recipes`; UI
+`components/kitchen/*`, `lib/recipe.ts`; `settings.kitchenEnabled`). Generated food photos wait for image generation.
+**Next:** v0.6.5 YouTube, v0.6.6 web agent; self-check / best-of-3 / quote finder with fact-check.
 1. **Deep / Extended pipelines** (`research.rs`): plan 3–6 sub-questions → parallel searches → fetch up to
    15 (Deep) / 30 (Extended) pages, 6 at a time → embedding-rank passages → cited report; Extended adds a gap
    review, follow-up searches and a rewrite into a sectioned report. Progress steps shown live; cancel anytime.

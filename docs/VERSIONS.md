@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.6.3** | Phase 6 improvements | Faster research (searches start sooner, no needless pauses, reuse of recent searches) and a research depth setting | Quicker, deeper research |
+| **v0.6.4** | Phase 6 improvements | Kitchen (recipes with photos and timers, "what can I make", weekly meal plans, recipe box) and Web Off/Auto/Always | Cooking and meal planning |
+| v0.6.3 | Phase 6 improvements | Faster research (searches start sooner, no needless pauses, reuse of recent searches) and a research depth setting | Quicker, deeper research |
 | v0.6.2 | Phase 6 improvements | Places nearby (OpenStreetMap cards, open-now) and a trip planner (day plans, budget, packing, PDF, calendar) | Travel and local help |
 | v0.6.1 | Phase 6 improvements | Fact-check (verdict per claim with the exact quote) and compare & decide (score table with weight sliders) | Checking claims, choosing between options |
 | v0.6.0 | Phase 6 · Deep research | Deep/Extended research (many searches, many pages, ranked passages), research papers, confidence line, citation styles | Thorough, cited answers |
@@ -45,8 +46,8 @@ which download is which. Their files and notes are unchanged.
 
 | Version | Phase |
 |---|---|
-| v0.6.4 | YouTube summaries |
-| v0.6.5 | Web agent |
+| v0.6.5 | YouTube summaries |
+| v0.6.6 | Web agent |
 | v0.7.0 | Writing & learning |
 | v0.8.0 | Speed |
 | v0.9.0 | Mac control |

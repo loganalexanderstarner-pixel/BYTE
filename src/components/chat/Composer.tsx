@@ -4,6 +4,7 @@ import { ArrowUp, Brain, Cloud, FolderSearch, Images, Loader2, Paperclip, Column
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { api, inTauri } from "../../lib/api";
+import { WEB_HINT, WEB_LABEL, webState } from "../../lib/web";
 import { budgetSummary } from "../../lib/cloudDocs";
 import { displayName } from "../../lib/models";
 import { AttachmentChips, LibraryPicker, LocalFileChips } from "./Attachments";
@@ -51,7 +52,8 @@ export function Composer() {
   const setThinking = useStore((s) => s.setThinking);
   const openSettings = useStore((s) => s.openSettings);
   const currentId = useStore((s) => s.currentId);
-  const web = useStore((s) => s.settings?.webSearch ?? true);
+  const webMode = useStore((s) => webState(s.settings));
+  const web = webMode !== "off";
   const toggleWeb = useStore((s) => s.toggleWeb);
   const toggleFiles = useStore((s) => s.toggleFiles);
   const hasFiles = useStore((s) => (s.kb?.sources ?? []).some((x) => x.chunks > 0));
@@ -333,10 +335,10 @@ export function Composer() {
               style={{ cursor: "pointer", height: 30 }}
               onClick={toggleWeb}
               aria-pressed={web}
-              title={web ? "Web search is on: BYTE searches when a question needs current information" : "Web search is off: BYTE answers from what it already knows"}
+              title={WEB_HINT[webMode]}
             >
               <Globe size={14} />
-              {web ? "Web" : "Web off"}
+              {WEB_LABEL[webMode]}
             </button>
           )}
           {onLocal && hasFiles && (

@@ -10,6 +10,7 @@ mod decide;
 mod docs;
 mod embed;
 mod kb;
+mod kitchen;
 mod engine;
 mod export;
 mod factcheck;
@@ -153,6 +154,9 @@ pub fn run() {
             commands::doc_write,
             commands::doc_save,
             commands::calendar_open,
+            commands::recipes_list,
+            commands::recipe_save,
+            commands::recipe_delete,
             commands::app_quit,
             commands::settings_get,
             commands::settings_update,

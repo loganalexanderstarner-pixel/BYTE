@@ -251,6 +251,19 @@ pub fn wants_compare(message: &str) -> bool {
         || ((m.contains("should i") || m.contains("which")) && m.contains(" or "))
 }
 
+/// `wants_web`, or with Web "Always" any real question (not small talk,
+/// rewrites, pasted code or a plain sum).
+pub fn wants_web_in(message: &str, always: bool) -> bool {
+    if wants_web(message) {
+        return true;
+    }
+    if !always || effort(message) == Effort::Trivial {
+        return false;
+    }
+    let m = message.trim();
+    !m.contains("```") && m.lines().count() <= 12
+}
+
 /// True when BYTE should search the web before the model answers. Answer
 /// quality comes first: small local models often answer from (stale or
 /// wrong) memory instead of choosing to search, so BYTE searches itself for
@@ -498,6 +511,16 @@ fn percent_of(message: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn web_always_searches_more() {
+        let q = "I'm thinking about switching to a standing desk at work";
+        assert!(!wants_web_in(q, false));
+        assert!(wants_web_in(q, true));
+        assert!(!wants_web_in("thanks!", true));
+        assert!(!wants_web_in("```rust\nfn main() {}\n```\nwhat does this do", true));
+        assert!(wants_web_in("Who won the Super Bowl?", false));
+    }
 
     #[test]
     fn places_questions_are_understood() {

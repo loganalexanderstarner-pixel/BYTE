@@ -86,10 +86,10 @@ source, or most agree) or Unsure (thin or conflicting sources), and a short reas
 pub(crate) type Emit<'a> = &'a (dyn Fn(ChatEvent) -> AppResult<()> + Sync);
 
 /// Whether this question gets the research pipeline in `mode`.
-pub fn applies(mode: Mode, web: bool, question: &str) -> bool {
+pub fn applies(mode: Mode, web: bool, always: bool, question: &str) -> bool {
     web && depth(mode).is_some()
         && !crate::router::wants_files(question)
-        && (crate::router::wants_web(question) || crate::router::wants_papers(question))
+        && (crate::router::wants_web_in(question, always) || crate::router::wants_papers(question))
 }
 
 // ---------- planning ----------
@@ -636,11 +636,15 @@ mod tests {
         assert!(depth(Mode::Auto).is_none() && depth(Mode::Fast).is_none());
         let (d, e) = (depth(Mode::Deep).unwrap(), depth(Mode::Extended).unwrap());
         assert!(e.pages > d.pages && e.searches > d.searches && e.gap_rounds > d.gap_rounds);
-        assert!(applies(Mode::Deep, true, "What does research say about intermittent fasting?"));
-        assert!(!applies(Mode::Deep, false, "What does research say about intermittent fasting?"));
-        assert!(!applies(Mode::Auto, true, "What does research say about intermittent fasting?"));
-        assert!(!applies(Mode::Deep, true, "thanks!"));
-        assert!(!applies(Mode::Deep, true, "What does my lease say about pets?"));
+        assert!(applies(Mode::Deep, true, false, "What does research say about intermittent fasting?"));
+        assert!(!applies(Mode::Deep, false, false, "What does research say about intermittent fasting?"));
+        assert!(!applies(Mode::Auto, true, false, "What does research say about intermittent fasting?"));
+        assert!(!applies(Mode::Deep, true, false, "thanks!"));
+        // Always: research even what doesn't look like it needs the web; still not small talk.
+        assert!(!applies(Mode::Deep, true, false, "I'm thinking about switching to a standing desk at work"));
+        assert!(applies(Mode::Deep, true, true, "I'm thinking about switching to a standing desk at work"));
+        assert!(!applies(Mode::Deep, true, true, "thanks!"));
+        assert!(!applies(Mode::Deep, true, false, "What does my lease say about pets?"));
     }
 
     #[test]
@@ -729,7 +733,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Deep, true, None);
         let plan = crate::router::plan_turn(Mode::Deep, crate::settings::ThinkingPref::Off, &q);
         let (ch, seen) = crate::chat::e2e_support::collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Deep, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0 };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Deep, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false };
         let t = std::time::Instant::now();
         crate::agent::run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
