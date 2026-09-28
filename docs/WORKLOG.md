@@ -17,6 +17,31 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### 902024a — Phase 4: knowledge base, search by meaning, "My files", reader view
+- **Why:** Phase 4 items 3–7 (owner: "keep going with phase 4"): BYTE should answer from the user's own folders
+  and cite them.
+- **What:**
+  - `src-tauri/src/embed.rs` (new): `Embedder` (own `Engine::helper`, `embed.pid`), `embed()` with nomic
+    prefixes, normalization, byte packing, cosine; idle stop after 5 min. `engine.rs`: `LaunchOpts.embedding`
+    (`--embedding --pooling mean`, FA auto, f16 cache, chat flags removed, no warm-up), `Engine::helper`.
+  - `src-tauri/src/kb.rs` (new) + `db.rs` schema v4 (`kb_sources`, `kb_files`, `kb_chunks`, `kb_fts`;
+    `Db::conn` now `pub(crate)`): walker, `chunk`, `rrf`, `fts_query`, store/delete files, `index`,
+    `embed_pending`, `search`, `schedule` (launch + every 15 min).
+  - `commands.rs`: `kb_status`, `kb_add`, `kb_remove`, `kb_reindex`, `kb_search`. `settings.rs`: `kb_enabled`.
+    `state.rs`: `embedder`, `app` (OnceLock<AppHandle>). `lib.rs`: modules, reaping/killing `embed.pid`.
+  - `tools/mod.rs`: `SEARCH_FILES` tool, `file_url`, `specs(web, memory, files)`, `ToolContext.files`.
+    `agent.rs`: `Turn.files`, forced first file search (`router::wants_files`). `backend.rs`: files when
+    `kb_enabled` and passages exist. `fetch::worth_reading` only http(s).
+  - UI: `settings/KnowledgeTab.tsx`, `reader/Reader.tsx`, `lib/reader.ts` (+ test), store (`kb`,
+    `kbProgress`, `refreshKb`, `toggleFiles`, `reader`), Composer "My files" pill + wrapping bar, Activity
+    labels + file sources open the reader, sent-file chips open the reader.
+  - `mac-engine.yml`: embedding model download + `BYTE_TEST_EMBED_MODEL`; paths. Screenshots `14-*`.
+- **Verify:** `scripts/check-all.sh`; `cargo test kb::` and `BYTE_TEST_LLAMA_SERVER=… BYTE_TEST_EMBED_MODEL=…
+  cargo test e2e_embeddings -- --ignored`; screenshots 14, 14a–c. On a Mac: Settings → Knowledge base → Add
+  folder, download "search by meaning", ask "what does my … say about …".
+- **Undo:** `git revert 902024a` (schema v4 tables stay in existing databases, unused; harmless). To switch the
+  feature off without reverting: `kbEnabled: false` in settings.
+
 ### 9b50c29 — Phase 4: read scanned PDFs and text in photos (Apple Vision)
 - **Why:** Phase 4 item 2: scans had "no readable text"; photos of documents only helped models that can see.
 - **What:** `src-tauri/src/ocr.rs` (new; `objc2-vision`, `objc2-pdf-kit`, `objc2-app-kit`, `objc2-foundation`
