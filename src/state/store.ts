@@ -33,6 +33,7 @@ import type {
   Recipe,
   RecipeIdeas,
   MealPlan,
+  VideoCard,
 } from "../lib/types";
 
 /** One tool use shown in the answer's activity list. */
@@ -109,6 +110,8 @@ export interface Message {
   recipe?: Recipe;
   recipeIdeas?: RecipeIdeas;
   mealPlan?: MealPlan;
+  /** A YouTube video summary card. */
+  video?: VideoCard;
   /** A job this (user) message asked for with a button, e.g. Fact-check. */
   task?: ChatTask;
   /** Thumbs up/down given on the cloud. */
@@ -579,6 +582,11 @@ export const useStore = create<State>((set, get) => {
         case "mealPlan": {
           const { kind: _kind, ...mealPlan } = e;
           patchMessage(convId, reply.id, (m) => ({ ...m, mealPlan }));
+          break;
+        }
+        case "video": {
+          const { kind: _kind, ...video } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, video }));
           break;
         }
         case "stats": {

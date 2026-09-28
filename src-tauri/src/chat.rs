@@ -117,6 +117,8 @@ pub enum ChatEvent {
     RecipeIdeas(crate::kitchen::RecipeIdeas),
     /// A meal plan with a grocery list.
     MealPlan(crate::kitchen::MealPlan),
+    /// A YouTube video's summary card (youtube.rs).
+    Video(crate::youtube::VideoCard),
 }
 
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]

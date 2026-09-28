@@ -410,7 +410,11 @@ Off/Auto/Always (`settings.webMode` beside `webSearch`; `router::wants_web_in`, 
 Kitchen module brought forward from K (`kitchen.rs`: `kitchen_ask`, chef rules, JSON-LD recipe reading via
 `fetch::fetch_html` + `recipe_ld`, recipe/ideas/meal-plan cards, recipe box = DB v6 `recipes`; UI
 `components/kitchen/*`, `lib/recipe.ts`; `settings.kitchenEnabled`). Generated food photos wait for image generation.
-**Next:** v0.6.5 YouTube, v0.6.6 web agent; self-check / best-of-3 / quote finder with fact-check.
+**Done in v0.6.5:** item 6 without video-to-slides (`youtube.rs`: `video_id`, innertube player (ANDROID → IOS → WEB
+clients), `pick_track`, `parse_timedtext` (format 3 with `<s>`, legacy `<text>`), transcripts cached 24 h, summary
+(one pass or map-reduce by part) → `ChatEvent::Video`, Q&A via `research::rank_texts` over 90 s blocks, follow-ups
+find the link in the last 3 questions; UI `VideoCard.tsx`, `lib/video.ts`). No-captions fallback (yt-dlp + whisper)
+waits for Phase 11's voice model. **Next:** v0.6.6 web agent; self-check / best-of-3 / quote finder with fact-check.
 1. **Deep / Extended pipelines** (`research.rs`): plan 3–6 sub-questions → parallel searches → fetch up to
    15 (Deep) / 30 (Extended) pages, 6 at a time → embedding-rank passages → cited report; Extended adds a gap
    review, follow-up searches and a rewrite into a sectioned report. Progress steps shown live; cancel anytime.

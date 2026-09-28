@@ -322,6 +322,28 @@ function initScript({ data }) {
             send({ kind: "done", finishReason: "stop" });
             return null;
           }
+          if (data.video) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            send({ kind: "toolCall", id: "v0", name: "get_transcript", args: { video: "aircAruvnKk" } }); await wait(10);
+            send({ kind: "toolResult", id: "v0", ok: true, summary: "But what is a neural network? · 18:40 · en captions" });
+            send({ kind: "toolCall", id: "v1", name: "summarize_video", args: {} }); await wait(10);
+            send({ kind: "toolResult", id: "v1", ok: true, summary: "6 chapters" });
+            send({ kind: "sources", sources: [{ n: 1, title: "But what is a neural network? (3Blue1Brown)", url: "https://youtu.be/aircAruvnKk", snippet: "", read: true }] });
+            send({ kind: "video", id: "aircAruvnKk", title: "But what is a neural network? | Deep learning chapter 1", channel: "3Blue1Brown", seconds: 1120, thumbnail: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='270'><rect width='480' height='270' fill='%23101830'/><g fill='%2358c4dc'><circle cx='90' cy='70' r='9'/><circle cx='90' cy='135' r='9'/><circle cx='90' cy='200' r='9'/><circle cx='240' cy='100' r='9'/><circle cx='240' cy='170' r='9'/><circle cx='390' cy='135' r='9'/></g></svg>", language: "en", autoCaptions: false,
+              tldr: "A neural network is layers of numbers (neurons) connected by weights and biases; learning means finding the weights that turn pixels into the right digit.",
+              keyPoints: [{ start: 52, text: "Recognizing handwritten digits as the running example" }, { start: 297, text: "Each neuron holds a number between 0 and 1 (its activation)" }, { start: 725, text: "Weights and biases: 13,002 knobs to tune" }, { start: 1010, text: "Why the sigmoid is being replaced by ReLU" }],
+              chapters: [
+                { start: 0, title: "Introduction", summary: "Why recognizing a 3 is easy for people and hard for programs." },
+                { start: 172, title: "The structure of the network", summary: "784 input neurons, two hidden layers of 16, and 10 outputs." },
+                { start: 403, title: "Why layers?", summary: "The hope that layers pick out edges, then loops and lines, then digits." },
+                { start: 646, title: "Edge detection example", summary: "How one neuron's weights could detect an edge." },
+                { start: 893, title: "Counting weights and biases", summary: "Learning means finding the right values for all 13,002 of them." },
+                { start: 1010, title: "Notes on the sigmoid and ReLU", summary: "Modern networks mostly use ReLU because it trains more easily." },
+              ] });
+            for (const t of ["> **TL;DR:** A clear, visual introduction to how a neural network turns an image into a digit, and what \"learning\" really means [1].\n\n", "- The running example is handwritten digits [0:52](https://youtu.be/aircAruvnKk?t=52)\n", "- Each neuron is just a number between 0 and 1 [4:57](https://youtu.be/aircAruvnKk?t=297)\n", "- Learning = tuning 13,002 weights and biases [12:05](https://youtu.be/aircAruvnKk?t=725)\n\n", "Great for beginners; no math beyond multiplication is needed."]) { send({ kind: "content", delta: t }); await wait(10); }
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
           if (data.kitchen) {
             send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
             const q = args.request.messages[args.request.messages.length - 1].content.toLowerCase();
@@ -956,6 +978,17 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(200);
   await p.locator(".composer").screenshot({ path: `${OUT}/19f-web-always.png` });
   console.log("kitchen errors:", errors);
+  await ctx.close();
+}
+// YouTube summary
+{
+  const { p, ctx, errors } = await page(true, "midnight", { video: true });
+  await p.getByLabel("Message BYTE").fill("Summarize https://www.youtube.com/watch?v=aircAruvnKk");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(800);
+  await p.locator(".video").scrollIntoViewIfNeeded();
+  await shot(p, "20-video-summary");
+  console.log("video errors:", errors);
   await ctx.close();
 }
 // A model that didn't load: what's using memory, with Quit buttons

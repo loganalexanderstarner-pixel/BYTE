@@ -361,7 +361,22 @@ export type ChatEvent =
   | ({ kind: "trip" } & TripPlan)
   | ({ kind: "recipe" } & Recipe)
   | ({ kind: "recipeIdeas" } & RecipeIdeas)
-  | ({ kind: "mealPlan" } & MealPlan);
+  | ({ kind: "mealPlan" } & MealPlan)
+  | ({ kind: "video" } & VideoCard);
+
+/** A YouTube video's summary (Rust `youtube::VideoCard`). */
+export interface VideoCard {
+  id: string;
+  title: string;
+  channel: string;
+  seconds: number;
+  thumbnail: string;
+  language: string;
+  autoCaptions: boolean;
+  tldr: string;
+  keyPoints: { start: number; text: string }[];
+  chapters: { start: number; title: string; summary: string }[];
+}
 
 /** A recipe card (Rust `kitchen::Recipe`). */
 export interface Recipe {

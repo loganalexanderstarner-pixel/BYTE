@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
+import { Clapperboard, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
 import { Fragment, useState } from "react";
 
 import { CITE_STYLES, cite, citeAll, plainCitation, type CiteStyle } from "../../lib/citations";
@@ -58,6 +58,10 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: IdeaIcon, text: "Came up with dishes you can make" };
     case "meal_plan":
       return { icon: CalendarDays, text: "Planned the meals" };
+    case "get_transcript":
+      return { icon: Clapperboard, text: "Read the video's captions" };
+    case "summarize_video":
+      return { icon: ListChecks, text: "Summarized the video" };
     default:
       return { icon: CircleCheck, text: s.name };
   }
@@ -79,6 +83,7 @@ export function activitySummary(steps: Step[]): string {
   const parts: string[] = [];
   const cooked = steps.some((s) => ["write_recipe", "recipe_ideas", "meal_plan"].includes(s.name));
   if (cooked) parts.push("In the kitchen");
+  if (steps.some((s) => s.name === "get_transcript" && s.status === "ok")) parts.push("Watched the video");
   if (tripped) parts.push("Planned the trip");
   else if (mapped) parts.push("Checked the map");
   if (checked) parts.push("Fact-checked");

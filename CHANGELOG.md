@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.5 — Phase 6 improvements: YouTube summaries
+
+- **Summarize a YouTube video.** Paste a link ("Summarize https://youtu.be/…", or just the link). BYTE reads the
+  video's captions (no account or key), then shows a card: thumbnail, a two-sentence TL;DR, key points and
+  chapters, each with a timestamp that opens the video at that moment. Long videos are summarized in parts, then
+  put together. **Copy summary** or save it as a **PDF**.
+- **Ask about a video.** "What does he say about X in <link>?", or a follow-up in the same chat ("what does she
+  recommend at the end?"): BYTE finds the moments in the transcript that answer it and links each one.
+- Picks the captions in your language when there are several (human-made before auto-generated), and says when
+  the captions were auto-generated, since names and numbers may be misheard. Videos without captions can't be
+  read yet (that needs the voice model, Phase 11).
+
 ## 0.6.4 — Phase 6 improvements: the Kitchen, and Web Auto
 
 - **Web: Off / Auto / Always.** The Web button in the chat box now has three settings. **Auto** (the default)

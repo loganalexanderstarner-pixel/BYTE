@@ -32,6 +32,7 @@ mod summarize;
 mod system;
 mod tools;
 mod trip;
+mod youtube;
 mod tune;
 
 use tauri::{Manager, RunEvent};

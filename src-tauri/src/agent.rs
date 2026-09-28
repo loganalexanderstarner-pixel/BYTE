@@ -371,7 +371,11 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     // Fact-check first (asked for, or "is it true that…"), then compare &
     // decide ("X vs Y"), then research; each hands the model numbered notes.
     let mut prepared: Option<(SourceBook, String, &str)> = None;
-    if !weather_done && crate::factcheck::applies(turn.web, turn.task == Some(Task::FactCheck), &question) {
+    if crate::youtube::applies(turn.web, &question, turn.history) {
+        if let Some((b, notes)) = crate::youtube::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
+            prepared = Some((b, notes, "youtube"));
+        }
+    } else if !weather_done && crate::factcheck::applies(turn.web, turn.task == Some(Task::FactCheck), &question) {
         let (b, notes) = crate::factcheck::run(&turn, &question, estimate(&messages), &cancel, &send).await?;
         prepared = Some((b, notes, "fact_check"));
     } else if crate::kitchen::applies(turn.kitchen, &question) {

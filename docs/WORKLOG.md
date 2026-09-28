@@ -17,6 +17,26 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (this commit) — v0.6.5: YouTube summaries and questions about a video
+- **Why:** Phase 6 item 6 (owner's plan): YouTube transcripts, summaries with timestamps, Q&A.
+- **What:**
+  - `src-tauri/src/youtube.rs` (new): `video_id` (watch/youtu.be/shorts/live/embed, m./music. hosts), the keyless
+    innertube player API (ANDROID, then IOS, then WEB client; the watch page is behind a consent wall here),
+    `parse_player` (playability reasons surfaced), `pick_track` (language, human before auto), `parse_timedtext`
+    (format 3 with nested `<s>`, legacy `<text>`, double-escaped entities, "[Music]" dropped), `chunks`,
+    transcripts cached 24 h (`tools/cache.rs` `TRANSCRIPTS`). Summary: one JSON pass when it fits ~45% of the
+    context, else per part and merged → `ChatEvent::Video` (`VideoCard`: TL;DR, key points, chapters) +
+    `SUMMARY_RULES` (timestamp links `[mm:ss](https://youtu.be/ID?t=s)`). Q&A: `research::rank_texts` over 90 s
+    blocks + `QA_RULES`. `video_ask` also catches follow-ups about a video linked in the last three questions
+    (whole-word cues, so "the weather" isn't "he"). Routed first in `agent::run` when the web is on.
+  - UI: `components/chat/VideoCard.tsx` (thumbnail → video, timestamps open that moment, Copy summary, PDF),
+    `lib/video.ts` + tests, store `video` event, Activity labels; screenshot 20.
+  - Version 0.6.5, `docs/releases/v0.6.5.md`, VERSIONS, CHANGELOG, HANDOFF, PROJECT_GUIDE.
+- **Verify:** `scripts/check-all.sh` (217 Rust incl. link/player/caption/summary tests on real fixtures; 100
+  vitest). `BYTE_TEST_WEB=1 cargo test live_transcript -- --ignored` (60 cues, title, channel). Real engine:
+  `cargo test e2e_youtube -- --ignored` (a Video card with 4 chapters and a TL;DR; then a follow-up question).
+- **Undo:** revert. To switch off: `youtube::applies` returns false.
+
 ### (this commit) — v0.6.4: the Kitchen (recipes, meal plans, recipe box) and Web Off/Auto/Always
 - **Why:** owner: "Web should have a auto mode not just on or off"; and weekly meal planning from ingredients on
   hand, with pictures, recipes, coffee and baking, saving picks, "a professional chef… using my hands", searching

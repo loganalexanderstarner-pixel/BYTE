@@ -95,6 +95,9 @@ pub fn norm(s: &str) -> String {
 pub static SEARCHES: Lazy<TtlCache<Searched>> = Lazy::new(|| TtlCache::new(Duration::from_secs(3600), 300, 8 << 20));
 /// Paper searches: 24 hours.
 pub static PAPERS: Lazy<TtlCache<Vec<Paper>>> = Lazy::new(|| TtlCache::new(Duration::from_secs(24 * 3600), 100, 8 << 20));
+/// YouTube transcripts (video details, captions, track): 24 hours.
+pub static TRANSCRIPTS: Lazy<TtlCache<(crate::youtube::VideoInfo, Vec<crate::youtube::Cue>, crate::youtube::Track)>> =
+    Lazy::new(|| TtlCache::new(Duration::from_secs(24 * 3600), 30, 16 << 20));
 /// Places near a point: 1 hour (opening hours change "open now").
 pub static PLACES: Lazy<TtlCache<Vec<Spot>>> = Lazy::new(|| TtlCache::new(Duration::from_secs(3600), 100, 4 << 20));
 
