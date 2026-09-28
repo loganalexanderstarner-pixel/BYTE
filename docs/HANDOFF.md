@@ -153,9 +153,10 @@ then stability, then looks, then feature count.
 - **UI screenshots:** `tools/ui-shots/` (see its README): build, serve with `npx vite preview`, run
   `node shots.mjs`; it mocks every Tauri command and walks the main screens. Add mocks for new commands, and
   look at the pictures before claiming UI works.
-- **CI (the owner's Actions minutes are limited: be sparing):** `ci.yml` (frontend + Linux Rust tests + secret
-  scan) runs once per push, skipping docs-only pushes; `mac-engine.yml` (real engine on macOS/Metal, 10× the
-  minutes) runs **only by hand** (workflow_dispatch): before a test build or after engine/agent changes.
+- **CI (the owner's Actions minutes are limited):** every workflow is **manual** (workflow_dispatch): `ci.yml`,
+  `mac-engine.yml` (macOS minutes cost 10×) and `release.yml`. Run them at milestones (phases 8, 10, 12) or when
+  the owner asks. Before every push run `scripts/check-all.sh` locally; push every change (free, the backup) and
+  log it in `docs/WORKLOG.md`.
   Batch commits and push less often; run the real-engine tests locally where you can
   (`BYTE_TEST_LLAMA_SERVER`/`BYTE_TEST_MODEL`, see chat.rs).
 - **Test build:** `node scripts/bump.mjs 1.0.0-test.N` → commit → push → run the `release.yml` workflow with

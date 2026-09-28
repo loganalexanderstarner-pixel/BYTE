@@ -120,7 +120,17 @@ function initScript({ data }) {
           return data.system;
         case "models_list":
           return data.models;
+        case "memory_report":
+          return { totalBytes: 17179869184, availableBytes: 1900000000, apps: [
+            { name: "Google Chrome", bytes: 2430000000, processes: 23 },
+            { name: "Slack", bytes: 910000000, processes: 5 },
+            { name: "Spotify", bytes: 420000000, processes: 4 },
+            { name: "Visual Studio Code", bytes: 380000000, processes: 9 },
+          ] };
+        case "app_quit":
+          return null;
         case "engine_status":
+          if (data.engineError) return { state: "error", message: data.engineError };
           return data.settings.onboardingComplete ? { state: "ready", model: "qwen3.5-9b:Q6_K", context: 16384, boosted: true } : { state: "noModel" };
         case "speed_boost_info":
           return { enabled: true, available: true, helperKey: "qwen3.5-0.8b:Q8_0", helperName: "Qwen3.5 0.8B", helperBytes: 812000000, installed: true, kind: "draft" };
@@ -302,13 +312,13 @@ function initScript({ data }) {
 }
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
-async function page(onboarded, theme = "midnight") {
+async function page(onboarded, theme = "midnight", extra = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1240, height: 820 }, deviceScaleFactor: 1, colorScheme: "dark" });
   const p = await ctx.newPage();
   const errors = [];
   p.on("pageerror", (e) => errors.push(e.message));
   p.on("console", (m) => m.type() === "error" && errors.push(m.text()));
-  await p.addInitScript(initScript, { data: mock(onboarded, theme) });
+  await p.addInitScript(initScript, { data: { ...mock(onboarded, theme), ...extra } });
   await p.goto(URL);
   await p.waitForTimeout(400);
   return { p, ctx, errors };
@@ -469,6 +479,16 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(1200);
   await shot(p, "10g-both");
   console.log("cloud errors:", errors);
+  await ctx.close();
+}
+// A model that didn't load: what's using memory, with Quit buttons
+{
+  const { p, ctx, errors } = await page(true, "midnight", {
+    engineError: "The AI engine didn't start: process exited while loading. Using the most memory right now: Google Chrome (2.4 GB), Slack (0.9 GB), Spotify (0.4 GB), Visual Studio Code (0.4 GB). Quitting them frees about 4.1 GB.",
+  });
+  await p.waitForTimeout(500);
+  await shot(p, "12-memory-helper");
+  console.log("memory errors:", errors);
   await ctx.close();
 }
 await browser.close();

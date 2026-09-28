@@ -89,6 +89,11 @@ On Linux, Tauri needs `libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicato
 - Colors come only from theme tokens in `styles/tokens.css`. Respect `prefers-reduced-motion`.
 - Add tests with every module: Rust unit tests next to the code, vitest `*.test.ts` next to TS files.
 - Keep `CHANGELOG.md` and `docs/PROJECT_GUIDE.md` (phase status) updated each phase.
+- **Log every commit in `docs/WORKLOG.md`** (what, why, files, how to verify, how to undo), so a broken change
+  can be reverted on its own instead of going back to an old copy of the repo.
+- **GitHub Actions minutes are limited: all workflows are manual.** Pushing is free and is the backup, so push
+  every change, after `scripts/check-all.sh` passes locally. Run CI, the Mac engine test and test builds by hand
+  only at milestones (phases 8, 10, 12) or when the owner asks.
 - **No secrets in the repo, ever** (it's public, with history). BYTE cloud keys live only in the macOS Keychain
   (`cloud::keychain`); tests use short fake keys (`byte_test_…`). Run `scripts/check-secrets.sh` before pushing
   (CI runs it too). Never use a real key someone pastes into a chat; tell them to revoke it.

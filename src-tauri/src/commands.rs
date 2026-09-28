@@ -15,6 +15,18 @@ use crate::settings::{Mode, Settings, ThinkingPref};
 use crate::state::AppState;
 use crate::system::{self, SystemInfo};
 
+/// Apps using the most memory right now (for "quit these to make room").
+#[tauri::command]
+pub async fn memory_report() -> crate::memory::MemoryReport {
+    tokio::task::spawn_blocking(crate::memory::report).await.unwrap_or(crate::memory::MemoryReport { total_bytes: 0, available_bytes: 0, apps: vec![] })
+}
+
+/// Quits one of the apps in the memory report (the user clicked Quit).
+#[tauri::command]
+pub async fn app_quit(name: String) -> AppResult<()> {
+    tokio::task::spawn_blocking(move || crate::memory::quit_app(&name)).await.map_err(|e| AppError::msg(e.to_string()))?
+}
+
 #[tauri::command]
 pub fn system_info(state: State<'_, AppState>) -> SystemInfo {
     system::system_info(&state.paths.data)

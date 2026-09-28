@@ -408,7 +408,9 @@ impl Engine {
                 if still_current {
                     let tail = self.log_tail().await;
                     let hint = diagnose(&tail);
-                    let message = format!("The AI engine didn't start: {e}.{hint}");
+                    // Memory trouble (or no clear cause, usually memory): say which apps are using it.
+                    let apps = if hint.is_empty() || hint.contains("memory") { crate::memory::advice(&crate::memory::report()) } else { String::new() };
+                    let message = format!("The AI engine didn't start: {e}.{hint}{apps}");
                     self.set_status(&app, EngineStatus::Error { message: message.clone() }).await;
                     self.stop().await;
                     return Err(AppError::msg(message));
@@ -440,7 +442,8 @@ impl Engine {
             let _ = self.spawn(app.clone(), launch).await;
         } else {
             let hint = diagnose(&self.log_tail().await);
-            self.set_status(app, EngineStatus::Error { message: format!("The AI engine keeps stopping (exit code {code:?}).{hint}") }).await;
+            let apps = if hint.is_empty() || hint.contains("memory") { crate::memory::advice(&crate::memory::report()) } else { String::new() };
+            self.set_status(app, EngineStatus::Error { message: format!("The AI engine keeps stopping (exit code {code:?}).{hint}{apps}") }).await;
         }
     }
 

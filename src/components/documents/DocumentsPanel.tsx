@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, errorText } from "../../lib/api";
 import { DOC_KINDS, idOf, jobState, listOf, readOutline, str, titleOf, writeOutline, type DocKind, type OutlineItem, type Row } from "../../lib/cloudDocs";
-import { CloudThumb } from "../chat/Attachments";
+import { CloudThumb, cloudImageCached } from "../chat/Attachments";
 
 type View = { kind: "create" } | { kind: "jobs" } | { kind: "docs" } | { kind: "job"; id: string } | { kind: "doc"; id: string };
 
@@ -431,8 +431,9 @@ function DocView({ id, onBack, onJob }: { id: string; onBack(): void; onJob(id: 
         const n = typeof v === "number" ? v : Number(v.pages ?? v.page_count ?? v.count ?? 0);
         setPages(n || 0);
         // Pages are numbered from 1 unless the cloud says otherwise.
-        await api.cloudImage(`/api/documents/${id}/preview/1`).catch(async () => {
-          await api.cloudImage(`/api/documents/${id}/preview/0`);
+        // The probe goes through the image cache, so page 1 isn't downloaded twice.
+        await cloudImageCached(`/api/documents/${id}/preview/1`).catch(async () => {
+          await cloudImageCached(`/api/documents/${id}/preview/0`);
           setBase(0);
         });
       })

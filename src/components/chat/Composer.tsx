@@ -3,10 +3,11 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { ArrowUp, Brain, Cloud, Images, Loader2, Paperclip, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
-import { inTauri } from "../../lib/api";
+import { api, inTauri } from "../../lib/api";
 import { budgetSummary } from "../../lib/cloudDocs";
 import { displayName } from "../../lib/models";
 import { AttachmentChips, LibraryPicker } from "./Attachments";
+import { MemoryHelper } from "../MemoryHelper";
 import type { Mode, ThinkingPref } from "../../lib/types";
 import { spaceOf, useStore, workspaceOf } from "../../state/store";
 
@@ -186,6 +187,11 @@ export function Composer() {
           <button className="btn sm" onClick={() => (cloudConnected ? void setWorkspace("cloud") : openSettings("cloud"))}>
             <Cloud size={14} /> {cloudConnected ? "Use BYTE Cloud" : "Connect BYTE Cloud"}
           </button>
+        </div>
+      )}
+      {!ready && !onCloud && engine.state === "error" && /memory|didn't start|keeps stopping/i.test(engine.message) && (
+        <div className="banner">
+          <MemoryHelper onRetry={() => void api.engineRestart().catch(() => {})} />
         </div>
       )}
       <div className={`composer ${dragging ? "dropping" : ""}`}>

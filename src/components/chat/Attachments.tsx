@@ -5,15 +5,31 @@ import { api } from "../../lib/api";
 import { idOf, isImage, listOf, titleOf } from "../../lib/cloudDocs";
 import { useStore, type Attachment } from "../../state/store";
 
-/** Thumbnails fetched once per session (the library can hold many photos). */
+/** Cloud images fetched once per session (library photos, document pages). */
 const thumbs = new Map<string, Promise<string>>();
+
+/** A cloud image as a data URL, from the session cache when it's been loaded
+ * before. A failed load isn't cached, so it's tried again next time. */
+export function cloudImageCached(path: string): Promise<string> {
+  let p = thumbs.get(path);
+  if (!p) {
+    p = api.cloudImage(path).catch((e) => {
+      thumbs.delete(path);
+      throw e;
+    });
+    thumbs.set(path, p);
+  }
+  return p;
+}
 
 export function CloudThumb({ path, alt, className }: { path: string; alt: string; className?: string }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
-    if (!thumbs.has(path)) thumbs.set(path, api.cloudImage(path).catch(() => ""));
-    void thumbs.get(path)!.then((s) => alive && setSrc(s || null));
+    cloudImageCached(path).then(
+      (s) => alive && setSrc(s || null),
+      () => alive && setSrc(null),
+    );
     return () => {
       alive = false;
     };

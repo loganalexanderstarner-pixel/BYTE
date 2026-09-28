@@ -158,6 +158,19 @@ export interface Memory {
   createdAt: number;
 }
 
+/** An app and the memory it's using (Rust `memory::AppMemory`). */
+export interface AppMemory {
+  name: string;
+  bytes: number;
+  processes: number;
+}
+
+export interface MemoryReport {
+  totalBytes: number;
+  availableBytes: number;
+  apps: AppMemory[];
+}
+
 export interface SystemInfo {
   chip: string;
   totalRamBytes: number;

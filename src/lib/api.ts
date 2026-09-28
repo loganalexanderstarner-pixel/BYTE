@@ -3,27 +3,28 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type {
   BoostInfo,
-  GpuShare,
+  ChatEvent,
   ChatSummary,
-  TuneProgress,
-  Tuning,
+  CloudStatus,
   ConversationMeta,
+  DownloadEvent,
+  EngineStatus,
+  GpuShare,
+  LoadedModel,
+  Memory,
+  MemoryReport,
+  Mode,
+  ModelStatus,
   Profile,
   Profiles,
   Project,
-  LoadedModel,
-  Memory,
   SearchHit,
-  ChatEvent,
-  DownloadEvent,
-  EngineStatus,
-  Mode,
-  ModelStatus,
   Settings,
   SystemInfo,
   ThinkingPref,
+  TuneProgress,
+  Tuning,
   WireMessage,
-  CloudStatus,
 } from "./types";
 
 /** True when running inside the Tauri shell (false in a plain browser tab). */
@@ -52,6 +53,8 @@ export type CloudAction = "regenerate" | "deepen" | "justify" | "stop" | "answer
 
 export const api = {
   systemInfo: () => invoke<SystemInfo>("system_info"),
+  memoryReport: () => invoke<MemoryReport>("memory_report"),
+  appQuit: (name: string) => invoke<void>("app_quit", { name }),
   settingsGet: () => invoke<Settings>("settings_get"),
   settingsUpdate: (patch: Partial<Settings>) => invoke<Settings>("settings_update", { patch }),
 
