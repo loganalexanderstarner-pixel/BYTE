@@ -20,6 +20,7 @@ mod models;
 mod paths;
 mod profiles;
 mod prompt;
+mod research;
 mod router;
 mod settings;
 mod speed;

@@ -1,6 +1,8 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Calculator, ChevronRight, CircleCheck, CloudSun, FolderSearch, Globe, LoaderCircle, Search, TriangleAlert } from "lucide-react";
-import { useState } from "react";
+import { BookOpen, Calculator, Check, ChevronRight, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
+import { Fragment, useState } from "react";
+
+import { CITE_STYLES, cite, citeAll, plainCitation, type CiteStyle } from "../../lib/citations";
 
 import { fileSource } from "../../lib/reader";
 import type { Source } from "../../lib/types";
@@ -28,6 +30,14 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: CloudSun, text: `Checked the forecast for ${arg("place")}` };
     case "search_my_files":
       return { icon: FolderSearch, text: `Searched your files for “${arg("query")}”` };
+    case "academic_search":
+      return { icon: BookOpen, text: `Searched research papers for “${arg("query")}”` };
+    case "plan_research":
+      return { icon: ListChecks, text: "Planned the research" };
+    case "rank_passages":
+      return { icon: ListFilter, text: "Picked the most relevant passages" };
+    case "find_gaps":
+      return { icon: SearchCheck, text: "Checked what's still missing" };
     default:
       return { icon: CircleCheck, text: s.name };
   }
@@ -40,10 +50,14 @@ export function activitySummary(steps: Step[]): string {
   const calcs = steps.filter((s) => s.name === "calculate").length;
   const weather = steps.some((s) => s.name === "weather" && s.status === "ok");
   const files = steps.some((s) => s.name === "search_my_files");
+  const papers = steps.some((s) => s.name === "academic_search" && s.status === "ok");
+  const researched = steps.some((s) => s.name === "plan_research");
   const parts: string[] = [];
+  if (researched) parts.push("Researched");
   if (files) parts.push("Searched your files");
   if (weather) parts.push("Checked the forecast");
   if (searches) parts.push(searches === 1 ? "Searched the web" : `Searched the web ${searches} times`);
+  if (papers) parts.push("searched papers");
   if (reads) parts.push(`read ${reads} page${reads === 1 ? "" : "s"}`);
   if (calcs) parts.push(`${calcs} calculation${calcs === 1 ? "" : "s"}`);
   const s = parts.join(" · ");
@@ -89,6 +103,7 @@ export function Activity({ steps, live }: { steps: Step[]; live: boolean }) {
 /** Numbered source cards shown under an answer. Read pages come first. */
 export function Sources({ sources }: { sources: Source[] }) {
   const [all, setAll] = useState(false);
+  const [citing, setCiting] = useState(false);
   const openReader = useStore((s) => s.openReader);
   // Passages from the user's files open in the reader; web pages in the browser.
   const open = (s: Source) => {
@@ -107,18 +122,96 @@ export function Sources({ sources }: { sources: Source[] }) {
             <span className="body">
               <span className="title">{s.title || hostOf(s.url)}</span>
               <span className="host">
-                {hostOf(s.url)}
-                {s.read && <em> · read</em>}
+                {s.meta ? paperLine(s) : hostOf(s.url)}
+                {s.read && !s.meta && <em> · read</em>}
               </span>
             </span>
           </button>
         ))}
       </div>
-      {sources.length > 4 && (
-        <button className="btn sm ghost" onClick={() => setAll(!all)}>
-          {all ? "Show fewer" : `Show all ${sources.length} sources`}
+      <div className="sources-actions">
+        {sources.length > 4 && (
+          <button className="btn sm ghost" onClick={() => setAll(!all)}>
+            {all ? "Show fewer" : `Show all ${sources.length} sources`}
+          </button>
+        )}
+        <button className="btn sm ghost" onClick={() => setCiting(!citing)} aria-expanded={citing}>
+          <Quote size={13} /> Cite
         </button>
-      )}
+      </div>
+      {citing && <CiteMenu sources={sorted.filter((s) => !fileSource(s.url))} />}
+    </div>
+  );
+}
+
+/** "Paper · 2023 · Nature" for a research paper's card. */
+function paperLine(s: Source): string {
+  return ["Paper", s.meta?.year, s.meta?.venue].filter(Boolean).join(" · ");
+}
+
+/** Shows `*italic*` markers from the citation formatter as italics. */
+function Styled({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/\*([^*]+)\*/).map((part, i) => (i % 2 ? <em key={i}>{part}</em> : <Fragment key={i}>{part}</Fragment>))}
+    </>
+  );
+}
+
+/** Citations for an answer's sources in a chosen style, copyable one by one or all at once. */
+function CiteMenu({ sources }: { sources: Source[] }) {
+  const [style, setStyle] = useState<CiteStyle>(() => {
+    try {
+      return (localStorage.getItem("byte.citeStyle") as CiteStyle) || "apa";
+    } catch {
+      return "apa";
+    }
+  });
+  const [copied, setCopied] = useState<number | "all" | null>(null);
+  const pick = (s: CiteStyle) => {
+    setStyle(s);
+    try {
+      localStorage.setItem("byte.citeStyle", s);
+    } catch {
+      /* per-viewer convenience only */
+    }
+  };
+  const copy = (text: string, which: number | "all") => {
+    void navigator.clipboard?.writeText(plainCitation(text)).then(() => {
+      setCopied(which);
+      setTimeout(() => setCopied(null), 1500);
+    });
+  };
+  if (sources.length === 0) return null;
+  const ordered = [...sources].sort((a, b) => a.n - b.n);
+  return (
+    <div className="cite-menu" role="region" aria-label="Citations">
+      <div className="cite-head">
+        <div className="segmented" aria-label="Citation style">
+          {CITE_STYLES.map((c) => (
+            <button key={c.id} aria-pressed={style === c.id} onClick={() => pick(c.id)}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+        <button className="btn sm" onClick={() => copy(citeAll(ordered, style), "all")}>
+          {copied === "all" ? <Check size={13} /> : <Copy size={13} />} Copy all
+        </button>
+      </div>
+      <ol className={`cite-list ${style === "bibtex" ? "mono" : ""}`}>
+        {ordered.map((s) => {
+          const text = cite(s, style);
+          return (
+            <li key={s.n}>
+              <span className="num">{s.n}</span>
+              <span className="text">{style === "bibtex" ? <pre>{text}</pre> : <Styled text={text} />}</span>
+              <button className="icon-btn" title="Copy" aria-label={`Copy citation ${s.n}`} onClick={() => copy(text, s.n)}>
+                {copied === s.n ? <Check size={13} /> : <Copy size={13} />}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }

@@ -310,6 +310,46 @@ function initScript({ data }) {
             send({ kind: "done", finishReason: "stop" });
             return null;
           }
+          if (data.research) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            const steps = [
+              ["r0", "plan_research", { question: "What does research say about intermittent fasting for weight loss?" }, "4 searches + papers"],
+              ["r1", "web_search", { query: "intermittent fasting weight loss" }, "8 results"],
+              ["r2", "web_search", { query: "time restricted eating randomized trial results" }, "8 results"],
+              ["r3", "web_search", { query: "intermittent fasting vs calorie restriction" }, "8 results"],
+              ["r4", "web_search", { query: "intermittent fasting risks muscle loss" }, "8 results"],
+              ["r5", "academic_search", { query: "intermittent fasting weight loss" }, "6 papers"],
+              ["r6", "read_page", { url: "https://www.nejm.org/doi/full/10.1056/NEJMra1905136" }, "NEJM review"],
+              ["r7", "read_page", { url: "https://www.hopkinsmedicine.org/health/wellness-and-prevention/intermittent-fasting" }, "Johns Hopkins"],
+              ["r8", "read_page", { url: "https://www.health.harvard.edu/blog/intermittent-fasting" }, "Harvard Health"],
+              ["r9", "rank_passages", {}, "24 passages from 11 sources, by meaning"],
+            ];
+            for (const [id, name, a, summary] of steps) {
+              send({ kind: "toolCall", id, name, args: a });
+              await wait(15);
+              send({ kind: "toolResult", id, ok: true, summary });
+            }
+            send({ kind: "sources", sources: [
+              { n: 1, title: "Effects of Intermittent Fasting on Health, Aging, and Disease", url: "https://www.nejm.org/doi/full/10.1056/NEJMra1905136", snippet: "", read: true },
+              { n: 2, title: "Intermittent Fasting: What is it, and how does it work?", url: "https://www.hopkinsmedicine.org/health/wellness-and-prevention/intermittent-fasting", snippet: "", read: true },
+              { n: 3, title: "Effect of Intermittent Fasting on Weight Loss in Overweight and Obese Adults: A Systematic Review of Clinical Trials", url: "https://doi.org/10.1002/fsn3.70412", snippet: "", read: true, meta: { authors: ["Maria L. Santos", "J. Chen", "Ahmed Rahman"], year: 2026, venue: "Food Science & Nutrition", doi: "10.1002/fsn3.70412" } },
+              { n: 4, title: "Calorie Restriction with or without Time-Restricted Eating in Weight Loss", url: "https://doi.org/10.1056/NEJMoa2114833", snippet: "", read: true, meta: { authors: ["Deying Liu", "Yan Huang", "Chensihan Huang"], year: 2022, venue: "New England Journal of Medicine", doi: "10.1056/NEJMoa2114833" } },
+              { n: 5, title: "Intermittent fasting: The positive news continues", url: "https://www.health.harvard.edu/blog/intermittent-fasting", snippet: "", read: true },
+            ]});
+            for (const c of [
+              "> **TL;DR:** Intermittent fasting helps people lose weight, about **3–8% of body weight** over 8–24 weeks, but trials find it works about as well as ordinary calorie cutting, not better [1][3][4].\n\n",
+              "## What the trials show\n\n",
+              "- A 2026 systematic review of clinical trials found consistent weight loss across fasting schedules [3].\n",
+              "- A year-long randomized trial found **no extra benefit** from time-restricted eating over the same calorie cut [4].\n\n",
+              "## Who it suits\n\n",
+              "1. People who find a time window easier than counting calories [2].\n",
+              "2. Not advised for people with diabetes on medication, or a history of eating disorders, without a doctor [2][5].\n\n",
+              "**Confidence:** Likely — several trials agree on the size of the effect; long-term (over 1 year) evidence is still thin [1][4].\n",
+            ]) { send({ kind: "content", delta: c }); await wait(15); }
+            send({ kind: "stats", promptTokens: 7400, completionTokens: 320, tokensPerSecond: 19.6, promptMs: 9100, totalMs: 26000, thinkingMs: 0 });
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
           if (data.kbAnswer) {
             send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
             send({ kind: "toolCall", id: "f1", name: "search_my_files", args: { query: "lease water damage leak who pays" } });
@@ -629,6 +669,23 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(1500);
   await shot(p, "15c-docs-written");
   console.log("docs errors:", errors);
+  await ctx.close();
+}
+// Deep research: planned searches, papers, confidence line, citations
+{
+  const { p, ctx, errors } = await page(true, "midnight", { research: true });
+  await p.getByLabel("Message BYTE").fill("What does research say about intermittent fasting for weight loss?");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(1200);
+  await p.locator(".activity-head").last().click();
+  await p.waitForTimeout(200);
+  await shot(p, "16-deep-research");
+  await p.getByRole("button", { name: /Cite/ }).last().click();
+  await p.getByRole("button", { name: "MLA", exact: true }).click();
+  await p.waitForTimeout(200);
+  await p.locator(".cite-menu").scrollIntoViewIfNeeded();
+  await shot(p, "16b-cite-menu");
+  console.log("research errors:", errors);
   await ctx.close();
 }
 // A model that didn't load: what's using memory, with Quit buttons

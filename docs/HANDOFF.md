@@ -388,8 +388,14 @@ cloud already makes documents through the byte-ai API — keep both; local works
 Verify: renderer smoke tests (vitest: DocSpec → files open, page counts), JSON-repair tests, screenshots,
 owner opens the files in Preview / Keynote / Pages / Word.
 
-### Phase 6 — Research+ ⏳
+### Phase 6 — Research+ ⏳ (part 1 done: v0.6.0)
 Goal: deeper, more trustworthy answers.
+**Done in v0.6.0:** item 1 (`research.rs`: plan → parallel searches → 12/24 pages → passages ranked by meaning
+or words, ≤3 per source, ~half the context → Extended gap review → report rules), confidence labels, and item 3
+without PDF reading (`tools/academic.rs`: Crossref + Europe PMC + arXiv; OpenAlex and Semantic Scholar refuse
+keyless requests from shared networks; `academic_search` tool in Deep/Extended; `Source.meta`;
+`src/lib/citations.ts` + Cite menu). **Next:** v0.6.1 fact-check + compare & decide, v0.6.2 trip planner +
+local lookup, v0.6.3 YouTube, v0.6.4 web agent; self-check / best-of-3 / quote finder with fact-check.
 1. **Deep / Extended pipelines** (`research.rs`): plan 3–6 sub-questions → parallel searches → fetch up to
    15 (Deep) / 30 (Extended) pages, 6 at a time → embedding-rank passages → cited report; Extended adds a gap
    review, follow-up searches and a rewrite into a sectioned report. Progress steps shown live; cancel anytime.

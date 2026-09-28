@@ -10,7 +10,22 @@ const marked = new Marked({ gfm: true, breaks: false, async: false });
  */
 export function renderMarkdown(src: string, sources?: CiteSource[]): string {
   const html = marked.parse(sources ? linkCitations(src, sources) : src) as string;
-  return sanitize(html);
+  return markConfidence(sanitize(html));
+}
+
+/**
+ * Research answers end with "**Confidence:** Verified — reason" (Likely,
+ * Unsure). That paragraph gets a class so it shows as a colored badge line.
+ * Runs on sanitized HTML and only adds a fixed class and span.
+ */
+export function markConfidence(html: string): string {
+  return html.replace(
+    /<p><strong>Confidence:?<\/strong>:?\s*(Verified|Likely|Unsure)\b/gi,
+    (_m, level: string) => {
+      const l = level[0].toUpperCase() + level.slice(1).toLowerCase();
+      return `<p class="confidence confidence-${l.toLowerCase()}"><strong>Confidence</strong> <span class="level">${l}</span>`;
+    },
+  );
 }
 
 export interface CiteSource {

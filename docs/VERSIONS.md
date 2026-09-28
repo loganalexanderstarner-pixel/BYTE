@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.5.0** | Phase 5 · Documents | PDF / PowerPoint / Word documents written on your Mac, 4 designs, charts, outline you edit first | Documents without the cloud |
+| **v0.6.0** | Phase 6 · Deep research | Deep/Extended research (many searches, many pages, ranked passages), research papers, confidence line, citation styles | Thorough, cited answers |
+| v0.5.0 | Phase 5 · Documents | PDF / PowerPoint / Word documents written on your Mac, 4 designs, charts, outline you edit first | Documents without the cloud |
 | v0.4.0 *(was 1.0.0-test.14)* | Phase 4 · Your files | Attach files and photos, models that see images, scanned PDFs, a knowledge base of your folders, reader view, instant answers | BYTE that knows your documents |
 | v0.3.8 *(was test.13)* | Phase 3 improvements | Big mixture-of-experts models load reliably, smoother cloud streaming, 713-model catalog with details, "quit these apps" help | |
 | v0.3.7 *(was test.12)* | Phase 3 improvements | Much better web search (searches first, reads pages, weather, Wikipedia, your cloud's search) | |
@@ -41,7 +42,10 @@ which download is which. Their files and notes are unchanged.
 
 | Version | Phase |
 |---|---|
-| v0.6.0 | Research+: deeper research, academic sources, fact-checking, comparisons |
+| v0.6.1 | Fact-check, compare & decide |
+| v0.6.2 | Trip planner, local lookup |
+| v0.6.3 | YouTube summaries |
+| v0.6.4 | Web agent |
 | v0.7.0 | Writing & learning |
 | v0.8.0 | Speed |
 | v0.9.0 | Mac control |

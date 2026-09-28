@@ -324,6 +324,16 @@ export interface Source {
   snippet: string;
   /** True when BYTE actually read the page, not just saw it in results. */
   read: boolean;
+  /** Citation details for research papers (Rust `SourceMeta`). */
+  meta?: SourceMeta;
+}
+
+export interface SourceMeta {
+  authors: string[];
+  year: number | null;
+  /** Journal, conference, or "arXiv". */
+  venue: string;
+  doi: string | null;
 }
 
 export type ChatEvent =

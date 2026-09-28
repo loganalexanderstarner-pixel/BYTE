@@ -162,6 +162,20 @@ pub fn wants_files(message: &str) -> bool {
     MY_THINGS.iter().any(|t| words.contains(&format!(" my {t} ")) || words.contains(&format!(" our {t} ")))
 }
 
+const PAPER_CUES: &[&str] = &[
+    "study", "studies", "research", "paper", "papers", "evidence", "clinical", "trial", "trials", "meta-analysis",
+    "meta analysis", "peer-reviewed", "peer reviewed", "systematic review", "scientific", "science", "scientists",
+    "literature", "journal", "efficacy", "side effects", "health effects", "health benefits", "risk of", "linked to",
+];
+
+/// True when published research would help answer (BYTE then also searches
+/// papers in Deep and Extended mode): "what does research say about…",
+/// "is there evidence that…", "side effects of…".
+pub fn wants_papers(message: &str) -> bool {
+    let m = format!(" {} ", message.to_lowercase().replace(|c: char| !c.is_alphanumeric() && c != '-', " "));
+    PAPER_CUES.iter().any(|c| m.contains(&format!(" {c} ")))
+}
+
 /// True when BYTE should search the web before the model answers. Answer
 /// quality comes first: small local models often answer from (stale or
 /// wrong) memory instead of choosing to search, so BYTE searches itself for
@@ -409,6 +423,14 @@ fn percent_of(message: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn research_questions_want_papers() {
+        assert!(wants_papers("What does the research say about intermittent fasting?"));
+        assert!(wants_papers("Is there evidence that creatine helps memory?"));
+        assert!(wants_papers("side effects of melatonin"));
+        assert!(!wants_papers("Who won the Super Bowl?"));
+    }
 
     #[test]
     fn detects_time_sensitive_questions() {

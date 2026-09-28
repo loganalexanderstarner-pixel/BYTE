@@ -8,7 +8,6 @@
 //! `summarize.rs`), and is still parsed leniently: bad blocks are dropped
 //! instead of failing the whole document.
 
-use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -231,24 +230,6 @@ pub fn clean_blocks(v: &Value) -> Vec<Block> {
         .collect()
 }
 
-/// One non-streaming, schema-constrained request (thinking off).
-async fn ask_json(http: &reqwest::Client, ep: &Endpoint, system: &str, user: &str, schema: Value, max_tokens: u32) -> AppResult<String> {
-    let body = json!({
-        "messages": [ { "role": "system", "content": system }, { "role": "user", "content": user } ],
-        "max_tokens": max_tokens,
-        "temperature": 0.5,
-        "stream": false,
-        "response_format": { "type": "json_schema", "json_schema": { "name": "doc", "schema": schema } },
-        "chat_template_kwargs": { "enable_thinking": false },
-    });
-    let r = http.post(format!("{}/v1/chat/completions", ep.base_url)).bearer_auth(&ep.api_key).timeout(Duration::from_secs(600)).json(&body).send().await?;
-    if !r.status().is_success() {
-        return Err(AppError::msg(format!("the engine returned {}", r.status())));
-    }
-    let v: Value = r.json().await?;
-    Ok(v["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string())
-}
-
 const WRITER: &str = "You are BYTE, writing documents for the user. Write clear, accurate, well-organized content in plain English. \
 Never invent statistics, quotes or sources; use numbers only from the research notes or well-known facts. \
 When research notes are given, cite them as [n] right after the claim.";
@@ -263,7 +244,7 @@ pub async fn outline(http: &reqwest::Client, ep: &Endpoint, kind: DocKind, promp
     );
     // One retry: a reply cut off mid-JSON (or empty) is common with small models.
     for _ in 0..2 {
-        let reply = ask_json(http, ep, WRITER, &user, outline_schema(), 1500).await?;
+        let reply = crate::chat::complete_json(http, ep, WRITER, &user, outline_schema(), 1500).await?;
         if let Some(o) = parse_outline(&reply) {
             return Ok(o);
         }
@@ -286,7 +267,7 @@ async fn section(http: &reqwest::Client, ep: &Endpoint, kind: DocKind, outline: 
         kind.section_rules(),
         if notes.is_empty() { String::new() } else { format!("\nResearch notes (cite as [n]):\n{notes}\n") },
     );
-    let reply = ask_json(http, ep, WRITER, &user, section_schema(), kind.max_tokens()).await?;
+    let reply = crate::chat::complete_json(http, ep, WRITER, &user, section_schema(), kind.max_tokens()).await?;
     let blocks = json_object(&reply).map(|v| clean_blocks(&v)).unwrap_or_default();
     if blocks.is_empty() {
         return Err(AppError::msg(format!("Section \"{}\" came back empty.", s.title)));
@@ -325,7 +306,7 @@ pub async fn research(net: &reqwest::Client, cloud: Option<&crate::cloud::CloudC
     .await;
     for page in reads.into_iter().flatten() {
         let n = out.sources.len() as u32 + 1;
-        out.sources.push(Source { n, title: page.title.clone(), url: page.url.clone(), snippet: String::new(), read: true });
+        out.sources.push(Source { n, title: page.title.clone(), url: page.url.clone(), snippet: String::new(), read: true, meta: None });
         out.pages.push((n, page.text));
     }
     out

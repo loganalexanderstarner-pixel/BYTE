@@ -122,6 +122,26 @@ pub struct Stats {
     pub draft_accepted: u64,
 }
 
+/// One non-streamed reply constrained to a JSON schema (llama-server
+/// `response_format`), thinking off. Returns the raw text; callers parse it
+/// leniently because small models still cut replies short.
+pub async fn complete_json(http: &reqwest::Client, ep: &Endpoint, system: &str, user: &str, schema: serde_json::Value, max_tokens: u32) -> AppResult<String> {
+    let body = serde_json::json!({
+        "messages": [ { "role": "system", "content": system }, { "role": "user", "content": user } ],
+        "max_tokens": max_tokens,
+        "temperature": 0.5,
+        "stream": false,
+        "response_format": { "type": "json_schema", "json_schema": { "name": "reply", "schema": schema } },
+        "chat_template_kwargs": { "enable_thinking": false },
+    });
+    let r = http.post(format!("{}/v1/chat/completions", ep.base_url)).bearer_auth(&ep.api_key).timeout(std::time::Duration::from_secs(600)).json(&body).send().await?;
+    if !r.status().is_success() {
+        return Err(AppError::msg(format!("the engine returned {}", r.status())));
+    }
+    let v: serde_json::Value = r.json().await?;
+    Ok(v["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string())
+}
+
 /// Registry of running generations so the UI can stop them.
 #[derive(Default, Clone)]
 pub struct Generations {

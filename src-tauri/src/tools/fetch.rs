@@ -116,7 +116,33 @@ pub fn extract(html: &str, url: &str) -> Page {
             (other.map(|a| a.title).unwrap_or_default(), text)
         }
     };
-    Page { url: url.to_string(), title: clean_ws(&title), text: tidy(&text) }
+    Page { url: url.to_string(), title: clean_ws(&title), text: without_ref_marks(&tidy(&text)) }
+}
+
+/// Removes a page's own footnote markers ("[12]", "[citation needed]"),
+/// which models otherwise mistake for BYTE's source numbers.
+pub fn without_ref_marks(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(i) = rest.find('[') {
+        out.push_str(&rest[..i]);
+        let after = &rest[i + 1..];
+        match after.find(']') {
+            Some(j) if is_ref_mark(&after[..j]) => rest = &after[j + 1..],
+            _ => {
+                out.push('[');
+                rest = after;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+fn is_ref_mark(inner: &str) -> bool {
+    let t = inner.trim();
+    (!t.is_empty() && t.len() <= 3 && t.chars().all(|c| c.is_ascii_digit()))
+        || matches!(t, "citation needed" | "clarification needed" | "when?" | "who?" | "according to whom?" | "dubious – discuss" | "better source needed" | "edit")
 }
 
 fn clean_ws(s: &str) -> String {
@@ -274,6 +300,13 @@ async fn cache_put(url: &str, page: Page) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn page_footnote_marks_are_removed() {
+        assert_eq!(without_ref_marks("Fasting cut weight 4%.[12][13] Also this[citation needed]."), "Fasting cut weight 4%. Also this.");
+        // Real brackets stay.
+        assert_eq!(without_ref_marks("arr[i] = [1, 2] and [see below] [2024 study]"), "arr[i] = [1, 2] and [see below] [2024 study]");
+    }
 
     #[test]
     fn skips_results_that_cannot_be_read() {

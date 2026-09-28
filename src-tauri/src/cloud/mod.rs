@@ -346,6 +346,7 @@ pub fn sources_of(v: &Value) -> Vec<crate::tools::Source> {
                         snippet: s.get("snippet").or_else(|| s.get("excerpt")).and_then(text).unwrap_or_default(),
                         read: true,
                         url,
+                        meta: None,
                     }
                 })
                 .collect()

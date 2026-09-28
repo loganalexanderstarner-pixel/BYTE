@@ -73,4 +73,11 @@ describe("citations", () => {
     expect(a.getAttribute("title")).toBe('A "quoted" <title>');
     expect(a.getAttribute("href")).toBe("https://example.com/?a=1&b=2");
   });
+
+  it("marks the research confidence line", () => {
+    const html = renderMarkdown("Answer.\n\n**Confidence:** Likely — one good source.");
+    expect(html).toContain('<p class="confidence confidence-likely"><strong>Confidence</strong> <span class="level">Likely</span> — one good source.</p>');
+    expect(renderMarkdown("**Confidence:** unsure, thin sources")).toContain("confidence-unsure");
+    expect(renderMarkdown("My confidence: verified")).not.toContain("class=\"confidence");
+  });
 });

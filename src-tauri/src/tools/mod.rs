@@ -2,6 +2,7 @@
 //! schemas sent to the engine, numbered sources for citations, and an
 //! action log of every call.
 
+pub mod academic;
 pub mod calc;
 pub mod fetch;
 pub mod search;
@@ -22,6 +23,20 @@ pub struct Source {
     pub snippet: String,
     /// True once BYTE actually read the page (not just saw it in results).
     pub read: bool,
+    /// Bibliographic details for papers, used for citation styles in the UI.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub meta: Option<SourceMeta>,
+}
+
+/// Who wrote a paper, when and where it appeared.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceMeta {
+    pub authors: Vec<String>,
+    pub year: Option<i32>,
+    /// Journal, conference, or "arXiv".
+    pub venue: String,
+    pub doi: Option<String>,
 }
 
 /// Sources gathered during one answer, numbered in order of discovery.
@@ -31,6 +46,17 @@ pub struct SourceBook {
 }
 
 impl SourceBook {
+    /// Adds a paper with its citation details; its abstract counts as read.
+    pub fn add_paper(&mut self, p: &academic::Paper) -> u32 {
+        let snippet: String = p.abstract_text.chars().take(240).collect();
+        let n = self.add(&p.title, &p.url, &snippet);
+        if let Some(s) = self.sources.iter_mut().find(|s| s.n == n) {
+            s.read |= !p.abstract_text.is_empty();
+            s.meta = Some(SourceMeta { authors: p.authors.clone(), year: p.year, venue: p.venue.clone(), doi: p.doi.clone() });
+        }
+        n
+    }
+
     fn key(url: &str) -> String {
         url.trim_end_matches('/').to_lowercase()
     }
@@ -42,7 +68,7 @@ impl SourceBook {
             return s.n;
         }
         let n = self.sources.len() as u32 + 1;
-        self.sources.push(Source { n, title: title.to_string(), url: url.to_string(), snippet: snippet.to_string(), read: false });
+        self.sources.push(Source { n, title: title.to_string(), url: url.to_string(), snippet: snippet.to_string(), read: false, meta: None });
         n
     }
 
@@ -92,6 +118,8 @@ pub const WEATHER: &str = "weather";
 pub const REMEMBER: &str = "remember";
 /// Searches the folders the user added to the knowledge base.
 pub const SEARCH_FILES: &str = "search_my_files";
+/// Searches scholarly papers (Crossref, Europe PMC, arXiv).
+pub const ACADEMIC_SEARCH: &str = "academic_search";
 
 /// Passages returned per knowledge base search.
 const FILE_HITS: usize = 6;
@@ -106,7 +134,8 @@ pub fn file_url(path: &str, page: Option<u32>) -> String {
 }
 
 /// OpenAI-style tool definitions for the engine.
-pub fn specs(web: bool, memory: bool, files: bool) -> Vec<Value> {
+/// `papers` adds the scholarly search (Deep and Extended modes).
+pub fn specs(web: bool, memory: bool, files: bool, papers: bool) -> Vec<Value> {
     let mut v = Vec::new();
     if files {
         v.push(json!({
@@ -135,6 +164,20 @@ pub fn specs(web: bool, memory: bool, files: bool) -> Vec<Value> {
                 }
             }
         }));
+        if papers {
+            v.push(json!({
+                "type": "function",
+                "function": {
+                    "name": ACADEMIC_SEARCH,
+                    "description": "Search published research papers (journals, conferences, preprints) for scientific, medical or technical questions. Returns numbered papers with authors, year and abstract.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": { "query": { "type": "string", "description": "Key terms of the research topic, e.g. 'intermittent fasting weight loss trial'." } },
+                        "required": ["query"]
+                    }
+                }
+            }));
+        }
         v.push(json!({
             "type": "function",
             "function": {
@@ -208,6 +251,17 @@ pub async fn run(ctx: &ToolContext<'_>, book: &mut SourceBook, name: &str, args:
                 Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Search failed: {e}") },
             }
         }
+        ACADEMIC_SEARCH => {
+            let q = arg("query");
+            match academic::search(ctx.net, &q, ctx.max_results).await {
+                Ok(papers) if papers.is_empty() => ToolOutput { ok: true, summary: "No papers found".into(), content: format!("No papers found for \"{q}\".") },
+                Ok(papers) => {
+                    let content = papers_text(book, &papers, &q);
+                    ToolOutput { ok: true, summary: format!("{} papers", papers.len()), content }
+                }
+                Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Paper search failed: {e}") },
+            }
+        }
         READ_PAGE => {
             let url = arg("url");
             match fetch::fetch_page(ctx.net, &url).await {
@@ -278,6 +332,25 @@ pub async fn run(ctx: &ToolContext<'_>, book: &mut SourceBook, name: &str, args:
     out
 }
 
+/// Numbered papers with their abstracts, as the model sees them.
+pub fn papers_text(book: &mut SourceBook, papers: &[academic::Paper], query: &str) -> String {
+    let mut content = format!("Research papers for \"{query}\":\n");
+    for p in papers {
+        let n = book.add_paper(p);
+        let who = match p.authors.len() {
+            0 => String::new(),
+            1 => p.authors[0].clone(),
+            _ => format!("{} et al.", p.authors[0]),
+        };
+        let when = p.year.map(|y| format!(" ({y})")).unwrap_or_default();
+        let venue = if p.venue.is_empty() { String::new() } else { format!(", {}", p.venue) };
+        let abs: String = p.abstract_text.chars().take(1200).collect();
+        content.push_str(&format!("\n[{n}] {}. {who}{when}{venue}\n{}\n{}\n", p.title, p.url, if abs.is_empty() { "(no abstract)".into() } else { abs }));
+    }
+    content.push_str("\nThese are abstracts, not full papers: say what a study found, its kind (trial, review, preprint) when clear, and cite it as [n].");
+    content
+}
+
 pub fn host_of(url: &str) -> String {
     url::Url::parse(url)
         .ok()
@@ -327,10 +400,13 @@ mod tests {
     #[test]
     fn specs_respect_web_toggle() {
         let names = |v: Vec<Value>| v.iter().map(|t| t["function"]["name"].as_str().unwrap().to_string()).collect::<Vec<_>>();
-        assert_eq!(names(specs(true, false, false)), vec![WEB_SEARCH, WEATHER, READ_PAGE, CALCULATE]);
-        assert_eq!(names(specs(false, false, false)), vec![CALCULATE]);
-        assert_eq!(names(specs(false, true, false)), vec![CALCULATE, REMEMBER]);
-        assert_eq!(names(specs(false, false, true)), vec![SEARCH_FILES, CALCULATE]);
+        assert_eq!(names(specs(true, false, false, false)), vec![WEB_SEARCH, WEATHER, READ_PAGE, CALCULATE]);
+        assert_eq!(names(specs(false, false, false, false)), vec![CALCULATE]);
+        assert_eq!(names(specs(false, true, false, false)), vec![CALCULATE, REMEMBER]);
+        assert_eq!(names(specs(false, false, true, false)), vec![SEARCH_FILES, CALCULATE]);
+        assert_eq!(names(specs(true, false, false, true)), vec![WEB_SEARCH, ACADEMIC_SEARCH, WEATHER, READ_PAGE, CALCULATE]);
+        // Papers need the web.
+        assert_eq!(names(specs(false, false, false, true)), vec![CALCULATE]);
         assert_eq!(file_url("/Users/me/My Lease.pdf", Some(3)), "file:///Users/me/My%20Lease.pdf#page=3");
     }
 
@@ -371,6 +447,22 @@ mod tests {
         let page = fetch::fetch_page(&net, "https://www.rust-lang.org/").await.expect("read");
         eprintln!("page: {} ({} chars)", page.title, page.text.len());
         assert!(page.text.to_lowercase().contains("rust"));
+    }
+
+    #[test]
+    fn papers_carry_citation_details() {
+        let mut b = SourceBook::default();
+        let p = academic::Paper { title: "T".into(), authors: vec!["Ada Lovelace".into(), "B C".into()], year: Some(1843), venue: "Notes".into(), doi: Some("10.1/x".into()), url: "https://doi.org/10.1/x".into(), abstract_text: "Found things.".into(), from: "Crossref" };
+        let text = papers_text(&mut b, &[p], "q");
+        assert!(text.contains("[1] T. Ada Lovelace et al. (1843), Notes"), "{text}");
+        let s = &b.sources[0];
+        assert!(s.read);
+        assert_eq!(s.meta.as_ref().unwrap().doi.as_deref(), Some("10.1/x"));
+        let json = serde_json::to_value(s).unwrap();
+        assert_eq!(json["meta"]["authors"][0], "Ada Lovelace");
+        // Web sources don't carry an empty meta field.
+        b.add("W", "https://w.com", "");
+        assert!(serde_json::to_value(&b.sources[1]).unwrap().get("meta").is_none());
     }
 
     #[test]

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.0 — Phase 6: deep research with papers and citations
+
+- **Deep and Extended research.** In Deep or Extended mode, a question about the world gets real research:
+  BYTE plans 3–6 searches that cover it from different angles, runs them all, reads 12 pages (Deep) or 24
+  (Extended) six at a time, and keeps the most relevant passages (by meaning when the search-by-meaning model
+  from the knowledge base is downloaded, otherwise by matching words), at most three per source. Extended
+  also checks what's still missing and searches for that. The answer is a sectioned, cited report with a
+  TL;DR, and every step shows in the activity list.
+- **Research papers.** Questions about studies, evidence, health or science also search published papers
+  (Crossref, Europe PMC and arXiv, no account needed). Paper sources show their year and journal.
+- **Confidence line.** Research answers end with **Verified**, **Likely** or **Unsure** and the reason, shown
+  as a coloured badge.
+- **Cite sources.** A **Cite** button under the sources gives each one in APA, MLA, Chicago, Harvard, IEEE or
+  BibTeX, with Copy and Copy all.
+- Web pages' own footnote numbers ("[12]") are removed before the model reads them, so they can't be mistaken
+  for BYTE's source numbers.
+
 ## 0.5.0 — Phase 5: documents made on this Mac
 
 Versions now follow the phases: v0.5.0 = Phase 5 (see docs/VERSIONS.md). Earlier builds were 1.0.0-test.1…14.

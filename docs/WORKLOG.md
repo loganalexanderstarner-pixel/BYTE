@@ -17,6 +17,34 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (this commit) — Phase 6 part 1 (v0.6.0): deep research, research papers, confidence line, citation styles
+- **Why:** Phase 6 (Research+), owner priority "answer quality and research depth win". Deep/Extended mode did
+  one search and read 4–5 pages; now it researches properly and cites papers.
+- **What:**
+  - `src-tauri/src/research.rs` (new): plan searches (JSON via `chat::complete_json`) → parallel searches →
+    `academic_search` when `router::wants_papers` or the plan says so → read 12/24 pages, 6 at a time,
+    alternating between searches (`interleave`) → split into passages, rank by words (`lexical_score`) and by
+    meaning (nomic embeddings via `AppState.embedder`, fused with RRF) → `pick` (≤3 per source, ~half the
+    context) → Extended: `gaps` + more searches → notes + `REPORT_RULES` (TL;DR, sections, [n], a
+    `**Confidence:**` line). Called from `agent::run` in place of the forced first search when
+    `research::applies`.
+  - `src-tauri/src/tools/academic.rs` (new): Crossref, Europe PMC, arXiv (keyless; OpenAlex and Semantic
+    Scholar refuse keyless requests from shared IPs), merged and de-duplicated; fixtures in `tests/fixtures/`.
+  - `tools/mod.rs`: `Source.meta` (`SourceMeta`: authors, year, venue, doi), `SourceBook::add_paper`,
+    `academic_search` tool (Deep/Extended only, `specs(…, papers)`), `papers_text`.
+  - `chat::complete_json` (moved from `docs::ask_json`), `router::wants_papers`, `agent::Turn.app`,
+    `fetch::without_ref_marks` (drops pages' "[12]" footnotes, which the model cited as sources in testing).
+  - UI: `src/lib/citations.ts` (APA, MLA, Chicago, Harvard, IEEE, BibTeX) + tests; `Activity.tsx` research
+    step labels, paper cards ("Paper · year · venue"), **Cite** menu; `markdown.ts` `markConfidence` +
+    `.confidence` badge CSS; screenshot scenes `16-deep-research`, `16b-cite-menu`.
+  - Version 0.6.0 (`bump.mjs`), `docs/releases/v0.6.0.md`, `docs/VERSIONS.md`, CHANGELOG, HANDOFF, PROJECT_GUIDE.
+- **Verify:** `scripts/check-all.sh` (182 Rust tests, 85 vitest). Real engine + web:
+  `BYTE_TEST_WEB=1 BYTE_TEST_LLAMA_SERVER=… BYTE_TEST_MODEL=Qwen3-0.6B-Q8_0.gguf cargo test e2e_deep_research -- --ignored --nocapture`
+  (passed: 4 searches, 6 papers, 8 pages, 32 passages from 12 sources, cited report with a confidence line);
+  `BYTE_TEST_WEB=1 cargo test live_papers -- --ignored` (8 papers from Europe PMC + Crossref).
+- **Undo:** revert. To keep the code but switch the pipeline off, make `research::applies` return false
+  (Deep/Extended then use the single forced search again).
+
 ### (this commit) — Versions follow the phases (v0.5.0 = Phase 5), with a description per release
 - **Why:** owner: name builds after phases instead of "test.N" ("Phase 1 improvements v0.1…"), and describe
   each version on the repo so people can choose one with fewer features.
