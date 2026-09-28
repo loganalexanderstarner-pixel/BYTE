@@ -28,6 +28,7 @@ talks in a normal friendly tone; the *visuals* are neon/cyberpunk. No paid Apple
 | Phases 1–3 (engine, models, chat, web search, agent, calculator, encrypted chats, memory, projects, profiles) | ✅ done |
 | Speed work (Phase 8 pulled forward): Speed boost with family drafters **and models' own MTP/EAGLE-3/DSpark heads**, repeated-text guessing (ngram), per-Mac auto-tuning (quick/thorough/tune-all), measured-speed recommendations with a quality floor, CPU offload for MoE (`--n-cpu-moe`) + stretch mode, optional bigger GPU share, accuracy-first thinking router | ✅ done (test.7–test.9) |
 | Cloud mode (chat, streaming, actions, attachments + library, documents with outline approval + templates, account data, `/` prompts, fallback to local) | ✅ built (test.10) — **not yet verified against the real cluster** (see §6) |
+| Cloud redesign: This Mac · Cloud · Both workspaces, server chat list with new/delete, Both answers side by side with "Keep this one", budgets chip, 429 message, re-read after a dropped stream, invite-only onboarding path | ✅ built (for test.11) |
 | Phases 4–7, 9–12 (files & knowledge base, local documents, research+, writing/learning, Mac control, automation, voice/windows, privacy & polish) | ⏳ planned — every phase in detail in §8 |
 
 Test builds are GitHub pre-releases `v1.0.0-test.N` (latest: test.10). The owner installs them on the M4 Air
@@ -39,7 +40,7 @@ and reports back with screenshots; this environment can't run macOS.
 `release.yml` for `v1.0.0-test.10` and `mac-engine.yml` on the branch head. test.10 is the first macOS build of
 the `keyring` crate (Keychain). If it fails, fix it before anything else.
 
-### 3.2 Owner's new requests (from the last session — do these next)
+### 3.2 Owner's cloud requests — B and C done, A done as far as the app can go
 
 **A. "It should work when anyone downloads it."**
 - Local mode already needs nothing but a model download. Make first launch offer two paths:
@@ -62,8 +63,15 @@ the `keyring` crate (Keychain). If it fails, fix it before anything else.
 - **Answered:** sign-up is **invite-only** (no open registration), so onboarding must say "BYTE Cloud needs an
   invite" rather than implying anyone can use it. Show the account's budgets; a 429 means an allowance is
   spent, not an error.
+- **Done in the app:** onboarding step 2 has "Use BYTE Cloud instead (invite only)" (key paste, suggested when
+  no model fits); budgets chip in the chat box; 429 → "today's allowance for this is used up".
+  **Still open (backend first):** option 1 or 2 above; the app side is small once the server issues per-user
+  tokens (store them exactly like the key).
 
-**B. Cloud as its own tab, not a toggle.**
+**B. Cloud as its own tab, not a toggle.** ✅ done — see PROJECT_GUIDE "Workspaces". New cloud chats are
+created lazily (the first message posts `POST /api/conversations`), so empty chats never reach the server.
+**Backend ask:** `DELETE /api/conversations/{id}` isn't in the contract; the app calls it and, on 404/405, says
+deleting isn't supported and hides the chat locally. Add the endpoint on the server (or tell us the real one).
 - Replace the composer's Cloud/This Mac pill with a top-level workspace switch in the sidebar header:
   **This Mac · Cloud · Both** (persist as a setting, e.g. `workspace`).
 - **Cloud tab:** the chat list comes from the server (`GET /api/conversations`, source of truth), with a
@@ -74,7 +82,9 @@ the `keyring` crate (Keychain). If it fails, fix it before anything else.
   actions and documents; keep a local mirror only for offline reading/search.
 - **This Mac tab:** today's local experience, unchanged.
 
-**C. "Both" tab: cloud and local together, for better and faster replies.**
+**C. "Both" tab: cloud and local together, for better and faster replies.** ✅ done as described below
+(the cloud side uses `noFallback`, so an unreachable cloud shows an error beside the Mac's answer instead of a
+second local answer).
 - Recommended design: send each question to **both**; show the local answer as soon as it streams (fast), and
   the cloud answer side by side when it arrives (usually better). Reuse the side-by-side compare UI that
   already exists for multiple local models (`store.answer` with a shared `group`, `compare-grid`). The user
@@ -90,7 +100,6 @@ the `keyring` crate (Keychain). If it fails, fix it before anything else.
 - **`ModelBackend` boundary** (Part 2): one trait for "answer this turn" with the local engine and the cloud as
   implementations; `chat_send` goes through it. No Windows/Linux ports before 1.0, but new code must not add
   macOS assumptions outside `#[cfg(target_os = "macos")]` modules.
-- After a dropped cloud stream, re-read the conversation and use the saved answer (CLOUD-MODE.md).
 
 ### 3.3 Then Phase 4 — Files & knowledge base
 Full plan in §8 (Phase 4). After that, Phases 5–12 in order (§8). The owner prioritizes **answer quality**,
@@ -366,8 +375,10 @@ branching on edit/regenerate, import of cloud chats; photos/files with a reusabl
 required outline approval, templates, previews, download, revise, render; account data (memories,
 knowledge, saved prompts as `/` commands, recipes, personal context, default mode, search, export);
 fallback to the local model when the cloud is unreachable; private chats never leave the Mac.
-Next: the three requests in §3.2 (cloud for anyone without shipping a key, Cloud as its own tab with a
-server-side chat list and new/delete, a Both tab), then fix any reply-shape mismatches the owner reports.
+Done (test.11): This Mac · Cloud · Both workspaces, server chat list with open/new/delete, Both answers side
+by side with "Keep this one", budgets chip, 429 message, re-read after a dropped stream, invite-only onboarding
+path. Next: per-user sign-in once the backend supports it (§3.2 A), then fix any reply-shape mismatches the
+owner reports.
 
 ### After 1.0 (not scheduled)
 Image generation (Core ML Stable Diffusion), bigger-Mac mode for 32 GB+, Windows version (the owner said

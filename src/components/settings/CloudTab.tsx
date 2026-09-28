@@ -3,36 +3,15 @@ import { Cloud, Download, KeyRound, LogOut, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
 import { api, errorText } from "../../lib/api";
+import { budgetRows, listOf } from "../../lib/cloudDocs";
 import { CloudAccount } from "./CloudAccount";
-import { useStore } from "../../state/store";
-
-/** Items in a list reply, whatever it's wrapped in. */
-function listOf(v: unknown): Record<string, unknown>[] {
-  if (Array.isArray(v)) return v as Record<string, unknown>[];
-  if (v && typeof v === "object") {
-    for (const k of ["conversations", "items", "results", "data"]) {
-      const inner = (v as Record<string, unknown>)[k];
-      if (Array.isArray(inner)) return inner as Record<string, unknown>[];
-    }
-  }
-  return [];
-}
-
-/** Budgets as the server sends them, flattened to "label: value" rows. */
-function budgetRows(b: unknown, prefix = ""): [string, string][] {
-  if (b === null || b === undefined) return [];
-  if (typeof b !== "object") return [[prefix || "Budget", String(b)]];
-  return Object.entries(b as Record<string, unknown>).flatMap(([k, v]) => {
-    const label = `${prefix}${prefix ? " · " : ""}${k.replace(/_/g, " ")}`;
-    return v && typeof v === "object" ? budgetRows(v, label) : [[label, String(v)] as [string, string]];
-  });
-}
+import { useStore, workspaceOf } from "../../state/store";
 
 export function CloudTab() {
   const settings = useStore((s) => s.settings);
   const cloud = useStore((s) => s.cloud);
   const refreshCloud = useStore((s) => s.refreshCloud);
-  const updateSettings = useStore((s) => s.updateSettings);
+  const setWorkspace = useStore((s) => s.setWorkspace);
   const reloadChats = useStore((s) => s.reloadChats);
   const [key, setKey] = useState("");
   const [address, setAddress] = useState("");
@@ -60,7 +39,7 @@ export function CloudTab() {
       await api.cloudConnect(key, address.trim() || null);
       setKey(""); // never kept in the page once it's in the Keychain
       await Promise.all([reloadSettings(), refreshCloud()]);
-      await updateSettings({ useCloud: true });
+      await setWorkspace("cloud");
     });
 
   const disconnect = () =>
@@ -187,15 +166,16 @@ export function CloudTab() {
           <div className="section">
             <div className="field">
               <label>
-                Answer with the BYTE cloud
-                <small>Also switchable in the chat box. New answers go to your cluster; this Mac's model isn't needed.</small>
+                Where BYTE answers
+                <small>Also switchable at the top of the sidebar. Both asks this Mac and the cloud at once so you can keep the better answer.</small>
               </label>
-              <input
-                type="checkbox"
-                checked={settings.useCloud}
-                onChange={(e) => void updateSettings({ useCloud: e.target.checked })}
-                aria-label="Answer with the BYTE cloud"
-              />
+              <div className="segmented" role="tablist" aria-label="Where BYTE answers">
+                {(["local", "cloud", "both"] as const).map((ws) => (
+                  <button key={ws} role="tab" aria-selected={workspaceOf(settings) === ws} onClick={() => void setWorkspace(ws)}>
+                    {ws === "local" ? "This Mac" : ws === "cloud" ? "Cloud" : "Both"}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="field">
               <label>

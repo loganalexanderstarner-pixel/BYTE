@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased (1.0.0-test.11) — Cloud and Both workspaces
+
+- **This Mac · Cloud · Both** at the top of the sidebar (once BYTE Cloud is connected) replaces the Cloud /
+  This Mac switch in the chat box. Each chat stays in the workspace it was started in; private chats are
+  always on this Mac.
+- **Cloud workspace**: lists the conversations on your BYTE cloud (refreshed when you come back to the app),
+  opens them, starts new ones and deletes them on the cloud. The chat box shows your plan's modes and how much
+  of today's allowance is left.
+- **Both workspace**: every question goes to this Mac and your cloud at once. The Mac's answer streams right
+  away, the cloud's appears beside it; the cloud's answer continues the chat when it finishes, or pick the
+  other with **Keep this one**.
+- **First launch** offers "Use BYTE Cloud instead (invite only)" next to the model list, suggested when no
+  model fits the Mac well.
+- A spent daily allowance (429) now says so plainly instead of looking like an error. If a cloud answer's
+  stream drops and won't come back, BYTE re-reads the conversation and shows the saved answer.
+
 ## 1.0.0-test.10 — BYTE Cloud: chat, photos and documents
 
 - **BYTE Cloud**: connect your own BYTE cluster in Settings → Cloud with an API key from

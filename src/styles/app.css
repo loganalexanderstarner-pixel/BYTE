@@ -1479,7 +1479,11 @@ kbd {
   gap: var(--space-4);
   align-items: start;
 }
-.compare-grid > .msg.assistant {
+.compare-cell {
+  min-width: 0;
+}
+.compare-grid > .msg.assistant,
+.compare-cell > .msg.assistant {
   min-width: 0;
   padding: var(--space-3);
   border: 1px solid var(--border);
@@ -2235,4 +2239,48 @@ kbd {
 .collection-add .text-input,
 .collection > .text-input {
   width: 100%;
+}
+
+/* ---------- workspaces (This Mac · Cloud · Both) ---------- */
+.workspace-switch {
+  display: flex;
+  width: 100%;
+}
+.workspace-switch button {
+  flex: 1;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 4px;
+  white-space: nowrap;
+  font-size: 0.82em;
+}
+.segmented button[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: var(--glow);
+}
+.sidebar-notice {
+  margin: 6px 10px;
+  font-size: 0.85em;
+}
+.keep-answer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -4px;
+}
+.keep-answer .kept {
+  color: var(--accent);
+  font-size: 0.82em;
+  font-weight: 600;
+}
+.cloud-budget {
+  font-size: 0.78em;
+}
+.cloud-choice {
+  margin-top: 12px;
+  border-style: dashed;
+}
+.cloud-choice.suggested {
+  border-style: solid;
+  border-color: var(--accent);
 }

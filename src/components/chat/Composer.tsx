@@ -4,10 +4,11 @@ import { ArrowUp, Brain, Cloud, Images, Loader2, Paperclip, Columns2, Cpu, Gauge
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { inTauri } from "../../lib/api";
+import { budgetSummary } from "../../lib/cloudDocs";
 import { displayName } from "../../lib/models";
 import { AttachmentChips, LibraryPicker } from "./Attachments";
 import type { Mode, ThinkingPref } from "../../lib/types";
-import { useStore } from "../../state/store";
+import { spaceOf, useStore, workspaceOf } from "../../state/store";
 
 const MODES: { id: Mode; label: string; icon: typeof Zap; hint: string }[] = [
   { id: "fast", label: "Fast", icon: Zap, hint: "Quick, short answers. No thinking." },
@@ -53,11 +54,17 @@ export function Composer() {
   const cloudStatus = useStore((s) => s.cloud);
   const updateSettings = useStore((s) => s.updateSettings);
   const privateChat = useStore((s) => s.conversations.find((c) => c.id === s.currentId)?.private ?? false);
+  const setWorkspace = useStore((s) => s.setWorkspace);
   const cloudConnected = !!settings?.cloudConnected;
+  // A chat stays in the workspace it was started in; a new one uses the current workspace.
+  const space = privateChat ? "local" : currentId ? spaceOf(currentId) : workspaceOf(settings);
   // The cloud needs no model on this Mac, so it also works on Macs too small for one.
-  const onCloud = cloudConnected && !!settings?.useCloud && !privateChat;
+  const onCloud = cloudConnected && space === "cloud";
+  const onBoth = cloudConnected && space === "both";
   const cloudModes = cloudStatus?.account?.modes ?? [];
-  const ready = onCloud || (engine.state === "ready" && !tune);
+  const cloudMode = settings?.cloudMode ?? cloudModes[0]?.id;
+  const budget = budgetSummary(cloudStatus?.account?.budgets);
+  const ready = onCloud || onBoth || (engine.state === "ready" && !tune);
   const pending = useStore((s) => s.pending);
   const attaching = useStore((s) => s.attaching);
   const attachError = useStore((s) => s.attachError);
@@ -139,6 +146,8 @@ export function Composer() {
 
   const placeholder = onCloud
     ? "Ask BYTE anything (answered on your BYTE cloud)…"
+    : onBoth
+    ? "Ask BYTE anything (this Mac and your cloud both answer)…"
     : ready
     ? "Ask BYTE anything…"
     : tune
@@ -174,7 +183,7 @@ export function Composer() {
           <button className="btn sm primary" onClick={() => openSettings(engine.state === "error" ? "engine" : "models")}>
             {engine.state === "error" ? "Fix it" : "Choose a model"}
           </button>
-          <button className="btn sm" onClick={() => (cloudConnected ? void updateSettings({ useCloud: true }) : openSettings("cloud"))}>
+          <button className="btn sm" onClick={() => (cloudConnected ? void setWorkspace("cloud") : openSettings("cloud"))}>
             <Cloud size={14} /> {cloudConnected ? "Use BYTE Cloud" : "Connect BYTE Cloud"}
           </button>
         </div>
@@ -217,25 +226,6 @@ export function Composer() {
           spellCheck
         />
         <div className="composer-bar">
-          {cloudConnected && (
-            <button
-              className={`pill ${onCloud ? "accent" : ""}`}
-              style={{ cursor: privateChat ? "not-allowed" : "pointer", height: 30 }}
-              onClick={() => settings && void updateSettings({ useCloud: !settings.useCloud })}
-              disabled={privateChat}
-              aria-pressed={onCloud}
-              title={
-                privateChat
-                  ? "Private chats stay on this Mac"
-                  : onCloud
-                    ? "Answering on your BYTE cloud. Click to answer on this Mac."
-                    : "Answering on this Mac. Click to use your BYTE cloud."
-              }
-            >
-              <Cloud size={14} />
-              {onCloud ? "Cloud" : "This Mac"}
-            </button>
-          )}
           {onCloud && (
             <>
               <button className="icon-btn" onClick={() => void pickFiles()} title="Attach photos or files (or drop them here)" aria-label="Attach">
@@ -273,6 +263,23 @@ export function Composer() {
               ))}
             </div>
           )}
+          {onBoth && cloudModes.length > 0 && (
+            <label className="pill model-pick accent" title="The cloud's mode for its answer">
+              <Cloud size={14} />
+              <select value={cloudMode} onChange={(e) => void updateSettings({ cloudMode: e.target.value })} aria-label="Cloud mode">
+                {cloudModes.map(({ id, label }) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {(onCloud || onBoth) && budget && (
+            <span className="pill cloud-budget" title={budget.detail}>
+              <Gauge size={13} /> {budget.short}
+            </span>
+          )}
           {!onCloud && (
             <button
               className={`pill ${thinking === "on" ? "accent" : ""}`}
@@ -296,7 +303,7 @@ export function Composer() {
               {web ? "Web" : "Web off"}
             </button>
           )}
-          {!onCloud && readyModels.length > 1 && (
+          {!onCloud && !onBoth && readyModels.length > 1 && (
             <label className={`pill model-pick ${answerWith !== "main" ? "accent" : ""}`} title="Which loaded model answers">
               {answerWith === "compare" ? <Columns2 size={14} /> : <Cpu size={14} />}
               <select value={answerWith} onChange={(e) => setAnswerWith(e.target.value)} aria-label="Answer with">
@@ -323,7 +330,11 @@ export function Composer() {
         </div>
       </div>
       <div className="composer-hint">
-        {onCloud ? "Answered on your BYTE cloud (falls back to this Mac if it's unreachable)" : "Runs entirely on your Mac"} · <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line
+        {onCloud
+          ? "Answered on your BYTE cloud (falls back to this Mac if it's unreachable)"
+          : onBoth
+            ? "This Mac and your cloud answer side by side; keep the better one"
+            : "Runs entirely on your Mac"} · <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line
       </div>
     </div>
   );

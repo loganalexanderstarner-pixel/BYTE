@@ -68,7 +68,7 @@ function mock(onboarded, theme) {
     { id: "work-1a2b3c", name: "Work", createdAt: now - 3 * day },
   ] };
   const cloud = { connected: false, baseUrl: "https://byteai.bytebylogan.xyz", account: null };
-  Object.assign(settings, { cloudConnected: false, cloudBaseUrl: null, cloudAccount: null, useCloud: false, cloudMode: null });
+  Object.assign(settings, { cloudConnected: false, cloudBaseUrl: null, cloudAccount: null, useCloud: false, cloudMode: null, workspace: "local" });
   return { models, settings, system, recommend: REAL.recommend, loaded, chats, memories, projects, profiles, cloud };
 }
 
@@ -184,6 +184,19 @@ function initScript({ data }) {
           data.settings = { ...data.settings, cloudConnected: true, cloudMode: "auto" };
           return data.cloud;
         case "cloud_action":
+          return null;
+        case "cloud_conversations":
+          return { conversations: [
+            { id: 42, title: "Why do spring tides happen?", updated_at: new Date().toISOString() },
+            { id: 41, title: "Kubernetes ingress for a home lab", updated_at: new Date(Date.now() - 86400000).toISOString() },
+            { id: 40, title: "Birthday party ideas for a 7-year-old", updated_at: new Date(Date.now() - 3 * 86400000).toISOString() },
+          ] };
+        case "cloud_import": {
+          const id = "cloud-" + args.conversationId;
+          if (!data.chats.some((c) => c.id === id)) data.chats.unshift({ id, cloudId: String(args.conversationId), title: "Kubernetes ingress for a home lab", createdAt: Date.now(), updatedAt: Date.now(), messageCount: 2 });
+          return id;
+        }
+        case "cloud_delete":
           return null;
         case "cloud_image": {
           const hue = [...args.path].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
@@ -406,6 +419,8 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(400);
   await shot(p, "10b-cloud-connected");
   await p.getByRole("button", { name: "Close settings" }).click();
+  await p.waitForTimeout(300);
+  await shot(p, "10b2-cloud-workspace");
   await p.getByRole("button", { name: /New chat/ }).first().click().catch(() => {});
   await p.waitForTimeout(200);
   await p.getByLabel("Message BYTE").fill("Why do spring tides happen?");
@@ -445,6 +460,14 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.getByRole("button", { name: "Open" }).click();
   await p.waitForTimeout(800);
   await shot(p, "11c-docs-document");
+  await p.keyboard.press("Escape");
+  await p.getByRole("button", { name: "Close" }).first().click().catch(() => {});
+  await p.getByRole("tab", { name: /Both/ }).click();
+  await p.waitForTimeout(200);
+  await p.getByLabel("Message BYTE").fill("Is the new MacBook Air worth it if I have an M4?");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(1200);
+  await shot(p, "10g-both");
   console.log("cloud errors:", errors);
   await ctx.close();
 }

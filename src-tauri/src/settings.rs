@@ -126,6 +126,8 @@ pub struct Settings {
     pub use_cloud: bool,
     /// Cloud mode id last chosen (one of the account's modes).
     pub cloud_mode: Option<String>,
+    /// Which workspace the sidebar shows: "local" (this Mac), "cloud" or "both".
+    pub workspace: String,
 }
 
 impl Default for Settings {
@@ -156,6 +158,7 @@ impl Default for Settings {
             cloud_account: None,
             use_cloud: false,
             cloud_mode: None,
+            workspace: "local".into(),
         }
     }
 }
@@ -188,7 +191,11 @@ impl Settings {
                 obj.insert(k, v);
             }
         }
-        Ok(serde_json::from_value(current)?)
+        let mut next: Settings = serde_json::from_value(current)?;
+        if !matches!(next.workspace.as_str(), "local" | "cloud" | "both") {
+            next.workspace = "local".into();
+        }
+        Ok(next)
     }
 }
 

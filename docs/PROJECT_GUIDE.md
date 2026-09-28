@@ -74,12 +74,26 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
   Errors: 401/403 → `Unauthorized`; connect/timeout/502–504 → `Unreachable`; else `Other`.
 - Key: `cloud::keychain::Keychain` (macOS Keychain via `keyring`, service `com.loganstarner.byte.cloud`, account
   per profile). `cloud_connect` validates with `GET /api/auth/me` *before* saving. Settings keep only
-  `cloudConnected`, `cloudBaseUrl`, `cloudAccount` (raw `me`), `useCloud`, `cloudMode`.
+  `cloudConnected`, `cloudBaseUrl`, `cloudAccount` (raw `me`), `useCloud` (legacy, mirrors the Cloud
+  workspace), `cloudMode`, `workspace`.
+- **Workspaces** (`settings.workspace`: `local` | `cloud` | `both`, switch at the top of the sidebar, Cloud and
+  Both only while connected; `store.workspaceOf`). A chat belongs to the workspace it was made in, by id prefix
+  (`store.spaceOf`: `cloud-…`, `both-…`, anything else is This Mac); private chats are always This Mac.
+  - Cloud: sidebar = local mirrors of cloud chats + "On your cloud" (`GET /api/conversations`, re-read on
+    focus, `store.refreshCloudChats`); open = `cloud_import` (`store.openCloudChat`); new = a `cloud-<uuid>`
+    chat whose first message creates the remote conversation; delete = `DELETE /api/conversations/{id}`
+    (404/405 → "your cloud doesn't support deleting yet", hidden locally).
+  - Both: `store.answer` runs the local model and the cloud at once in one compare `group` (cloud answer
+    `alt`, `CloudTurn.noFallback` so a down cloud doesn't answer on the Mac twice). `store.keepAnswer` picks
+    which answer continues the chat ("Keep this one"); the cloud answer is kept by default when it finishes.
+  - Composer: cloud modes from `me.modes` (a compact select in Both), budget chip (`cloudDocs.budgetSummary`).
 - Modes: parsed from `me.modes` (`cloud::parse_me`, tolerant of strings or objects), never hard-coded.
 - Chat: `chat_send` with `request.cloud` → `cloud::cmd::send`: create conversation (first message), optional
   `branch` (after edit/regenerate; `store.cloudTurn` decides), post the message, then `cloud::follow` reads the
   SSE stream (`cloud::sse::Parser`): `delta` → `ChatEvent::Content`, `phase` → `Phase`, `sources` → `Sources`
-  (as they arrive), `status` done/error, `bye` → reconnect with `since`. `Remote` events carry conversation and
+  (as they arrive), `status` done/error, `bye` → reconnect with `since`; if the stream won't reopen, `cloud::recover` re-reads
+  `GET /api/conversations/{id}` and finishes from the saved answer (`cloud::saved_answer`). 429 →
+  "today's allowance … is used up" (`cloud::limit_error`). `Remote` events carry conversation and
   message ids; `conversations.cloud_id` (schema v3) and `message.remoteId` keep them.
 - Fallback: `Unreachable` before the cloud accepted the message → `Notice` + the local model answers
   (`cloud::cmd::local_mode` maps modes). After acceptance, errors are reported, never answered twice.

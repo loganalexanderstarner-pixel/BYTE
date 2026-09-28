@@ -103,6 +103,80 @@ async fn reconnects_after_a_dropped_stream_without_repeating_text() {
 }
 
 #[tokio::test]
+async fn a_stream_that_wont_come_back_is_finished_from_the_saved_answer() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/conversations/c5/stream"))
+        .respond_with(sse(&[("delta", json!({ "id": 51, "append": "The answer " })), ("bye", json!({}))]))
+        .up_to_n_times(1)
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    // A redeploy: the stream stays down, but the answer was saved.
+    Mock::given(method("GET")).and(path("/api/conversations/c5/stream")).respond_with(ResponseTemplate::new(502)).with_priority(2).mount(&server).await;
+    Mock::given(method("GET"))
+        .and(path("/api/conversations/c5"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": "c5",
+            "messages": [
+                { "id": 50, "role": "user", "content": "Q" },
+                { "id": 51, "role": "assistant", "content": "The answer is 42.", "status": "done" }
+            ]
+        })))
+        .mount(&server)
+        .await;
+    let client = CloudClient::new(&server.uri(), FAKE_KEY);
+    let (ch, seen) = collecting_channel();
+    let end = follow(&client, "c5", Some("50".into()), None, &CancellationToken::new(), &ch).await.unwrap();
+    assert_eq!(end.text, "The answer is 42.");
+    assert_eq!(end.assistant_id.as_deref(), Some("51"));
+    let text: String = seen.lock().unwrap().iter().filter(|e| e["kind"] == "content").map(|e| e["delta"].as_str().unwrap().to_string()).collect();
+    assert_eq!(text, "The answer is 42.");
+}
+
+#[test]
+fn finds_the_saved_answer_after_the_question() {
+    let conv = json!({ "messages": [
+        { "id": 1, "role": "user" }, { "id": 2, "role": "assistant", "content": "old" },
+        { "id": 3, "role": "user" }, { "id": 4, "role": "assistant", "content": "new" }
+    ]});
+    assert_eq!(saved_answer(&conv, Some("3"), None).unwrap()["content"], "new");
+    assert_eq!(saved_answer(&conv, None, Some("2")).unwrap()["content"], "old");
+    assert!(saved_answer(&json!([{ "id": 1, "role": "user" }]), Some("1"), None).is_none());
+}
+
+#[tokio::test]
+async fn a_spent_allowance_is_explained_not_reported_as_broken() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/conversations/c6/messages"))
+        .respond_with(ResponseTemplate::new(429).set_body_json(json!({ "detail": "extended: 0 of 5 left today" })))
+        .mount(&server)
+        .await;
+    let client = CloudClient::new(&server.uri(), FAKE_KEY);
+    let err = AppError::from(client.post("/api/conversations/c6/messages", &json!({ "content": "hi" })).await.unwrap_err());
+    let msg = err.to_string();
+    assert!(msg.contains("allowance") && msg.contains("used up"), "{msg}");
+    assert!(msg.contains("0 of 5 left today"), "{msg}");
+}
+
+#[tokio::test]
+async fn deleting_a_conversation_reports_an_unsupported_server() {
+    let server = MockServer::start().await;
+    Mock::given(method("DELETE")).and(path("/api/conversations/c7")).respond_with(ResponseTemplate::new(204)).mount(&server).await;
+    Mock::given(method("DELETE"))
+        .and(path("/api/conversations/c8"))
+        .respond_with(ResponseTemplate::new(405).set_body_json(json!({ "detail": "Method Not Allowed" })))
+        .mount(&server)
+        .await;
+    let client = CloudClient::new(&server.uri(), FAKE_KEY);
+    assert_eq!(client.delete("/api/conversations/c7").await.unwrap(), Value::Null);
+    // The app shows "your cloud doesn't support deleting yet" when the error names 404/405.
+    let msg = AppError::from(client.delete("/api/conversations/c8").await.unwrap_err()).to_string();
+    assert!(msg.contains("405"), "{msg}");
+}
+
+#[tokio::test]
 async fn other_messages_on_the_stream_are_ignored() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))

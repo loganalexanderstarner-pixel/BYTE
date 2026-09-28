@@ -44,6 +44,8 @@ export interface CloudTurn {
   lastRemoteId?: string | null;
   attachmentIds?: (string | number)[];
   branchFrom?: string | null;
+  /** Both workspace: report an unreachable cloud instead of answering on this Mac a second time. */
+  noFallback?: boolean;
 }
 
 export type CloudAction = "regenerate" | "deepen" | "justify" | "stop" | "answer-now" | "feedback";

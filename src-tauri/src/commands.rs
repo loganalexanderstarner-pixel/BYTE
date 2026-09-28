@@ -342,6 +342,9 @@ pub async fn chat_send(state: State<'_, AppState>, request: ChatRequest, on_even
             return Err(AppError::msg("Private chats stay on this Mac. Switch to a model on this Mac, or turn off Private."));
         }
         match crate::cloud::cmd::send(&state, &request, &turn, &on_event).await {
+            Err(crate::cloud::CloudError::Unreachable(why)) if turn.no_fallback => {
+                return Err(AppError::msg(format!("Your BYTE cloud can't be reached right now ({why}). The answer from this Mac is beside this one.")));
+            }
             Err(crate::cloud::CloudError::Unreachable(why)) => {
                 // The cluster lives in a house; when it's down, answer here instead.
                 log::warn!("cloud unreachable, answering locally: {why}");

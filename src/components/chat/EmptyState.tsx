@@ -1,7 +1,7 @@
 import { Lightbulb, Rocket, Sparkles, Telescope } from "lucide-react";
 
 import { Logo } from "../../design/Logo";
-import { useStore } from "../../state/store";
+import { spaceOf, useStore, workspaceOf } from "../../state/store";
 
 const SUGGESTIONS = [
   { icon: Lightbulb, title: "What's new", prompt: "What are the biggest tech news stories this week?", hint: "Searches the web, with sources" },
@@ -24,11 +24,21 @@ export function EmptyState() {
   const engine = useStore((s) => s.engine);
   const ready = engine.state === "ready";
   const userName = useStore((s) => s.settings?.userName);
+  const space = useStore((s) => {
+    const c = s.conversations.find((x) => x.id === s.currentId);
+    return c?.private ? "local" : c ? spaceOf(c.id) : workspaceOf(s.settings);
+  });
+  const where =
+    space === "cloud"
+      ? "Answers come from your BYTE cloud."
+      : space === "both"
+        ? "This Mac and your cloud both answer; keep the better one."
+        : "Everything stays on this Mac.";
   return (
     <div className="empty">
       <Logo size={64} />
       <h1>{greeting(userName)}</h1>
-      <p className="muted">What can I help you with? Everything stays on this Mac.</p>
+      <p className="muted">What can I help you with? {where}</p>
       <div className="suggestions">
         {SUGGESTIONS.map(({ icon: Icon, title, prompt, hint }) => (
           <button key={title} className="suggestion" disabled={!ready} onClick={() => void send(prompt)} title={prompt}>

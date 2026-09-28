@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bodyOf, isImage, jobState, listOf, readOutline, writeOutline } from "./cloudDocs";
+import { bodyOf, budgetSummary, isImage, jobState, listOf, readOutline, writeOutline } from "./cloudDocs";
 
 describe("cloud replies", () => {
   it("finds lists however they're wrapped", () => {
@@ -38,5 +38,16 @@ describe("cloud replies", () => {
     expect(bodyOf({ content: "a" })).toBe("a");
     expect(bodyOf({ prompt: "b" })).toBe("b");
     expect(bodyOf({ id: 1 })).toBe("");
+  });
+});
+
+describe("budgets", () => {
+  it("shows what's left in the chat box and everything in the tooltip", () => {
+    const b = budgetSummary({ documents: { used: 1, remaining: 4 }, extended_per_day: 5 });
+    expect(b?.short).toBe("4 left");
+    expect(b?.detail).toContain("documents · remaining: 4");
+    expect(b?.detail).toContain("extended per day: 5");
+    expect(budgetSummary({ daily_tokens: 100000 })?.short).toBe("daily tokens: 100000");
+    expect(budgetSummary(null)).toBeNull();
   });
 });

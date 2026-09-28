@@ -2,6 +2,10 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import {
   Briefcase,
   ChevronRight,
+  Cloud,
+  Laptop,
+  RefreshCw,
+  Sparkles,
   EyeOff,
   Folder,
   FolderInput,
@@ -24,8 +28,8 @@ import { createPortal } from "react-dom";
 
 import { Logo } from "../design/Logo";
 import { api, inTauri } from "../lib/api";
-import type { Project, SearchHit } from "../lib/types";
-import { hasMessages, useStore, type Conversation } from "../state/store";
+import type { Project, SearchHit, Workspace } from "../lib/types";
+import { hasMessages, spaceOf, useStore, workspaceOf, type CloudChat, type Conversation } from "../state/store";
 
 function groupLabel(ts: number): string {
   const day = 86_400_000;
@@ -70,6 +74,23 @@ export function sidebarSections(conversations: Conversation[], projectList: Proj
   };
 }
 
+/** Chats that belong to a workspace (private chats only ever live on this Mac). */
+export function inWorkspace(conversations: Conversation[], ws: Workspace): Conversation[] {
+  return conversations.filter((c) => (c.private ? ws === "local" : spaceOf(c.id) === ws));
+}
+
+/** Cloud conversations with no copy on this Mac yet. */
+export function onlyOnCloud(cloudChats: CloudChat[] | null, conversations: Conversation[]): CloudChat[] {
+  const mirrored = new Set(conversations.filter((c) => c.cloudId && spaceOf(c.id) === "cloud").map((c) => c.cloudId));
+  return (cloudChats ?? []).filter((c) => !mirrored.has(c.id));
+}
+
+const WORKSPACES: { id: Workspace; label: string; hint: string; icon: typeof Cloud }[] = [
+  { id: "local", label: "This Mac", hint: "Chats answered on this Mac", icon: Laptop },
+  { id: "cloud", label: "Cloud", hint: "Chats on your BYTE cloud", icon: Cloud },
+  { id: "both", label: "Both", hint: "Each question goes to this Mac and the cloud at once; keep the better answer", icon: Sparkles },
+];
+
 /** "«match» in context" → text with <mark>s. */
 function Snippet({ text }: { text: string }) {
   const parts = text.split(/(«[^»]*»)/g);
@@ -81,7 +102,15 @@ function Snippet({ text }: { text: string }) {
 }
 
 export function Sidebar() {
-  const conversations = useStore((s) => s.conversations);
+  const allConversations = useStore((s) => s.conversations);
+  const settings = useStore((s) => s.settings);
+  const workspace = workspaceOf(settings);
+  const setWorkspace = useStore((s) => s.setWorkspace);
+  const cloudChats = useStore((s) => s.cloudChats);
+  const cloudNotice = useStore((s) => s.cloudNotice);
+  const refreshCloudChats = useStore((s) => s.refreshCloudChats);
+  const conversations = useMemo(() => inWorkspace(allConversations, workspace), [allConversations, workspace]);
+  const remoteOnly = useMemo(() => (workspace === "cloud" ? onlyOnCloud(cloudChats, allConversations) : []), [workspace, cloudChats, allConversations]);
   const currentId = useStore((s) => s.currentId);
   const selectChat = useStore((s) => s.selectChat);
   const newChat = useStore((s) => s.newChat);
@@ -114,9 +143,20 @@ export function Sidebar() {
     return () => clearTimeout(t);
   }, [query, conversations]);
 
-  const sections = useMemo(() => sidebarSections(conversations, projects), [conversations, projects]);
+  // The cloud's list is re-read when the workspace opens and when the window comes back to the front.
+  useEffect(() => {
+    if (workspace === "local") return;
+    void refreshCloudChats();
+    const onFocus = () => void refreshCloudChats();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [workspace, refreshCloudChats]);
+
+  // Projects add instructions to this Mac's prompt, so they live in the This Mac workspace.
+  const shownProjects = workspace === "local" ? projects : [];
+  const sections = useMemo(() => sidebarSections(conversations, shownProjects), [conversations, shownProjects]);
   const folderNames = sections.folders.map((f) => f.name);
-  const empty = !sections.pinned.length && !sections.folders.length && !sections.dated.length && !projects.length;
+  const empty = !sections.pinned.length && !sections.folders.length && !sections.dated.length && !shownProjects.length && !remoteOnly.length;
 
   const toggleFolder = (name: string) => {
     const next = new Set(closed);
@@ -131,9 +171,11 @@ export function Sidebar() {
         <button className="icon-btn" onClick={toggleSidebar} title="Hide sidebar (⌘\)">
           <PanelLeft size={18} />
         </button>
-        <button className="icon-btn" onClick={() => newChat(true)} title="New private chat: not saved, doesn't use memory">
-          <EyeOff size={17} />
-        </button>
+        {workspace === "local" && (
+          <button className="icon-btn" onClick={() => newChat(true)} title="New private chat: not saved, doesn't use memory">
+            <EyeOff size={17} />
+          </button>
+        )}
         <button className="icon-btn" onClick={() => newChat()} title="New chat (⌘N)">
           <SquarePen size={18} />
         </button>
@@ -142,6 +184,17 @@ export function Sidebar() {
         <Logo size={26} />
         <span className="wordmark">BYTE</span>
       </div>
+      {settings?.cloudConnected && (
+        <div className="sidebar-section">
+          <div className="segmented workspace-switch" role="tablist" aria-label="Workspace">
+            {WORKSPACES.map(({ id, label, hint, icon: Icon }) => (
+              <button key={id} role="tab" aria-selected={workspace === id} title={hint} onClick={() => workspace !== id && void setWorkspace(id)}>
+                <Icon size={13} /> {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="sidebar-section">
         <label className="sidebar-search">
           <Search size={15} className="faint" />
@@ -171,7 +224,18 @@ export function Sidebar() {
           </>
         ) : (
           <>
-            {empty && <p className="faint" style={{ padding: "12px 14px", fontSize: "0.9em" }}>Your conversations will appear here.</p>}
+            {cloudNotice && workspace !== "local" && <p className="banner sidebar-notice">{cloudNotice}</p>}
+            {empty && (
+              <p className="faint" style={{ padding: "12px 14px", fontSize: "0.9em" }}>
+                {workspace === "cloud"
+                  ? cloudChats === null
+                    ? "Loading your cloud chats…"
+                    : "No chats on your cloud yet. Start one with the new-chat button."
+                  : workspace === "both"
+                    ? "Ask anything: this Mac and your cloud both answer, and you keep the better one."
+                    : "Your conversations will appear here."}
+              </p>
+            )}
             {sections.pinned.length > 0 && (
               <div>
                 <div className="sidebar-label">Pinned</div>
@@ -180,6 +244,7 @@ export function Sidebar() {
                 ))}
               </div>
             )}
+            {workspace === "local" && (
             <div className="sidebar-label with-action">
               <span>Projects</span>
               <button
@@ -190,6 +255,7 @@ export function Sidebar() {
                 <FolderPlus size={14} />
               </button>
             </div>
+            )}
             {sections.projects.map(({ project, items }) => {
               const key = `project:${project.id}`;
               return (
@@ -236,11 +302,60 @@ export function Sidebar() {
                 ))}
               </div>
             ))}
+            {workspace === "cloud" && (remoteOnly.length > 0 || cloudChats !== null) && (
+              <div>
+                <div className="sidebar-label with-action">
+                  <span>On your cloud</span>
+                  <button className="icon-btn" title="Refresh the list from your cloud" onClick={() => void refreshCloudChats()}>
+                    <RefreshCw size={13} />
+                  </button>
+                </div>
+                {remoteOnly.map((c) => (
+                  <CloudRow key={c.id} c={c} />
+                ))}
+                {remoteOnly.length === 0 && <p className="faint project-empty">All of them are listed above.</p>}
+              </div>
+            )}
           </>
         )}
       </nav>
       {editingProject && createPortal(<ProjectEditor project={editingProject} onClose={() => setEditingProject(null)} />, document.body)}
     </aside>
+  );
+}
+
+/** A cloud conversation not opened on this Mac yet: click to open, or delete it on the cloud. */
+function CloudRow({ c }: { c: CloudChat }) {
+  const openCloudChat = useStore((s) => s.openCloudChat);
+  const deleteCloudChat = useStore((s) => s.deleteCloudChat);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="conv-row cloud-row">
+      <button
+        className="conv-item"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          await openCloudChat(c.id);
+          setBusy(false);
+        }}
+        title="Open this cloud chat"
+      >
+        <Cloud size={14} className="faint" />
+        <span className="t">{c.title}</span>
+      </button>
+      <button
+        className="icon-btn del"
+        title="Delete on your cloud"
+        aria-label={`Delete ${c.title} on your cloud`}
+        onClick={async () => {
+          if (await ask(`Delete “${c.title}” on your BYTE cloud? This can't be undone.`, { title: "Delete cloud chat", kind: "warning" }).catch(() => true))
+            await deleteCloudChat(c.id);
+        }}
+      >
+        <Trash2 size={14} />
+      </button>
+    </div>
   );
 }
 
@@ -392,7 +507,7 @@ function ConvRow({ c, active, folders, indent }: { c: Conversation; active: bool
                   </button>
                 ))}
               {projects
-                .filter((p) => p.id !== c.projectId)
+                .filter((p) => p.id !== c.projectId && spaceOf(c.id) === "local")
                 .map((p) => (
                   <button key={p.id} role="menuitem" onClick={() => { setMenu(false); void updateChat(c.id, { projectId: p.id }); }}>
                     <Briefcase size={14} /> Move to {p.name}
@@ -418,7 +533,11 @@ function ConvRow({ c, active, folders, indent }: { c: Conversation; active: bool
             className="danger"
             onClick={async () => {
               setMenu(false);
-              const ok = await ask(`Delete “${c.title}”? This can't be undone.`, { title: "Delete chat", kind: "warning" });
+              const onCloud = !!c.cloudId && spaceOf(c.id) === "cloud";
+              const ok = await ask(
+                onCloud ? `Delete “${c.title}” here and on your BYTE cloud? This can't be undone.` : `Delete “${c.title}”? This can't be undone.`,
+                { title: "Delete chat", kind: "warning" },
+              );
               if (ok) deleteChat(c.id);
             }}
           >

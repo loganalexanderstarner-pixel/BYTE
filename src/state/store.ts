@@ -21,6 +21,7 @@ import type {
   ThinkingPref,
   WireMessage,
   CloudStatus,
+  Workspace,
 } from "../lib/types";
 
 /** One tool use shown in the answer's activity list. */
@@ -60,6 +61,8 @@ export interface Message {
   alt?: boolean;
   /** The user chose a model other than the main one for this answer. */
   picked?: boolean;
+  /** The user chose this side-by-side answer to continue the chat. */
+  kept?: boolean;
   /** Other versions of the thread from this message on (edit & regenerate). */
   alts?: Message[][];
   /** This version's place among all versions (0-based). */
@@ -168,6 +171,17 @@ interface State {
   regenerate(): Promise<void>;
   /** Cloud account status (connected, modes). */
   cloud: CloudStatus | null;
+  /** Conversations on the BYTE cloud (Cloud workspace sidebar); null until loaded. */
+  cloudChats: CloudChat[] | null;
+  /** Something to tell the user about the cloud workspace (e.g. deleting isn't supported). */
+  cloudNotice: string | null;
+  refreshCloudChats(): Promise<void>;
+  /** Deletes a conversation on the BYTE cloud (not the copy on this Mac). */
+  deleteCloudChat(cloudId: string): Promise<void>;
+  openCloudChat(cloudId: string): Promise<void>;
+  setWorkspace(ws: Workspace): Promise<void>;
+  /** Makes this side-by-side answer the one that continues the conversation. */
+  keepAnswer(msgId: string): void;
   /** Photos/files waiting to go with the next message (cloud chats). */
   pending: Attachment[];
   /** Uploads in progress, and the last upload error. */
@@ -270,6 +284,44 @@ const fromMeta = (m: ConversationMeta): Conversation => ({
 
 const uid = () => crypto.randomUUID();
 
+/**
+ * Which workspace a chat belongs to, from its id: chats made in the Cloud
+ * workspace (or imported from the cloud) start with "cloud-", chats in Both
+ * with "both-"; everything else is This Mac.
+ */
+export const spaceOf = (id: string): Workspace => (id.startsWith("cloud-") ? "cloud" : id.startsWith("both-") ? "both" : "local");
+
+/** The workspace in use (Cloud and Both need a connected account). */
+export const workspaceOf = (s: Settings | null): Workspace => {
+  if (!s?.cloudConnected) return "local";
+  if (s.workspace === "cloud" || s.workspace === "both") return s.workspace;
+  return s.useCloud ? "cloud" : "local";
+};
+
+/** The cloud's conversation list, whatever shape it comes in. */
+export function cloudChatsFrom(v: unknown): CloudChat[] {
+  return listOf(v)
+    .map((r) => {
+      const id = idOf(r);
+      if (!id) return null;
+      const when = r.updated_at ?? r.updatedAt ?? r.created_at ?? r.createdAt;
+      const t = typeof when === "number" ? (when < 1e12 ? when * 1000 : when) : typeof when === "string" ? Date.parse(when) : NaN;
+      return { id, title: titleOf(r), updatedAt: Number.isFinite(t) ? t : 0 };
+    })
+    .filter((c): c is CloudChat => c !== null)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/** New chat id for a workspace. */
+const newId = (ws: Workspace) => (ws === "local" ? crypto.randomUUID() : `${ws}-${crypto.randomUUID()}`);
+
+/** A conversation listed on the BYTE cloud. */
+export interface CloudChat {
+  id: string;
+  title: string;
+  updatedAt: number;
+}
+
 /** Cloud id of the newest message that has one. */
 const lastRemoteId = (messages: Message[]) => [...messages].reverse().find((m) => m.remoteId)?.remoteId ?? null;
 
@@ -323,14 +375,15 @@ export const useStore = create<State>((set, get) => {
    * `model` picks a loaded model other than the main one. */
   const generate = async (
     convId: string,
-    opts: { model?: string; group?: string; alt?: boolean; branch?: { alts: Message[][]; version: number } } = {},
+    opts: { model?: string; group?: string; alt?: boolean; cloud?: boolean; branch?: { alts: Message[][]; version: number } } = {},
   ) => {
     const conv = get().conversations.find((c) => c.id === convId);
     if (!conv) return;
     const { mode, thinking, settings } = get();
     const history = toWire(conv.messages);
-    // The BYTE cloud answers when it's switched on (never for private chats or a picked local model).
-    const useCloud = !!settings?.useCloud && !!settings.cloudConnected && !conv.private && !opts.model && !opts.group;
+    // Cloud chats answer on the BYTE cloud (never private chats or a picked local model); Both asks for it explicitly.
+    const connected = !!settings?.cloudConnected && !conv.private;
+    const useCloud = connected && (opts.cloud ?? (spaceOf(conv.id) === "cloud" && !opts.model && !opts.group));
     const cloudMode = settings?.cloudMode ?? get().cloud?.account?.modes[0]?.id ?? "auto";
     const reply: Message = {
       id: uid(),
@@ -355,6 +408,7 @@ export const useStore = create<State>((set, get) => {
       cloud = cloudTurn(conv, cloudMode);
       const asked = [...conv.messages].reverse().find((m) => m.role === "user");
       if (asked?.attachments?.length) cloud.attachmentIds = asked.attachments.map((a) => a.id);
+      if (opts.cloud) cloud.noFallback = true;
     }
     await streamReply(convId, reply, (onEvent) =>
       api.chatSend(
@@ -501,6 +555,19 @@ export const useStore = create<State>((set, get) => {
   /** Answers the last question with the model(s) chosen in the composer. */
   const answer = async (convId: string, branch?: { alts: Message[][]; version: number }) => {
     const { answerWith, loaded } = get();
+    const conv = get().conversations.find((c) => c.id === convId);
+    if (conv && spaceOf(conv.id) === "both" && !conv.private && get().settings?.cloudConnected) {
+      // Both: this Mac answers right away, the cloud answers beside it. The cloud's
+      // answer continues the chat when it finishes, unless the user picks otherwise.
+      const group = uid();
+      const before = new Set(conv.messages.map((m) => m.id));
+      await Promise.all([generate(convId, { group }), generate(convId, { group, alt: true, cloud: true })]);
+      const after = get().conversations.find((c) => c.id === convId);
+      const fresh = after?.messages.filter((m) => !before.has(m.id) && m.group === group) ?? [];
+      const cloudMsg = fresh.find((m) => m.cloud);
+      if (cloudMsg?.status === "done" && cloudMsg.content.trim() && !fresh.some((m) => m.kept)) get().keepAnswer(cloudMsg.id);
+      return;
+    }
     const ready = loaded.filter((l) => l.status.state === "ready");
     if (answerWith === "compare" && ready.length > 1) {
       // The main model answers first; its answer is the one kept in history.
@@ -530,6 +597,8 @@ export const useStore = create<State>((set, get) => {
     tune: null,
     answerWith: "main",
     cloud: null,
+    cloudChats: null,
+    cloudNotice: null,
     pending: [],
     savedPrompts: null,
     attaching: 0,
@@ -583,7 +652,9 @@ export const useStore = create<State>((set, get) => {
       });
       void get().refreshLoaded();
       // Open the most recent chat.
-      const first = conversations.find((c) => !c.pinned) ?? conversations[0];
+      const ws = workspaceOf(settings);
+      const mine = conversations.filter((c) => spaceOf(c.id) === ws);
+      const first = mine.find((c) => !c.pinned) ?? mine[0];
       if (first) await get().selectChat(first.id);
     },
 
@@ -613,15 +684,21 @@ export const useStore = create<State>((set, get) => {
 
     newChat(isPrivate = false, projectId = null) {
       // Reuse an empty chat of the same kind instead of stacking empty ones.
+      const ws = workspaceOf(get().settings);
       const empty = get().conversations.find(
-        (c) => c.messages.length === 0 && !hasMessages(c) && !!c.private === isPrivate && (c.projectId ?? null) === projectId,
+        (c) =>
+          c.messages.length === 0 &&
+          !hasMessages(c) &&
+          !!c.private === isPrivate &&
+          (c.projectId ?? null) === projectId &&
+          (isPrivate || spaceOf(c.id) === ws),
       );
       if (empty) {
         set({ currentId: empty.id, pending: [] });
         return;
       }
       const conv: Conversation = {
-        id: uid(),
+        id: isPrivate ? uid() : newId(workspaceOf(get().settings)),
         title: isPrivate ? "Private chat" : "New chat",
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -655,6 +732,23 @@ export const useStore = create<State>((set, get) => {
       clearTimeout(pendingSaves.get(id));
       if (!inTauri) saveConversationsLocally(conversations);
       else if (target && !target.private) void api.chatDelete(id);
+      // A chat in the Cloud workspace is deleted on the cloud too.
+      if (inTauri && target?.cloudId && spaceOf(id) === "cloud") void get().deleteCloudChat(target.cloudId);
+    },
+
+    async deleteCloudChat(cloudId) {
+      set({ cloudChats: get().cloudChats?.filter((c) => c.id !== cloudId) ?? null });
+      try {
+        await api.cloudDelete(`/api/conversations/${encodeURIComponent(cloudId)}`);
+        set({ cloudNotice: null });
+      } catch (e) {
+        const text = errorText(e);
+        set({
+          cloudNotice: /\b(404|405)\b|not found|not allowed/i.test(text)
+            ? "Your cloud doesn't support deleting chats yet, so it's only hidden here. It stays on the cloud."
+            : `Couldn't delete it on the cloud: ${text}`,
+        });
+      }
     },
 
     async updateChat(id, patch) {
@@ -699,7 +793,7 @@ export const useStore = create<State>((set, get) => {
       if (!content || get().generating) return;
       let convId = get().currentId;
       if (!convId || !get().conversations.some((c) => c.id === convId)) {
-        const conv: Conversation = { id: uid(), title: "New chat", createdAt: Date.now(), updatedAt: Date.now(), messages: [], loaded: true };
+        const conv: Conversation = { id: newId(workspaceOf(get().settings)), title: "New chat", createdAt: Date.now(), updatedAt: Date.now(), messages: [], loaded: true };
         set({ conversations: [conv, ...get().conversations], currentId: conv.id });
         convId = conv.id;
       }
@@ -776,6 +870,48 @@ export const useStore = create<State>((set, get) => {
       set({ cloud: await api.cloudStatus().catch(() => get().cloud) });
     },
 
+    async refreshCloudChats() {
+      if (!inTauri || !get().settings?.cloudConnected) return;
+      try {
+        set({ cloudChats: cloudChatsFrom(await api.cloudConversations()), cloudNotice: null });
+      } catch (e) {
+        // Unreachable is normal (the cloud lives in a house); keep the last list.
+        set({ cloudNotice: `Your cloud can't be reached right now. ${errorText(e)}` });
+      }
+    },
+
+    async openCloudChat(cloudId) {
+      const mine = get().conversations.find((c) => c.cloudId === cloudId);
+      if (mine && spaceOf(mine.id) !== "local") return get().selectChat(mine.id);
+      try {
+        const id = await api.cloudImport(cloudId);
+        const conversations = (await api.chatsList()).map(fromMeta);
+        set({ conversations, cloudNotice: null });
+        await get().selectChat(id);
+      } catch (e) {
+        set({ cloudNotice: `Couldn't open that chat: ${errorText(e)}` });
+      }
+    },
+
+    async setWorkspace(workspace) {
+      set({ currentId: null, pending: [] });
+      await get().updateSettings({ workspace, useCloud: workspace === "cloud" });
+      if (workspace !== "local") void get().refreshCloudChats();
+    },
+
+    keepAnswer(msgId) {
+      const conv = get().conversations.find((c) => c.messages.some((m) => m.id === msgId));
+      const group = conv?.messages.find((m) => m.id === msgId)?.group;
+      if (!conv || !group) return;
+      patchConversation(conv.id, (c) => ({
+        ...c,
+        messages: c.messages.map((m) => (m.group === group ? { ...m, alt: m.id !== msgId, kept: m.id === msgId || undefined } : m)),
+      }));
+      const done = get().conversations.find((c) => c.id === conv.id);
+      if (done && inTauri && !done.private) scheduleSave(done, 100);
+      if (!inTauri) saveConversationsLocally(get().conversations);
+    },
+
     async cloudAct(msgId, action, value) {
       const conv = currentConversation(get());
       const msg = conv?.messages.find((m) => m.id === msgId);
@@ -813,7 +949,7 @@ export const useStore = create<State>((set, get) => {
     async attachFiles(paths) {
       let convId = get().currentId;
       if (!convId || !get().conversations.some((c) => c.id === convId)) {
-        const conv: Conversation = { id: uid(), title: "New chat", createdAt: Date.now(), updatedAt: Date.now(), messages: [], loaded: true };
+        const conv: Conversation = { id: newId(workspaceOf(get().settings)), title: "New chat", createdAt: Date.now(), updatedAt: Date.now(), messages: [], loaded: true };
         set({ conversations: [conv, ...get().conversations], currentId: conv.id });
         convId = conv.id;
       }

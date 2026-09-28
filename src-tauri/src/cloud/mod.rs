@@ -51,6 +51,14 @@ impl From<CloudError> for AppError {
 
 type CloudResult<T> = Result<T, CloudError>;
 
+/// A 429 means one of the account's daily allowances is spent: not a bug, so say so plainly.
+fn limit_error(detail: Option<String>) -> CloudError {
+    let why = detail.filter(|d| !d.trim().is_empty()).map(|d| format!(" ({})", d.chars().take(200).collect::<String>())).unwrap_or_default();
+    CloudError::Other(AppError::msg(format!(
+        "Today's allowance for this on your BYTE cloud is used up{why}. It resets tomorrow; until then try a lighter mode, or answer on this Mac."
+    )))
+}
+
 fn net_error(e: reqwest::Error) -> CloudError {
     if e.is_connect() || e.is_timeout() || e.is_request() {
         CloudError::Unreachable(e.to_string())
@@ -173,6 +181,9 @@ impl CloudClient {
             return Err(CloudError::Unreachable(format!("HTTP {status}")));
         }
         let body = r.text().await.map_err(net_error)?;
+        if status == 429 {
+            return Err(limit_error(serde_json::from_str::<Value>(&body).ok().and_then(|v| v.get("detail").and_then(text))));
+        }
         if !status.is_success() {
             let detail = serde_json::from_str::<Value>(&body).ok().and_then(|v| v.get("detail").and_then(text)).unwrap_or(body);
             return Err(CloudError::Other(AppError::msg(format!("The BYTE cloud said: {} ({status})", detail.chars().take(300).collect::<String>()))));
@@ -243,6 +254,7 @@ impl CloudClient {
             .map_err(net_error)?;
         match r.status().as_u16() {
             401 | 403 => Err(CloudError::Unauthorized),
+            429 => Err(limit_error(None)),
             502..=504 => Err(CloudError::Unreachable(format!("HTTP {}", r.status()))),
             s if !(200..300).contains(&s) => Err(CloudError::Other(AppError::msg(format!("the BYTE cloud stream failed (HTTP {s})")))),
             _ => Ok(r),
@@ -311,6 +323,9 @@ pub fn sources_of(v: &Value) -> Vec<crate::tools::Source> {
         .unwrap_or_default()
 }
 
+/// Wait between reconnect attempts (grows with each try).
+const BACKOFF_MS: u64 = if cfg!(test) { 5 } else { 500 };
+
 /// How one streamed answer ended.
 #[derive(Debug, PartialEq)]
 pub struct TurnEnd {
@@ -341,7 +356,20 @@ pub async fn follow(
     loop {
         let resp = tokio::select! {
             _ = cancel.cancelled() => return stop(client, assistant, text_out).await,
-            r = client.open_stream(cid, since.as_deref()) => r?,
+            r = client.open_stream(cid, since.as_deref()) => r,
+        };
+        let resp = match resp {
+            Ok(r) => r,
+            // The stream came back once and now won't reopen: keep trying below, then re-read.
+            Err(CloudError::Unreachable(m)) if reconnects > 0 => {
+                reconnects += 1;
+                if reconnects > 5 {
+                    return recover(client, cid, since.as_deref(), assistant, text_out, on_event).await.ok_or(CloudError::Unreachable(m));
+                }
+                tokio::time::sleep(Duration::from_millis(BACKOFF_MS * reconnects)).await;
+                continue;
+            }
+            Err(e) => return Err(e),
         };
         let mut body = resp.bytes_stream();
         let mut parser = sse::Parser::default();
@@ -438,10 +466,52 @@ pub async fn follow(
         }
         reconnects += 1;
         if reconnects > 5 {
-            return Err(CloudError::Unreachable("the answer stream kept dropping".into()));
+            return recover(client, cid, since.as_deref(), assistant, text_out, on_event)
+                .await
+                .ok_or_else(|| CloudError::Unreachable("the answer stream kept dropping".into()));
         }
-        tokio::time::sleep(Duration::from_millis(500 * reconnects)).await;
+        tokio::time::sleep(Duration::from_millis(BACKOFF_MS * reconnects)).await;
     }
+}
+
+/// The answer row in a conversation: by id when known, else the first
+/// assistant message after `since` (the user's message).
+pub fn saved_answer<'a>(conv: &'a Value, since: Option<&str>, assistant: Option<&str>) -> Option<&'a Value> {
+    let rows = conv.get("messages").or_else(|| conv.get("items")).unwrap_or(conv).as_array()?;
+    if let Some(id) = assistant {
+        if let Some(r) = rows.iter().find(|r| id_of(r).as_deref() == Some(id)) {
+            return Some(r);
+        }
+    }
+    let start = since.and_then(|s| rows.iter().position(|r| id_of(r).as_deref() == Some(s))).map(|i| i + 1).unwrap_or(0);
+    rows[start..].iter().find(|r| r.get("role").and_then(Value::as_str) == Some("assistant"))
+}
+
+/// When the stream won't come back, the answer is usually already saved on
+/// the cloud: re-read the conversation and finish from the saved row.
+async fn recover(
+    client: &CloudClient,
+    cid: &str,
+    since: Option<&str>,
+    assistant: Option<String>,
+    mut text_out: String,
+    on_event: &Channel<ChatEvent>,
+) -> Option<TurnEnd> {
+    let conv = client.get(&format!("/api/conversations/{cid}")).await.ok()?;
+    let row = saved_answer(&conv, since, assistant.as_deref())?;
+    let content = row.get("content").and_then(Value::as_str).unwrap_or("");
+    if content.is_empty() && text_out.is_empty() {
+        return None;
+    }
+    if content.len() > text_out.len() && content.starts_with(&text_out) {
+        let _ = on_event.send(ChatEvent::Content { delta: content[text_out.len()..].to_string() });
+        text_out = content.to_string();
+    }
+    let src = sources_of(row);
+    if !src.is_empty() {
+        let _ = on_event.send(ChatEvent::Sources { sources: src });
+    }
+    Some(TurnEnd { assistant_id: id_of(row).or(assistant), text: text_out, finish: "stop".into() })
 }
 
 async fn stop(client: &CloudClient, assistant: Option<String>, text: String) -> CloudResult<TurnEnd> {

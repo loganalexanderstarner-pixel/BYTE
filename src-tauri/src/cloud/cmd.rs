@@ -30,6 +30,9 @@ pub struct CloudTurn {
     /// Edited message: fork the cloud conversation after this message first.
     #[serde(default)]
     pub branch_from: Option<String>,
+    /// Don't answer on this Mac when the cloud is down (Both: this Mac is already answering beside it).
+    #[serde(default)]
+    pub no_fallback: bool,
 }
 
 /// Closest mode on this Mac when the cloud is down.
@@ -178,6 +181,7 @@ pub async fn cloud_disconnect(state: State<'_, AppState>) -> AppResult<CloudStat
         s.cloud_connected = false;
         s.cloud_account = None;
         s.use_cloud = false;
+        s.workspace = "local".into();
     })
     .await?;
     Ok(status(&state).await)
@@ -204,6 +208,7 @@ pub async fn cloud_refresh(state: State<'_, AppState>) -> AppResult<CloudStatus>
             save_settings(&state, |s| {
                 s.cloud_connected = false;
                 s.use_cloud = false;
+                s.workspace = "local".into();
             })
             .await?;
             return Err(CloudError::Unauthorized.into());

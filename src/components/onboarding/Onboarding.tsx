@@ -3,6 +3,7 @@ import {
   ArrowUp,
   Brain,
   CircleCheck,
+  Cloud,
   Cpu,
   Gauge,
   HardDrive,
@@ -45,6 +46,29 @@ export function Onboarding() {
   const [choice, setChoice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [viaCloud, setViaCloud] = useState(false);
+  const [cloudKey, setCloudKey] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const setWorkspace = useStore((s) => s.setWorkspace);
+  const refreshCloud = useStore((s) => s.refreshCloud);
+
+  const connectCloud = async () => {
+    setError(null);
+    setConnecting(true);
+    try {
+      await api.cloudConnect(cloudKey, null);
+      setCloudKey(""); // kept only in the Keychain from here on
+      useStore.setState({ settings: await api.settingsGet() });
+      await refreshCloud();
+      await setWorkspace("cloud");
+      setViaCloud(true);
+      setStep(4);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setConnecting(false);
+    }
+  };
 
   useEffect(() => {
     if (choice || !models.length) return;
@@ -91,8 +115,9 @@ export function Onboarding() {
   const finish = async () => {
     setError(null);
     try {
-      await update({ onboardingComplete: true, activeModel: choice, userName: name.trim() || null });
-      if (choice) void api.modelActivate(choice).catch(() => {});
+      const local = !viaCloud && choice;
+      await update({ onboardingComplete: true, ...(local ? { activeModel: choice } : {}), userName: name.trim() || null });
+      if (local) void api.modelActivate(choice).catch(() => {});
     } catch (e) {
       setError(errorText(e));
     }
@@ -219,6 +244,23 @@ export function Onboarding() {
                   </div>
                 )}
                 {error && <div className="banner danger" style={{ marginTop: 12 }}>{error}</div>}
+                <button
+                  className={`model-card selectable cloud-choice ${options.length === 0 || (system && system.totalRamBytes < 12 * 2 ** 30) ? "suggested" : ""}`}
+                  onClick={() => {
+                    setError(null);
+                    setStep(5);
+                  }}
+                >
+                  <div className="title">
+                    <Cloud size={16} /> Use BYTE Cloud instead
+                    <span className="pill">Invite only</span>
+                  </div>
+                  <div className="muted" style={{ fontSize: "0.92em" }}>
+                    {options.length === 0
+                      ? "No model fits this Mac well. With a BYTE Cloud account, bigger models answer from the cloud; nothing to download."
+                      : "Answers come from bigger models on the BYTE cloud; nothing to download. Needs an account (by invite) and an API key."}
+                  </div>
+                </button>
                 <div className="onb-actions">
                   <button className="btn ghost" onClick={() => setStep(1)}>Back</button>
                   <button className="btn lg primary" onClick={startDownload} disabled={!chosen}>
@@ -263,6 +305,40 @@ export function Onboarding() {
               </>
             )}
 
+            {step === 5 && (
+              <>
+                <h1>Connect BYTE Cloud</h1>
+                <p className="lead">
+                  BYTE Cloud is invite only: you need an account from an invite link. Then create an API key on the BYTE website under Settings → API keys and
+                  paste it here. BYTE checks it with the cloud first, then keeps it in your Mac's Keychain, never in a file.
+                </p>
+                <div className="row" style={{ gap: 8 }}>
+                  <input
+                    className="text-input key-input"
+                    style={{ flex: 1 }}
+                    type="password"
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholder="byte_…"
+                    value={cloudKey}
+                    onChange={(e) => setCloudKey(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && cloudKey.trim() && void connectCloud()}
+                    aria-label="BYTE cloud API key"
+                  />
+                </div>
+                <p className="faint" style={{ fontSize: "0.88em" }}>
+                  No invite? Pick a model instead: everything runs on this Mac. You can connect the cloud later in Settings → Cloud.
+                </p>
+                {error && <div className="banner danger">{error}</div>}
+                <div className="onb-actions">
+                  <button className="btn ghost" onClick={() => setStep(2)}>Back</button>
+                  <button className="btn lg primary" onClick={() => void connectCloud()} disabled={!cloudKey.trim() || connecting}>
+                    <Cloud size={16} /> {connecting ? "Checking…" : "Connect"}
+                  </button>
+                </div>
+              </>
+            )}
+
             {step === 4 && (
               <>
                 <h1>A few quick tips</h1>
@@ -300,14 +376,14 @@ export function Onboarding() {
                   </label>
                   <input className="text-input" value={name} maxLength={40} placeholder="Your name" onChange={(e) => setName(e.target.value)} />
                 </div>
-                {chosen && chosenModel && (
+                {!viaCloud && chosen && chosenModel && (
                   <p className="faint" style={{ fontSize: "0.88em", marginTop: 16 }}>
                     {chosenModel.name} will use about {bytes(chosen.fit.neededBytes)} of memory with a {contextLabel(chosen.fit.context)}-token context.
                   </p>
                 )}
                 {error && <div className="banner danger">{error}</div>}
                 <div className="onb-actions">
-                  <button className="btn ghost" onClick={() => setStep(3)}>Back</button>
+                  <button className="btn ghost" onClick={() => setStep(viaCloud ? 5 : 3)}>Back</button>
                   <button className="btn lg primary" onClick={finish}>
                     Start chatting <ArrowUp size={16} style={{ transform: "rotate(90deg)" }} />
                   </button>
@@ -317,7 +393,7 @@ export function Onboarding() {
           </motion.div>
         </AnimatePresence>
       </div>
-      <div className="steps" aria-label={`Step ${step + 1} of ${STEPS}`}>
+      <div className="steps" aria-label={`Step ${Math.min(step, STEPS - 1) + 1} of ${STEPS}`}>
         {Array.from({ length: STEPS }, (_, i) => (
           <i key={i} className={i <= step ? "on" : ""} />
         ))}

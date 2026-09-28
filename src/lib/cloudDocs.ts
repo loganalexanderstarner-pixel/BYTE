@@ -100,3 +100,26 @@ export function isImage(r: Row): boolean {
   const n = lower(r.name ?? r.filename);
   return t.startsWith("image") || /\.(png|jpe?g|gif|webp|heic)$/.test(n);
 }
+
+/** Budgets as the server sends them, flattened to "label: value" rows. */
+export function budgetRows(b: unknown, prefix = ""): [string, string][] {
+  if (b === null || b === undefined) return [];
+  if (typeof b !== "object") return [[prefix || "Budget", String(b)]];
+  return Object.entries(b as Row).flatMap(([k, v]) => {
+    const label = `${prefix}${prefix ? " · " : ""}${k.replace(/_/g, " ")}`;
+    return v && typeof v === "object" ? budgetRows(v, label) : [[label, String(v)] as [string, string]];
+  });
+}
+
+/**
+ * A short line for the chat box ("12 left today") plus every row for its
+ * tooltip. The server's budget shape isn't fixed, so this picks the first
+ * row that reads like what's left, else the first row.
+ */
+export function budgetSummary(b: unknown): { short: string; detail: string } | null {
+  const rows = budgetRows(b);
+  if (!rows.length) return null;
+  const [label, value] = rows.find(([k]) => /remain|left/i.test(k)) ?? rows[0];
+  const short = /remain|left/i.test(label) ? `${value} left` : `${label}: ${value}`;
+  return { short: short.length > 28 ? `${short.slice(0, 27)}…` : short, detail: rows.map(([k, v]) => `${k}: ${v}`).join("\n") };
+}

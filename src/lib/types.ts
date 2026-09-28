@@ -38,7 +38,11 @@ export interface Settings {
   /** Answer with the BYTE cloud instead of this Mac. */
   useCloud: boolean;
   cloudMode: string | null;
+  /** Sidebar workspace: this Mac, the BYTE cloud, or both answering together. */
+  workspace: Workspace;
 }
+
+export type Workspace = "local" | "cloud" | "both";
 
 /** Engine settings measured to be fastest for one model on this Mac. */
 export interface Tuning {
