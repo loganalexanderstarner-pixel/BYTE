@@ -281,6 +281,26 @@ correction; PDFKit renders scanned pages at ~200 dpi, max 60 pages; non-macOS re
 aarch64-apple-darwin`), compiled and tested for real by `mac-engine.yml` (`ocr::tests::e2e_reads_text_from_a_rendered_page`
 is not ignored on macOS).
 
+**Items 3–7 done (embeddings, knowledge base, `search_my_files`, reader, KB settings):**
+- `embed.rs`: `Embedder` (own `Engine::helper`, PID file `embed.pid`, `LaunchOpts.embedding` → `--embedding
+  --pooling mean`, FA auto, f16 cache, no chat flags), started by the first `embed()`, stopped after 5 idle
+  minutes; nomic prefixes `search_document:`/`search_query:`; vectors normalized. Real-engine test
+  `embed::tests::e2e_embeddings_find_the_passage_that_answers` (local Linux: 0.73 vs 0.45/0.51; also in
+  `mac-engine.yml`). The Linux dev engine is built with `GGML_NATIVE=ON`: after a container moves to another
+  CPU it dies with "Illegal instruction"; delete `.cache/llama.cpp/src-*/build` and rebuild.
+- `kb.rs` + DB schema **v4** (`kb_sources`, `kb_files`, `kb_chunks` with f32 BLOB embeddings, `kb_fts`):
+  own recursive walker (hidden, `node_modules`/`target`/`Library`/… and `.app` skipped, 20k files max,
+  photos only on macOS), `chunk` (~2,400 chars, 350 overlap, page from `[Page/Slide/Sheet N]`), changed files
+  by mtime+size, `kb://progress`, embeddings after reading (only if the model is downloaded), hybrid
+  `search` = FTS5 BM25 + cosine → RRF (k 60). Rescan at launch (+30 s) and every 15 min (**instead of a
+  `notify` watcher**: simpler and no permissions prompts; revisit if users want instant updates).
+  `settings.kbEnabled` is the module toggle.
+- Tool `search_my_files` (`tools/mod.rs`, sources are `file://…#page=N`, marked read), forced first search
+  when `router::wants_files` ("my lease/notes/files…"); `AppState.app` (OnceLock) gives turns an AppHandle.
+- UI: `KnowledgeTab.tsx`, composer "My files" pill (only when the KB has passages), `Reader.tsx` +
+  `lib/reader.ts` (`fileSource`, `locate`), file sources and sent-file chips open the reader.
+- Left in Phase 4: item 8, the instant-answer cache.
+
 1. **Attachments in local chats** (`src-tauri/src/files/{mod,pdf,office,text}.rs`): pick/drop/paste →
    `file_ingest(path)` → `{name, kind, pages, text, truncated}`. PDF via `pdf-extract`, DOCX/PPTX/XLSX via
    `zip` + `quick-xml` (document.xml / slide*.xml / sharedStrings.xml), TXT/MD/CSV/JSON/code as UTF-8, HTML via

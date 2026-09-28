@@ -5,6 +5,8 @@ mod chip;
 mod cloud;
 mod commands;
 mod db;
+mod embed;
+mod kb;
 mod engine;
 mod export;
 mod files;
@@ -53,6 +55,8 @@ pub fn run() {
             let engine = state.engine.clone();
             engine.reap_stale();
             state.extras.reap_stale();
+            state.embedder.reap_stale();
+            let _ = state.app.set(app.handle().clone());
             let catalog = state.catalog.get();
             let models_dir = state.paths.models.clone();
             app.manage(state);
@@ -78,9 +82,13 @@ pub fn run() {
                     log::info!("termination signal received; stopping engine");
                     engine.kill_now();
                     handle.state::<AppState>().extras.kill_all_now();
+                    handle.state::<AppState>().embedder.kill_now();
                     handle.exit(0);
                 });
             }
+
+            // Keep the knowledge base's folders up to date.
+            kb::schedule(app.handle().clone());
 
             // Check for a newer model catalog in the background.
             {
@@ -128,6 +136,11 @@ pub fn run() {
             commands::system_info,
             commands::memory_report,
             commands::file_ingest,
+            commands::kb_status,
+            commands::kb_add,
+            commands::kb_remove,
+            commands::kb_reindex,
+            commands::kb_search,
             commands::app_quit,
             commands::settings_get,
             commands::settings_update,
@@ -197,6 +210,7 @@ pub fn run() {
             if let Some(state) = handle.try_state::<AppState>() {
                 state.engine.kill_now();
                 state.extras.kill_all_now();
+                state.embedder.kill_now();
             }
         }
     });

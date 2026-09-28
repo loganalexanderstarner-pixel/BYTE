@@ -94,6 +94,9 @@ const UNREADABLE_HOSTS: &[&str] = &[
 /// Whether a search result is worth reading (not a login wall, app, video or file).
 pub fn worth_reading(url: &str) -> bool {
     let Ok(u) = url::Url::parse(url) else { return false };
+    if !matches!(u.scheme(), "http" | "https") {
+        return false; // e.g. passages from the user's files (file://)
+    }
     let host = u.host_str().unwrap_or("").to_ascii_lowercase();
     let path = u.path().to_ascii_lowercase();
     !UNREADABLE_HOSTS.iter().any(|h| host == *h || host.ends_with(&format!(".{h}")))

@@ -146,6 +146,22 @@ const QUESTION_OPENERS: &[&str] = &[
     "recommend", "find", "list", "review", "price", "cost", "any good",
 ];
 
+/// Things people keep in files, after "my" ("what does my lease say…").
+const MY_THINGS: &[&str] = &[
+    "file", "files", "folder", "folders", "document", "documents", "doc", "docs", "notes", "note", "pdf", "pdfs",
+    "knowledge base", "records", "papers", "paperwork", "lease", "contract", "contracts", "resume", "cv", "manual",
+    "manuals", "invoice", "invoices", "receipts", "statements", "syllabus", "slides", "spreadsheet", "spreadsheets",
+    "reports", "thesis", "downloads", "desktop", "warranty",
+];
+
+/// True when the question is about the user's own files (search the
+/// knowledge base first): "in my notes", "what does my lease say", "from my files".
+pub fn wants_files(message: &str) -> bool {
+    let m = format!(" {} ", message.to_lowercase().replace('\u{2019}', "'"));
+    let words: String = m.chars().map(|c| if c.is_alphanumeric() || c == ' ' { c } else { ' ' }).collect();
+    MY_THINGS.iter().any(|t| words.contains(&format!(" my {t} ")) || words.contains(&format!(" our {t} ")))
+}
+
 /// True when BYTE should search the web before the model answers. Answer
 /// quality comes first: small local models often answer from (stale or
 /// wrong) memory instead of choosing to search, so BYTE searches itself for
@@ -443,6 +459,16 @@ mod tests {
             "```rust\nfn main() {}\n``` why doesn't this compile?",
         ] {
             assert!(!wants_web(q), "{q}");
+        }
+    }
+
+    #[test]
+    fn questions_about_my_files_search_them_first() {
+        for q in ["What does my lease say about pets?", "Find the deadline in my notes", "summarize my resume", "Is it in our contract?", "search my files for the Wi-Fi password"] {
+            assert!(wants_files(q), "{q}");
+        }
+        for q in ["What is a lease?", "Write my essay intro about whales", "how do I fix my Mac", "my dog ate chocolate, what do I do?"] {
+            assert!(!wants_files(q), "{q}");
         }
     }
 

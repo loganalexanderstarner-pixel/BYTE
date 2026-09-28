@@ -1,6 +1,6 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { ArrowUp, Brain, Cloud, Images, Loader2, Paperclip, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap } from "lucide-react";
+import { ArrowUp, Brain, Cloud, FolderSearch, Images, Loader2, Paperclip, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { api, inTauri } from "../../lib/api";
@@ -53,6 +53,9 @@ export function Composer() {
   const currentId = useStore((s) => s.currentId);
   const web = useStore((s) => s.settings?.webSearch ?? true);
   const toggleWeb = useStore((s) => s.toggleWeb);
+  const toggleFiles = useStore((s) => s.toggleFiles);
+  const hasFiles = useStore((s) => (s.kb?.sources ?? []).some((x) => x.chunks > 0));
+  const filesOn = useStore((s) => !!s.settings?.kbEnabled);
   const loaded = useStore((s) => s.loaded);
   const models = useStore((s) => s.models);
   const answerWith = useStore((s) => s.answerWith);
@@ -334,6 +337,18 @@ export function Composer() {
             >
               <Globe size={14} />
               {web ? "Web" : "Web off"}
+            </button>
+          )}
+          {onLocal && hasFiles && (
+            <button
+              className={`pill ${filesOn ? "accent" : ""}`}
+              style={{ cursor: "pointer", height: 30 }}
+              onClick={toggleFiles}
+              aria-pressed={filesOn}
+              title={filesOn ? "My files is on: BYTE searches the folders in Settings → Knowledge base when they may help" : "My files is off: your folders aren't searched"}
+            >
+              <FolderSearch size={14} />
+              {filesOn ? "My files" : "Files off"}
             </button>
           )}
           {!onCloud && !onBoth && readyModels.length > 1 && (

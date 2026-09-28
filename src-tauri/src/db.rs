@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 3;
+const SCHEMA_VERSION: i32 = 4;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -125,7 +125,7 @@ impl Db {
         Ok(Db { conn: Mutex::new(conn) })
     }
 
-    fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
+    pub(crate) fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
         self.conn.lock().unwrap_or_else(|p| p.into_inner())
     }
 
@@ -522,7 +522,44 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 3);
+    if version < 4 {
+        // Knowledge base: folders the user chose, their files, and passages
+        // (text + embedding) with a full-text index (see kb.rs).
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE kb_sources (
+                 id INTEGER PRIMARY KEY,
+                 path TEXT NOT NULL UNIQUE,
+                 added_at INTEGER NOT NULL,
+                 last_scan INTEGER,
+                 error TEXT
+             );
+             CREATE TABLE kb_files (
+                 id INTEGER PRIMARY KEY,
+                 source_id INTEGER NOT NULL REFERENCES kb_sources(id) ON DELETE CASCADE,
+                 path TEXT NOT NULL UNIQUE,
+                 mtime INTEGER NOT NULL,
+                 size INTEGER NOT NULL,
+                 kind TEXT NOT NULL,
+                 pages INTEGER,
+                 error TEXT
+             );
+             CREATE INDEX kb_files_by_source ON kb_files(source_id);
+             CREATE TABLE kb_chunks (
+                 id INTEGER PRIMARY KEY,
+                 file_id INTEGER NOT NULL REFERENCES kb_files(id) ON DELETE CASCADE,
+                 ord INTEGER NOT NULL,
+                 page INTEGER,
+                 text TEXT NOT NULL,
+                 embedding BLOB
+             );
+             CREATE INDEX kb_chunks_by_file ON kb_chunks(file_id);
+             CREATE VIRTUAL TABLE kb_fts USING fts5(text, tokenize = 'porter unicode61');
+             PRAGMA user_version = 4;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 4);
     Ok(())
 }
 

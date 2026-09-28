@@ -69,6 +69,8 @@ pub struct ToolContext<'a> {
     /// Characters of page text returned to the model per page.
     pub page_chars: usize,
     pub log: &'a ActionLog,
+    /// The app, when the user's knowledge base can be searched ("My files").
+    pub files: Option<&'a tauri::AppHandle>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -88,10 +90,38 @@ pub const CALCULATE: &str = "calculate";
 pub const WEATHER: &str = "weather";
 /// Suggests saving a fact about the user; the UI asks before saving it.
 pub const REMEMBER: &str = "remember";
+/// Searches the folders the user added to the knowledge base.
+pub const SEARCH_FILES: &str = "search_my_files";
+
+/// Passages returned per knowledge base search.
+const FILE_HITS: usize = 6;
+
+/// `file://` link for a passage (with its page), used as its source URL.
+pub fn file_url(path: &str, page: Option<u32>) -> String {
+    let mut u = url::Url::from_file_path(path).map(|u| u.to_string()).unwrap_or_else(|_| format!("file://{path}"));
+    if let Some(p) = page {
+        u.push_str(&format!("#page={p}"));
+    }
+    u
+}
 
 /// OpenAI-style tool definitions for the engine.
-pub fn specs(web: bool, memory: bool) -> Vec<Value> {
+pub fn specs(web: bool, memory: bool, files: bool) -> Vec<Value> {
     let mut v = Vec::new();
+    if files {
+        v.push(json!({
+            "type": "function",
+            "function": {
+                "name": SEARCH_FILES,
+                "description": "Search the user's own files (the folders they added to BYTE: documents, notes, PDFs). Use it whenever the question may be answered by their files. Returns numbered passages with file names and pages.",
+                "parameters": {
+                    "type": "object",
+                    "properties": { "query": { "type": "string", "description": "What to look for, in a few words." } },
+                    "required": ["query"]
+                }
+            }
+        }));
+    }
     if web {
         v.push(json!({
             "type": "function",
@@ -206,6 +236,33 @@ pub async fn run(ctx: &ToolContext<'_>, book: &mut SourceBook, name: &str, args:
             Ok(r) => ToolOutput { ok: true, summary: format!("= {r}"), content: r },
             Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Error: {e}") },
         },
+        SEARCH_FILES => {
+            let q = arg("query");
+            match ctx.files {
+                None => ToolOutput { ok: false, summary: "My files is off".into(), content: "The user's files can't be searched right now.".into() },
+                Some(app) => match crate::kb::search(app, if q.is_empty() { ctx.question } else { &q }, FILE_HITS).await {
+                    Ok(hits) if hits.is_empty() => ToolOutput { ok: true, summary: "Nothing found in your files".into(), content: "No passages in the user's files match. Say so; don't guess what their files contain.".into() },
+                    Ok(hits) => {
+                        let mut content = format!("Passages from the user's files for \"{q}\":\n");
+                        for h in &hits {
+                            let title = match h.page {
+                                Some(p) => format!("{} (p. {p})", h.name),
+                                None => h.name.clone(),
+                            };
+                            let url = file_url(&h.path, h.page);
+                            let snippet: String = h.text.chars().take(240).collect();
+                            let n = book.add(&title, &url, &snippet);
+                            book.mark_read(&url, &title);
+                            content.push_str(&format!("\n[{n}] {title}\n{}\n", h.text));
+                        }
+                        content.push_str("\nAnswer from these passages, citing them as [n]. If they don't answer the question, say so.");
+                        let files: std::collections::BTreeSet<&str> = hits.iter().map(|h| h.name.as_str()).collect();
+                        ToolOutput { ok: true, summary: format!("{} passages from {} file{}", hits.len(), files.len(), if files.len() == 1 { "" } else { "s" }), content }
+                    }
+                    Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Searching the user's files failed: {e}") },
+                },
+            }
+        }
         REMEMBER => {
             let note = arg("note");
             if note.is_empty() {
@@ -270,9 +327,11 @@ mod tests {
     #[test]
     fn specs_respect_web_toggle() {
         let names = |v: Vec<Value>| v.iter().map(|t| t["function"]["name"].as_str().unwrap().to_string()).collect::<Vec<_>>();
-        assert_eq!(names(specs(true, false)), vec![WEB_SEARCH, WEATHER, READ_PAGE, CALCULATE]);
-        assert_eq!(names(specs(false, false)), vec![CALCULATE]);
-        assert_eq!(names(specs(false, true)), vec![CALCULATE, REMEMBER]);
+        assert_eq!(names(specs(true, false, false)), vec![WEB_SEARCH, WEATHER, READ_PAGE, CALCULATE]);
+        assert_eq!(names(specs(false, false, false)), vec![CALCULATE]);
+        assert_eq!(names(specs(false, true, false)), vec![CALCULATE, REMEMBER]);
+        assert_eq!(names(specs(false, false, true)), vec![SEARCH_FILES, CALCULATE]);
+        assert_eq!(file_url("/Users/me/My Lease.pdf", Some(3)), "file:///Users/me/My%20Lease.pdf#page=3");
     }
 
     #[tokio::test]
@@ -280,7 +339,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let log = ActionLog::new(dir.path().join("actions.jsonl"));
         let net = reqwest::Client::new();
-        let ctx = ToolContext { net: &net, cloud: None, question: "", max_results: 5, page_chars: 1000, log: &log };
+        let ctx = ToolContext { net: &net, cloud: None, question: "", max_results: 5, page_chars: 1000, log: &log, files: None };
         let out = run(&ctx, &mut SourceBook::default(), CALCULATE, &json!({"expression": "6*7"})).await;
         assert!(out.ok);
         assert_eq!(out.content, "42");
@@ -293,7 +352,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let net = reqwest::Client::new();
-        let ctx = ToolContext { net: &net, cloud: None, question: "", max_results: 5, page_chars: 1000, log: &log };
+        let ctx = ToolContext { net: &net, cloud: None, question: "", max_results: 5, page_chars: 1000, log: &log, files: None };
         let out = run(&ctx, &mut SourceBook::default(), READ_PAGE, &json!({"url": "http://127.0.0.1:8080/"})).await;
         assert!(!out.ok);
     }

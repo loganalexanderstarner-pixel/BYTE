@@ -95,6 +95,8 @@ pub struct LaunchOpts {
     pub gpu_layers: Option<u32>,
     /// Image adapter for models that can see (`--mmproj`), when downloaded.
     pub mmproj: Option<PathBuf>,
+    /// Run an embedding model (`--embedding`, mean pooling) instead of chat.
+    pub embedding: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -144,6 +146,11 @@ pub struct Engine {
 impl Engine {
     pub fn new(pid_file: PathBuf) -> Self {
         Self::with_role(pid_file, true)
+    }
+
+    /// An engine for a helper model (embeddings): reports no status to the UI.
+    pub fn helper(pid_file: PathBuf) -> Self {
+        Self::with_role(pid_file, false)
     }
 
     fn with_role(pid_file: PathBuf, primary: bool) -> Self {
@@ -202,7 +209,7 @@ impl Engine {
         reserved: u64,
         opts: LaunchOpts,
     ) -> AppResult<()> {
-        let LaunchOpts { draft, ngram, mut kv_f16, ubatch, mut flash_attn_off, draft_n_max, draft_p_min, mmproj, .. } = opts;
+        let LaunchOpts { draft, ngram, mut kv_f16, ubatch, mut flash_attn_off, draft_n_max, draft_p_min, mmproj, embedding, .. } = opts;
         let (model, variant) = catalog.resolve(key)?;
         if !models::is_installed(&models_dir, variant) {
             self.set_status(app, EngineStatus::NoModel).await;
@@ -272,6 +279,7 @@ impl Engine {
                 cpu_moe_layers: plan.cpu_moe_layers,
                 gpu_layers: plan.gpu_layers,
                 mmproj,
+                embedding,
             },
         };
         let moe = models::expert_share(model) > 0.3;
@@ -397,7 +405,9 @@ impl Engine {
         match self.wait_healthy(&base_url, generation).await {
             Ok(()) => {
                 let endpoint = Endpoint { base_url, api_key, model: launch.key.clone(), context, vision: launch.opts.mmproj.is_some() };
-                self.warm_up(&endpoint).await;
+                if !launch.opts.embedding {
+                    self.warm_up(&endpoint).await;
+                }
                 {
                     let mut inner = self.inner.lock().await;
                     if inner.generation != generation {
@@ -781,6 +791,25 @@ pub fn apply_opts(args: &mut Vec<String>, opts: &LaunchOpts) {
     }
     if let Some(p) = &opts.mmproj {
         args.extend(["--mmproj".into(), p.to_string_lossy().into_owned()]);
+    }
+    if opts.embedding {
+        // Chat-only options don't apply to an embedding model.
+        for flag in ["--jinja", "--reasoning-format", "--cache-reuse"] {
+            if let Some(i) = args.iter().position(|a| a == flag) {
+                let with_value = flag != "--jinja";
+                args.drain(i..i + if with_value { 2 } else { 1 });
+            }
+        }
+        // Encoder models (nomic-bert) may not support flash attention, which an
+        // 8-bit cache needs; the cache is tiny here anyway.
+        for i in 0..args.len().saturating_sub(1) {
+            match args[i].as_str() {
+                "--flash-attn" => args[i + 1] = "auto".into(),
+                "--cache-type-k" | "--cache-type-v" => args[i + 1] = "f16".into(),
+                _ => {}
+            }
+        }
+        args.extend(["--embedding", "--pooling", "mean"].map(String::from));
     }
     if let Some(ub) = opts.ubatch {
         args.extend(["--ubatch-size".into(), ub.to_string(), "--batch-size".into(), ub.max(2048).to_string()]);

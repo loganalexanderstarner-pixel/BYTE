@@ -107,6 +107,9 @@ pub struct Settings {
     pub about_me: Option<String>,
     /// Use saved memories in answers and let BYTE suggest new ones.
     pub memory_enabled: bool,
+    /// Knowledge base module: index the chosen folders and let BYTE search
+    /// them ("My files" in the chat box). Off = no indexing, no tool.
+    pub kb_enabled: bool,
     /// Models loaded alongside the main one; reloaded at launch.
     pub loaded_alongside: Vec<String>,
     /// Speculative decoding with a small same-family helper model.
@@ -148,6 +151,7 @@ impl Default for Settings {
             catalog_url: None,
             about_me: None,
             memory_enabled: true,
+            kb_enabled: true,
             loaded_alongside: Vec::new(),
             speed_boost: true,
             speed_pref: SpeedPref::Balanced,

@@ -34,6 +34,11 @@ pub struct AppState {
     pub cloud_key: Mutex<Option<String>>,
     /// One client for the cloud, so its connection is reused between messages.
     pub cloud_http: reqwest::Client,
+    /// Embedding engine for searching files by meaning (started on demand).
+    pub embedder: crate::embed::Embedder,
+    /// The app, set at startup; for work that starts engines from deep inside
+    /// a turn (searching the knowledge base starts the embedding engine).
+    pub app: std::sync::OnceLock<tauri::AppHandle>,
 }
 
 impl AppState {
@@ -53,6 +58,8 @@ impl AppState {
             secrets: Box::new(crate::cloud::keychain::Keychain),
             cloud_key: Mutex::new(None),
             cloud_http: crate::cloud::http_client(),
+            embedder: crate::embed::Embedder::new(paths.root.join("embed.pid")),
+            app: std::sync::OnceLock::new(),
             db: crate::db::Db::open(&paths.data).unwrap_or_else(|e| {
                 // Chats still work for this session; they just aren't kept.
                 log::error!("database unavailable, chats won't be saved this session: {e}");

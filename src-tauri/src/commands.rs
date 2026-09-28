@@ -15,6 +15,67 @@ use crate::settings::{Mode, Settings, ThinkingPref};
 use crate::state::AppState;
 use crate::system::{self, SystemInfo};
 
+// ---------- knowledge base (kb.rs) ----------
+
+/// The knowledge base at a glance: folders, and the search model's state.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KbStatus {
+    pub sources: Vec<crate::kb::Source>,
+    /// Download key and size of the embedding model ("search by meaning").
+    pub embed_key: Option<String>,
+    pub embed_bytes: u64,
+    pub embed_installed: bool,
+    pub embed_running: bool,
+}
+
+#[tauri::command]
+pub async fn kb_status(state: State<'_, AppState>) -> AppResult<KbStatus> {
+    let catalog = state.catalog.get();
+    let embed_key = crate::embed::Embedder::model_key(&catalog);
+    let embed_bytes = embed_key.as_deref().and_then(|k| catalog.resolve(k).ok()).map(|(_, v)| v.size_bytes).unwrap_or(0);
+    Ok(KbStatus {
+        sources: crate::kb::sources(&state.db)?,
+        embed_installed: crate::embed::Embedder::installed(&catalog, &state.paths.models),
+        embed_running: state.embedder.running().await,
+        embed_key,
+        embed_bytes,
+    })
+}
+
+/// Adds a folder and starts reading it in the background.
+#[tauri::command]
+pub async fn kb_add(app: AppHandle, state: State<'_, AppState>, path: String) -> AppResult<i64> {
+    let id = crate::kb::add_source(&state.db, std::path::Path::new(&path))?;
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = crate::kb::index(&app, Some(id)).await {
+            log::warn!("knowledge base: indexing {path} failed: {e}");
+        }
+    });
+    Ok(id)
+}
+
+#[tauri::command]
+pub async fn kb_remove(state: State<'_, AppState>, id: i64) -> AppResult<()> {
+    crate::kb::remove_source(&state.db, id)
+}
+
+/// Re-reads changed files (one folder, or all), in the background.
+#[tauri::command]
+pub async fn kb_reindex(app: AppHandle, id: Option<i64>) -> AppResult<()> {
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = crate::kb::index(&app, id).await {
+            log::warn!("knowledge base: re-index failed: {e}");
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn kb_search(app: AppHandle, query: String, limit: Option<usize>) -> AppResult<Vec<crate::kb::Hit>> {
+    crate::kb::search(&app, &query, limit.unwrap_or(8).min(30)).await
+}
+
 /// Reads a file the user attached to a local chat (text for the model, or a photo).
 #[tauri::command]
 pub async fn file_ingest(path: String) -> AppResult<crate::files::Ingested> {

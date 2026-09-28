@@ -1,11 +1,13 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Calculator, ChevronRight, CircleCheck, CloudSun, Globe, LoaderCircle, Search, TriangleAlert } from "lucide-react";
+import { Calculator, ChevronRight, CircleCheck, CloudSun, FolderSearch, Globe, LoaderCircle, Search, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 
+import { fileSource } from "../../lib/reader";
 import type { Source } from "../../lib/types";
-import type { Step } from "../../state/store";
+import { useStore, type Step } from "../../state/store";
 
 function hostOf(url: string): string {
+  if (url.startsWith("file:")) return "your files";
   try {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {
@@ -24,6 +26,8 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: Calculator, text: `Calculated ${arg("expression")}` };
     case "weather":
       return { icon: CloudSun, text: `Checked the forecast for ${arg("place")}` };
+    case "search_my_files":
+      return { icon: FolderSearch, text: `Searched your files for “${arg("query")}”` };
     default:
       return { icon: CircleCheck, text: s.name };
   }
@@ -35,7 +39,9 @@ export function activitySummary(steps: Step[]): string {
   const reads = steps.filter((s) => s.name === "read_page" && s.status === "ok").length;
   const calcs = steps.filter((s) => s.name === "calculate").length;
   const weather = steps.some((s) => s.name === "weather" && s.status === "ok");
+  const files = steps.some((s) => s.name === "search_my_files");
   const parts: string[] = [];
+  if (files) parts.push("Searched your files");
   if (weather) parts.push("Checked the forecast");
   if (searches) parts.push(searches === 1 ? "Searched the web" : `Searched the web ${searches} times`);
   if (reads) parts.push(`read ${reads} page${reads === 1 ? "" : "s"}`);
@@ -83,13 +89,20 @@ export function Activity({ steps, live }: { steps: Step[]; live: boolean }) {
 /** Numbered source cards shown under an answer. Read pages come first. */
 export function Sources({ sources }: { sources: Source[] }) {
   const [all, setAll] = useState(false);
+  const openReader = useStore((s) => s.openReader);
+  // Passages from the user's files open in the reader; web pages in the browser.
+  const open = (s: Source) => {
+    const f = fileSource(s.url);
+    if (f) openReader({ title: s.title, path: f.path, page: f.page, highlight: s.snippet });
+    else void openUrl(s.url);
+  };
   const sorted = [...sources].sort((a, b) => Number(b.read) - Number(a.read) || a.n - b.n);
   const shown = all ? sorted : sorted.slice(0, 4);
   return (
     <div className="sources">
       <div className="sources-grid">
         {shown.map((s) => (
-          <button key={s.n} className="source-card" onClick={() => void openUrl(s.url)} title={s.url}>
+          <button key={s.n} className="source-card" onClick={() => open(s)} title={fileSource(s.url)?.path ?? s.url}>
             <span className="num">{s.n}</span>
             <span className="body">
               <span className="title">{s.title || hostOf(s.url)}</span>

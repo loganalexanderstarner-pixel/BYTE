@@ -12,6 +12,14 @@
 - **Scanned PDFs and photos of text are read**: when a PDF has no text layer (a scan), BYTE reads its pages with
   macOS's built-in text recognition (up to 60 pages), and the words in attached photos (receipts, screenshots,
   pages) are read too, so even models that can't see get the text. Chips say "scan: text read".
+- **Knowledge base: BYTE answers from your own files.** Settings → Knowledge base → Add folder (Documents,
+  notes, PDFs…). BYTE reads the folder on your Mac, keeps it up to date (at launch and every 15 minutes, only
+  changed files), and searches it when a question may be answered by it: "what does my lease say about…" searches
+  your files first. Answers cite the file and page. A **My files** switch sits next to Web in the chat box.
+- **Search by meaning**: an optional 146 MB model lets BYTE find passages worded differently from your question
+  (it runs only while searching and stops after 5 idle minutes). Without it, BYTE finds passages by their words.
+- **Reader**: click a file source (or a file you sent) to open its text in a side panel with the cited passage
+  highlighted; "Show in Finder" opens its folder.
 
 ## 1.0.0-test.13 — Big models that load, a smoother cloud, 713 models
 

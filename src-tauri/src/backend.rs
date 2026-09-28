@@ -177,6 +177,9 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
     // Web search goes through the BYTE cloud when a key is saved (its SearXNG
     // beats scraping search engines from this Mac); private chats stay keyless.
     let cloud = if web && !request.private && state.settings.lock().await.cloud_connected { state.cloud_client().await.ok() } else { None };
+    // "My files": the knowledge base is searchable when it's on and has passages.
+    let kb_on = state.settings.lock().await.kb_enabled;
+    let files = state.app.get().filter(|_| kb_on && crate::kb::chunk_count(&state.db) > 0);
     let cancel = state.generations.register(&request.request_id).await;
     let turn = agent::Turn {
         http: &state.local_http,
@@ -190,6 +193,7 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
         web,
         memory,
         log: &state.actions,
+        files,
     };
     let result = agent::run(turn, cancel, on_event).await;
     state.generations.finish(&request.request_id).await;

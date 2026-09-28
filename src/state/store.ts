@@ -21,6 +21,8 @@ import type {
   ThinkingPref,
   WireMessage,
   LocalFile,
+  KbProgress,
+  KbStatus,
   CloudStatus,
   Workspace,
 } from "../lib/types";
@@ -34,6 +36,16 @@ export interface Step {
   summary?: string;
   /** For "remember" suggestions: what the user decided. */
   decision?: "saved" | "dismissed";
+}
+
+/** What the reader panel shows: a file from disk (`path`) or text already read (`text`). */
+export interface ReaderDoc {
+  title: string;
+  path?: string;
+  text?: string;
+  page?: number | null;
+  /** Passage to highlight and scroll to. */
+  highlight?: string;
 }
 
 /** A photo or file sent with a message (stored on the BYTE cloud). */
@@ -122,7 +134,7 @@ export interface DownloadState {
   error?: string;
 }
 
-export type SettingsTab = "models" | "memory" | "appearance" | "engine" | "cloud" | "about";
+export type SettingsTab = "models" | "memory" | "knowledge" | "appearance" | "engine" | "cloud" | "about";
 
 interface State {
   ready: boolean;
@@ -202,6 +214,15 @@ interface State {
   attachExisting(a: Attachment): void;
   removePending(id: string): void;
   refreshCloud(): Promise<void>;
+  /** The reader side panel: a file's text with the cited passage highlighted. */
+  reader: ReaderDoc | null;
+  openReader(doc: ReaderDoc): void;
+  closeReader(): void;
+  /** Knowledge base folders and search-model state; `kbProgress` while indexing. */
+  kb: KbStatus | null;
+  kbProgress: KbProgress | null;
+  refreshKb(): Promise<void>;
+  toggleFiles(): void;
   /** Deepen / justify (new answer), answer-now / stop, or thumbs up/down on a cloud answer. */
   cloudAct(msgId: string, action: "deepen" | "justify" | "answer-now" | "feedback", value?: "up" | "down"): Promise<void>;
   stop(): Promise<void>;
@@ -612,6 +633,11 @@ export const useStore = create<State>((set, get) => {
     attaching: 0,
     attachError: null,
     pendingFiles: [],
+    kb: null,
+    kbProgress: null,
+    reader: null,
+    openReader: (doc) => set({ reader: doc }),
+    closeReader: () => set({ reader: null }),
     mode: "auto",
     thinking: "auto",
     sidebarOpen: true,
@@ -642,6 +668,11 @@ export const useStore = create<State>((set, get) => {
         void get().refreshModels();
       });
       await events.onDownload((e) => handleDownload(e));
+      void get().refreshKb();
+      await events.onKbProgress((p) => {
+        set({ kbProgress: p.phase === "done" ? null : p });
+        if (p.phase === "done" || p.done % 25 === 0) void get().refreshKb();
+      });
       const [settings, system, models, engine] = await Promise.all([
         api.settingsGet(),
         api.systemInfo(),
@@ -1044,6 +1075,20 @@ export const useStore = create<State>((set, get) => {
       set({ pending: get().pending.filter((p) => p.id !== id) });
     },
 
+    async refreshKb() {
+      if (!inTauri) return;
+      try {
+        set({ kb: await api.kbStatus() });
+      } catch (e) {
+        console.warn("knowledge base status unavailable", e);
+      }
+    },
+
+    toggleFiles() {
+      const s = get().settings;
+      if (s) void get().updateSettings({ kbEnabled: !s.kbEnabled });
+    },
+
     toggleWeb() {
       const s = get().settings;
       if (s) void get().updateSettings({ webSearch: !s.webSearch });
@@ -1097,6 +1142,11 @@ export const useStore = create<State>((set, get) => {
     // The main model's image reader just arrived: restart so it loads with it.
     const id = e.id.endsWith(":vision") ? e.id.slice(0, -":vision".length) : null;
     if (e.kind === "finished" && id && get().settings?.activeModel?.startsWith(`${id}:`)) void api.engineRestart().catch(() => undefined);
+    // The search-by-meaning model arrived: prepare the passages already indexed.
+    if (e.kind === "finished" && e.id === get().kb?.embedKey) {
+      void get().refreshKb();
+      if (get().kb?.sources.length) void api.kbReindex().catch(() => undefined);
+    }
   }
 });
 

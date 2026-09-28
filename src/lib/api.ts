@@ -13,6 +13,9 @@ import type {
   LoadedModel,
   Memory,
   MemoryReport,
+  KbHit,
+  KbProgress,
+  KbStatus,
   LocalFile,
   Mode,
   ModelStatus,
@@ -57,6 +60,12 @@ export const api = {
   memoryReport: () => invoke<MemoryReport>("memory_report"),
   appQuit: (name: string) => invoke<void>("app_quit", { name }),
   fileIngest: (path: string) => invoke<LocalFile>("file_ingest", { path }),
+  kbStatus: () => invoke<KbStatus>("kb_status"),
+  kbAdd: (path: string) => invoke<number>("kb_add", { path }),
+  kbRemove: (id: number) => invoke<void>("kb_remove", { id }),
+  /** Re-reads changed files in one folder, or all when `id` is omitted. */
+  kbReindex: (id?: number) => invoke<void>("kb_reindex", { id: id ?? null }),
+  kbSearch: (query: string, limit?: number) => invoke<KbHit[]>("kb_search", { query, limit: limit ?? null }),
   settingsGet: () => invoke<Settings>("settings_get"),
   settingsUpdate: (patch: Partial<Settings>) => invoke<Settings>("settings_update", { patch }),
 
@@ -173,6 +182,7 @@ export const events = {
   onExtras: (cb: () => void): Promise<UnlistenFn> => listen("engine://extras", () => cb()),
   onDownload: (cb: (e: DownloadEvent) => void): Promise<UnlistenFn> =>
     listen<DownloadEvent>("models://download", (e) => cb(e.payload)),
+  onKbProgress: (cb: (p: KbProgress) => void): Promise<UnlistenFn> => listen<KbProgress>("kb://progress", (e) => cb(e.payload)),
 };
 
 export function errorText(e: unknown): string {

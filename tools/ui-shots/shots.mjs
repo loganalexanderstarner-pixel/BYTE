@@ -58,7 +58,7 @@ function mock(onboarded, theme) {
         { id: "m3", text: "Uses a MacBook Air M4 with 16 GB", source: "chat", createdAt: now - 1 * day },
       ]
     : [];
-  const settings = { autoTune: true, tuning: onboarded ? { "qwen3.5-9b:Q6_K": { boost: true, kvF16: false, ubatch: 1024, tokensPerSec: 21.4, promptPerSec: 412, chip: "Apple M4 10-core GPU", testedAt: Date.now(), flashAttn: true, draftNMax: 16, draftPMin: 0.75, thorough: true, helperKind: "draft", ngram: true } } : {}, speedBoost: true, speedPref: "balanced", memoryEnabled: true, aboutMe: "I'm Logan. I like clear, practical answers.", loadedAlongside: [], webSearch: true, userName: "Logan", onboardingComplete: onboarded, activeModel: onboarded ? "qwen3.5-9b:Q6_K" : null, contextSize: null, defaultMode: "auto", thinking: "auto", theme, accent: null, fontScale: 1, density: "comfortable", showStats: true };
+  const settings = { autoTune: true, tuning: onboarded ? { "qwen3.5-9b:Q6_K": { boost: true, kvF16: false, ubatch: 1024, tokensPerSec: 21.4, promptPerSec: 412, chip: "Apple M4 10-core GPU", testedAt: Date.now(), flashAttn: true, draftNMax: 16, draftPMin: 0.75, thorough: true, helperKind: "draft", ngram: true } } : {}, speedBoost: true, speedPref: "balanced", memoryEnabled: true, kbEnabled: true, aboutMe: "I'm Logan. I like clear, practical answers.", loadedAlongside: [], webSearch: true, userName: "Logan", onboardingComplete: onboarded, activeModel: onboarded ? "qwen3.5-9b:Q6_K" : null, contextSize: null, defaultMode: "auto", thinking: "auto", theme, accent: null, fontScale: 1, density: "comfortable", showStats: true };
   const system = REAL.system;
   const loaded = onboarded
     ? [
@@ -227,8 +227,19 @@ function initScript({ data }) {
           return { conversationId: "42", attachment: { id: String(100 + Math.floor(Math.random() * 900)), filename: args.file.split("/").pop(), content_type: "image/jpeg" } };
         case "plugin:dialog|open":
           return data.dialogPaths ?? ["/Users/logan/Pictures/tide-pool.jpg"];
+        case "kb_status":
+          return data.kb ?? { sources: [], embedKey: "nomic-embed-v1.5:Q8_0", embedBytes: 146146432, embedInstalled: false, embedRunning: false };
+        case "kb_add":
+          return 3;
+        case "kb_remove":
+        case "kb_reindex":
+          return null;
+        case "kb_search":
+          return [];
         case "file_ingest": {
           const name = args.path.split("/").pop();
+          if (/Lease 2026/.test(args.path))
+            return { name, kind: "pdf", pages: 6, truncated: false, text: "[Page 1]\nRESIDENTIAL LEASE AGREEMENT\nThis lease is made between Harbor Street Rentals LLC (Landlord) and the Tenant named below.\n\n[Page 2]\nRent is $1,450 per month, due on the first day of each month. A late fee of $50 applies after the fifth day.\n\n[Page 3]\nPets are allowed with a $300 deposit and written consent of the Landlord.\n\n[Page 4]\nMAINTENANCE AND REPAIRS\nTenant shall keep the unit clean and in good condition.\nTenant shall promptly report any leak or water damage to Landlord in writing within 48 hours. Damage caused or made worse by a late report may be charged to Tenant.\n\n[Page 5]\nLandlord is responsible for repairs to plumbing, roofing and appliances supplied with the unit.\n\n[Page 6]\nThis lease ends on July 31, 2027." };
           if (/\.(png|jpe?g)$/i.test(name))
             return { name, kind: "image", text: "", truncated: false, image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" };
           if (/\.xlsx$/i.test(name)) return { name, kind: "sheet", pages: 3, text: "[Sheet 1]\nMonth | Rent", truncated: false };
@@ -270,6 +281,27 @@ function initScript({ data }) {
             if (args.request.cloud.mode === "keep-streaming") return null;
             send({ kind: "stats", promptTokens: 0, completionTokens: 60, tokensPerSecond: 41.2, promptMs: 0, totalMs: 3100, thinkingMs: 0, draftTokens: 0, draftAccepted: 0 });
             send({ kind: "remote", conversationId: "42", messageId: "421", userMessageId: null });
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
+          if (data.kbAnswer) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            send({ kind: "toolCall", id: "f1", name: "search_my_files", args: { query: "lease water damage leak who pays" } });
+            await wait(60);
+            send({ kind: "toolResult", id: "f1", ok: true, summary: "4 passages from 2 files" });
+            send({ kind: "sources", sources: [
+              { n: 1, title: "Lease 2026.pdf (p. 4)", url: "file:///Users/logan/Documents/Lease%202026.pdf#page=4", snippet: "Tenant shall promptly report any leak or water damage to Landlord in writing within 48 hours.", read: true },
+              { n: 2, title: "Lease 2026.pdf (p. 5)", url: "file:///Users/logan/Documents/Lease%202026.pdf#page=5", snippet: "Landlord is responsible for repairs to plumbing, roofing and appliances supplied with the unit.", read: true },
+              { n: 3, title: "Renters insurance.pdf (p. 2)", url: "file:///Users/logan/Documents/Renters%20insurance.pdf#page=2", snippet: "Personal property damaged by sudden and accidental discharge of water is covered.", read: true },
+            ]});
+            for (const c of [
+              "> **TL;DR:** Your landlord pays to fix the leak itself, but you must report it in writing within 48 hours, or you may have to pay for damage that gets worse [1][2].\n\n",
+              "## What your lease says\n\n",
+              "1. **Report it fast.** Tell your landlord in writing within 48 hours of noticing a leak [1].\n",
+              "2. **Repairs are the landlord's job.** Plumbing, roof and supplied appliances are theirs to fix [2].\n",
+              "3. **Your belongings** are covered by your renters insurance for sudden water damage [3].\n",
+            ]) { send({ kind: "content", delta: c }); await wait(20); }
+            send({ kind: "stats", promptTokens: 3100, completionTokens: 140, tokensPerSecond: 21.4, promptMs: 2400, totalMs: 9000, thinkingMs: 0 });
             send({ kind: "done", finishReason: "stop" });
             return null;
           }
@@ -522,6 +554,39 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(150);
   await shot(p, "13c-sees-images");
   console.log("files errors:", errors);
+  await ctx.close();
+}
+// Knowledge base: folders in Settings, an answer from your files, the reader
+{
+  const day = 86400000;
+  const { p, ctx, errors } = await page(true, "midnight", {
+    kbAnswer: true,
+    kb: {
+      sources: [
+        { id: 1, path: "/Users/logan/Documents", addedAt: Date.now() - 3 * day, lastScan: Date.now() - 4 * 60000, error: null, files: 214, chunks: 3810, embedded: 3810, bytes: 7.9e6 },
+        { id: 2, path: "/Users/logan/Notes", addedAt: Date.now() - day, lastScan: Date.now() - 4 * 60000, error: null, files: 96, chunks: 402, embedded: 402, bytes: 0.8e6 },
+      ],
+      embedKey: "nomic-embed-v1.5:Q8_0",
+      embedBytes: 146146432,
+      embedInstalled: true,
+      embedRunning: false,
+    },
+  });
+  await p.keyboard.press("Meta+Comma");
+  await p.getByRole("button", { name: "Knowledge base", exact: true }).click();
+  await p.waitForTimeout(300);
+  await shot(p, "14-kb-settings");
+  await p.keyboard.press("Escape");
+  await p.getByRole("button", { name: /New chat/ }).first().click().catch(() => {});
+  await p.getByLabel("Message BYTE").fill("What does my lease say about water damage from a leak? Who pays?");
+  await shot(p, "14a-my-files-toggle");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(1200);
+  await shot(p, "14b-kb-answer");
+  await p.locator(".source-card").first().click();
+  await p.waitForTimeout(500);
+  await shot(p, "14c-reader");
+  console.log("kb errors:", errors);
   await ctx.close();
 }
 // A model that didn't load: what's using memory, with Quit buttons

@@ -49,6 +49,9 @@ src-tauri/                Rust core (Tauri 2)
   src/system.rs           hardware info + RAM planner (fit, context size)
   src/chat.rs             SSE streaming client, context fitting, cancellation, e2e test
   src/files.rs            attached files → text (PDF, Office, text/code) and photos (data URLs) for the model
+  src/ocr.rs              text in photos / scanned PDFs (Apple Vision + PDFKit; macOS only)
+  src/embed.rs            embedding engine (nomic-embed, own llama-server, on demand, idle stop)
+  src/kb.rs               knowledge base: folders → passages → FTS5 + vectors, hybrid search, rescans
   src/router.rs           per-turn thinking/length plan by mode
   src/prompt.rs           system prompt (identity, date, mode rules)
   src/backend.rs          ModelBackend trait: LocalLlama + Cloud, fallback rules (chat_send goes through it)

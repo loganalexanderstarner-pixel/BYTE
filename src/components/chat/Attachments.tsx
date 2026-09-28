@@ -69,13 +69,21 @@ export function fileDetail(f: LocalFile): string {
 
 /** Files read on this Mac (local chats), on a message or waiting to be sent. */
 export function LocalFileChips({ files, onRemove }: { files: LocalFile[]; onRemove?: (index: number) => void }) {
+  const openReader = useStore((s) => s.openReader);
   if (!files.length) return null;
   return (
     <div className="attachments">
       {files.map((f, i) => {
         const detail = fileDetail(f);
+        // Sent files open in the reader (their text as BYTE read it).
+        const readable = !onRemove && f.text.trim().length > 0;
         return (
-          <span key={`${f.name}-${i}`} className="attachment" title={detail ? `${f.name} (${detail})` : f.name}>
+          <span
+            key={`${f.name}-${i}`}
+            className={`attachment ${readable ? "clickable" : ""}`}
+            title={detail ? `${f.name} (${detail})` : f.name}
+            onClick={readable ? () => openReader({ title: f.name, text: f.text }) : undefined}
+          >
             {f.image ? (
               <img className="thumb" src={f.image} alt={f.name} />
             ) : f.kind === "sheet" ? (

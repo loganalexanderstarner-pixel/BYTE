@@ -57,12 +57,14 @@ pub struct Turn<'a> {
     /// Offer the `remember` tool (memory is on).
     pub memory: bool,
     pub log: &'a ActionLog,
+    /// The app, when the knowledge base can be searched ("My files" on, folders indexed).
+    pub files: Option<&'a tauri::AppHandle>,
 }
 
 /// BYTE searches before the model answers any question about the world
 /// (`router::wants_web`), so the model can't answer from stale or invented memory.
 fn must_search_first(turn: &Turn<'_>, question: &str) -> bool {
-    turn.web && crate::router::wants_web(question)
+    turn.web && crate::router::wants_web(question) && !crate::router::wants_files(question)
 }
 
 /// Sent when tools are withdrawn, so the model writes its answer instead of
@@ -255,8 +257,8 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     let lim = limits(turn.mode);
     // The question itself, without the text of attached files (they'd swamp web searches).
     let question = turn.history.iter().rev().find(|m| m.role == "user").map(|m| chat::question_text(&m.content).to_string()).unwrap_or_default();
-    let ctx = ToolContext { net: turn.net, cloud: turn.cloud, question: &question, max_results: lim.max_results, page_chars: lim.page_chars, log: turn.log };
-    let specs = tools::specs(turn.web, turn.memory);
+    let ctx = ToolContext { net: turn.net, cloud: turn.cloud, question: &question, max_results: lim.max_results, page_chars: lim.page_chars, log: turn.log, files: turn.files };
+    let specs = tools::specs(turn.web, turn.memory, turn.files.is_some());
     let mut messages = chat::base_messages(turn.system, turn.history);
     let mut book = SourceBook::default();
     let mut totals = Stats::default();
@@ -300,6 +302,24 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
             }
             push_tool_exchange(&mut messages, &call_id, tools::WEATHER, &args, out.content);
         }
+    }
+
+    // Questions about the user's own files ("what does my lease say…"): BYTE
+    // searches the knowledge base first, like the forced web search below.
+    if turn.files.is_some() && crate::router::wants_files(&question) {
+        let call_id = "byte_files_0".to_string();
+        let args = json!({ "query": search_query(&question, previous_question(turn.history)) });
+        send(ChatEvent::ToolCall { id: call_id.clone(), name: tools::SEARCH_FILES.into(), args: args.clone() })?;
+        let out = tokio::select! {
+            o = tools::run(&ctx, &mut book, tools::SEARCH_FILES, &args) => o,
+            _ = cancel.cancelled() => return Err(AppError::Cancelled),
+        };
+        send(ChatEvent::ToolResult { id: call_id.clone(), ok: out.ok, summary: out.summary.clone() })?;
+        if !book.sources.is_empty() {
+            send(ChatEvent::Sources { sources: book.sources.clone() })?;
+        }
+        push_tool_exchange(&mut messages, &call_id, tools::SEARCH_FILES, &args, out.content);
+        used_tools = true;
     }
 
     // Questions about the world: BYTE runs the first search itself and reads
@@ -556,7 +576,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, false, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log };
+        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log, files: None };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let calls: Vec<_> = ev.iter().filter(|e| e["kind"] == "toolCall").collect();
@@ -588,7 +608,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, true, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let mut counts = std::collections::BTreeMap::new();
@@ -635,7 +655,7 @@ mod tests {
             let system = crate::prompt::system_prompt(chrono::Local::now(), mode, true, None);
             let plan = crate::router::plan_turn(mode, ThinkingPref::Auto, &q);
             let (ch, seen) = collecting_channel();
-            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log };
+            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None };
             let t = std::time::Instant::now();
             let r = run(turn, CancellationToken::new(), &ch).await;
             let ev = seen.lock().unwrap().clone();

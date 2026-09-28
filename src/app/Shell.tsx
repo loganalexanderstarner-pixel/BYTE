@@ -5,6 +5,7 @@ import { ChatView } from "../components/chat/ChatView";
 import { Composer } from "../components/chat/Composer";
 import { EngineBadge } from "../components/EngineBadge";
 import { DocumentsPanel } from "../components/documents/DocumentsPanel";
+import { Reader } from "../components/reader/Reader";
 import { SettingsModal } from "../components/settings/SettingsModal";
 import { Sidebar } from "../components/Sidebar";
 import { useStore } from "../state/store";
@@ -18,6 +19,7 @@ export function Shell() {
   const [docsOpen, setDocsOpen] = useState(false);
   const settingsTab = useStore((s) => s.settingsTab);
   const stop = useStore((s) => s.stop);
+  const reading = useStore((s) => !!s.reader);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -40,7 +42,7 @@ export function Shell() {
   }, [newChat, openSettings, toggleSidebar, stop]);
 
   return (
-    <div className={`app ${sidebarOpen ? "" : "sidebar-hidden"}`}>
+    <div className={`app ${sidebarOpen ? "" : "sidebar-hidden"} ${reading ? "reading" : ""}`}>
       <Sidebar />
       <main className="main">
         <header className="titlebar" data-tauri-drag-region>
@@ -71,6 +73,7 @@ export function Shell() {
         <ChatView />
         <Composer />
       </main>
+      {reading && <Reader />}
       {settingsTab && <SettingsModal />}
       {docsOpen && <DocumentsPanel onClose={() => setDocsOpen(false)} />}
     </div>

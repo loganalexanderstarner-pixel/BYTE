@@ -20,6 +20,8 @@ export interface Settings {
   aboutMe: string | null;
   /** Use saved memories and let BYTE suggest new ones. */
   memoryEnabled: boolean;
+  /** Knowledge base module ("My files"): index chosen folders and search them in answers. */
+  kbEnabled: boolean;
   /** Models reloaded alongside the main one at launch. */
   loadedAlongside: string[];
   /** Speculative decoding with a small same-family helper model. */
@@ -360,6 +362,47 @@ export interface WireMessage {
   content: string;
   /** Files attached to a user message (read on this Mac). */
   files?: LocalFile[];
+}
+
+/** A folder in the knowledge base (Rust `kb::Source`). */
+export interface KbSource {
+  id: number;
+  path: string;
+  addedAt: number;
+  lastScan: number | null;
+  error: string | null;
+  files: number;
+  chunks: number;
+  /** Passages searchable by meaning (have an embedding). */
+  embedded: number;
+  bytes: number;
+}
+
+/** Rust `commands::KbStatus`. */
+export interface KbStatus {
+  sources: KbSource[];
+  embedKey: string | null;
+  embedBytes: number;
+  embedInstalled: boolean;
+  embedRunning: boolean;
+}
+
+/** A passage found in the knowledge base (Rust `kb::Hit`). */
+export interface KbHit {
+  chunkId: number;
+  path: string;
+  name: string;
+  page: number | null;
+  text: string;
+}
+
+/** Indexing progress (`kb://progress`). */
+export interface KbProgress {
+  sourceId: number;
+  phase: "reading" | "embedding" | "done";
+  done: number;
+  total: number;
+  file: string;
 }
 
 /** Rust `files::FileKind`. */
