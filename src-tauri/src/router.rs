@@ -176,6 +176,53 @@ pub fn wants_papers(message: &str) -> bool {
     PAPER_CUES.iter().any(|c| m.contains(&format!(" {c} ")))
 }
 
+const NEAR_ME: &[&str] = &["near me", "nearby", "around me", "around here", "close to me", "closest", "nearest", "near here", "in my area", "open now", "within walking distance"];
+
+/// A places question ("coffee near me", "pharmacies open now in Shadyside,
+/// Pittsburgh", "best sushi in Lisbon"): what to find and where (the user's
+/// town from Settings for "near me", else "" so BYTE asks).
+pub fn places_request(message: &str, home: Option<&str>) -> Option<(String, String)> {
+    let m = message.trim().trim_end_matches(['?', '!', '.']).replace('\u{2019}', "'");
+    let lower = m.to_lowercase();
+    // Things that aren't about finding a place.
+    if wants_trip(&lower) || wants_compare(&lower) || lower.contains("recipe") || lower.contains("how to make") || lower.contains("```") {
+        return None;
+    }
+    let cat = crate::tools::places::category_for(&lower)?;
+    let near_me = NEAR_ME.iter().any(|c| lower.contains(c));
+    // "… in Shadyside, Pittsburgh" / "… near the Strip District" / "… around Lisbon".
+    let named = [" in ", " near ", " around ", " by "]
+        .iter()
+        .filter_map(|p| lower.rfind(p).map(|i| (i, p.len())))
+        .max_by_key(|(i, _)| *i)
+        .map(|(i, len)| m[i + len..].to_string())
+        .map(|s| {
+            let l = s.to_lowercase();
+            let cut = ["open now", " that ", " with ", " for ", " which ", " today", " tonight", " right now"].iter().filter_map(|w| l.find(w)).min().unwrap_or(s.len());
+            s[..cut].trim().trim_start_matches("the ").trim().to_string()
+        })
+        .filter(|s| {
+            let l = s.to_lowercase();
+            !s.is_empty() && !["me", "here", "my area", "the area", "town", "my town"].contains(&l.as_str()) && s.split_whitespace().count() <= 6 && s.chars().next().is_some_and(|c| c.is_uppercase() || c.is_ascii_digit())
+        });
+    if named.is_none() && !near_me {
+        return None;
+    }
+    let near = named.unwrap_or_else(|| home.unwrap_or("").to_string());
+    // Keep the specific words ("sushi", "vegan pizza") when they're short.
+    let what = cat.words.iter().filter(|w| lower.contains(*w)).max_by_key(|w| w.len()).map(|w| w.to_string()).unwrap_or_else(|| cat.label.to_string());
+    Some((what, near))
+}
+
+const TRIP_CUES: &[&str] = &["plan a trip", "plan my trip", "trip to", "itinerary", "days in ", "day trip", "weekend in ", "vacation in", "vacation to", "holiday in", "holiday to", "visit to ", "travel plan", "honeymoon in", "road trip"];
+
+/// A request to plan a trip ("plan 3 days in Lisbon", "weekend in Chicago").
+pub fn wants_trip(message: &str) -> bool {
+    let m = message.to_lowercase();
+    let planning = ["plan", "itinerary", "schedule", "trip", "going to", "visiting", "what to do", "things to do"].iter().any(|w| m.contains(w));
+    planning && TRIP_CUES.iter().any(|c| m.contains(c))
+}
+
 const FACT_CUES: &[&str] = &[
     "is it true that", "is it true", "is that true", "is this true", "fact-check", "fact check", "factcheck",
     "true or false", "debunk", "is it a myth", "is that a myth", "myth that", "did they really", "is it really true",
@@ -451,6 +498,22 @@ fn percent_of(message: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn places_questions_are_understood() {
+        let home = Some("Pittsburgh, PA");
+        assert_eq!(places_request("Is there good coffee near me?", home), Some(("coffee".into(), "Pittsburgh, PA".into())));
+        assert_eq!(places_request("pharmacies open now in Shadyside, Pittsburgh", home), Some(("pharmacies".into(), "Shadyside, Pittsburgh".into())));
+        assert_eq!(places_request("Best sushi in Lisbon?", None), Some(("sushi".into(), "Lisbon".into())));
+        // "near me" without a town: asks (empty place).
+        assert_eq!(places_request("closest gas station", None), Some(("gas station".into(), String::new())));
+        assert_eq!(places_request("how do I make coffee?", home), None);
+        assert_eq!(places_request("Is coffee bad for you?", home), None);
+        assert_eq!(places_request("Plan 3 days in Lisbon with good restaurants", home), None);
+        assert!(wants_trip("Plan 3 days in Lisbon in May for $1500"));
+        assert!(wants_trip("Can you make an itinerary for a weekend in Chicago?"));
+        assert!(!wants_trip("What's the weather in Lisbon?"));
+    }
 
     #[test]
     fn fact_checks_and_comparisons_are_recognised() {

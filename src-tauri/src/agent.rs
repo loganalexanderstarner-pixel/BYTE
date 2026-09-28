@@ -71,6 +71,8 @@ pub struct Turn<'a> {
     pub app: Option<&'a tauri::AppHandle>,
     /// A job the user asked for with a button (None: a normal answer).
     pub task: Option<Task>,
+    /// The user's town for "near me" questions (Settings), if they gave one.
+    pub home: Option<&'a str>,
 }
 
 /// BYTE searches before the model answers any question about the world
@@ -269,7 +271,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     let lim = limits(turn.mode);
     // The question itself, without the text of attached files (they'd swamp web searches).
     let question = turn.history.iter().rev().find(|m| m.role == "user").map(|m| chat::question_text(&m.content).to_string()).unwrap_or_default();
-    let ctx = ToolContext { net: turn.net, cloud: turn.cloud, question: &question, max_results: lim.max_results, page_chars: lim.page_chars, log: turn.log, files: turn.files };
+    let ctx = ToolContext { net: turn.net, cloud: turn.cloud, question: &question, max_results: lim.max_results, page_chars: lim.page_chars, log: turn.log, files: turn.files, home: turn.home };
     let specs = tools::specs(turn.web, turn.memory, turn.files.is_some(), crate::research::depth(turn.mode).is_some());
     let mut messages = chat::base_messages(turn.system, turn.history);
     let mut book = SourceBook::default();
@@ -316,6 +318,30 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         }
     }
 
+    // "Coffee near me", "pharmacies open now in Shadyside": BYTE looks the
+    // places up on OpenStreetMap itself, like the weather.
+    let mut places_done = false;
+    if turn.web && !weather_done {
+        if let Some((what, near)) = crate::router::places_request(&question, turn.home) {
+            let call_id = "byte_places_0".to_string();
+            let args = json!({ "what": what, "near": near });
+            send(ChatEvent::ToolCall { id: call_id.clone(), name: tools::FIND_PLACES.into(), args: args.clone() })?;
+            let out = tokio::select! {
+                o = tools::run(&ctx, &mut book, tools::FIND_PLACES, &args) => o,
+                _ = cancel.cancelled() => return Err(AppError::Cancelled),
+            };
+            send(ChatEvent::ToolResult { id: call_id.clone(), ok: out.ok, summary: out.summary.clone() })?;
+            if let Some(p) = out.places.clone() {
+                send(ChatEvent::Places(p))?;
+                send(ChatEvent::Sources { sources: book.sources.clone() })?;
+                places_done = true;
+            }
+            push_tool_exchange(&mut messages, &call_id, tools::FIND_PLACES, &args, out.content);
+            used_tools = true;
+        }
+    }
+    let weather_done = weather_done || places_done;
+
     // Questions about the user's own files ("what does my lease say…"): BYTE
     // searches the knowledge base first, like the forced web search below.
     if turn.files.is_some() && crate::router::wants_files(&question) {
@@ -342,6 +368,10 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     if !weather_done && crate::factcheck::applies(turn.web, turn.task == Some(Task::FactCheck), &question) {
         let (b, notes) = crate::factcheck::run(&turn, &question, estimate(&messages), &cancel, &send).await?;
         prepared = Some((b, notes, "fact_check"));
+    } else if crate::trip::applies(turn.web, &question) {
+        if let Some((b, notes)) = crate::trip::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
+            prepared = Some((b, notes, "plan_trip"));
+        }
     } else if !weather_done && crate::decide::applies(turn.web, &question) {
         if let Some((b, notes)) = crate::decide::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
             prepared = Some((b, notes, "compare"));
@@ -621,7 +651,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, false, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log, files: None, app: None, task: None };
+        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log, files: None, app: None, task: None, home: None };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let calls: Vec<_> = ev.iter().filter(|e| e["kind"] == "toolCall").collect();
@@ -653,7 +683,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, true, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let mut counts = std::collections::BTreeMap::new();
@@ -700,7 +730,7 @@ mod tests {
             let system = crate::prompt::system_prompt(chrono::Local::now(), mode, true, None);
             let plan = crate::router::plan_turn(mode, ThinkingPref::Auto, &q);
             let (ch, seen) = collecting_channel();
-            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None, app: None, task: None };
+            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None };
             let t = std::time::Instant::now();
             let r = run(turn, CancellationToken::new(), &ch).await;
             let ev = seen.lock().unwrap().clone();

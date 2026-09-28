@@ -101,6 +101,9 @@ pub struct Settings {
     pub web_search: bool,
     /// What BYTE calls the user (asked during setup).
     pub user_name: Option<String>,
+    /// The user's town, for "near me" questions ("Pittsburgh, PA"). Never guessed.
+    #[serde(default)]
+    pub home_place: Option<String>,
     /// Where to fetch model catalog updates (default: the BYTE repository).
     pub catalog_url: Option<String>,
     /// Free-form "About me" the user writes; included in every conversation.
@@ -151,6 +154,7 @@ impl Default for Settings {
             show_stats: true,
             web_search: true,
             user_name: None,
+            home_place: None,
             catalog_url: None,
             about_me: None,
             memory_enabled: true,

@@ -597,6 +597,7 @@ function AboutTab() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
   const [name, setName] = useState(settings?.userName ?? "");
+  const [town, setTown] = useState(settings?.homePlace ?? "");
   return (
     <>
       <div className="row" style={{ gap: 16 }}>
@@ -620,6 +621,21 @@ function AboutTab() {
             placeholder="Your name"
             onChange={(e) => setName(e.target.value)}
             onBlur={() => void update({ userName: name.trim() || null })}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="home-place">
+            Your town
+            <small>For “near me” questions, like “coffee near me”. BYTE never looks up where you are by itself.</small>
+          </label>
+          <input
+            id="home-place"
+            className="text-input"
+            value={town}
+            maxLength={80}
+            placeholder="e.g. Pittsburgh, PA"
+            onChange={(e) => setTown(e.target.value)}
+            onBlur={() => town.trim() !== (settings?.homePlace ?? "") && void update({ homePlace: town.trim() || null })}
           />
         </div>
       </div>

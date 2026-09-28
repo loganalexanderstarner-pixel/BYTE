@@ -397,8 +397,11 @@ keyless requests from shared networks; `academic_search` tool in Deep/Extended; 
 `src/lib/citations.ts` + Cite menu). **Done in v0.6.1:** item 4's fact-check (`factcheck.rs`, verdict table with
 quotes = the quote finder, `markdown.ts` `markVerdicts`, shield button → `ChatRequest.task = factCheck`) and compare
 & decide (`decide.rs`: options read from the question, criteria + scores via JSON, `ChatEvent::Decision`,
-`components/chat/Decision.tsx` with weight sliders, `lib/decide.ts`). **Next:** v0.6.2 trip planner +
-local lookup, v0.6.3 YouTube, v0.6.4 web agent; self-check / best-of-3 / quote finder with fact-check.
+`components/chat/Decision.tsx` with weight sliders, `lib/decide.ts`). **Done in v0.6.2:** item 5 (`tools/places.rs`:
+OpenStreetMap Overpass with mirrors, category map, opening-hours "open now", `find_places` tool + forced lookup via
+`router::places_request`, `settings.homePlace`, `Places.tsx`; `trip.rs`: ask → weather (forecast or last year via the
+Open-Meteo archive) → research + sights → `TripPlan` JSON → `Trip.tsx`, `lib/trip.ts` (PDF via DocSpec), `lib/ics.ts`,
+`calendar_open` command). CoreLocation left for Phase 12 (needs a signed app). **Next:** v0.6.3 YouTube, v0.6.4 web agent; self-check / best-of-3 / quote finder with fact-check.
 1. **Deep / Extended pipelines** (`research.rs`): plan 3–6 sub-questions → parallel searches → fetch up to
    15 (Deep) / 30 (Extended) pages, 6 at a time → embedding-rank passages → cited report; Extended adds a gap
    review, follow-up searches and a rewrite into a sectioned report. Progress steps shown live; cancel anytime.

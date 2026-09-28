@@ -13,6 +13,8 @@ import { AttachmentChips, LocalFileChips } from "./Attachments";
 import { useStore, type Message, type Step } from "../../state/store";
 import { Activity, Sources } from "./Activity";
 import { DecisionTable } from "./Decision";
+import { PlacesCards } from "./Places";
+import { TripCard } from "./Trip";
 
 function openLinksExternally(e: MouseEvent<HTMLDivElement>) {
   const a = (e.target as HTMLElement).closest("a");
@@ -217,6 +219,8 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
         </button>
       )}
       {message.decision && <DecisionTable decision={message.decision} sources={message.sources} />}
+      {message.trip && <TripCard plan={message.trip} sources={message.sources} />}
+      {message.places && <PlacesCards found={message.places} />}
       {message.content && (
         <div
           className={`prose ${generating ? "cursor" : ""}`}

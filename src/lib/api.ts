@@ -133,6 +133,8 @@ export const api = {
     return invoke<DocSpec>("doc_write", { request, onEvent: channel });
   },
   docSave: (path: string, data: string) => invoke<void>("doc_save", { path, data }),
+  /** Saves an .ics file and opens it in the calendar app. */
+  calendarOpen: (path: string, data: string) => invoke<void>("calendar_open", { path, data }),
 
   // BYTE cloud (docs/CLOUD-MODE.md). The key goes straight to the Keychain.
   cloudStatus: () => invoke<CloudStatus>("cloud_status"),

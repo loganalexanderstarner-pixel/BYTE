@@ -310,6 +310,61 @@ function initScript({ data }) {
             send({ kind: "done", finishReason: "stop" });
             return null;
           }
+          if (data.places) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            send({ kind: "toolCall", id: "p0", name: "find_places", args: { what: "coffee", near: "Pittsburgh, PA" } });
+            await wait(20);
+            send({ kind: "toolResult", id: "p0", ok: true, summary: "8 places, 3 open now" });
+            const spot = (name, kind, cuisine, address, d, hours, openNow, website = "") => ({ name, kind, cuisine, address, lat: 40.44, lon: -79.99, distanceM: d, hours, openNow, website, phone: "", osmUrl: `https://www.openstreetmap.org/node/${d}` });
+            send({ kind: "places", near: "Pittsburgh, Pennsylvania, United States", what: "coffee shops", imperial: true, spots: [
+              spot("Rock'n Joe", "cafe", "coffee shop", "524 Penn Avenue, Pittsburgh", 320, "Mo-Fr 07:00-15:00; Sa,Su 07:00-15:00", true, "https://www.rocknjoe.com/"),
+              spot("Crazy Mocha", "cafe", "coffee shop", "", 480, "Mo-Fr 06:00-18:00", true, "https://crazymocha.com/"),
+              spot("Fernando's Cafe", "cafe", "", "963 Liberty Avenue, Pittsburgh", 520, "", null, "http://fernandoscafe.com/"),
+              spot("Buon Giorno Cafe", "cafe", "", "", 610, "Mo-Fr 07:00-14:00", false, "https://buongiorno-eats.com/"),
+              spot("De Fer Coffee & Tea", "cafe", "coffee shop", "733 Penn Avenue, Pittsburgh", 700, "Mo-Su 07:00-18:00", true),
+              spot("Starbucks", "cafe", "coffee shop", "606 6th Street, Pittsburgh", 820, "", null, "https://www.starbucks.com/"),
+            ]});
+            send({ kind: "sources", sources: [
+              { n: 1, title: "Rock'n Joe", url: "https://www.openstreetmap.org/node/320", snippet: "", read: true },
+              { n: 2, title: "Crazy Mocha", url: "https://www.openstreetmap.org/node/480", snippet: "", read: true },
+              { n: 5, title: "De Fer Coffee & Tea", url: "https://www.openstreetmap.org/node/700", snippet: "", read: true },
+            ]});
+            for (const t of ["Three good ones are open right now, all within a short walk:\n\n", "1. **Rock'n Joe**, 0.2 mi, on Penn Avenue, open until 3 pm [1]\n", "2. **Crazy Mocha**, 0.3 mi, open until 6 pm [2]\n", "3. **De Fer Coffee & Tea**, 0.4 mi, open until 6 pm [5]\n\n", "> **Note:** Hours come from OpenStreetMap and may be out of date.\n"]) { send({ kind: "content", delta: t }); await wait(10); }
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
+          if (data.trip) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            for (const [id, name, a, summary] of [
+              ["t0", "plan_trip", {}, "3 days in Lisbon, Portugal"],
+              ["t1", "trip_weather", { place: "Lisbon, Portugal" }, "Typical weather (May 10 to May 12, last year)"],
+              ["t2", "web_search", { query: "best things to do in Lisbon" }, "8 results"],
+              ["t3", "web_search", { query: "where to stay in Lisbon neighborhoods" }, "8 results"],
+              ["t4", "find_places", { what: "sights", near: "Lisbon, Portugal" }, "12 sights on the map"],
+              ["t5", "rank_passages", {}, "21 passages from 9 sources"],
+              ["t6", "write_itinerary", {}, "3 days, 11 stops"],
+            ]) { send({ kind: "toolCall", id, name, args: a }); await wait(8); send({ kind: "toolResult", id, ok: true, summary }); }
+            send({ kind: "sources", sources: [
+              { n: 1, title: "The best things to do in Lisbon", url: "https://www.lonelyplanet.com/portugal/lisbon", snippet: "", read: true },
+              { n: 2, title: "Castelo de São Jorge", url: "https://castelodesaojorge.pt/en/", snippet: "", read: true },
+              { n: 3, title: "Where to stay in Lisbon", url: "https://www.cntraveler.com/lisbon-neighborhoods", snippet: "", read: true },
+            ]});
+            const it = (time, title, place, note, cost, sources = []) => ({ time, title, place, note, cost, sources });
+            send({ kind: "trip", destination: "Lisbon, Portugal", currency: "USD", budget: 1500, travelers: 2, month: null,
+              weather: "Typical weather (May 10 to May 12, last year): lows around 57°F, highs up to 75°F, 1 of 3 days with rain.",
+              days: [
+                { title: "Alfama and the castle", date: "2027-05-10", items: [it("09:00", "Castelo de São Jorge", "Alfama", "Go at opening to beat the lines", 32, [2]), it("12:30", "Lunch at a tasca", "Alfama", "Try grilled sardines", 40, [1]), it("Afternoon", "Tram 28 to Graça", "Graça", "Board at Martim Moniz for a seat", 7, [1]), it("Evening", "Fado dinner", "Alfama", "Book a day ahead", 110, [1])] },
+                { title: "Belém", date: "2027-05-11", items: [it("09:30", "Jerónimos Monastery", "Belém", "Buy tickets online", 36, [1]), it("11:30", "Pastéis de Belém", "Belém", "The original custard tarts", 10), it("Afternoon", "MAAT and the riverside", "Belém", "", 24, [1])] },
+                { title: "Chiado and Bairro Alto", date: "2027-05-12", items: [it("10:00", "Livraria Bertrand", "Chiado", "World's oldest bookshop", null), it("Afternoon", "Miradouro de São Pedro de Alcântara", "Bairro Alto", "Best at sunset", null, [1]), it("Evening", "Time Out Market", "Cais do Sodré", "", 50, [1])] },
+              ],
+              costs: [{ category: "Lodging (3 nights)", amount: 540 }, { category: "Food", amount: 330 }, { category: "Sights and tickets", amount: 140 }, { category: "Transport", amount: 60 }],
+              packing: ["Comfortable walking shoes (steep hills)", "Light jacket for evenings", "Sunscreen and sunglasses", "Umbrella", "Power adapter (type F)", "Reusable water bottle"],
+              tips: ["Get a Viva Viagem card for trams and the metro", "Book the castle and Jerónimos online to skip lines"],
+            });
+            for (const t of ["> **TL;DR:** Stay in **Chiado or Baixa** so most sights are a walk away; book the castle, Jerónimos and a fado dinner ahead [1][3].\n\n", "## Where to stay\nChiado and Baixa are central and flat by Lisbon standards [3].\n\n", "**Confidence:** Likely — two travel guides agree; prices are estimates.\n"]) { send({ kind: "content", delta: t }); await wait(10); }
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
           if (data.factCheck) {
             send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
             for (const [id, name, a, summary] of [
@@ -771,6 +826,33 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(200);
   await shot(p, "17c-decision-reweighted");
   console.log("compare errors:", errors);
+  await ctx.close();
+}
+// Places nearby and a trip plan
+{
+  const { p, ctx, errors } = await page(true, "midnight", { places: true });
+  await p.getByLabel("Message BYTE").fill("Good coffee near me that's open now?");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(700);
+  await p.locator(".places").scrollIntoViewIfNeeded();
+  await shot(p, "18-places");
+  console.log("places errors:", errors);
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await page(true, "midnight", { trip: true });
+  await p.getByLabel("Message BYTE").fill("Plan 3 days in Lisbon in May for 2 people, $1,500");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(800);
+  await p.locator(".trip").scrollIntoViewIfNeeded();
+  await shot(p, "18b-trip");
+  await p.getByRole("tab", { name: /Budget/ }).click();
+  await p.waitForTimeout(150);
+  await shot(p, "18c-trip-budget");
+  await p.getByRole("tab", { name: /Packing/ }).click();
+  await p.locator(".trip-packing input").first().check();
+  await shot(p, "18d-trip-packing");
+  console.log("trip errors:", errors);
   await ctx.close();
 }
 // A model that didn't load: what's using memory, with Quit buttons

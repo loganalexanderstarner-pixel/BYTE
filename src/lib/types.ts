@@ -16,6 +16,8 @@ export interface Settings {
   showStats: boolean;
   webSearch: boolean;
   userName: string | null;
+  /** The user's town for "near me" questions, e.g. "Pittsburgh, PA". */
+  homePlace?: string | null;
   /** Free-form "About me", included in every conversation. */
   aboutMe: string | null;
   /** Use saved memories and let BYTE suggest new ones. */
@@ -348,7 +350,62 @@ export type ChatEvent =
   | { kind: "phase"; text: string }
   | { kind: "remote"; conversationId: string; messageId: string | null; userMessageId: string | null }
   | { kind: "notice"; text: string }
-  | ({ kind: "decision" } & Decision);
+  | ({ kind: "decision" } & Decision)
+  | ({ kind: "places" } & PlacesFound)
+  | ({ kind: "trip" } & TripPlan);
+
+/** A place nearby from OpenStreetMap (Rust `tools::places::Spot`). */
+export interface Spot {
+  name: string;
+  kind: string;
+  address: string;
+  lat: number;
+  lon: number;
+  distanceM: number;
+  hours: string;
+  openNow: boolean | null;
+  website: string;
+  phone: string;
+  cuisine: string;
+  osmUrl: string;
+}
+
+/** Places found near somewhere (Rust `tools::PlacesFound`). */
+export interface PlacesFound {
+  near: string;
+  what: string;
+  imperial: boolean;
+  spots: Spot[];
+}
+
+/** A trip plan (Rust `trip::TripPlan`). */
+export interface TripPlan {
+  destination: string;
+  currency: string;
+  budget: number | null;
+  travelers: number;
+  month: string | null;
+  days: TripDay[];
+  costs: { category: string; amount: number }[];
+  packing: string[];
+  tips: string[];
+  weather: string;
+}
+
+export interface TripDay {
+  title: string;
+  date: string | null;
+  items: TripItem[];
+}
+
+export interface TripItem {
+  time: string;
+  title: string;
+  place: string;
+  note: string;
+  cost: number | null;
+  sources: number[];
+}
 
 /** A job asked for with a button (Rust `agent::Task`). */
 export type ChatTask = "factCheck";

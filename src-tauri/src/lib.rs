@@ -30,6 +30,7 @@ mod state;
 mod summarize;
 mod system;
 mod tools;
+mod trip;
 mod tune;
 
 use tauri::{Manager, RunEvent};
@@ -151,6 +152,7 @@ pub fn run() {
             commands::doc_outline,
             commands::doc_write,
             commands::doc_save,
+            commands::calendar_open,
             commands::app_quit,
             commands::settings_get,
             commands::settings_update,

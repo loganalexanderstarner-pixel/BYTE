@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.6.1** | Phase 6 improvements | Fact-check (verdict per claim with the exact quote) and compare & decide (score table with weight sliders) | Checking claims, choosing between options |
+| **v0.6.2** | Phase 6 improvements | Places nearby (OpenStreetMap cards, open-now) and a trip planner (day plans, budget, packing, PDF, calendar) | Travel and local help |
+| v0.6.1 | Phase 6 improvements | Fact-check (verdict per claim with the exact quote) and compare & decide (score table with weight sliders) | Checking claims, choosing between options |
 | v0.6.0 | Phase 6 · Deep research | Deep/Extended research (many searches, many pages, ranked passages), research papers, confidence line, citation styles | Thorough, cited answers |
 | v0.5.0 | Phase 5 · Documents | PDF / PowerPoint / Word documents written on your Mac, 4 designs, charts, outline you edit first | Documents without the cloud |
 | v0.4.0 *(was 1.0.0-test.14)* | Phase 4 · Your files | Attach files and photos, models that see images, scanned PDFs, a knowledge base of your folders, reader view, instant answers | BYTE that knows your documents |
@@ -43,7 +44,6 @@ which download is which. Their files and notes are unchanged.
 
 | Version | Phase |
 |---|---|
-| v0.6.2 | Trip planner, local lookup |
 | v0.6.3 | YouTube summaries |
 | v0.6.4 | Web agent |
 | v0.7.0 | Writing & learning |

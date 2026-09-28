@@ -107,6 +107,10 @@ pub enum ChatEvent {
     Notice { text: String },
     /// A compare & decide score table (decide.rs), shown above the answer.
     Decision(crate::decide::Decision),
+    /// Places found nearby (find_places), shown as cards.
+    Places(crate::tools::PlacesFound),
+    /// A trip plan (trip.rs), shown as an itinerary card.
+    Trip(crate::trip::TripPlan),
 }
 
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]

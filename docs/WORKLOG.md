@@ -17,6 +17,30 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (this commit) — v0.6.2: places nearby and a trip planner
+- **Why:** Phase 6 item 5 (owner's plan): local lookup and trip planning, keyless and private.
+- **What:**
+  - `src-tauri/src/tools/places.rs` (new): category map → Overpass filters (name search otherwise), Overpass
+    mirrors (overpass-api.de, maps.mail.ru, kumi), 1.5 km then 5 km, `parse_overpass` (distance-sorted, dedupe),
+    `open_at` (OSM opening_hours: day ranges, overrides, past midnight, 24/7; None for complex rules),
+    `spots_text`. `find_places` tool (`tools/mod.rs`, `ToolOutput.places`, `PlacesFound`), forced lookup in
+    `agent::run` via `router::places_request`; "near me" uses `settings.home_place` (Settings → About → Your
+    town) or asks. `weather::geocode` / `forecast_at` split out.
+  - `src-tauri/src/trip.rs` (new): trip read via JSON (`days_in` from the question wins), weather (forecast
+    within a week, else last year's dates from the Open-Meteo archive), research + sights, `TripPlan` via JSON
+    (`parse_plan` cleans/clamps), `ChatEvent::Trip`, `TRIP_RULES`. `router::wants_trip`. Order in `agent::run`:
+    fact-check → trip → compare → research.
+  - `commands::calendar_open` (writes an .ics and opens it; only .ics).
+  - UI: `Places.tsx`, `Trip.tsx` (day tabs, budget, packing checklist, Save as PDF, Add to Calendar),
+    `lib/trip.ts` (DocSpec for the PDF renderer), `lib/ics.ts` (RFC 5545 escape/fold, times), tests; Settings →
+    About "Your town"; Activity labels; screenshots 18-*.
+  - Version 0.6.2, `docs/releases/v0.6.2.md`, VERSIONS, CHANGELOG, HANDOFF, PROJECT_GUIDE.
+- **Verify:** `scripts/check-all.sh` (200 Rust, 92 vitest). `BYTE_TEST_WEB=1 cargo test live_places -- --ignored`
+  (real cafés near Pittsburgh). Real engine: `cargo test e2e_trip -- --ignored` (2 days in Pittsburgh → a Trip
+  event with 2 days and a cited summary). The Open-Meteo archive refuses this container (shared-IP daily limit);
+  it works from a home connection.
+- **Undo:** revert. To switch off: `trip::applies` returns false; `router::places_request` returns None.
+
 ### (this commit) — v0.6.1: fact-check and compare & decide
 - **Why:** Phase 6 item 4 (owner's plan): trustworthy answers to "is it true…" and help choosing between options.
 - **What:**

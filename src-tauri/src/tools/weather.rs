@@ -134,12 +134,12 @@ pub fn format_forecast(place: &Place, v: &Value) -> Option<String> {
     Some(out)
 }
 
-/// Current conditions and a 7-day forecast for a place name ("Pittsburgh, PA").
-pub async fn forecast(client: &reqwest::Client, place: &str) -> AppResult<(Place, String)> {
+/// Finds a place by name ("Pittsburgh, PA", "Lisbon", "Shadyside, Pittsburgh").
+pub async fn geocode(client: &reqwest::Client, place: &str) -> AppResult<Place> {
     let (name, qualifier) = place.split_once(',').unwrap_or((place, ""));
     let name = name.trim();
     if name.is_empty() {
-        return Err(AppError::msg("no place given for the weather"));
+        return Err(AppError::msg("no place given"));
     }
     let geo: Value = client
         .get("https://geocoding-api.open-meteo.com/v1/search")
@@ -149,7 +149,22 @@ pub async fn forecast(client: &reqwest::Client, place: &str) -> AppResult<(Place
         .await?
         .json()
         .await?;
-    let place = pick_place(&geo, qualifier).ok_or_else(|| AppError::msg(format!("couldn't find a place called {name}")))?;
+    pick_place(&geo, qualifier).ok_or_else(|| AppError::msg(format!("couldn't find a place called {name}")))
+}
+
+/// Uses °F and mph for this place.
+pub fn uses_imperial(place: &Place) -> bool {
+    imperial(&place.country_code)
+}
+
+/// Current conditions and a 7-day forecast for a place name ("Pittsburgh, PA").
+pub async fn forecast(client: &reqwest::Client, place: &str) -> AppResult<(Place, String)> {
+    let place = geocode(client, place).await?;
+    forecast_at(client, place).await
+}
+
+/// Current conditions and a 7-day forecast for a place already found.
+pub async fn forecast_at(client: &reqwest::Client, place: Place) -> AppResult<(Place, String)> {
     let (temp, wind) = if imperial(&place.country_code) { ("fahrenheit", "mph") } else { ("celsius", "kmh") };
     let v: Value = client
         .get("https://api.open-meteo.com/v1/forecast")

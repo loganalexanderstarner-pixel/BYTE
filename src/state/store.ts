@@ -27,6 +27,8 @@ import type {
   Workspace,
   ChatTask,
   Decision,
+  PlacesFound,
+  TripPlan,
 } from "../lib/types";
 
 /** One tool use shown in the answer's activity list. */
@@ -95,6 +97,10 @@ export interface Message {
   notice?: string;
   /** Compare & decide score table shown above the answer. */
   decision?: Decision;
+  /** Places found nearby, shown as cards. */
+  places?: PlacesFound;
+  /** A trip plan card. */
+  trip?: TripPlan;
   /** A job this (user) message asked for with a button, e.g. Fact-check. */
   task?: ChatTask;
   /** Thumbs up/down given on the cloud. */
@@ -540,6 +546,16 @@ export const useStore = create<State>((set, get) => {
         case "decision": {
           const { kind: _kind, ...decision } = e;
           patchMessage(convId, reply.id, (m) => ({ ...m, decision }));
+          break;
+        }
+        case "places": {
+          const { kind: _kind, ...places } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, places }));
+          break;
+        }
+        case "trip": {
+          const { kind: _kind, ...trip } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, trip }));
           break;
         }
         case "stats": {

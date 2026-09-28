@@ -5,6 +5,7 @@
 pub mod academic;
 pub mod calc;
 pub mod fetch;
+pub mod places;
 pub mod search;
 pub mod weather;
 
@@ -97,6 +98,8 @@ pub struct ToolContext<'a> {
     pub log: &'a ActionLog,
     /// The app, when the user's knowledge base can be searched ("My files").
     pub files: Option<&'a tauri::AppHandle>,
+    /// The user's town for "near me" (Settings), if given.
+    pub home: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -108,6 +111,20 @@ pub struct ToolOutput {
     /// What the model sees.
     #[serde(skip)]
     pub content: String,
+    /// Places found (`find_places`), shown as cards.
+    #[serde(skip)]
+    pub places: Option<PlacesFound>,
+}
+
+/// Places found near somewhere, for the UI's place cards.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlacesFound {
+    /// "Pittsburgh, Pennsylvania, United States".
+    pub near: String,
+    pub what: String,
+    pub imperial: bool,
+    pub spots: Vec<places::Spot>,
 }
 
 pub const WEB_SEARCH: &str = "web_search";
@@ -118,6 +135,8 @@ pub const WEATHER: &str = "weather";
 pub const REMEMBER: &str = "remember";
 /// Searches the folders the user added to the knowledge base.
 pub const SEARCH_FILES: &str = "search_my_files";
+/// Places nearby from OpenStreetMap.
+pub const FIND_PLACES: &str = "find_places";
 /// Searches scholarly papers (Crossref, Europe PMC, arXiv).
 pub const ACADEMIC_SEARCH: &str = "academic_search";
 
@@ -178,6 +197,21 @@ pub fn specs(web: bool, memory: bool, files: bool, papers: bool) -> Vec<Value> {
                 }
             }));
         }
+        v.push(json!({
+            "type": "function",
+            "function": {
+                "name": FIND_PLACES,
+                "description": "Find places near somewhere from the map: cafes, restaurants, pharmacies, gas stations, parks, museums, hotels, a store by name. Returns names, addresses, opening hours and distances. Use it for 'near me', 'nearby', 'closest' or 'X in <neighborhood>' questions.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "what": { "type": "string", "description": "What to find, e.g. 'coffee', 'pharmacy', 'sushi', 'Trader Joe's'." },
+                        "near": { "type": "string", "description": "Where: a town or neighborhood with its city, e.g. 'Shadyside, Pittsburgh'. Leave empty for the user's own town." }
+                    },
+                    "required": ["what"]
+                }
+            }
+        }));
         v.push(json!({
             "type": "function",
             "function": {
@@ -246,20 +280,58 @@ pub async fn run(ctx: &ToolContext<'_>, book: &mut SourceBook, name: &str, args:
                     }
                     content.push_str("\nAnswer only from these results and pages you read, citing them as [n]. If they don't clearly contain the answer, use read_page on the most relevant link, or say you couldn't confirm it.");
                     let via = if source == "your BYTE cloud" { " via your BYTE cloud" } else { "" };
-                    ToolOutput { ok: true, summary: format!("{} results{via}", results.len()), content }
+                    ToolOutput { ok: true, summary: format!("{} results{via}", results.len()), content, places: None }
                 }
-                Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Search failed: {e}") },
+                Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Search failed: {e}"), places: None },
             }
         }
         ACADEMIC_SEARCH => {
             let q = arg("query");
             match academic::search(ctx.net, &q, ctx.max_results).await {
-                Ok(papers) if papers.is_empty() => ToolOutput { ok: true, summary: "No papers found".into(), content: format!("No papers found for \"{q}\".") },
+                Ok(papers) if papers.is_empty() => ToolOutput { ok: true, summary: "No papers found".into(), content: format!("No papers found for \"{q}\"."), places: None },
                 Ok(papers) => {
                     let content = papers_text(book, &papers, &q);
-                    ToolOutput { ok: true, summary: format!("{} papers", papers.len()), content }
+                    ToolOutput { ok: true, summary: format!("{} papers", papers.len()), content, places: None }
                 }
-                Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Paper search failed: {e}") },
+                Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Paper search failed: {e}"), places: None },
+            }
+        }
+        FIND_PLACES => {
+            let what = arg("what");
+            let near = match arg("near") {
+                n if n.is_empty() || ["me", "here", "near me", "my location", "my town"].contains(&n.to_lowercase().as_str()) => ctx.home.map(str::to_string).unwrap_or_default(),
+                n => n,
+            };
+            if near.is_empty() {
+                ToolOutput {
+                    ok: false,
+                    summary: "Your town isn't set".into(),
+                    content: "The user's location isn't known (BYTE never looks it up by itself). Ask which town or neighborhood to search, and mention they can set their town in Settings → About for 'near me' questions.".into(),
+                    places: None,
+                }
+            } else {
+                match places::find(ctx.net, &what, &near).await {
+                    Ok((_, spots)) if spots.is_empty() => ToolOutput { ok: true, summary: "Nothing found nearby".into(), content: format!("OpenStreetMap lists no {what} near {near}. Say so and suggest a wider search or a map app."), places: None },
+                    Ok((place, spots)) => {
+                        let numbers: Vec<u32> = spots
+                            .iter()
+                            .map(|s| {
+                                let snippet = [s.address.as_str(), s.hours.as_str()].iter().filter(|x| !x.is_empty()).cloned().collect::<Vec<_>>().join(" · ");
+                                book.add(&s.name, &s.osm_url, &snippet);
+                                book.mark_read(&s.osm_url, &s.name)
+                            })
+                            .collect();
+                        let content = places::spots_text(&spots, &numbers, &what, &place);
+                        let open = spots.iter().filter(|s| s.open_now == Some(true)).count();
+                        ToolOutput {
+                            ok: true,
+                            summary: format!("{} places{}", spots.len(), if open > 0 { format!(", {open} open now") } else { String::new() }),
+                            content,
+                            places: Some(PlacesFound { near: place.label(), what: places::category_for(&what).map(|c| c.label.to_string()).unwrap_or(what.clone()), imperial: weather::uses_imperial(&place), spots }),
+                        }
+                    }
+                    Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Couldn't look up places: {e}"), places: None },
+                }
             }
         }
         READ_PAGE => {
@@ -273,29 +345,30 @@ pub async fn run(ctx: &ToolContext<'_>, book: &mut SourceBook, name: &str, args:
                         ok: true,
                         summary: if title.is_empty() { host_of(&page.url) } else { title },
                         content: format!("[{n}] {}\n{}\n\n{text}", page.title, page.url),
+                        places: None,
                     }
                 }
-                Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Couldn't read {url}: {e}") },
+                Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Couldn't read {url}: {e}"), places: None },
             }
         }
         WEATHER => match weather::forecast(ctx.net, &arg("place")).await {
             Ok((place, text)) => {
                 let n = book.add(&format!("Weather forecast for {}", place.label()), &weather::source_url(&place), "");
                 book.mark_read(&weather::source_url(&place), &format!("Weather forecast for {}", place.label()));
-                ToolOutput { ok: true, summary: place.label(), content: format!("[{n}] {text}") }
+                ToolOutput { ok: true, summary: place.label(), content: format!("[{n}] {text}"), places: None }
             }
-            Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Couldn't get the weather: {e}") },
+            Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Couldn't get the weather: {e}"), places: None },
         },
         CALCULATE => match calc::calculate(&arg("expression")) {
-            Ok(r) => ToolOutput { ok: true, summary: format!("= {r}"), content: r },
-            Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Error: {e}") },
+            Ok(r) => ToolOutput { ok: true, summary: format!("= {r}"), content: r, places: None },
+            Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Error: {e}"), places: None },
         },
         SEARCH_FILES => {
             let q = arg("query");
             match ctx.files {
-                None => ToolOutput { ok: false, summary: "My files is off".into(), content: "The user's files can't be searched right now.".into() },
+                None => ToolOutput { ok: false, summary: "My files is off".into(), content: "The user's files can't be searched right now.".into(), places: None },
                 Some(app) => match crate::kb::search(app, if q.is_empty() { ctx.question } else { &q }, FILE_HITS).await {
-                    Ok(hits) if hits.is_empty() => ToolOutput { ok: true, summary: "Nothing found in your files".into(), content: "No passages in the user's files match. Say so; don't guess what their files contain.".into() },
+                    Ok(hits) if hits.is_empty() => ToolOutput { ok: true, summary: "Nothing found in your files".into(), content: "No passages in the user's files match. Say so; don't guess what their files contain.".into(), places: None },
                     Ok(hits) => {
                         let mut content = format!("Passages from the user's files for \"{q}\":\n");
                         for h in &hits {
@@ -311,22 +384,22 @@ pub async fn run(ctx: &ToolContext<'_>, book: &mut SourceBook, name: &str, args:
                         }
                         content.push_str("\nAnswer from these passages, citing them as [n]. If they don't answer the question, say so.");
                         let files: std::collections::BTreeSet<&str> = hits.iter().map(|h| h.name.as_str()).collect();
-                        ToolOutput { ok: true, summary: format!("{} passages from {} file{}", hits.len(), files.len(), if files.len() == 1 { "" } else { "s" }), content }
+                        ToolOutput { ok: true, summary: format!("{} passages from {} file{}", hits.len(), files.len(), if files.len() == 1 { "" } else { "s" }), content, places: None }
                     }
-                    Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Searching the user's files failed: {e}") },
+                    Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Searching the user's files failed: {e}"), places: None },
                 },
             }
         }
         REMEMBER => {
             let note = arg("note");
             if note.is_empty() {
-                ToolOutput { ok: false, summary: "empty note".into(), content: "Error: the note is empty.".into() }
+                ToolOutput { ok: false, summary: "empty note".into(), content: "Error: the note is empty.".into(), places: None }
             } else {
                 // Nothing is saved here: the UI shows the note with Save / Dismiss.
-                ToolOutput { ok: true, summary: note.chars().take(200).collect(), content: "Suggested to the user; it's saved only if they confirm. Continue your answer normally without mentioning this.".into() }
+                ToolOutput { ok: true, summary: note.chars().take(200).collect(), content: "Suggested to the user; it's saved only if they confirm. Continue your answer normally without mentioning this.".into(), places: None }
             }
         }
-        other => ToolOutput { ok: false, summary: format!("unknown tool {other}"), content: format!("Unknown tool {other}.") },
+        other => ToolOutput { ok: false, summary: format!("unknown tool {other}"), content: format!("Unknown tool {other}."), places: None },
     };
     ctx.log.record(name, args, out.ok, &out.summary);
     out
@@ -400,11 +473,11 @@ mod tests {
     #[test]
     fn specs_respect_web_toggle() {
         let names = |v: Vec<Value>| v.iter().map(|t| t["function"]["name"].as_str().unwrap().to_string()).collect::<Vec<_>>();
-        assert_eq!(names(specs(true, false, false, false)), vec![WEB_SEARCH, WEATHER, READ_PAGE, CALCULATE]);
+        assert_eq!(names(specs(true, false, false, false)), vec![WEB_SEARCH, FIND_PLACES, WEATHER, READ_PAGE, CALCULATE]);
         assert_eq!(names(specs(false, false, false, false)), vec![CALCULATE]);
         assert_eq!(names(specs(false, true, false, false)), vec![CALCULATE, REMEMBER]);
         assert_eq!(names(specs(false, false, true, false)), vec![SEARCH_FILES, CALCULATE]);
-        assert_eq!(names(specs(true, false, false, true)), vec![WEB_SEARCH, ACADEMIC_SEARCH, WEATHER, READ_PAGE, CALCULATE]);
+        assert_eq!(names(specs(true, false, false, true)), vec![WEB_SEARCH, ACADEMIC_SEARCH, FIND_PLACES, WEATHER, READ_PAGE, CALCULATE]);
         // Papers need the web.
         assert_eq!(names(specs(false, false, false, true)), vec![CALCULATE]);
         assert_eq!(file_url("/Users/me/My Lease.pdf", Some(3)), "file:///Users/me/My%20Lease.pdf#page=3");
@@ -415,7 +488,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let log = ActionLog::new(dir.path().join("actions.jsonl"));
         let net = reqwest::Client::new();
-        let ctx = ToolContext { net: &net, cloud: None, question: "", max_results: 5, page_chars: 1000, log: &log, files: None };
+        let ctx = ToolContext { net: &net, cloud: None, question: "", max_results: 5, page_chars: 1000, log: &log, files: None, home: None };
         let out = run(&ctx, &mut SourceBook::default(), CALCULATE, &json!({"expression": "6*7"})).await;
         assert!(out.ok);
         assert_eq!(out.content, "42");
@@ -428,7 +501,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let net = reqwest::Client::new();
-        let ctx = ToolContext { net: &net, cloud: None, question: "", max_results: 5, page_chars: 1000, log: &log, files: None };
+        let ctx = ToolContext { net: &net, cloud: None, question: "", max_results: 5, page_chars: 1000, log: &log, files: None, home: None };
         let out = run(&ctx, &mut SourceBook::default(), READ_PAGE, &json!({"url": "http://127.0.0.1:8080/"})).await;
         assert!(!out.ok);
     }

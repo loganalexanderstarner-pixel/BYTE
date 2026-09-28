@@ -80,6 +80,18 @@ pub async fn doc_save(path: String, data: String) -> AppResult<()> {
     Ok(())
 }
 
+/// Saves a trip's calendar file (.ics) and opens it, so Calendar (or the
+/// system's calendar app) offers to add the events. Only .ics files.
+#[tauri::command]
+pub async fn calendar_open(app: tauri::AppHandle, path: String, data: String) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+    if !path.to_lowercase().ends_with(".ics") {
+        return Err(AppError::msg("only calendar (.ics) files can be opened this way"));
+    }
+    doc_save(path.clone(), data).await?;
+    app.opener().open_path(&path, None::<&str>).map_err(|e| AppError::msg(format!("couldn't open the calendar file: {e}")))
+}
+
 // ---------- knowledge base (kb.rs) ----------
 
 /// The knowledge base at a glance: folders, and the search model's state.

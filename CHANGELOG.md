@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.2 — Phase 6 improvements: places nearby and a trip planner
+
+- **Places nearby.** Ask "coffee near me", "pharmacies open now in Shadyside, Pittsburgh" or "best sushi in
+  Lisbon". BYTE looks the places up on OpenStreetMap (no account) and shows cards: distance, an **Open now /
+  Closed** badge from the listed hours, address, hours, and buttons for Maps and the website. For "near me",
+  set **Your town** in Settings → About; BYTE never works out where you are by itself.
+- **Trip planner.** Ask "plan 3 days in Lisbon in May for 2 people, $1,500". BYTE reads the trip, checks the
+  weather (the forecast for trips this week, otherwise last year's weather for those dates), researches what
+  to do, where to stay, food, transport and costs, finds sights on the map, and shows a **trip card**: a tab per
+  day (times, places, costs, sources), the **budget** against yours, a **packing checklist**, tips. **Save as
+  PDF** makes a travel document; **Add to Calendar** opens the plan in Calendar (a standard .ics file).
+
 ## 0.6.1 — Phase 6 improvements: fact-check and compare & decide
 
 - **Fact-check.** Ask "is it true that…", "fact-check this: …", "true or false: …", or press the new shield
