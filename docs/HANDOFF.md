@@ -348,6 +348,13 @@ Verify: fixtures in `src-tauri/tests/fixtures/` (PDF, DOCX, PPTX, XLSX, CSV, a s
 `mac-engine.yml`), screenshots (attach, KB tab, reader), owner tests OCR and a real folder.
 
 ### Phase 5 — Documents (made on the Mac) ⏳
+**Owner decision 2026-09-28: a light local version.** The cloud stays the main document maker (it already
+does PDF/PPTX/DOCX/flyers/worksheets with outline approval and templates). Phase 5 adds "Make on this Mac"
+inside the same Documents panel (same outline approval UI), for offline use, private chats and people without
+a cloud invite: PDF, PPTX, DOCX with a few themes (not the full template library), simple charts, preview,
+Save as. Not in scope: template library, editing existing PPTX/DOCX, posters/infographics (the cloud has
+those). The plan below is the full version; build only the light subset, then go to Phase 6.
+
 Goal: real PDF / PPTX / DOCX / shareable HTML files made locally, looking professionally designed. (The
 cloud already makes documents through the byte-ai API — keep both; local works offline and on any Mac.)
 1. **DocSpec**: the model writes JSON — title, meta, sections of heading / paragraphs / bullets / table /
