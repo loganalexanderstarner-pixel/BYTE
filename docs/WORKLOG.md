@@ -17,7 +17,7 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
-### (next commit) — Repo public: automatic CI back on; version 1.0.0-test.13
+### c0f9649 — Repo public: automatic CI back on; version 1.0.0-test.13
 - **Why:** the owner made the repo public (Actions free for public repos).
 - **What:** `ci.yml` on every push (skips docs-only), `mac-engine.yml` on engine-related pushes again; CLAUDE.md
   and HANDOFF updated; `node scripts/bump.mjs 1.0.0-test.13`; CHANGELOG "Unreleased" → test.13.
