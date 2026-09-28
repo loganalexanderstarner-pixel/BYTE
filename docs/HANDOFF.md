@@ -130,6 +130,25 @@ Next, in order:
 4. **Show why a model can't run** right in the model list (the planner's note), and a "Test load" button.
 5. Later: Apple MLX engine (10–20% faster on some models; a big rebuild).
 
+### 3.2e Owner ideas to build (recorded 2026-09-28)
+**Vision models** (with Phase 4): the catalog says which models can see images (they ship an `mmproj` file;
+`build-catalog.mjs` finds it, ModelCard shows "Sees images"); the engine passes `--mmproj`. Photo/file buttons
+in the chat box appear only when what's loaded can use them (a vision model for photos; any model for text
+from files). Cloud keeps its existing attachments.
+
+**Image generation** (right after Phase 4):
+- Engine: `stable-diffusion.cpp` (Metal) as a second sidecar, built and pinned like `llama-server`.
+- A big image-model catalog (SD 1.5, SDXL, SD 3.5, FLUX, newer GGUF image models), built like the chat catalog
+  (discover → build → enrich), with the same fit planning, including next to a loaded chat model.
+- **A 4th workspace, "Image"**: the sidebar switch becomes This Mac · Cloud · Both · Image, and Image appears
+  when an image model is loaded. Combinations the owner wants: image model alone; image model + local chat
+  model; image model + BYTE Cloud; chat model alone. When a helper is chosen (local model or cloud), it turns a
+  short request into a detailed prompt first (shown, editable), then the image is made.
+- Gallery: saved to `~/Pictures/BYTE`; open, copy, share, delete; re-run with the same seed; size/steps presets.
+
+**Windows and Linux**: separate native apps per OS, and flexible RAM/VRAM use: see
+`docs/DESIGN-AND-PLATFORMS.md` "Owner decisions, 2026-09-28".
+
 ### 3.3 Then Phase 4 — Files & knowledge base
 Full plan in §8 (Phase 4). After that, Phases 5–12 in order (§8). The owner prioritizes **answer quality**,
 then stability, then looks, then feature count.

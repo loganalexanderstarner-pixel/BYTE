@@ -132,6 +132,28 @@ across all three.
 `PROJECT_GUIDE.md`'s original "no iPhone app" line stands. Don't design for
 it, don't leave hooks for it.
 
+### Owner decisions, 2026-09-28: one native app per OS, and any hardware
+
+**Separate apps, each built around its own OS.** Windows and Linux get the same BYTE (layout, look, name,
+chat, cloud, modules, everything the Mac app has), but each is its own app that does things the way that OS
+allows, and does *more* where the OS gives more access. Nothing should be "macOS-shaped" on Windows or Linux.
+Examples to plan from when those phases start (the owner will add ideas then):
+
+| | macOS (today's plan) | Windows | Linux |
+|---|---|---|---|
+| App control | AppleScript / JXA, Shortcuts | UI Automation, COM (Office, Outlook), PowerShell | D-Bus, xdotool/ydotool, desktop scripting |
+| System | EventKit, Keychain, Vision OCR | Windows Credential Manager, Windows.Media.Ocr, WinRT APIs | Secret Service (libsecret), Tesseract, freedesktop portals |
+| Widgets / quick access | menu-bar popover, floating widget | taskbar + Windows widgets board, jump lists, toast actions | tray, GNOME Shell / KDE Plasma widgets |
+| Automation | launchd, Shortcuts | Task Scheduler, Power Automate hand-off | systemd timers, cron |
+| Engine | llama.cpp Metal | llama.cpp CUDA / Vulkan / CPU | llama.cpp CUDA / ROCm / Vulkan / CPU |
+
+**Any hardware, the user's choice.** PCs vary: system RAM, one or more GPUs with their own VRAM (NVIDIA, AMD,
+Intel), different CPUs. BYTE must use all of it well and let the user choose: **"Best automatically"**
+(default: fill VRAM, put the rest in RAM), **"GPU only"**, **"System RAM / CPU only"**, or **"Use both"** with a
+split they can adjust. The planner grows from `system::plan_offload` (already splits MoE experts and dense
+layers between GPU and CPU) into a per-device plan (llama.cpp `--tensor-split`, `--main-gpu`, `-ngl`,
+`--n-cpu-moe`), with the same honesty rules: never say a model runs when it won't.
+
 ### Do the abstraction now, the ports later
 
 Recommended, and worth arguing with if you disagree: **define the boundary
