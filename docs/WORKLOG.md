@@ -17,6 +17,12 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (this commit) — CI: the Rust core must compile on Windows
+- **Why:** owner decision: Mac phases first, but keep the core portable for the Windows/Linux apps later.
+- **What:** `.github/workflows/ci.yml` job `windows` (`windows-latest`, `cargo check --all-targets` with a
+  placeholder sidecar). No app changes.
+- **Undo:** delete the job.
+
 ### (this commit) — Version 1.0.0-test.14 (Phase 4: files, scans, photos, knowledge base, instant answers)
 - **What:** `node scripts/bump.mjs 1.0.0-test.14`; CHANGELOG "Unreleased" → test.14. CI and the Mac engine test
   (OCR + embeddings on Metal) green on `4410b53`. Release: `release.yml` with `tag=v1.0.0-test.14`.

@@ -59,3 +59,25 @@ jobs:
       - name: Unit tests
         working-directory: src-tauri
         run: cargo test --locked
+
+  windows:
+    # Not a Windows app yet (docs/DESIGN-AND-PLATFORMS.md): this keeps the Rust
+    # core compiling there, so Mac-only code stays behind #[cfg(target_os = "macos")].
+    name: Rust core compiles on Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Placeholder engine sidecar (tauri-build requires the file)
+        run: |
+          mkdir -p src-tauri/binaries dist && echo "<!doctype html>" > dist/index.html
+          touch src-tauri/binaries/llama-server-x86_64-pc-windows-msvc.exe
+      - name: cargo check (lib and tests)
+        working-directory: src-tauri
+        run: cargo check --locked --all-targets
