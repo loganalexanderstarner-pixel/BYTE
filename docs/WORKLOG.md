@@ -17,6 +17,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### 9b50c29 — Phase 4: read scanned PDFs and text in photos (Apple Vision)
+- **Why:** Phase 4 item 2: scans had "no readable text"; photos of documents only helped models that can see.
+- **What:** `src-tauri/src/ocr.rs` (new; `objc2-vision`, `objc2-pdf-kit`, `objc2-app-kit`, `objc2-foundation`
+  under the macOS target in `Cargo.toml`): `image_text`, `pdf_text` (PDFKit renders each page → TIFF → Vision,
+  max 60 pages). `files.rs`: `has_text_layer`, `scanned_pdf_text`, photos' words read, `Ingested.ocr`,
+  `for_model` includes photo text; test helper `tests::test_pdf`. `chat.rs`: note for models that can't see.
+  `mac-engine.yml` paths. UI: `LocalFile.ocr`, chip label.
+- **Verify:** `scripts/check-all.sh`; Mac: `mac-engine.yml` runs `ocr::tests::e2e_reads_text_from_a_rendered_page`
+  (renders a PDF page and reads "Invoice number 48213" back). Attach a scanned PDF in the app.
+- **Undo:** `git revert 9b50c29` (or make `ocr::image_text`/`pdf_text` return Err to switch it off).
+
 ### 567584e — Phase 4 part 1: files and photos in local chats, models that see images
 - **Why:** the owner said "keep going with phase 4": BYTE should read the user's files, and photo buttons should
   appear only when a model that can see is loaded (owner request, 2026-09-28).
