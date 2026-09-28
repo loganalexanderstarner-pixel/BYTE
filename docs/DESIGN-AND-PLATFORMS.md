@@ -50,6 +50,13 @@ Other shipped themes — same five tokens, different values:
 | ocean | `#071a1f` | `#0d2830` | `#164048` | `#e0f5f8` | `#2dd4bf` |
 | paper | `#faf6ee` | `#ffffff` | `#e0d5c0` | `#2b2418` | `#b8763f` |
 
+**In BYTE (done 2026-09-28):** `src/styles/tokens.css` follows this: `:root` holds Midnight's five values and
+every derived token; each theme block sets only the five (+ optional `--accent-2`, and the few exact overrides
+High Contrast needs). 20 themes; `src/styles/tokens.test.ts` checks text ≥ 4.5:1 on bg/panel/surface-2,
+secondary text ≥ 4.5, faint text and the accent ≥ 3.0, and button labels on the accent ≥ 4.5. To pass that,
+Paper's accent is `#96592a` (byte-ai's `#b8763f` gave white labels only 3.4:1). Light themes use white
+labels on the accent.
+
 ### Derived values — don't hardcode these
 
 Everything else is computed from the five, which is why a new theme is five

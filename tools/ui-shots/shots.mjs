@@ -302,7 +302,7 @@ function initScript({ data }) {
 }
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
-async function page(onboarded, theme = "neon-night") {
+async function page(onboarded, theme = "midnight") {
   const ctx = await browser.newContext({ viewport: { width: 1240, height: 820 }, deviceScaleFactor: 1, colorScheme: "dark" });
   const p = await ctx.newPage();
   const errors = [];

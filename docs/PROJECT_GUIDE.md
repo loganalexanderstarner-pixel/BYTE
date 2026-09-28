@@ -20,7 +20,7 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 | 9 | Mac control: Apple apps, Shortcuts, files, clipboard, undo & dry-run | Planned |
 | 10 | Upkeep & automation: scheduler, briefing, watchers, trackers, connectors, dashboards | Planned |
 | 11 | Input & windows: voice, vision, Quick Ask, floating widget, menu-bar popover, palette, notes | Planned |
-| 12 | Privacy & polish: offline, Touch ID, permissions dashboard, 20 themes, sharing, v1.0 | Planned |
+| 12 | Privacy & polish: offline, Touch ID, permissions dashboard, sharing, v1.0 (20 themes + byte-ai palette + eight-bit logo already done) | Planned |
 
 ## Speed boost (pulled forward from Phase 8; `engine.rs`, `speed.rs`, `models::drafter_for`)
 

@@ -94,7 +94,8 @@ second local answer).
 - Private chats never go to the cloud, in any tab.
 
 ### 3.2b Also next (owner decisions from 2026-09-27)
-- **byte-ai skin** (`docs/DESIGN-AND-PLATFORMS.md` Part 1): five-token themes with derived `color-mix` values,
+- ✅ **byte-ai skin** (done: `styles/tokens.css`, `design/themes.ts`, contrast test `styles/tokens.test.ts`;
+  needs `color-mix`, fine since the minimum macOS is 13.3). Was: (`docs/DESIGN-AND-PLATFORMS.md` Part 1): five-token themes with derived `color-mix` values,
   byte-ai's themes added (Midnight becomes the default), the eight-bit logo (✅ done: `src/design/Logo.tsx` + app icon) drawn in the
   live accent, a contrast check for every theme. Keep the layout and the many themes.
 - **`ModelBackend` boundary** (Part 2): one trait for "answer this turn" with the local engine and the cloud as

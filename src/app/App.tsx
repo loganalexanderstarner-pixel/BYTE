@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { resolveTheme } from "../design/themes";
+import { DEFAULT_THEME, resolveTheme } from "../design/themes";
 import { useStore } from "../state/store";
 import { Onboarding } from "../components/onboarding/Onboarding";
 import { Shell } from "./Shell";
@@ -18,7 +18,7 @@ export function App() {
   useEffect(() => {
     const root = document.documentElement;
     const apply = () => {
-      root.dataset.theme = resolveTheme(settings?.theme ?? "neon-night");
+      root.dataset.theme = resolveTheme(settings?.theme ?? DEFAULT_THEME);
       root.dataset.density = settings?.density ?? "comfortable";
       root.style.setProperty("--font-scale", String(settings?.fontScale ?? 1));
     };

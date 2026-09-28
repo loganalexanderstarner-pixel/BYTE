@@ -138,7 +138,7 @@ impl Default for Settings {
             context_size: None,
             default_mode: Mode::Auto,
             thinking: ThinkingPref::Auto,
-            theme: "neon-night".into(),
+            theme: "midnight".into(),
             accent: None,
             font_scale: 1.0,
             density: "comfortable".into(),

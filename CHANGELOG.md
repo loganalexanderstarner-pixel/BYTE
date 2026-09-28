@@ -11,6 +11,10 @@
 - **Both workspace**: every question goes to this Mac and your cloud at once. The Mac's answer streams right
   away, the cloud's appears beside it; the cloud's answer continues the chat when it finishes, or pick the
   other with **Keep this one**.
+- **byte-ai's colors**: every theme is now five colors (background, panel, border, text, accent) with the rest
+  worked out from them. **Midnight** is the new default (existing installs keep their theme), byte-ai's
+  Steelers, Ocean, Terminal, Light and Paper are in, and there are **20 themes** in all (new: Aurora,
+  Graphite, Fjord, Lavender, Rose, Ember, Mocha, Sand, Mint). Every theme passes a contrast check.
 - **New logo**: BYTE's eight-bit mark (one byte, two bits lit) in the app, drawn in the theme's accent, and as
   the app icon.
 - **First launch** offers "Use BYTE Cloud instead (invite only)" next to the model list, suggested when no
