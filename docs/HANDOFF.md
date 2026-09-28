@@ -114,6 +114,22 @@ pages to bots), Wikipedia alongside, Open-Meteo weather (`tools/weather.rs`), an
 **Server-side notes from the owner's session:** the searxng-settings ConfigMap holds SearXNG's `secret_key`
 in plaintext; it belongs in a Secret (low risk, internal-only).
 
+### 3.2d Speed and reliability list (owner, 2026-09-28: "add more speed fixes to the list")
+Done (9f854b3): honest memory plans for CPU-offloaded models (4 GB for macOS, 1 GB GPU headroom), a startup
+fallback ladder (`engine::fallback_launches`), a shared cloud HTTP client, instant reconnects when the cloud
+closes a stream mid-answer, markdown re-rendered ~12×/s while streaming, sidebar redraws only on list changes.
+All 58 catalog architectures are supported by the bundled llama.cpp (b11205).
+Next, in order:
+1. **Cloud: open the answer stream while the message is being posted** (today BYTE waits for
+   `POST …/messages` to return before it starts listening; if the server does work before replying, the first
+   words arrive late). Needs `since` = the last known message id; check with the server session that the stream
+   delivers rows posted after it opened.
+2. **Model lab** (add any GGUF by file or Hugging Face link, with the RAM check) and the **advanced tuning
+   panel** (temperature, context, thinking budget, live tok/s and memory).
+3. **Low-battery mode**: under 20% battery, a faster model and shorter thinking.
+4. **Show why a model can't run** right in the model list (the planner's note), and a "Test load" button.
+5. Later: Apple MLX engine (10–20% faster on some models; a big rebuild).
+
 ### 3.3 Then Phase 4 — Files & knowledge base
 Full plan in §8 (Phase 4). After that, Phases 5–12 in order (§8). The owner prioritizes **answer quality**,
 then stability, then looks, then feature count.
