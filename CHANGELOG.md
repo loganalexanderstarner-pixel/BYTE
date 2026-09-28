@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (1.0.0-test.13) — Big models that load, a smoother cloud
+## 1.0.0-test.13 — Big models that load, a smoother cloud, 713 models
 
 - **Big mixture-of-experts models load reliably** (Qwen3.6 35B-A3B, gpt-oss 20B on 16 GB Macs): BYTE now
   leaves enough memory for macOS and the GPU's working buffers when part of a model runs on the CPU, and no

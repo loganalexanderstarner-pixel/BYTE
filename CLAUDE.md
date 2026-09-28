@@ -56,7 +56,7 @@ src-tauri/                Rust core (Tauri 2)
   src/settings.rs         persisted settings (camelCase JSON)
   binaries/               sidecars, built by scripts (gitignored)
 scripts/                  build-llama-server.sh, LLAMA_TAG (pinned), bump.mjs
-.github/workflows/        ci.yml (frontend + Linux Rust tests + secret scan), mac-engine.yml (real engine on macOS; manual only, macOS minutes are 10×),
+.github/workflows/        ci.yml (frontend + Linux Rust tests + secret scan), mac-engine.yml (real engine on macOS, on engine changes),
                           release.yml (dmg, workflow_dispatch with a tag)
 ```
 
@@ -92,9 +92,9 @@ On Linux, Tauri needs `libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicato
 - Keep `CHANGELOG.md` and `docs/PROJECT_GUIDE.md` (phase status) updated each phase.
 - **Log every commit in `docs/WORKLOG.md`** (what, why, files, how to verify, how to undo), so a broken change
   can be reverted on its own instead of going back to an old copy of the repo.
-- **GitHub Actions minutes are limited: all workflows are manual.** Pushing is free and is the backup, so push
-  every change, after `scripts/check-all.sh` passes locally. Run CI, the Mac engine test and test builds by hand
-  only at milestones (phases 8, 10, 12) or when the owner asks.
+- **The repo is public (2026-09-28), so GitHub Actions is free**: CI runs on every push (docs-only pushes skip
+  it), the Mac engine test runs when engine code changes, test builds run `release.yml` by hand. Still run
+  `scripts/check-all.sh` before pushing so CI stays green. `scripts/build-mac.sh` builds on the owner's Mac too.
 - **No secrets in the repo, ever** (it's public, with history). BYTE cloud keys live only in the macOS Keychain
   (`cloud::keychain`); tests use short fake keys (`byte_test_…`). Run `scripts/check-secrets.sh` before pushing
   (CI runs it too). Never use a real key someone pastes into a chat; tell them to revoke it.

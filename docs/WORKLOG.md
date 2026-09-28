@@ -17,6 +17,12 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (next commit) — Repo public: automatic CI back on; version 1.0.0-test.13
+- **Why:** the owner made the repo public (Actions free for public repos).
+- **What:** `ci.yml` on every push (skips docs-only), `mac-engine.yml` on engine-related pushes again; CLAUDE.md
+  and HANDOFF updated; `node scripts/bump.mjs 1.0.0-test.13`; CHANGELOG "Unreleased" → test.13.
+- **Undo:** set the workflows back to `workflow_dispatch` only.
+
 ### 93c2a4a — Build on your own Mac: scripts/build-mac.sh
 - **Why:** GitHub Actions minutes are at 100%, so release builds can't run on GitHub.
 - **What:** `scripts/build-mac.sh`: checks/installs tools (Xcode CLT, Homebrew cmake + node, rustup), builds

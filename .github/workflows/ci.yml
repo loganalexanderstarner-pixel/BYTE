@@ -1,11 +1,15 @@
 name: CI
 
-# Runs only when started by hand (Actions → CI → Run workflow). The owner's
-# Actions minutes are limited, so CI runs at milestones (phases 8, 10 and 12,
-# or when the owner asks), not on every push. Pushing itself costs nothing:
-# keep pushing every change as the backup. Run the same checks locally
-# before each push (see CLAUDE.md "Commands").
+# Runs once per push (the repo is public, so Actions minutes are free); a
+# pull_request trigger too would run every push twice. Docs-only pushes skip it.
 on:
+  push:
+    branches: ["**"]
+    tags-ignore: ["**"]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "tools/ui-shots/**"
   workflow_dispatch:
 
 concurrency:

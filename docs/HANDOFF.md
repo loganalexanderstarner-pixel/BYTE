@@ -31,7 +31,7 @@ talks in a normal friendly tone; the *visuals* are neon/cyberpunk. No paid Apple
 | Cloud redesign: This Mac · Cloud · Both workspaces, server chat list with new/delete, Both answers side by side with "Keep this one", budgets chip, 429 message, re-read after a dropped stream, invite-only onboarding path | ✅ built (for test.11) |
 | Phases 4–7, 9–12 (files & knowledge base, local documents, research+, writing/learning, Mac control, automation, voice/windows, privacy & polish) | ⏳ planned — every phase in detail in §8 |
 
-Test builds are GitHub pre-releases `v1.0.0-test.N` (latest: test.12). The owner installs them on the M4 Air
+Test builds are GitHub pre-releases `v1.0.0-test.N` (latest: test.13). The owner installs them on the M4 Air
 and reports back with screenshots; this environment can't run macOS.
 
 ## 3. Next work, in order
@@ -172,13 +172,10 @@ then stability, then looks, then feature count.
 - **UI screenshots:** `tools/ui-shots/` (see its README): build, serve with `npx vite preview`, run
   `node shots.mjs`; it mocks every Tauri command and walks the main screens. Add mocks for new commands, and
   look at the pictures before claiming UI works.
-- **Actions minutes ran out (100%, 2026-09-28)**: no workflows run until the monthly reset. Test builds are made
-  on the owner's Mac with `scripts/build-mac.sh --install` (same steps as `release.yml`). Making the repo public
-  would also make Actions free (the history was checked: no secrets).
-- **CI (the owner's Actions minutes are limited):** every workflow is **manual** (workflow_dispatch): `ci.yml`,
-  `mac-engine.yml` (macOS minutes cost 10×) and `release.yml`. Run them at milestones (phases 8, 10, 12) or when
-  the owner asks. Before every push run `scripts/check-all.sh` locally; push every change (free, the backup) and
-  log it in `docs/WORKLOG.md`.
+- **The repo is public (since 2026-09-28), so Actions is free.** `ci.yml` runs once per push (docs-only pushes
+  skip it), `mac-engine.yml` on engine-related changes, `release.yml` by hand for test builds. Before every push
+  run `scripts/check-all.sh`; log every commit in `docs/WORKLOG.md`. `scripts/build-mac.sh --install` builds on
+  the owner's Mac without GitHub at all.
   Batch commits and push less often; run the real-engine tests locally where you can
   (`BYTE_TEST_LLAMA_SERVER`/`BYTE_TEST_MODEL`, see chat.rs).
 - **Test build:** `node scripts/bump.mjs 1.0.0-test.N` → commit → push → run the `release.yml` workflow with
