@@ -273,13 +273,15 @@ export interface ModelStatus {
   best: string | null;
   minRamGb: number;
   details?: ModelDetails | null;
+  /** Can see photos once its image adapter (key "<id>:vision") is downloaded. */
+  vision?: { key: string; sizeBytes: number; installed: boolean; downloading: boolean } | null;
 }
 
 export type EngineStatus =
   | { state: "noModel" }
   | { state: "stopped" }
   | { state: "starting"; model: string }
-  | { state: "ready"; model: string; context: number; boosted: boolean }
+  | { state: "ready"; model: string; context: number; boosted: boolean; vision?: boolean }
   | { state: "error"; message: string };
 
 /** A model running in memory (the main one, or one loaded alongside). */
@@ -356,4 +358,21 @@ export interface CloudStatus {
 export interface WireMessage {
   role: "user" | "assistant";
   content: string;
+  /** Files attached to a user message (read on this Mac). */
+  files?: LocalFile[];
+}
+
+/** Rust `files::FileKind`. */
+export type FileKind = "pdf" | "word" | "slides" | "sheet" | "text" | "web" | "image";
+
+/** A file read on this Mac for a local chat (Rust `files::Ingested`). */
+export interface LocalFile {
+  name: string;
+  kind: FileKind;
+  /** Pages, slides or sheets. */
+  pages?: number | null;
+  text: string;
+  truncated: boolean;
+  /** Photos: a data URL (sent only to models that can see). */
+  image?: string;
 }

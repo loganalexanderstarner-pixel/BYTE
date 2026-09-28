@@ -131,7 +131,7 @@ Next, in order:
 5. Later: Apple MLX engine (10–20% faster on some models; a big rebuild).
 
 ### 3.2e Owner ideas to build (recorded 2026-09-28)
-**Vision models** (with Phase 4): the catalog says which models can see images (they ship an `mmproj` file;
+**Vision models** ✅ built with Phase 4 part 1 (see §8 Phase 4): the catalog says which models can see images (they ship an `mmproj` file;
 `build-catalog.mjs` finds it, ModelCard shows "Sees images"); the engine passes `--mmproj`. Photo/file buttons
 in the chat box appear only when what's loaded can use them (a vision model for photos; any model for text
 from files). Cloud keeps its existing attachments.
@@ -259,8 +259,21 @@ side-by-side compare. Key files: `db.rs` (schema v3), `summarize.rs`, `profiles.
 `src/lib/branches.ts`, `src/state/store.ts`.
 Left for later: memory timeline, "forget on command" in chat, smart folders.
 
-### Phase 4 — Files & knowledge base ⏳ next (after the cloud requests in §3.2)
+### Phase 4 — Files & knowledge base ⏳ in progress (part 1 done: attachments + vision)
 Goal: BYTE reads the user's files — attached to a chat or from folders they choose — and cites them.
+
+**Part 1 done (2026-09-28):** item 1 below plus vision models. As built: one module `src-tauri/src/files.rs`
+(not a folder); `file_ingest` command; `ChatMessage.files` carried in the wire messages, turned into
+`<file name=…>` blocks by `chat::with_files` (latest message ~45% of the context, older ones ~8%, best
+passages via `relevant_passages`); photos go to the model as OpenAI image parts only when the engine was
+started with `--mmproj` (`Endpoint.vision`, `EngineStatus::Ready.vision`), at most 4 from the latest message.
+Catalog `vision.file` (mmproj; `build-catalog.mjs pickVision`, `--vision` re-checks in place; 128 models),
+download key `"<id>:vision"` into `models/vision/<id>/` (repos reuse the name `mmproj-F16.gguf`),
+`tune::launch_opts` adds it when downloaded, the engine's last fallback drops it. HEIC/WebP photos are
+converted and big photos shrunk with macOS `sips`. UI: paperclip + drop in local chats (photos only when the
+loaded model can see), `LocalFileChips`, "Sees images" tag and image-reader row on model cards. Not yet: paste,
+scanned PDFs (needs OCR, item 2), local files in Both chats (cloud side doesn't get them).
+
 1. **Attachments in local chats** (`src-tauri/src/files/{mod,pdf,office,text}.rs`): pick/drop/paste →
    `file_ingest(path)` → `{name, kind, pages, text, truncated}`. PDF via `pdf-extract`, DOCX/PPTX/XLSX via
    `zip` + `quick-xml` (document.xml / slide*.xml / sharedStrings.xml), TXT/MD/CSV/JSON/code as UTF-8, HTML via

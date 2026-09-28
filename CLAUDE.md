@@ -48,6 +48,7 @@ src-tauri/                Rust core (Tauri 2)
   src/modelcfg.rs         per-family sampling + thinking control (model-card recommendations)
   src/system.rs           hardware info + RAM planner (fit, context size)
   src/chat.rs             SSE streaming client, context fitting, cancellation, e2e test
+  src/files.rs            attached files → text (PDF, Office, text/code) and photos (data URLs) for the model
   src/router.rs           per-turn thinking/length plan by mode
   src/prompt.rs           system prompt (identity, date, mode rules)
   src/backend.rs          ModelBackend trait: LocalLlama + Cloud, fallback rules (chat_send goes through it)

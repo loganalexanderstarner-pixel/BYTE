@@ -7,6 +7,7 @@ mod commands;
 mod db;
 mod engine;
 mod export;
+mod files;
 mod memory;
 mod error;
 mod modelcfg;
@@ -125,6 +126,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::system_info,
             commands::memory_report,
+            commands::file_ingest,
             commands::app_quit,
             commands::settings_get,
             commands::settings_update,

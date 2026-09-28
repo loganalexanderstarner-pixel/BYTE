@@ -1,9 +1,10 @@
-import { FileText, ImageIcon, Images, Loader2, X } from "lucide-react";
+import { FileSpreadsheet, FileText, Globe, ImageIcon, Images, Loader2, Presentation, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { api } from "../../lib/api";
 import { idOf, isImage, listOf, titleOf } from "../../lib/cloudDocs";
 import { useStore, type Attachment } from "../../state/store";
+import type { LocalFile } from "../../lib/types";
 
 /** Cloud images fetched once per session (library photos, document pages). */
 const thumbs = new Map<string, Promise<string>>();
@@ -53,6 +54,48 @@ export function AttachmentChips({ items, onRemove }: { items: Attachment[]; onRe
           )}
         </span>
       ))}
+    </div>
+  );
+}
+
+/** Pages / slides / sheets, as a short label. */
+export function fileDetail(f: LocalFile): string {
+  const n = f.pages ?? 0;
+  const unit = f.kind === "slides" ? "slide" : f.kind === "sheet" ? "sheet" : "page";
+  const count = n > 0 ? `${n} ${unit}${n === 1 ? "" : "s"}` : "";
+  return [count, f.truncated ? "long: best parts used" : ""].filter(Boolean).join(" · ");
+}
+
+/** Files read on this Mac (local chats), on a message or waiting to be sent. */
+export function LocalFileChips({ files, onRemove }: { files: LocalFile[]; onRemove?: (index: number) => void }) {
+  if (!files.length) return null;
+  return (
+    <div className="attachments">
+      {files.map((f, i) => {
+        const detail = fileDetail(f);
+        return (
+          <span key={`${f.name}-${i}`} className="attachment" title={detail ? `${f.name} (${detail})` : f.name}>
+            {f.image ? (
+              <img className="thumb" src={f.image} alt={f.name} />
+            ) : f.kind === "sheet" ? (
+              <FileSpreadsheet size={14} />
+            ) : f.kind === "slides" ? (
+              <Presentation size={14} />
+            ) : f.kind === "web" ? (
+              <Globe size={14} />
+            ) : (
+              <FileText size={14} />
+            )}
+            <span className="name">{f.name}</span>
+            {detail && <span className="faint">{detail}</span>}
+            {onRemove && (
+              <button className="icon-btn" onClick={() => onRemove(i)} aria-label={`Remove ${f.name}`}>
+                <X size={12} />
+              </button>
+            )}
+          </span>
+        );
+      })}
     </div>
   );
 }

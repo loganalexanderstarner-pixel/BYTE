@@ -13,6 +13,7 @@ import type {
   LoadedModel,
   Memory,
   MemoryReport,
+  LocalFile,
   Mode,
   ModelStatus,
   Profile,
@@ -55,6 +56,7 @@ export const api = {
   systemInfo: () => invoke<SystemInfo>("system_info"),
   memoryReport: () => invoke<MemoryReport>("memory_report"),
   appQuit: (name: string) => invoke<void>("app_quit", { name }),
+  fileIngest: (path: string) => invoke<LocalFile>("file_ingest", { path }),
   settingsGet: () => invoke<Settings>("settings_get"),
   settingsUpdate: (patch: Partial<Settings>) => invoke<Settings>("settings_update", { patch }),
 

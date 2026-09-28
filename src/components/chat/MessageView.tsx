@@ -9,7 +9,7 @@ import { duration, tokensPerSec } from "../../lib/format";
 import { displayName } from "../../lib/models";
 import { closeOpenFences, renderMarkdown } from "../../lib/markdown";
 import { useThrottled } from "../../lib/throttle";
-import { AttachmentChips } from "./Attachments";
+import { AttachmentChips, LocalFileChips } from "./Attachments";
 import { useStore, type Message, type Step } from "../../state/store";
 import { Activity, Sources } from "./Activity";
 
@@ -122,6 +122,7 @@ function UserMessage({ message }: { message: Message }) {
   return (
     <div className="msg user">
       {message.attachments && <AttachmentChips items={message.attachments} />}
+      {message.files && <LocalFileChips files={message.files} />}
       <div className="bubble">{message.content}</div>
       <div className={`msg-actions user-actions ${versionInfo(message).count > 1 ? "visible" : ""}`}>
         <VersionSwitcher message={message} />

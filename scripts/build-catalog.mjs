@@ -71,6 +71,29 @@ export function pickSpeedHead(files) {
 }
 
 /**
+ * The image adapter ("mmproj") shipped with a model that can see photos,
+ * used with `--mmproj`. Prefers F16 (what llama.cpp recommends), then BF16,
+ * then Q8_0, then whatever there is; a 16-bit adapter over 1.5 GB loses to a
+ * Q8_0 copy (half the memory, same pictures in practice).
+ */
+export function pickVision(files) {
+  const found = files
+    .filter((f) => f.type === "file" && f.path.endsWith(".gguf") && f.lfs?.oid && /mmproj/i.test(f.path.split("/").pop()))
+    .map((f) => ({ name: f.path, size: f.lfs.size ?? f.size, sha256: f.lfs.oid }));
+  if (!found.length) return null;
+  const rank = (f) => {
+    const base = f.name.split("/").pop();
+    const big = f.size > 1.5e9 ? 2.5 : 0;
+    if (/[-_.]F16\.gguf$/i.test(base) && !/BF16/i.test(base)) return big;
+    if (/BF16/i.test(base)) return 1 + big;
+    if (/Q8_0/i.test(base)) return 2;
+    return 3;
+  };
+  found.sort((a, b) => rank(a) - rank(b) || a.name.length - b.name.length);
+  return { file: found[0] };
+}
+
+/**
  * Files for one quantization. Some repos hold the same version twice (one
  * file and a split copy in a folder); pick exactly one copy, preferring the
  * single file, and return split parts in order.
@@ -299,8 +322,10 @@ async function build(entry, role) {
   else if (entry.auto) entry.quality = autoQuality(paramsB ?? 7, activeB, entry.released);
   const { variants: _v, auto: _a, ...rest } = entry;
   console.log(`  ✓ ${entry.id.slice(0, 34).padEnd(34)} ${arch.arch.padEnd(10)} kvLayers=${arch.kvLayers}/${arch.nLayer} ctx=${arch.maxCtx} ${variants.length} sizes`);
-  const speedHead = role === "chat" ? pickSpeedHead(await tree(entry.repo)) : null;
-  return { quality: 0, ...rest, role, sizeLabel: params, paramsB, activeB, arch, variants, ...(speedHead ? { speedHead } : {}) };
+  const repoFiles = role === "chat" ? await tree(entry.repo) : [];
+  const speedHead = role === "chat" ? pickSpeedHead(repoFiles) : null;
+  const vision = role === "chat" ? pickVision(repoFiles) : null;
+  return { quality: 0, ...rest, role, sizeLabel: params, paramsB, activeB, arch, variants, ...(speedHead ? { speedHead } : {}), ...(vision ? { vision } : {}) };
 }
 
 /** Runs `fn` over items with limited concurrency, keeping order. */
@@ -318,7 +343,25 @@ async function pool(items, n, fn) {
   return results;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) await main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) await (process.argv.includes("--vision") ? visionOnly() : main());
+
+/** `--vision`: only (re)checks which catalog models ship an image adapter, in place. */
+async function visionOnly() {
+  const dest = join(root, "src-tauri/catalog/models.json");
+  const cat = JSON.parse(readFileSync(dest, "utf8"));
+  let n = 0;
+  await pool(cat.models.filter((m) => m.role === "chat"), 8, async (m) => {
+    try {
+      const v = pickVision(await tree(m.repo));
+      if (v) (m.vision = v), n++;
+      else delete m.vision;
+    } catch (e) {
+      console.warn(`  ! ${m.id}: ${e.message}`);
+    }
+  });
+  writeFileSync(dest, `${JSON.stringify(cat)}\n`);
+  console.log(`${n} models can see images`);
+}
 
 async function main() {
   const out = { version: 1, generated: new Date().toISOString().slice(0, 10), models: [] };

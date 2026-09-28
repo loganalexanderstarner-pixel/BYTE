@@ -97,6 +97,9 @@ pub struct CatalogModel {
     /// A speed-up head published with the model (see `Helper`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub speed_head: Option<SpeedHead>,
+    /// The image adapter of a model that can see photos (`--mmproj`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vision: Option<Vision>,
     /// Details for the model's dropdown (scripts/enrich-catalog.mjs).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub details: Option<ModelDetails>,
@@ -178,6 +181,39 @@ impl HelperKind {
 pub struct SpeedHead {
     pub kind: HelperKind,
     pub file: ModelFile,
+}
+
+/// A model's image adapter ("mmproj"): lets it see photos.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Vision {
+    pub file: ModelFile,
+}
+
+/// Version name used in download keys for a model's image adapter
+/// (`"gemma-4-12b:vision"`).
+pub const VISION_QUANT: &str = "vision";
+
+fn vision_variant(v: &Vision) -> Variant {
+    Variant { quant: VISION_QUANT.into(), bits: 16.0, size_bytes: v.file.size, files: vec![v.file.clone()] }
+}
+
+/// Folder for downloads of `key`. Image adapters get one folder per model:
+/// many repos name theirs just `mmproj-F16.gguf`, and models are stored by
+/// file name.
+pub fn download_dir(models_dir: &Path, key: &str) -> PathBuf {
+    match key.strip_suffix(&format!(":{VISION_QUANT}")) {
+        Some(id) => models_dir.join("vision").join(id.replace(['/', '\\', '.'], "_")),
+        None => models_dir.to_path_buf(),
+    }
+}
+
+/// Where `model`'s image adapter lives once downloaded (None if it has none
+/// or it isn't downloaded).
+pub fn vision_path(models_dir: &Path, model: &CatalogModel) -> Option<PathBuf> {
+    let v = vision_variant(model.vision.as_ref()?);
+    let dir = download_dir(models_dir, &format!("{}:{VISION_QUANT}", model.id));
+    is_installed(&dir, &v).then(|| entry_path(&dir, &v))
 }
 
 /// Version name used in download keys for a model's speed-up head
@@ -268,7 +304,8 @@ impl Catalog {
             if m.variants.is_empty() || m.variants.iter().any(|v| v.files.is_empty()) {
                 return Err(AppError::msg(format!("catalog entry {} has no files", m.id)));
             }
-            for f in m.variants.iter().flat_map(|v| &v.files).chain(m.speed_head.as_ref().map(|h| &h.file)) {
+            let extras = m.speed_head.as_ref().map(|h| &h.file).into_iter().chain(m.vision.as_ref().map(|v| &v.file));
+            for f in m.variants.iter().flat_map(|v| &v.files).chain(extras) {
                 if f.sha256.len() != 64 || f.name.contains("..") || f.name.starts_with('/') {
                     return Err(AppError::msg(format!("catalog entry {} has an invalid file", m.id)));
                 }
@@ -278,12 +315,18 @@ impl Catalog {
     }
 
     /// What to download for a key: a model version, or a model's speed-up
-    /// head (`"<id>:speed-head"`). Returns (repo, files, canonical key).
+    /// head (`"<id>:speed-head"`), or its image adapter (`"<id>:vision"`).
+    /// Returns (repo, files, canonical key).
     pub fn download_target(&self, key: &str) -> AppResult<(String, Variant, String)> {
         if let Some(id) = key.strip_suffix(&format!(":{HEAD_QUANT}")) {
             let model = self.model(id).ok_or_else(|| AppError::msg(format!("unknown model '{id}'")))?;
             let head = model.speed_head.as_ref().ok_or_else(|| AppError::msg(format!("{} has no speed-up head", model.name)))?;
             return Ok((model.repo.clone(), head_variant(head), key.to_string()));
+        }
+        if let Some(id) = key.strip_suffix(&format!(":{VISION_QUANT}")) {
+            let model = self.model(id).ok_or_else(|| AppError::msg(format!("unknown model '{id}'")))?;
+            let v = model.vision.as_ref().ok_or_else(|| AppError::msg(format!("{} can't see images", model.name)))?;
+            return Ok((model.repo.clone(), vision_variant(v), key.to_string()));
         }
         let (model, variant) = self.resolve(key)?;
         Ok((model.repo.clone(), variant.clone(), self::key(model, variant)))
@@ -652,6 +695,18 @@ pub struct ModelStatus {
     /// Smallest Mac memory size that can run any version.
     pub min_ram_gb: u32,
     pub details: Option<ModelDetails>,
+    /// The model can see photos once its image adapter is downloaded.
+    pub vision: Option<VisionStatus>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VisionStatus {
+    /// Download key (`"<id>:vision"`).
+    pub key: String,
+    pub size_bytes: u64,
+    pub installed: bool,
+    pub downloading: bool,
 }
 
 pub struct ListContext<'a> {
@@ -722,6 +777,15 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
                 used_for: m.used_for.clone(),
                 max_context: m.arch.max_ctx,
                 details: m.details.clone(),
+                vision: m.vision.as_ref().map(|v| {
+                    let key = format!("{}:{VISION_QUANT}", m.id);
+                    VisionStatus {
+                        installed: vision_path(lc.models_dir, m).is_some(),
+                        downloading: lc.downloading.contains(&key),
+                        size_bytes: v.file.size,
+                        key,
+                    }
+                }),
                 variants,
             }
         })
@@ -1189,6 +1253,24 @@ mod tests {
             .unwrap();
         assert!(effective_quality(m, v) >= best_q - QUALITY_FLOOR);
         assert!(expected_tps(m, v, &big) > 50.0, "{} is too slow", key(m, v));
+    }
+
+    #[test]
+    fn image_adapters_download_into_their_own_folder() {
+        let c = Catalog::embedded();
+        let m = c.models.iter().find(|m| m.vision.is_some()).expect("a model that sees images");
+        let key = format!("{}:{VISION_QUANT}", m.id);
+        let (repo, v, k) = c.download_target(&key).unwrap();
+        assert_eq!((repo.as_str(), k.as_str()), (m.repo.as_str(), key.as_str()));
+        assert!(v.files[0].name.to_lowercase().contains("mmproj"));
+        let root = Path::new("/models");
+        assert_eq!(download_dir(root, &key), root.join("vision").join(m.id.replace(['/', '\\', '.'], "_")));
+        assert_eq!(download_dir(root, "qwen3-14b:Q4_K_M"), root);
+        // Not downloaded yet.
+        assert!(vision_path(Path::new("/nowhere"), m).is_none());
+        let no = c.models.iter().find(|m| m.vision.is_none() && m.role == Role::Chat).unwrap();
+        assert!(c.download_target(&format!("{}:{VISION_QUANT}", no.id)).is_err());
+        assert!(c.models.iter().filter(|m| m.vision.is_some()).count() >= 50);
     }
 
     #[test]

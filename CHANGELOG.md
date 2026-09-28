@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Files and photos in local chats
+
+- **Attach files to local chats**: click the paperclip or drop files on the window. BYTE reads PDFs, Word,
+  PowerPoint, Excel (and OpenDocument), web pages, text, CSV/JSON and code on your Mac and gives the model the
+  parts that matter for your question (long files are cut down to the best passages). Chips on the message show
+  the file name and page, slide or sheet count.
+- **Models that can see photos**: 128 models are marked **Sees images**. Download a model's image reader from
+  its card and you can attach photos (HEIC and WebP photos are converted automatically). With a model that
+  can't see, the photo option is hidden and BYTE says so if you drop one.
+
 ## 1.0.0-test.13 — Big models that load, a smoother cloud, 713 models
 
 - **Big mixture-of-experts models load reliably** (Qwen3.6 35B-A3B, gpt-oss 20B on 16 GB Macs): BYTE now

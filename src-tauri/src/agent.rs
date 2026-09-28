@@ -253,7 +253,8 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     send(ChatEvent::Started { thinking: turn.plan.thinking, model: turn.ep.model.clone() })?;
 
     let lim = limits(turn.mode);
-    let question = turn.history.iter().rev().find(|m| m.role == "user").map(|m| m.content.clone()).unwrap_or_default();
+    // The question itself, without the text of attached files (they'd swamp web searches).
+    let question = turn.history.iter().rev().find(|m| m.role == "user").map(|m| chat::question_text(&m.content).to_string()).unwrap_or_default();
     let ctx = ToolContext { net: turn.net, cloud: turn.cloud, question: &question, max_results: lim.max_results, page_chars: lim.page_chars, log: turn.log };
     let specs = tools::specs(turn.web, turn.memory);
     let mut messages = chat::base_messages(turn.system, turn.history);
@@ -551,7 +552,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let http = chat::local_client();
-        let history = vec![ChatMessage { role: "user".into(), content: "Use the calculator tool to compute 1234 * 5678, then tell me the result.".into() }];
+        let history = vec![ChatMessage::new("user", "Use the calculator tool to compute 1234 * 5678, then tell me the result.")];
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, false, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
@@ -583,7 +584,7 @@ mod tests {
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let http = chat::local_client();
         let net = tools::fetch::web_client();
-        let history = vec![ChatMessage { role: "user".into(), content: "Search the web: what is the latest stable version of the Rust programming language?".into() }];
+        let history = vec![ChatMessage::new("user", "Search the web: what is the latest stable version of the Rust programming language?")];
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, true, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
@@ -630,7 +631,7 @@ mod tests {
             _ => Mode::Auto,
         };
         for q in questions {
-            let history = vec![ChatMessage { role: "user".into(), content: q.clone() }];
+            let history = vec![ChatMessage::new("user", q.clone())];
             let system = crate::prompt::system_prompt(chrono::Local::now(), mode, true, None);
             let plan = crate::router::plan_turn(mode, ThinkingPref::Auto, &q);
             let (ch, seen) = collecting_channel();

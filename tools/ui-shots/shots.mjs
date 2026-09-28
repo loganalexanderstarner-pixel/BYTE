@@ -13,6 +13,7 @@ const REAL = JSON.parse(gunzipSync(readFileSync(process.env.MODELS ?? join(here,
 // Model details (the dropdown) come from the current catalog, so the snapshot above needn't be rebuilt.
 const CATALOG = JSON.parse(readFileSync(join(here, "../../src-tauri/catalog/models.json"), "utf8"));
 const DETAILS = new Map(CATALOG.models.map((m) => [m.id, { details: m.details ?? null, ...(m.tags ? { tags: m.tags } : {}) }]));
+const VISION = new Map(CATALOG.models.filter((m) => m.vision).map((m) => [m.id, m.vision.file.size]));
 
 const URL = process.env.URL ?? "http://localhost:4173/";
 const OUT = process.env.OUT ?? join(here, "out");
@@ -23,6 +24,8 @@ function mock(onboarded, theme) {
   const fit = (f, ctx, note) => ({ fit: f, context: ctx, neededBytes: 11.1 * GB, gpuBudgetBytes: 11.45 * GB, totalRamBytes: 17.18 * GB, note });
   const models = JSON.parse(JSON.stringify(REAL.models));
   for (const m of models) if (DETAILS.has(m.id)) Object.assign(m, DETAILS.get(m.id));
+  for (const m of models)
+    if (VISION.has(m.id)) m.vision = { key: `${m.id}:vision`, sizeBytes: VISION.get(m.id), installed: onboarded && m.id === "qwen3.5-9b", downloading: false };
   for (const m of models) for (const v of m.variants) if (v.key === "qwen3.5-9b:Q6_K" && onboarded) v.measuredTps = 21.4;
   if (onboarded) {
     const m = models.find((x) => x.id === "qwen3.5-9b");
@@ -135,7 +138,7 @@ function initScript({ data }) {
           return null;
         case "engine_status":
           if (data.engineError) return { state: "error", message: data.engineError };
-          return data.settings.onboardingComplete ? { state: "ready", model: "qwen3.5-9b:Q6_K", context: 16384, boosted: true } : { state: "noModel" };
+          return data.settings.onboardingComplete ? { state: "ready", model: "qwen3.5-9b:Q6_K", context: 16384, boosted: true, vision: !!data.vision } : { state: "noModel" };
         case "speed_boost_info":
           return { enabled: true, available: true, helperKey: "qwen3.5-0.8b:Q8_0", helperName: "Qwen3.5 0.8B", helperBytes: 812000000, installed: true, kind: "draft" };
         case "gpu_share_info":
@@ -189,7 +192,7 @@ function initScript({ data }) {
         case "engine_log":
           return ["main: server is listening on http://127.0.0.1:52811", "srv  update_slots: all slots are idle"];
         case "model_download":
-          setTimeout(() => window.__emit("models://download", { kind: "progress", id: args.id, bytes: 3.87e9, total: 9.0e9, bytesPerSec: 48.2e6 }), 50);
+          setTimeout(() => window.__emit("models://download", { kind: "progress", id: args.key ?? args.id, bytes: 3.87e9, total: 9.0e9, bytesPerSec: 48.2e6 }), 50);
           return null;
         case "cloud_status":
           return data.cloud;
@@ -223,7 +226,14 @@ function initScript({ data }) {
         case "cloud_attach":
           return { conversationId: "42", attachment: { id: String(100 + Math.floor(Math.random() * 900)), filename: args.file.split("/").pop(), content_type: "image/jpeg" } };
         case "plugin:dialog|open":
-          return ["/Users/logan/Pictures/tide-pool.jpg"];
+          return data.dialogPaths ?? ["/Users/logan/Pictures/tide-pool.jpg"];
+        case "file_ingest": {
+          const name = args.path.split("/").pop();
+          if (/\.(png|jpe?g)$/i.test(name))
+            return { name, kind: "image", text: "", truncated: false, image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" };
+          if (/\.xlsx$/i.test(name)) return { name, kind: "sheet", pages: 3, text: "[Sheet 1]\nMonth | Rent", truncated: false };
+          return { name, kind: "pdf", pages: 14, text: "[Page 1]\nResidential lease agreement…", truncated: false };
+        }
         case "cloud_post": {
           if (/^\/api\/jobs\/[a-z]+$/.test(args.path)) { data.job = { id: 77, kind: "pptx", title: "Solar power for beginners", topic: "Solar power for beginners", status: "awaiting_approval" }; return { id: 77 }; }
           if (args.path.endsWith("/approve")) { data.job = { ...data.job, status: "done", document_id: 5 }; return {}; }
@@ -489,6 +499,29 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(1200);
   await shot(p, "10g-both");
   console.log("cloud errors:", errors);
+  await ctx.close();
+}
+// Local chat with files read on this Mac, and a model that sees photos
+{
+  const { p, ctx, errors } = await page(true, "midnight", {
+    vision: true,
+    dialogPaths: ["/Users/logan/Documents/lease-2026.pdf", "/Users/logan/Documents/budget.xlsx", "/Users/logan/Pictures/water-damage.png"],
+  });
+  await p.getByRole("button", { name: /New chat/ }).first().click().catch(() => {});
+  await p.getByLabel("Attach").click();
+  await p.waitForTimeout(400);
+  await p.getByLabel("Message BYTE").fill("Does my lease say who pays for this kind of damage?");
+  await shot(p, "13-local-files");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(1500);
+  await shot(p, "13b-local-files-sent");
+  await p.keyboard.press("Meta+Comma");
+  await p.getByRole("button", { name: "Models", exact: true }).click();
+  await p.waitForTimeout(300);
+  await p.locator(".vision-row").first().scrollIntoViewIfNeeded();
+  await p.waitForTimeout(150);
+  await shot(p, "13c-sees-images");
+  console.log("files errors:", errors);
   await ctx.close();
 }
 // A model that didn't load: what's using memory, with Quit buttons

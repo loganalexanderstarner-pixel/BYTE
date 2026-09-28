@@ -43,7 +43,8 @@ pub enum EngineStatus {
     Stopped,
     Starting { model: String },
     /// `boosted`: a helper model is speeding up generation (speculative decoding).
-    Ready { model: String, context: u32, boosted: bool },
+    /// `vision`: started with an image adapter, so it can see photos.
+    Ready { model: String, context: u32, boosted: bool, vision: bool },
     Error { message: String },
 }
 
@@ -92,6 +93,8 @@ pub struct LaunchOpts {
     /// and, for dense models in stretch mode, how many layers go on the GPU.
     pub cpu_moe_layers: u32,
     pub gpu_layers: Option<u32>,
+    /// Image adapter for models that can see (`--mmproj`), when downloaded.
+    pub mmproj: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -100,6 +103,8 @@ pub struct Endpoint {
     pub api_key: String,
     pub model: String,
     pub context: u32,
+    /// Started with an image adapter (`--mmproj`): the model can see photos.
+    pub vision: bool,
 }
 
 /// What an engine is running and how much memory it was planned to use.
@@ -197,13 +202,15 @@ impl Engine {
         reserved: u64,
         opts: LaunchOpts,
     ) -> AppResult<()> {
-        let LaunchOpts { draft, ngram, mut kv_f16, ubatch, mut flash_attn_off, draft_n_max, draft_p_min, .. } = opts;
+        let LaunchOpts { draft, ngram, mut kv_f16, ubatch, mut flash_attn_off, draft_n_max, draft_p_min, mmproj, .. } = opts;
         let (model, variant) = catalog.resolve(key)?;
         if !models::is_installed(&models_dir, variant) {
             self.set_status(app, EngineStatus::NoModel).await;
             return Err(AppError::msg(format!("{} ({}) is not downloaded yet", model.name, variant.quant)));
         }
-        let info = system::system_info(&models_dir).minus(reserved);
+        // The image adapter (vision models) needs memory next to the model: its file plus working buffers.
+        let vision_extra = mmproj.as_ref().and_then(|p| std::fs::metadata(p).ok()).map(|m| m.len() + 300_000_000).unwrap_or(0);
+        let info = system::system_info(&models_dir).minus(reserved + vision_extra);
         let desired_ctx = ctx_override.unwrap_or(DEFAULT_CONTEXT);
         // The helper model needs its own memory; use it only if everything still fits comfortably.
         let draft = draft.filter(|d| {
@@ -264,6 +271,7 @@ impl Engine {
                 draft_p_min,
                 cpu_moe_layers: plan.cpu_moe_layers,
                 gpu_layers: plan.gpu_layers,
+                mmproj,
             },
         };
         let moe = models::expert_share(model) > 0.3;
@@ -388,7 +396,7 @@ impl Engine {
         let base_url = format!("http://127.0.0.1:{port}");
         match self.wait_healthy(&base_url, generation).await {
             Ok(()) => {
-                let endpoint = Endpoint { base_url, api_key, model: launch.key.clone(), context };
+                let endpoint = Endpoint { base_url, api_key, model: launch.key.clone(), context, vision: launch.opts.mmproj.is_some() };
                 self.warm_up(&endpoint).await;
                 {
                     let mut inner = self.inner.lock().await;
@@ -400,7 +408,7 @@ impl Engine {
                 // llama-server keeps running without speculation if the helper doesn't match.
                 let boosted = (launch.opts.draft.is_some() && !speculation_failed(&self.log_tail().await)) || launch.opts.ngram;
                 log::info!("engine ready: {} with {context}-token context (speed boost: {boosted})", launch.key);
-                self.set_status(&app, EngineStatus::Ready { model: launch.key.clone(), context, boosted }).await;
+                self.set_status(&app, EngineStatus::Ready { model: launch.key.clone(), context, boosted, vision: launch.opts.mmproj.is_some() }).await;
                 Ok(())
             }
             Err(e) => {
@@ -706,9 +714,15 @@ fn fallback_launches(launch: &Launch, n_layer: u32, moe: bool) -> Vec<Launch> {
         (0, Some(on.saturating_sub(n / 5).max(1)), 0, Some((n / 2).max(1)))
     };
     let first = safer_launch(launch, launch.context / 2, moe1, gpu1);
-    let second = safer_launch(launch, MIN_START_CONTEXT, moe2, gpu2);
+    let mut second = safer_launch(launch, MIN_START_CONTEXT, moe2, gpu2);
+    // Last try: without the image adapter too (the model answers in text only).
+    second.opts.mmproj = None;
     let mut out = vec![first];
-    if second.context != out[0].context || second.opts.cpu_moe_layers != out[0].opts.cpu_moe_layers || second.opts.gpu_layers != out[0].opts.gpu_layers {
+    if second.context != out[0].context
+        || second.opts.cpu_moe_layers != out[0].opts.cpu_moe_layers
+        || second.opts.gpu_layers != out[0].opts.gpu_layers
+        || second.opts.mmproj != out[0].opts.mmproj
+    {
         out.push(second);
     }
     out
@@ -764,6 +778,9 @@ pub fn apply_opts(args: &mut Vec<String>, opts: &LaunchOpts) {
     }
     if opts.cpu_moe_layers > 0 {
         args.extend(["--n-cpu-moe".into(), opts.cpu_moe_layers.to_string()]);
+    }
+    if let Some(p) = &opts.mmproj {
+        args.extend(["--mmproj".into(), p.to_string_lossy().into_owned()]);
     }
     if let Some(ub) = opts.ubatch {
         args.extend(["--ubatch-size".into(), ub.to_string(), "--batch-size".into(), ub.max(2048).to_string()]);
@@ -889,6 +906,21 @@ mod tests {
         let f = fallback_launches(&launch(4096, 38, None), 40, true);
         assert_eq!((f[0].context, f[0].opts.cpu_moe_layers), (4096, 40));
         assert_eq!(f.len(), 1);
+        // A model that can see keeps its image adapter until the last try.
+        let mut l = launch(4096, 38, None);
+        l.opts.mmproj = Some("/mmproj.gguf".into());
+        let f = fallback_launches(&l, 40, true);
+        assert_eq!(f.len(), 2);
+        assert!(f[0].opts.mmproj.is_some() && f[1].opts.mmproj.is_none());
+    }
+
+    #[test]
+    fn image_adapter_is_passed_to_the_engine() {
+        let opts = LaunchOpts { mmproj: Some("/v/mmproj-F16.gguf".into()), ..Default::default() };
+        let mut args = vec!["-m".to_string(), "/m.gguf".to_string()];
+        apply_opts(&mut args, &opts);
+        let i = args.iter().position(|a| a == "--mmproj").expect("--mmproj");
+        assert_eq!(args[i + 1], "/v/mmproj-F16.gguf");
     }
 
     #[test]

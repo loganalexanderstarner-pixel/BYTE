@@ -20,6 +20,7 @@ import type {
   SystemInfo,
   ThinkingPref,
   WireMessage,
+  LocalFile,
   CloudStatus,
   Workspace,
 } from "../lib/types";
@@ -82,6 +83,8 @@ export interface Message {
   feedback?: "up" | "down";
   /** Photos/files sent with this (user) message. */
   attachments?: Attachment[];
+  /** Files read on this Mac and sent with this (user) message (local chats). */
+  files?: LocalFile[];
   createdAt: number;
 }
 
@@ -188,6 +191,11 @@ interface State {
   attaching: number;
   attachError: string | null;
   attachFiles(paths: string[]): Promise<void>;
+  /** Files read on this Mac, waiting to go with the next message (local chats). */
+  pendingFiles: LocalFile[];
+  /** Reads files for a local chat (photos only when the loaded model can see). */
+  attachLocal(paths: string[]): Promise<void>;
+  removePendingFile(index: number): void;
   /** Saved prompts from the cloud, used as "/" commands in the chat box. */
   savedPrompts: { id: string; title: string; text: string }[] | null;
   loadSavedPrompts(force?: boolean): Promise<void>;
@@ -349,7 +357,7 @@ export function cloudTurn(conv: Pick<Conversation, "messages" | "cloudId" | "clo
 export function toWire(messages: Message[]): WireMessage[] {
   return messages
     .filter((m) => m.role === "user" || (!m.alt && m.status === "done" && m.content.trim().length > 0))
-    .map((m) => ({ role: m.role, content: m.content }));
+    .map((m) => ({ role: m.role, content: m.content, ...(m.role === "user" && m.files?.length ? { files: m.files } : {}) }));
 }
 
 export const useStore = create<State>((set, get) => {
@@ -603,6 +611,7 @@ export const useStore = create<State>((set, get) => {
     savedPrompts: null,
     attaching: 0,
     attachError: null,
+    pendingFiles: [],
     mode: "auto",
     thinking: "auto",
     sidebarOpen: true,
@@ -694,7 +703,7 @@ export const useStore = create<State>((set, get) => {
           (isPrivate || spaceOf(c.id) === ws),
       );
       if (empty) {
-        set({ currentId: empty.id, pending: [] });
+        set({ currentId: empty.id, pending: [], pendingFiles: [] });
         return;
       }
       const conv: Conversation = {
@@ -707,7 +716,7 @@ export const useStore = create<State>((set, get) => {
         projectId,
         loaded: true,
       };
-      set({ conversations: [conv, ...get().conversations], currentId: conv.id, pending: [] });
+      set({ conversations: [conv, ...get().conversations], currentId: conv.id, pending: [], pendingFiles: [] });
     },
 
     async selectChat(id) {
@@ -798,8 +807,17 @@ export const useStore = create<State>((set, get) => {
         convId = conv.id;
       }
       const attachments = get().pending;
-      const user: Message = { id: uid(), role: "user", content, status: "done", createdAt: Date.now(), ...(attachments.length ? { attachments } : {}) };
-      set({ pending: [], attachError: null });
+      const files = get().pendingFiles;
+      const user: Message = {
+        id: uid(),
+        role: "user",
+        content,
+        status: "done",
+        createdAt: Date.now(),
+        ...(attachments.length ? { attachments } : {}),
+        ...(files.length ? { files } : {}),
+      };
+      set({ pending: [], pendingFiles: [], attachError: null });
       patchConversation(convId, (c) => ({
         ...c,
         title: c.messages.length === 0 ? titleFrom(content) : c.title,
@@ -831,8 +849,16 @@ export const useStore = create<State>((set, get) => {
       if (!conv || !content || get().generating) return;
       const i = conv.messages.findIndex((m) => m.id === msgId);
       if (i < 0 || conv.messages[i].role !== "user") return;
-      const kept = conv.messages[i].attachments;
-      const edited: Message = { id: uid(), role: "user", content, status: "done", createdAt: Date.now(), ...(kept ? { attachments: kept } : {}) };
+      const { attachments: kept, files } = conv.messages[i];
+      const edited: Message = {
+        id: uid(),
+        role: "user",
+        content,
+        status: "done",
+        createdAt: Date.now(),
+        ...(kept ? { attachments: kept } : {}),
+        ...(files ? { files } : {}),
+      };
       patchConversation(conv.id, (c) => ({ ...c, updatedAt: Date.now(), messages: branchAt(c.messages, i, edited) }));
       await answer(conv.id);
     },
@@ -894,7 +920,7 @@ export const useStore = create<State>((set, get) => {
     },
 
     async setWorkspace(workspace) {
-      set({ currentId: null, pending: [] });
+      set({ currentId: null, pending: [], pendingFiles: [] });
       await get().updateSettings({ workspace, useCloud: workspace === "cloud" });
       if (workspace !== "local") void get().refreshCloudChats();
     },
@@ -972,6 +998,30 @@ export const useStore = create<State>((set, get) => {
       }
     },
 
+    async attachLocal(paths) {
+      set({ attaching: get().attaching + paths.length, attachError: null });
+      for (const path of paths) {
+        const name = path.split(/[\\/]/).pop() ?? "file";
+        try {
+          const file = await api.fileIngest(path);
+          const engine = get().engine;
+          if (file.kind === "image" && !(engine.state === "ready" && engine.vision)) {
+            set({ attachError: `${name}: the loaded model can't see photos. Load a model marked "Sees images" (Models).` });
+            continue;
+          }
+          set({ pendingFiles: [...get().pendingFiles, file] });
+        } catch (e) {
+          set({ attachError: `${name}: ${errorText(e)}` });
+        } finally {
+          set({ attaching: Math.max(0, get().attaching - 1) });
+        }
+      }
+    },
+
+    removePendingFile(index) {
+      set({ pendingFiles: get().pendingFiles.filter((_, i) => i !== index) });
+    },
+
     async loadSavedPrompts(force = false) {
       if (!inTauri || !get().settings?.cloudConnected || (get().savedPrompts && !force)) return;
       try {
@@ -1044,6 +1094,9 @@ export const useStore = create<State>((set, get) => {
     }
     set({ downloads: { ...get().downloads, [e.id]: next } });
     if (e.kind === "finished" || e.kind === "failed" || e.kind === "paused") void get().refreshModels();
+    // The main model's image reader just arrived: restart so it loads with it.
+    const id = e.id.endsWith(":vision") ? e.id.slice(0, -":vision".length) : null;
+    if (e.kind === "finished" && id && get().settings?.activeModel?.startsWith(`${id}:`)) void api.engineRestart().catch(() => undefined);
   }
 });
 

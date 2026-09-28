@@ -50,10 +50,13 @@ pub async fn saved(state: &AppState, key: &str) -> Option<Tuning> {
 pub async fn launch_opts(state: &AppState, catalog: &crate::models::Catalog, key: &str) -> LaunchOpts {
     let boost_allowed = state.settings.lock().await.speed_boost;
     let helper = if boost_allowed { helper(state, catalog, key) } else { None };
-    match saved(state, key).await {
+    let mut opts = match saved(state, key).await {
         Some(t) => to_opts(&t, helper),
         None => LaunchOpts { draft: helper, ..Default::default() },
-    }
+    };
+    // Models that can see load their image adapter when it's downloaded.
+    opts.mmproj = catalog.resolve(key).ok().and_then(|(m, _)| crate::models::vision_path(&state.paths.models, m));
+    opts
 }
 
 fn to_opts(t: &Tuning, helper: Option<Draft>) -> LaunchOpts {

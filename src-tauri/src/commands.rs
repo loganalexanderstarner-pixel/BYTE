@@ -15,6 +15,12 @@ use crate::settings::{Mode, Settings, ThinkingPref};
 use crate::state::AppState;
 use crate::system::{self, SystemInfo};
 
+/// Reads a file the user attached to a local chat (text for the model, or a photo).
+#[tauri::command]
+pub async fn file_ingest(path: String) -> AppResult<crate::files::Ingested> {
+    tokio::task::spawn_blocking(move || crate::files::ingest(std::path::Path::new(&path))).await.map_err(|e| AppError::msg(e.to_string()))?
+}
+
 /// Apps using the most memory right now (for "quit these to make room").
 #[tauri::command]
 pub async fn memory_report() -> crate::memory::MemoryReport {
@@ -86,7 +92,9 @@ pub async fn catalog_refresh(state: State<'_, AppState>) -> AppResult<bool> {
 pub async fn model_download(app: AppHandle, state: State<'_, AppState>, key: String) -> AppResult<()> {
     let catalog = state.catalog.get();
     let (repo, variant, key) = catalog.download_target(&key)?;
-    state.downloads.start(app, state.net.clone(), state.paths.models.clone(), repo, variant, key).await
+    let dir = models::download_dir(&state.paths.models, &key);
+    std::fs::create_dir_all(&dir)?;
+    state.downloads.start(app, state.net.clone(), dir, repo, variant, key).await
 }
 
 #[tauri::command]
@@ -99,9 +107,9 @@ pub async fn model_pause(state: State<'_, AppState>, key: String) -> AppResult<(
 pub async fn model_delete(app: AppHandle, state: State<'_, AppState>, key: String) -> AppResult<()> {
     state.downloads.pause(&key).await;
     let catalog = state.catalog.get();
-    if key.ends_with(&format!(":{}", models::HEAD_QUANT)) {
+    if key.ends_with(&format!(":{}", models::HEAD_QUANT)) || key.ends_with(&format!(":{}", models::VISION_QUANT)) {
         let (_, head, _) = catalog.download_target(&key)?;
-        return models::delete(&state.paths.models, &head);
+        return models::delete(&models::download_dir(&state.paths.models, &key), &head);
     }
     let (model, variant) = catalog.resolve(&key)?;
     let key = models::key(model, variant);

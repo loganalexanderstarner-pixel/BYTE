@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { api, inTauri } from "../../lib/api";
 import { budgetSummary } from "../../lib/cloudDocs";
 import { displayName } from "../../lib/models";
-import { AttachmentChips, LibraryPicker } from "./Attachments";
+import { AttachmentChips, LibraryPicker, LocalFileChips } from "./Attachments";
 import { MemoryHelper } from "../MemoryHelper";
 import type { Mode, ThinkingPref } from "../../lib/types";
 import { spaceOf, useStore, workspaceOf } from "../../state/store";
@@ -29,6 +29,14 @@ const CLOUD_HINTS: Record<string, string> = {
 
 const NEXT_THINKING: Record<ThinkingPref, ThinkingPref> = { auto: "on", on: "off", off: "auto" };
 const THINKING_LABEL: Record<ThinkingPref, string> = { auto: "Thinking: Auto", on: "Thinking: On", off: "Thinking: Off" };
+
+const PHOTO_TYPES = ["png", "jpg", "jpeg", "gif", "webp", "heic", "bmp"];
+const CLOUD_DOC_TYPES = ["pdf", "docx", "pptx", "xlsx", "txt", "md", "csv"];
+/** What BYTE reads on this Mac (Rust `files::kind_of`). */
+const LOCAL_DOC_TYPES = [
+  ...["pdf", "docx", "odt", "pptx", "odp", "xlsx", "ods", "html", "htm", "txt", "md", "csv", "tsv", "json", "yaml", "yml", "xml", "log", "tex"],
+  ...["srt", "vtt", "rs", "py", "js", "ts", "tsx", "jsx", "java", "kt", "swift", "c", "h", "cpp", "hpp", "cs", "go", "rb", "php", "sh", "sql", "css"],
+];
 
 export function Composer() {
   const [text, setText] = useState("");
@@ -62,6 +70,9 @@ export function Composer() {
   // The cloud needs no model on this Mac, so it also works on Macs too small for one.
   const onCloud = cloudConnected && space === "cloud";
   const onBoth = cloudConnected && space === "both";
+  // Files are read on this Mac for local chats; photos only when the loaded model can see.
+  const onLocal = !onCloud && !onBoth;
+  const canSee = engine.state === "ready" && !!engine.vision;
   const cloudModes = cloudStatus?.account?.modes ?? [];
   const cloudMode = settings?.cloudMode ?? cloudModes[0]?.id;
   const budget = budgetSummary(cloudStatus?.account?.budgets);
@@ -71,6 +82,10 @@ export function Composer() {
   const attachError = useStore((s) => s.attachError);
   const attachFiles = useStore((s) => s.attachFiles);
   const removePending = useStore((s) => s.removePending);
+  const pendingFiles = useStore((s) => s.pendingFiles);
+  const attachLocal = useStore((s) => s.attachLocal);
+  const removePendingFile = useStore((s) => s.removePendingFile);
+  const attach = onCloud ? attachFiles : attachLocal;
   const [library, setLibrary] = useState(false);
   const savedPrompts = useStore((s) => s.savedPrompts);
   const loadSavedPrompts = useStore((s) => s.loadSavedPrompts);
@@ -86,9 +101,9 @@ export function Composer() {
   };
   const [dragging, setDragging] = useState(false);
 
-  // Drop photos/files onto the window to attach them (cloud chats).
+  // Drop photos/files onto the window to attach them (cloud and local chats).
   useEffect(() => {
-    if (!inTauri || !onCloud) return;
+    if (!inTauri || !(onCloud || onLocal)) return;
     let off: (() => void) | undefined;
     void getCurrentWebview()
       .onDragDropEvent((e) => {
@@ -96,23 +111,24 @@ export function Composer() {
         else if (e.payload.type === "leave") setDragging(false);
         else if (e.payload.type === "drop") {
           setDragging(false);
-          if (e.payload.paths.length) void attachFiles(e.payload.paths);
+          if (e.payload.paths.length) void attach(e.payload.paths);
         }
       })
       .then((u) => (off = u));
     return () => off?.();
-  }, [onCloud, attachFiles]);
+  }, [onCloud, onLocal, attach]);
 
   const pickFiles = async () => {
+    const photos = onCloud || canSee;
     const picked = await openDialog({
       multiple: true,
-      title: "Attach photos or files",
+      title: photos ? "Attach photos or files" : "Attach files",
       filters: [
-        { name: "Photos and documents", extensions: ["png", "jpg", "jpeg", "gif", "webp", "heic", "pdf", "docx", "pptx", "xlsx", "txt", "md", "csv"] },
+        { name: photos ? "Photos and documents" : "Documents", extensions: [...(photos ? PHOTO_TYPES : []), ...(onCloud ? CLOUD_DOC_TYPES : LOCAL_DOC_TYPES)] },
       ],
     });
     const paths = Array.isArray(picked) ? picked : picked ? [picked] : [];
-    if (paths.length) await attachFiles(paths);
+    if (paths.length) await attach(paths);
   };
 
   useEffect(() => {
@@ -195,12 +211,13 @@ export function Composer() {
         </div>
       )}
       <div className={`composer ${dragging ? "dropping" : ""}`}>
-        {onCloud && (pending.length > 0 || attaching > 0 || attachError) && (
+        {(onCloud || onLocal) && (pending.length > 0 || pendingFiles.length > 0 || attaching > 0 || attachError) && (
           <div className="composer-attachments">
-            <AttachmentChips items={pending} onRemove={removePending} />
+            {onCloud && <AttachmentChips items={pending} onRemove={removePending} />}
+            {onLocal && <LocalFileChips files={pendingFiles} onRemove={removePendingFile} />}
             {attaching > 0 && (
               <span className="faint">
-                <Loader2 size={13} className="spin" /> Uploading {attaching}…
+                <Loader2 size={13} className="spin" /> {onCloud ? "Uploading" : "Reading"} {attaching}…
               </span>
             )}
             {attachError && <span className="attach-error">{attachError}</span>}
@@ -232,6 +249,16 @@ export function Composer() {
           spellCheck
         />
         <div className="composer-bar">
+          {onLocal && (
+            <button
+              className="icon-btn"
+              onClick={() => void pickFiles()}
+              title={canSee ? "Attach photos or files (or drop them here)" : "Attach files: PDF, Word, slides, sheets, text (or drop them here)"}
+              aria-label="Attach"
+            >
+              <Paperclip size={16} />
+            </button>
+          )}
           {onCloud && (
             <>
               <button className="icon-btn" onClick={() => void pickFiles()} title="Attach photos or files (or drop them here)" aria-label="Attach">

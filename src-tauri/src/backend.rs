@@ -153,7 +153,7 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
         .iter()
         .rev()
         .find(|m| m.role == "user")
-        .map(|m| m.content.as_str())
+        .map(|m| chat::question_text(&m.content))
         .unwrap_or("");
     let catalog = state.catalog.get();
     let profile = catalog.resolve(&ep.model).map(|(m, _)| crate::modelcfg::profile(m)).unwrap_or_default();
@@ -171,7 +171,8 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
         system.push_str(&prompt::project_section(&project.name, &project.instructions));
     }
     let reserve = plan.max_tokens + plan.thinking_budget.max(0) as u32;
-    let history = chat::fit_history(&request.messages, &system, ep.context, reserve.min(ep.context / 2));
+    let messages = chat::with_files(&request.messages, ep.context, ep.vision);
+    let history = chat::fit_history(&messages, &system, ep.context, reserve.min(ep.context / 2));
 
     // Web search goes through the BYTE cloud when a key is saved (its SearXNG
     // beats scraping search engines from this Mac); private chats stay keyless.

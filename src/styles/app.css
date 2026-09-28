@@ -1413,6 +1413,17 @@ kbd {
 .speed-row svg {
   color: var(--ok);
 }
+.vision-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85em;
+  color: var(--text-2);
+}
+.vision-row > svg {
+  color: var(--accent);
+  flex: none;
+}
 .speed-row.ok svg {
   color: var(--accent);
 }

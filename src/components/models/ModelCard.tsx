@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Brain, ChevronDown, CircleCheck, Clock, Download, ExternalLink, Gauge, Layers, Pause, Play, Sparkles, Trash2, TriangleAlert, Users, Wrench } from "lucide-react";
+import { Brain, ChevronDown, CircleCheck, Clock, Download, ExternalLink, Eye, Gauge, Layers, Pause, Play, Sparkles, Trash2, TriangleAlert, Users, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { bytes, contextLabel, eta } from "../../lib/format";
@@ -131,6 +131,52 @@ interface Props {
   onUnload?(key: string): void;
 }
 
+/** The image reader (mmproj) that lets a model see photos: a separate download. */
+function VisionRow({
+  vision,
+  dl,
+  onDownload,
+  onPause,
+  onDelete,
+}: {
+  vision: NonNullable<ModelStatus["vision"]>;
+  dl?: DownloadState;
+  onDownload(key: string): void;
+  onPause(key: string): void;
+  onDelete?(key: string): void;
+}) {
+  const busy = vision.downloading || dl?.phase === "downloading" || dl?.phase === "resuming" || dl?.phase === "verifying";
+  return (
+    <div className="vision-row">
+      <Eye size={13} />
+      {vision.installed ? (
+        <span className="grow">Sees photos: attach one in the chat box.</span>
+      ) : busy ? (
+        <span className="grow">
+          Downloading the image reader… {dl && dl.total > 0 ? `${Math.round((dl.bytes / dl.total) * 100)}%` : ""}
+        </span>
+      ) : (
+        <span className="grow faint">Add the image reader so this model can look at photos you attach.</span>
+      )}
+      {!vision.installed && !busy && (
+        <button className="btn sm" onClick={() => onDownload(vision.key)}>
+          <Download size={14} /> {dl?.phase === "paused" || dl?.phase === "failed" ? "Resume" : `Image reader ${bytes(vision.sizeBytes)}`}
+        </button>
+      )}
+      {busy && dl?.phase !== "verifying" && (
+        <button className="btn sm" onClick={() => onPause(vision.key)}>
+          <Pause size={14} /> Pause
+        </button>
+      )}
+      {vision.installed && onDelete && (
+        <button className="icon-btn" onClick={() => onDelete(vision.key)} title="Delete the image reader">
+          <Trash2 size={15} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** A catalog model with a version picker, fit for this Mac, and actions. */
 export function ModelCard({ model, recommended, downloads, activeKey, onDownload, onPause, onDelete, onActivate, loaded = [], onLoad, onUnload }: Props) {
   const initial =
@@ -215,6 +261,11 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
         ))}
         {model.thinking && <span className="tag"><Brain size={11} /> Thinking</span>}
         {model.tools && <span className="tag"><Wrench size={11} /> Tools</span>}
+        {model.vision && (
+          <span className="tag" title="Can look at photos you attach, once its image reader is downloaded">
+            <Eye size={11} /> Sees images
+          </span>
+        )}
         {model.family && <span className="faint">· {model.family}</span>}
         {model.released && <span className="faint">· {model.released}</span>}
         {model.license && <span className="faint">· {model.license}</span>}
@@ -257,6 +308,9 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
         </div>
       )}
       {(downloading || hasPartial) && <DownloadProgress variant={v} dl={dl} />}
+      {model.vision && model.role === "chat" && model.variants.some((x) => x.installed) && (
+        <VisionRow vision={model.vision} dl={downloads[model.vision.key]} onDownload={onDownload} onPause={onPause} onDelete={onDelete} />
+      )}
       {d && (
         <>
           <button className="details-toggle" onClick={() => setOpen(!open)} aria-expanded={open}>

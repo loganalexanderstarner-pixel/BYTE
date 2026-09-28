@@ -15,10 +15,70 @@ use crate::engine::Endpoint;
 use crate::error::{AppError, AppResult};
 use crate::router::TurnPlan;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct ChatMessage {
     pub role: String,
     pub content: String,
+    /// Files attached to this message (read by `files::ingest` when attached);
+    /// `with_files` turns them into text (and photos) for the model.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<crate::files::Ingested>,
+    /// Photos for a model that can see (data URLs), filled in by `with_files`.
+    #[serde(skip)]
+    pub images: Vec<String>,
+}
+
+impl ChatMessage {
+    #[cfg(test)]
+    pub fn new(role: &str, content: impl Into<String>) -> Self {
+        ChatMessage { role: role.into(), content: content.into(), ..Default::default() }
+    }
+}
+
+/// Where attached files start in a message's content (see `with_files`).
+const FILES_MARK: &str = "\n\n<file name=";
+
+/// A message's own words, without the attached files' text.
+pub fn question_text(content: &str) -> &str {
+    content.split(FILES_MARK).next().unwrap_or(content)
+}
+
+/// Rough cost of one photo in the context (vision encoders use a few hundred tokens).
+const IMAGE_TOKENS: usize = 700;
+
+/// Puts attached files into the messages the model sees. The latest message's
+/// files get most of the room (about 45% of the context), earlier ones a
+/// little, each reduced to the passages that match what was asked. Photos go
+/// to models that can see (`vision`), at most 4, only from the latest message;
+/// otherwise the model is told a photo was attached that it can't view.
+pub fn with_files(history: &[ChatMessage], context: u32, vision: bool) -> Vec<ChatMessage> {
+    let last_user = history.iter().rposition(|m| m.role == "user");
+    history
+        .iter()
+        .enumerate()
+        .map(|(i, m)| {
+            if m.files.is_empty() {
+                return m.clone();
+            }
+            let latest = Some(i) == last_user;
+            let share = if latest { 0.45 } else { 0.08 };
+            let budget = (context as f64 * 3.5 * share) as usize;
+            let mut content = m.content.clone();
+            content.push_str(&crate::files::for_model(&m.files, &m.content, budget));
+            let mut images = Vec::new();
+            for f in m.files.iter().filter(|f| f.kind == crate::files::FileKind::Image) {
+                match &f.image {
+                    Some(url) if vision && latest && images.len() < 4 => images.push(url.clone()),
+                    _ if vision => content.push_str(&format!("\n\n[Photo \"{}\" was attached earlier.]", f.name)),
+                    _ => content.push_str(&format!(
+                        "\n\n[The user attached a photo, \"{}\", but the current model can't see images. Say so, and suggest a model marked \"Sees images\".]",
+                        f.name
+                    )),
+                }
+            }
+            ChatMessage { role: m.role.clone(), content, files: Vec::new(), images }
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -99,7 +159,16 @@ pub fn local_client() -> reqwest::Client {
 /// System prompt + history as engine messages.
 pub fn base_messages(system: &str, history: &[ChatMessage]) -> Vec<serde_json::Value> {
     let mut messages = vec![serde_json::json!({ "role": "system", "content": system })];
-    messages.extend(history.iter().map(|m| serde_json::json!({ "role": m.role, "content": m.content })));
+    messages.extend(history.iter().map(|m| {
+        if m.images.is_empty() {
+            serde_json::json!({ "role": m.role, "content": m.content })
+        } else {
+            // OpenAI-style parts: text, then the photos (llama-server with --mmproj).
+            let mut parts = vec![serde_json::json!({ "type": "text", "text": m.content })];
+            parts.extend(m.images.iter().map(|url| serde_json::json!({ "type": "image_url", "image_url": { "url": url } })));
+            serde_json::json!({ "role": m.role, "content": parts })
+        }
+    }));
     messages
 }
 
@@ -175,7 +244,7 @@ pub fn fit_history(history: &[ChatMessage], system: &str, context: u32, reserve:
     let mut kept: Vec<ChatMessage> = Vec::new();
     let mut used = 0usize;
     for m in history.iter().rev() {
-        let t = estimate_tokens(&m.content);
+        let t = estimate_tokens(&m.content) + m.images.len() * IMAGE_TOKENS;
         if used + t > budget && !kept.is_empty() {
             break;
         }
@@ -393,6 +462,47 @@ pub async fn stream(
 mod tests {
     use super::*;
 
+    fn attached(name: &str, kind: crate::files::FileKind, text: &str, image: Option<&str>) -> crate::files::Ingested {
+        crate::files::Ingested { name: name.into(), kind, pages: None, text: text.into(), truncated: false, image: image.map(Into::into) }
+    }
+
+    #[test]
+    fn attached_files_reach_the_model_and_the_question_stays_clean() {
+        use crate::files::FileKind;
+        let mut first = ChatMessage::new("user", "Summarise the report");
+        first.files = vec![attached("report.pdf", FileKind::Pdf, "[Page 1]\nRevenue grew 12% in 2025.", None)];
+        let answer = ChatMessage::new("assistant", "It grew 12%.");
+        let mut second = ChatMessage::new("user", "What is in this photo?");
+        second.files = vec![attached("cat.png", FileKind::Image, "", Some("data:image/png;base64,AAAA"))];
+        let history = vec![first, answer, second];
+
+        // A model that can see gets the photo; the PDF text stays with its message.
+        let seen = with_files(&history, 16384, true);
+        assert!(seen[0].content.contains("<file name=\"report.pdf\"") && seen[0].content.contains("Revenue grew 12%"));
+        assert_eq!(question_text(&seen[0].content), "Summarise the report");
+        assert_eq!(seen[2].images, vec!["data:image/png;base64,AAAA".to_string()]);
+        assert!(seen.iter().all(|m| m.files.is_empty()));
+        let body = base_messages("sys", &seen);
+        assert_eq!(body[3]["content"][0]["type"], "text");
+        assert_eq!(body[3]["content"][1]["image_url"]["url"], "data:image/png;base64,AAAA");
+        assert!(body[1]["content"].is_string());
+
+        // A text-only model is told it can't see the photo.
+        let blind = with_files(&history, 16384, false);
+        assert!(blind[2].images.is_empty());
+        assert!(blind[2].content.contains("can't see images"));
+        assert!(base_messages("sys", &blind)[3]["content"].is_string());
+    }
+
+    #[test]
+    fn attached_files_survive_the_wire() {
+        let json = serde_json::json!({ "role": "user", "content": "hi", "files": [{ "name": "a.txt", "kind": "text", "text": "hello" }] });
+        let m: ChatMessage = serde_json::from_value(json).unwrap();
+        assert_eq!((m.files.len(), m.files[0].kind), (1, crate::files::FileKind::Text));
+        // Messages without files serialize as before.
+        assert_eq!(serde_json::to_value(ChatMessage::new("user", "x")).unwrap(), serde_json::json!({ "role": "user", "content": "x" }));
+    }
+
     #[test]
     fn sse_parser_handles_split_chunks() {
         let mut p = SseParser::default();
@@ -437,7 +547,7 @@ mod tests {
 
     #[test]
     fn fit_history_drops_oldest_and_keeps_latest() {
-        let msg = |r: &str, n: usize| ChatMessage { role: r.into(), content: "x".repeat(n) };
+        let msg = |r: &str, n: usize| ChatMessage::new(r, "x".repeat(n));
         let h = vec![msg("user", 7000), msg("assistant", 7000), msg("user", 700), msg("assistant", 700), msg("user", 35)];
         let kept = fit_history(&h, "sys", 2048, 1024);
         assert_eq!(kept.last().unwrap().content.len(), 35);
@@ -464,7 +574,7 @@ mod tests {
 
     #[test]
     fn body_toggles_thinking_and_budget() {
-        let hist = vec![ChatMessage { role: "user".into(), content: "hi".into() }];
+        let hist = vec![ChatMessage::new("user", "hi")];
         let b = request_body("sys", &hist, TurnPlan { thinking: true, thinking_budget: 1024, max_tokens: 2000, mode: crate::settings::Mode::Auto, profile: Default::default() });
         assert_eq!(b["chat_template_kwargs"]["enable_thinking"], true);
         assert_eq!(b["reasoning_budget_tokens"], 1024);
@@ -537,7 +647,7 @@ pub mod e2e_support {
         for _ in 0..900 {
             if let Ok(r) = http.get(format!("{base}/health")).send().await {
                 if r.status().is_success() {
-                    return Some((server, Endpoint { base_url: base, api_key: key.into(), model: "test".into(), context: 4096 }));
+                    return Some((server, Endpoint { base_url: base, api_key: key.into(), model: "test".into(), context: 4096, vision: false }));
                 }
             }
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
@@ -570,7 +680,7 @@ mod e2e {
         assert_eq!(unauth.status(), 401);
 
         let sys = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, false, None);
-        let hist = vec![ChatMessage { role: "user".into(), content: "What is 12 + 30? Reply with just the number.".into() }];
+        let hist = vec![ChatMessage::new("user", "What is 12 + 30? Reply with just the number.")];
 
         // Thinking on, with a budget: reasoning arrives separately from the answer.
         let mut plan = plan_turn(Mode::Auto, ThinkingPref::On, &hist[0].content);
@@ -600,7 +710,7 @@ mod e2e {
         assert!(content.contains("42"), "{content}");
 
         // Cancellation stops promptly.
-        let long = vec![ChatMessage { role: "user".into(), content: "Write a 2000-word essay about the ocean.".into() }];
+        let long = vec![ChatMessage::new("user", "Write a 2000-word essay about the ocean.")];
         let plan = plan_turn(Mode::Extended, ThinkingPref::Off, &long[0].content);
         let (ch, seen) = collecting_channel();
         let cancel = CancellationToken::new();
@@ -631,8 +741,8 @@ mod wire_format {
         assert_eq!(stats["tokensPerSecond"], 1.5);
         let d = crate::models::DownloadEvent::Progress { id: "m".into(), bytes: 1, total: 2, bytes_per_sec: 3.0 };
         assert_eq!(serde_json::to_value(d).unwrap()["bytesPerSec"], 3.0);
-        let s = crate::engine::EngineStatus::Ready { model: "m".into(), context: 4096, boosted: false };
-        assert_eq!(serde_json::to_value(s).unwrap(), serde_json::json!({ "state": "ready", "model": "m", "context": 4096, "boosted": false }));
+        let s = crate::engine::EngineStatus::Ready { model: "m".into(), context: 4096, boosted: false, vision: false };
+        assert_eq!(serde_json::to_value(s).unwrap(), serde_json::json!({ "state": "ready", "model": "m", "context": 4096, "boosted": false, "vision": false }));
         assert_eq!(serde_json::to_value(crate::engine::EngineStatus::NoModel).unwrap(), serde_json::json!({ "state": "noModel" }));
     }
 }

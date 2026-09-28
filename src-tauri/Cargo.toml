@@ -49,12 +49,16 @@ fend-core = "1.5"
 # Encrypted local database (chats, memories); SQLCipher with a vendored OpenSSL so
 # nothing extra is needed on the Mac.
 rusqlite = { version = "0.37", features = ["bundled-sqlcipher-vendored-openssl"] }
+pdf-extract = "0.12"
+quick-xml = "0.37"
+zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
 
 # Cloud mode: the API key lives in the macOS Keychain, never in files.
 [target.'cfg(target_os = "macos")'.dependencies]
 keyring = { version = "3", features = ["apple-native"] }
 
 [dev-dependencies]
+lopdf = "0.42"
 tempfile = "3"
 wiremock = "0.6"
 
