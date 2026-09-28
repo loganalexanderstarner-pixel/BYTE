@@ -141,6 +141,14 @@ export const api = {
   /** Saves an .ics file and opens it in the calendar app. */
   calendarOpen: (path: string, data: string) => invoke<void>("calendar_open", { path, data }),
 
+  // Web agent (web_agent/ in Rust).
+  /** Answers an approval card; false when it's no longer waiting. */
+  agentApprove: (id: string, ok: boolean) => invoke<boolean>("agent_approve", { id, ok }),
+  /** Shows or hides the agent's browser window; false when none is open. */
+  agentShow: (visible: boolean) => invoke<boolean>("agent_show", { visible }),
+  /** Opens a saved page/picture, or shows any saved file in Finder. */
+  agentFile: (path: string, open: boolean) => invoke<void>("agent_file", { path, open }),
+
   // BYTE cloud (docs/CLOUD-MODE.md). The key goes straight to the Keychain.
   cloudStatus: () => invoke<CloudStatus>("cloud_status"),
   cloudConnect: (key: string, baseUrl?: string | null) => invoke<CloudStatus>("cloud_connect", { key, baseUrl: baseUrl ?? null }),

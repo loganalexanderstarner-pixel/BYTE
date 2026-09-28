@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Clapperboard, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
+import { Clapperboard, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
 import { Fragment, useState } from "react";
 
 import { CITE_STYLES, cite, citeAll, plainCitation, type CiteStyle } from "../../lib/citations";
@@ -62,10 +62,31 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: Clapperboard, text: "Read the video's captions" };
     case "summarize_video":
       return { icon: ListChecks, text: "Summarized the video" };
+    // The web agent: once a step finished, its result says exactly what happened.
+    case "open_url":
+      return { icon: AppWindow, text: s.status === "running" ? `Opening ${hostOf(arg("url"))}` : (s.summary ?? `Opened ${hostOf(arg("url"))}`) };
+    case "click":
+      return { icon: MousePointerClick, text: s.summary ?? `Clicking element ${arg("n")}` };
+    case "type_text":
+      return { icon: Keyboard, text: s.summary ?? `Typing “${arg("text")}”` };
+    case "choose_option":
+      return { icon: ListCollapse, text: s.summary ?? `Choosing “${arg("option")}”` };
+    case "look_at_page":
+      return { icon: Eye, text: s.summary ?? "Looking at the page" };
+    case "scroll_page":
+      return { icon: MoveVertical, text: s.summary ?? "Scrolling" };
+    case "go_back":
+      return { icon: ArrowLeft, text: s.summary ?? "Going back" };
+    case "download_file":
+      return { icon: Download, text: s.summary ?? "Getting the download ready" };
+    case "save_page":
+      return { icon: FileDown, text: s.summary ?? "Saving the page" };
     default:
       return { icon: CircleCheck, text: s.name };
   }
 }
+
+const BROWSER_STEPS = ["open_url", "click", "type_text", "choose_option", "look_at_page", "scroll_page", "go_back", "download_file", "save_page"];
 
 /** Summary line like "Searched the web twice · read 3 pages". */
 export function activitySummary(steps: Step[]): string {
@@ -82,6 +103,8 @@ export function activitySummary(steps: Step[]): string {
   const mapped = steps.some((s) => s.name === "find_places" && s.status === "ok");
   const parts: string[] = [];
   const cooked = steps.some((s) => ["write_recipe", "recipe_ideas", "meal_plan"].includes(s.name));
+  const browsed = steps.filter((s) => BROWSER_STEPS.includes(s.name)).length;
+  if (browsed) parts.push(`Used the browser (${browsed} step${browsed === 1 ? "" : "s"})`);
   if (cooked) parts.push("In the kitchen");
   if (steps.some((s) => s.name === "get_transcript" && s.status === "ok")) parts.push("Watched the video");
   if (tripped) parts.push("Planned the trip");
@@ -125,7 +148,7 @@ export function Activity({ steps, live }: { steps: Step[]; live: boolean }) {
                   <Icon size={13} />
                 )}
                 <span className="what">{text}</span>
-                {s.summary && <span className="result">{s.summary}</span>}
+                {s.summary && !BROWSER_STEPS.includes(s.name) && <span className="result">{s.summary}</span>}
               </li>
             );
           })}

@@ -18,6 +18,7 @@ import { TripCard } from "./Trip";
 import { MealPlanCard, RecipeIdeasCards } from "../kitchen/KitchenCards";
 import { RecipeCard } from "../kitchen/RecipeCard";
 import { VideoCard } from "./VideoCard";
+import { ApprovalCard, BrowsingBar, SavedFiles } from "./AgentCards";
 
 function openLinksExternally(e: MouseEvent<HTMLDivElement>) {
   const a = (e.target as HTMLElement).closest("a");
@@ -228,6 +229,9 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
       {message.recipeIdeas && <RecipeIdeasCards ideas={message.recipeIdeas} />}
       {message.mealPlan && <MealPlanCard plan={message.mealPlan} />}
       {message.video && <VideoCard video={message.video} />}
+      {generating && message.browsing && <BrowsingBar />}
+      {message.approvals?.map((a) => <ApprovalCard key={a.id} card={a} />)}
+      {message.saved && message.saved.length > 0 && <SavedFiles files={message.saved} />}
       {message.content && (
         <div
           className={`prose ${generating ? "cursor" : ""}`}

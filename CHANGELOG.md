@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.6.6 — Phase 6: the web agent
+
+- **BYTE can use a browser for you.** "Go to carnegielibrary.org and find when the Squirrel Hill branch opens",
+  "fill out the contact form on example.com for Ada", "download the manual from <link>", "save this page as a
+  PDF: <link>", or press **Agent** in the chat box for any message. BYTE opens a private, hidden browser, reads
+  the page, clicks links, types into forms, picks from lists and round buttons, scrolls, goes back, and tells
+  you what it did and found, citing the pages. Every step shows in the activity list.
+- **It asks first.** Before anything is submitted, bought, booked, sent or deleted, and before every download,
+  an approval card shows the site and every field it filled in: **Submit** or **Don't**. If you say no (or
+  don't answer in 10 minutes) nothing is sent and BYTE stops there.
+- **It never types passwords, card numbers or other private details.** When a page needs a login, a payment or
+  a CAPTCHA, BYTE stops and says so; press **Show browser** to see the page and do that part yourself.
+- **Downloads and saved pages** go to Downloads/BYTE (downloads up to 200 MB). On a Mac, pages can be saved as
+  a PDF of the whole page, a full-page picture or a Safari web archive. Chips on the answer open the file or
+  show it in Finder (programs and installers are only shown, never opened).
+- Only public websites (no files on your Mac, nothing on your home network); the browser keeps nothing
+  (private session) and closes when the answer ends; at most 25 steps per answer. Page text is treated as
+  information, never as instructions. Turn it off in Settings → About → Features → Web agent.
+
 ## 0.6.5 — Phase 6 improvements: YouTube summaries
 
 - **Summarize a YouTube video.** Paste a link ("Summarize https://youtu.be/…", or just the link). BYTE reads the

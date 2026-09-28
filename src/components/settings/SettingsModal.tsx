@@ -684,6 +684,16 @@ function AboutTab() {
           </span>
           <input type="checkbox" checked={settings?.kitchenEnabled ?? true} onChange={(e) => void update({ kitchenEnabled: e.target.checked })} />
         </label>
+        <label className="field">
+          <span>
+            Web agent
+            <small>
+              BYTE can use a private browser for you: open sites, click, fill in forms, download files and save pages (“go to … and …”, or the Agent
+              button). It always asks before submitting or downloading and never types passwords or card numbers.
+            </small>
+          </span>
+          <input type="checkbox" checked={settings?.webAgentEnabled ?? true} onChange={(e) => void update({ webAgentEnabled: e.target.checked })} />
+        </label>
       </div>
       <ProfilesSection />
       <div className="section">

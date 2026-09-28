@@ -92,6 +92,41 @@ pub async fn calendar_open(app: tauri::AppHandle, path: String, data: String) ->
     app.opener().open_path(&path, None::<&str>).map_err(|e| AppError::msg(format!("couldn't open the calendar file: {e}")))
 }
 
+// ---------- web agent (web_agent/) ----------
+
+/// Approve or deny the web agent's approval card. False when it's no longer waiting.
+#[tauri::command]
+pub fn agent_approve(id: String, ok: bool) -> bool {
+    crate::web_agent::answer(&id, ok)
+}
+
+/// Shows or hides the web agent's browser (to watch, or to take over a login).
+#[tauri::command]
+pub fn agent_show(app: tauri::AppHandle, visible: bool) -> AppResult<bool> {
+    crate::web_agent::browser::show(&app, visible)
+}
+
+/// Opens a file the web agent saved (documents and pictures only) or shows
+/// it in Finder. Only files in Downloads/BYTE.
+#[tauri::command]
+pub fn agent_file(app: tauri::AppHandle, path: String, open: bool) -> AppResult<()> {
+    use tauri::Manager;
+    use tauri_plugin_opener::OpenerExt;
+    let dir = app.path().download_dir().or_else(|_| app.path().home_dir().map(|h| h.join("Downloads"))).map_err(|e| AppError::msg(e.to_string()))?.join("BYTE");
+    let file = std::path::Path::new(&path).canonicalize().map_err(|_| AppError::msg("that file isn't there any more"))?;
+    let dir = dir.canonicalize().map_err(|_| AppError::msg("the Downloads/BYTE folder isn't there"))?;
+    if !file.starts_with(&dir) {
+        return Err(AppError::msg("only files BYTE saved in Downloads/BYTE"));
+    }
+    let viewable = file.extension().and_then(|e| e.to_str()).map(|e| crate::web_agent::VIEWABLE.contains(&e.to_ascii_lowercase().as_str())).unwrap_or(false);
+    if open && viewable {
+        app.opener().open_path(file.to_string_lossy(), None::<&str>).map_err(|e| AppError::msg(format!("couldn't open it: {e}")))
+    } else {
+        // Anything else (programs, installers, archives) is only shown, never run.
+        app.opener().reveal_item_in_dir(&file).map_err(|e| AppError::msg(format!("couldn't show it: {e}")))
+    }
+}
+
 // ---------- recipe box (kitchen.rs) ----------
 
 #[tauri::command]

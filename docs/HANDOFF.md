@@ -414,7 +414,19 @@ Kitchen module brought forward from K (`kitchen.rs`: `kitchen_ask`, chef rules, 
 clients), `pick_track`, `parse_timedtext` (format 3 with `<s>`, legacy `<text>`), transcripts cached 24 h, summary
 (one pass or map-reduce by part) → `ChatEvent::Video`, Q&A via `research::rank_texts` over 90 s blocks, follow-ups
 find the link in the last 3 questions; UI `VideoCard.tsx`, `lib/video.ts`). No-captions fallback (yt-dlp + whisper)
-waits for Phase 11's voice model. **Next:** v0.6.6 web agent; self-check / best-of-3 / quote finder with fact-check.
+waits for Phase 11's voice model. **Done in v0.6.6:** item 7, the web agent (`web_agent/`): a hidden, private
+Tauri window (`browser.rs`, label `byte-agent`, incognito, Safari UA) driven by `bridge.js` (injected on every page:
+numbered snapshot, click, type, choose incl. radio groups, scroll, formInfo). Replies come back as a navigation to
+`byteagent://r/<id>?d=<json>` that `on_navigation` catches and cancels (no IPC for web pages; works on WebKit,
+WebKitGTK and WebView2). `Session` runs the tools (`open_url`, `click`, `type_text`, `choose_option`,
+`look_at_page`, `scroll_page`, `go_back`, `download_file`, `save_page`) inside `agent::run` (`Turn.agent`,
+`Task::Browse`, `web_agent::wants_web_agent`); guards in Rust: approval cards (`ChatEvent::Approval`, command
+`agent_approve`, 10 min → deny, a Deny ends browsing), no private fields, public hosts only, 25 steps, 200 MB
+downloads to Downloads/BYTE, older page views compacted. Page capture on macOS: `capture_mac.rs` (WKWebView PDF,
+snapshot → PNG, web archive), text elsewhere. UI: `AgentCards.tsx` (approval card, saved-file chips, Show browser),
+Agent pill, Settings toggle. Tested for real under Xvfb (`browser::e2e`, `agent::tests::e2e_web_agent`).
+**Left in Phase 6 (smaller):** self-check / best-of-3, review summarizer & price compare, game guides,
+video-to-slides. **Next:** ask the owner: those as v0.6.7, or on to Phase 7 (writing & learning).
 1. **Deep / Extended pipelines** (`research.rs`): plan 3–6 sub-questions → parallel searches → fetch up to
    15 (Deep) / 30 (Extended) pages, 6 at a time → embedding-rank passages → cited report; Extended adds a gap
    review, follow-up searches and a rewrite into a sectioned report. Progress steps shown live; cancel anytime.

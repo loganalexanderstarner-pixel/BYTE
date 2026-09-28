@@ -123,6 +123,9 @@ pub struct Settings {
     /// Kitchen module: recipes, meal plans and the recipe box.
     #[serde(default = "yes")]
     pub kitchen_enabled: bool,
+    /// Web agent module: BYTE may use a hidden browser for the user (open, click, fill forms with approval).
+    #[serde(default = "yes")]
+    pub web_agent_enabled: bool,
     /// Reuse the answer to a question asked (almost exactly) in the last week
     /// (needs the search-by-meaning model; see answer_cache.rs).
     pub answer_cache: bool,
@@ -172,6 +175,7 @@ impl Default for Settings {
             memory_enabled: true,
             kb_enabled: true,
             kitchen_enabled: true,
+            web_agent_enabled: true,
             answer_cache: true,
             loaded_alongside: Vec::new(),
             speed_boost: true,

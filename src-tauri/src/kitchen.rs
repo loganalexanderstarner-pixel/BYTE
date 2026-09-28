@@ -1014,7 +1014,7 @@ mod tests {
             let system = crate::prompt::system_prompt(chrono::Local::now(), crate::settings::Mode::Auto, web, None);
             let plan = crate::router::plan_turn(crate::settings::Mode::Auto, crate::settings::ThinkingPref::Off, q);
             let (ch, seen) = crate::chat::e2e_support::collecting_channel();
-            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: crate::settings::Mode::Auto, web, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: true };
+            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: crate::settings::Mode::Auto, web, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: true, agent: false };
             let t = std::time::Instant::now();
             crate::agent::run(turn, CancellationToken::new(), &ch).await.unwrap();
             let ev = seen.lock().unwrap().clone();

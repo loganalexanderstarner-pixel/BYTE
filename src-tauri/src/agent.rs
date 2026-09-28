@@ -49,6 +49,8 @@ const TOOL_CONTEXT_SHARE: f64 = 0.70;
 pub enum Task {
     /// Check the claims in the message (the Fact-check button).
     FactCheck,
+    /// Use the browser for this message (the composer's Agent pill).
+    Browse,
 }
 
 pub struct Turn<'a> {
@@ -79,6 +81,8 @@ pub struct Turn<'a> {
     pub web_always: bool,
     /// The kitchen module is on (recipes, meal plans).
     pub kitchen: bool,
+    /// The web agent module is on (BYTE may use a browser for the user).
+    pub agent: bool,
 }
 
 /// BYTE searches before the model answers any question about the world
@@ -278,8 +282,27 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     // The question itself, without the text of attached files (they'd swamp web searches).
     let question = turn.history.iter().rev().find(|m| m.role == "user").map(|m| chat::question_text(&m.content).to_string()).unwrap_or_default();
     let ctx = ToolContext { net: turn.net, cloud: turn.cloud, question: &question, max_results: lim.max_results, page_chars: lim.page_chars, log: turn.log, files: turn.files, home: turn.home };
-    let specs = tools::specs(turn.web, turn.memory, turn.files.is_some(), crate::research::depth(turn.mode).is_some());
+    // The web agent: BYTE uses a hidden browser for the user ("go to … and …").
+    let mut session = match turn.app {
+        Some(app) if turn.web && turn.agent && (turn.task == Some(Task::Browse) || crate::web_agent::wants_web_agent(&question)) => Some(open_session(app)?),
+        _ => None,
+    };
+    let specs = match &session {
+        Some(_) => {
+            let mut v: Vec<Value> = tools::specs(true, false, false, false).into_iter().filter(|s| [tools::WEB_SEARCH, tools::CALCULATE].contains(&s["function"]["name"].as_str().unwrap_or(""))).collect();
+            v.extend(crate::web_agent::specs());
+            v
+        }
+        None => tools::specs(turn.web, turn.memory, turn.files.is_some(), crate::research::depth(turn.mode).is_some()),
+    };
+    let tool_rounds = if session.is_some() { crate::web_agent::MAX_STEPS } else { lim.tool_rounds };
     let mut messages = chat::base_messages(turn.system, turn.history);
+    if session.is_some() {
+        if let Some(sys) = messages.first_mut() {
+            let text = format!("{}{}", sys["content"].as_str().unwrap_or(""), crate::web_agent::AGENT_RULES);
+            sys["content"] = json!(text);
+        }
+    }
     let mut book = SourceBook::default();
     let mut totals = Stats::default();
     let mut rounds_with_stats = 0u32;
@@ -304,8 +327,8 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
 
     // Weather: BYTE asks a forecast service instead of reading weather sites
     // (they're JavaScript apps with no readable text).
-    let mut weather_done = false;
-    if turn.web {
+    let mut weather_done = session.is_some();
+    if turn.web && session.is_none() {
         if let Some(place) = crate::router::weather_place(&question) {
             let call_id = "byte_weather_0".to_string();
             let args = json!({ "place": place });
@@ -350,7 +373,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
 
     // Questions about the user's own files ("what does my lease say…"): BYTE
     // searches the knowledge base first, like the forced web search below.
-    if turn.files.is_some() && crate::router::wants_files(&question) {
+    if session.is_none() && turn.files.is_some() && crate::router::wants_files(&question) {
         let call_id = "byte_files_0".to_string();
         let args = json!({ "query": search_query(&question, previous_question(turn.history)) });
         send(ChatEvent::ToolCall { id: call_id.clone(), name: tools::SEARCH_FILES.into(), args: args.clone() })?;
@@ -371,7 +394,23 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     // Fact-check first (asked for, or "is it true that…"), then compare &
     // decide ("X vs Y"), then research; each hands the model numbered notes.
     let mut prepared: Option<(SourceBook, String, &str)> = None;
-    if crate::youtube::applies(turn.web, &question, turn.history) {
+    if let Some(s) = session.as_mut() {
+        // The first step: open the site named in the message.
+        send(ChatEvent::Browsing { active: true })?;
+        if let Some(url) = crate::web_agent::url_in(&question) {
+            let call_id = "byte_open_0".to_string();
+            let args = json!({ "url": url.as_str() });
+            send(ChatEvent::ToolCall { id: call_id.clone(), name: crate::web_agent::OPEN_URL.into(), args: args.clone() })?;
+            let step = s.run(crate::web_agent::OPEN_URL, &args, &mut book, &cancel, &send).await?;
+            send(ChatEvent::ToolResult { id: call_id.clone(), ok: step.ok, summary: step.summary.clone() })?;
+            turn.log.record(crate::web_agent::OPEN_URL, &args, step.ok, &step.summary);
+            if !book.sources.is_empty() {
+                send(ChatEvent::Sources { sources: book.sources.clone() })?;
+            }
+            push_tool_exchange(&mut messages, &call_id, crate::web_agent::OPEN_URL, &args, step.content);
+            used_tools = true;
+        }
+    } else if crate::youtube::applies(turn.web, &question, turn.history) {
         if let Some((b, notes)) = crate::youtube::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
             prepared = Some((b, notes, "youtube"));
         }
@@ -399,7 +438,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         push_tool_exchange(&mut messages, &format!("byte_{name}_0"), name, &json!({ "question": question }), notes);
         searches.extend(std::iter::repeat_n(question.clone(), lim.max_searches));
         used_tools = true;
-    } else if !weather_done && crate::research::applies(turn.mode, turn.web, turn.web_always, &question) {
+    } else if session.is_none() && !weather_done && crate::research::applies(turn.mode, turn.web, turn.web_always, &question) {
         let query = search_query(&question, previous_question(turn.history));
         let (found, notes) = crate::research::run(&turn, &question, &query, estimate(&messages), &cancel, &send).await?;
         book = found;
@@ -439,8 +478,12 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     let mut nudged = false;
     let mut retried = false;
     loop {
+        if session.is_some() {
+            crate::web_agent::compact(&mut messages);
+        }
         let used = estimate(&messages);
-        let allow_tools = !retried && round < lim.tool_rounds && (used as f64) < turn.ep.context as f64 * TOOL_CONTEXT_SHARE;
+        let steps_left = session.as_ref().map(|s| s.steps_left() > 0).unwrap_or(true);
+        let allow_tools = !retried && steps_left && round < tool_rounds && (used as f64) < turn.ep.context as f64 * TOOL_CONTEXT_SHARE;
         if !allow_tools && used_tools && !nudged {
             messages.push(json!({ "role": "user", "content": ANSWER_NOW }));
             nudged = true;
@@ -544,6 +587,17 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
                 searched = true;
             }
             send(ChatEvent::ToolCall { id: id.clone(), name: name.clone(), args: args.clone() })?;
+            if let Some(s) = session.as_mut().filter(|_| crate::web_agent::TOOLS.contains(&name.as_str())) {
+                let before = book.sources.len();
+                let step = s.run(&name, &args, &mut book, &cancel, &send).await?;
+                turn.log.record(&name, &args, step.ok, &step.summary);
+                send(ChatEvent::ToolResult { id: id.clone(), ok: step.ok, summary: step.summary.clone() })?;
+                if book.sources.len() != before {
+                    send(ChatEvent::Sources { sources: book.sources.clone() })?;
+                }
+                messages.push(json!({ "role": "tool", "tool_call_id": id, "content": step.content }));
+                continue;
+            }
             let before = book.sources.len();
             let out = tokio::select! {
                 o = tools::run(&ctx, &mut book, &name, &args) => o,
@@ -563,11 +617,24 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         round += 1;
     }
 
+    if session.take().is_some() {
+        // Dropping the session closes the browser (and its private data).
+        send(ChatEvent::Browsing { active: false })?;
+    }
     if rounds_with_stats > 0 {
         send(ChatEvent::Stats(totals))?;
     }
     send(ChatEvent::Done { finish_reason: finish })?;
     Ok(())
+}
+
+/// Opens the web agent's browser; files go to Downloads/BYTE.
+fn open_session(app: &tauri::AppHandle) -> AppResult<crate::web_agent::Session> {
+    use tauri::Manager;
+    let browser = crate::web_agent::browser::TauriBrowser::start(app)?;
+    let downloads = app.path().download_dir().or_else(|_| app.path().home_dir().map(|h| h.join("Downloads")));
+    let dir = downloads.map(|d| d.join("BYTE")).map_err(|e| AppError::msg(format!("couldn't find the Downloads folder: {e}")))?;
+    Ok(crate::web_agent::Session::new(Box::new(browser), dir))
 }
 
 /// How many pages to read and how much of each, so the pages fit in the
@@ -665,7 +732,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, false, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false };
+        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let calls: Vec<_> = ev.iter().filter(|e| e["kind"] == "toolCall").collect();
@@ -679,6 +746,96 @@ mod tests {
         assert!(content.replace(',', "").contains("7006652"), "{content}");
         assert_eq!(ev.last().unwrap()["kind"], "done");
         assert!(std::fs::read_to_string(dir.path().join("a.jsonl")).unwrap().contains("calculate"));
+    }
+
+    /// Real engine + a real browser window (Linux, under a display) + the
+    /// internet: `xvfb-run cargo test e2e_web_agent -- --ignored`. The model
+    /// opens a page and reads it; then a form submit must stop at the
+    /// approval card (answered Deny here) and never be clicked.
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore]
+    fn e2e_web_agent() {
+        if std::env::var("DISPLAY").is_err() || std::env::var("BYTE_TEST_MODEL").is_err() {
+            return;
+        }
+        let app = tauri::Builder::default().any_thread().build(tauri::generate_context!()).expect("app");
+        let handle = app.handle().clone();
+        let (tx, rx) = std::sync::mpsc::channel::<Vec<Vec<Value>>>();
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let all = rt.block_on(async {
+                let (_server, ep) = start_server_with_ctx(16384).await.expect("engine");
+                let dir = tempfile::tempdir().unwrap();
+                let log = ActionLog::new(dir.path().join("a.jsonl"));
+                let http = chat::local_client();
+                let net = tools::fetch::web_client();
+                let mut all = Vec::new();
+                for q in [
+                    "Go to https://example.com and tell me what the page says.",
+                    "Go to https://httpbin.org/forms/post and order a large pizza for Ada (put Ada as the customer name), then submit the order.",
+                ] {
+                    let history = vec![ChatMessage::new("user", q)];
+                    let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, true, None);
+                    let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, q);
+                    let (ch, seen) = collecting_channel();
+                    // Deny every approval card after a moment, like a user pressing Deny.
+                    let watch = seen.clone();
+                    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+                    let stop2 = stop.clone();
+                    let denier = tokio::spawn(async move {
+                        let mut done = std::collections::HashSet::new();
+                        let mut shown = 0;
+                        while !stop2.load(std::sync::atomic::Ordering::Relaxed) {
+                            {
+                                let ev = watch.lock().unwrap();
+                                for e in ev.iter().skip(shown).filter(|e| e["kind"] != "content" && e["kind"] != "reasoning") {
+                                    eprintln!("  event: {}", e.to_string().chars().take(300).collect::<String>());
+                                }
+                                shown = ev.len();
+                            }
+                            let ids: Vec<String> = watch.lock().unwrap().iter().filter(|e| e["kind"] == "approval").filter_map(|e| e["id"].as_str().map(str::to_string)).collect();
+                            for id in ids {
+                                if done.insert(id.clone()) {
+                                    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+                                    crate::web_agent::answer(&id, false);
+                                }
+                            }
+                            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                        }
+                    });
+                    let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: Some(&handle), task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: true };
+                    run(turn, CancellationToken::new(), &ch).await.unwrap();
+                    stop.store(true, std::sync::atomic::Ordering::Relaxed);
+                    let _ = denier.await;
+                    all.push(seen.lock().unwrap().clone());
+                }
+                all
+            });
+            let _ = tx.send(all);
+            handle.exit(0);
+        });
+        let mut app = app;
+        let all = loop {
+            #[allow(deprecated)]
+            app.run_iteration(|_, _| {});
+            if let Ok(all) = rx.try_recv() {
+                break all;
+            }
+        };
+        for (i, ev) in all.iter().enumerate() {
+            let steps: Vec<String> = ev.iter().filter(|e| e["kind"] == "toolResult").map(|e| format!("{} {}", e["ok"], e["summary"])).collect();
+            let answer: String = ev.iter().filter(|e| e["kind"] == "content").filter_map(|e| e["delta"].as_str()).collect();
+            eprintln!("--- turn {i}\nsteps: {steps:#?}\napproval cards: {}\nanswer: {answer}", ev.iter().filter(|e| e["kind"] == "approval").count());
+            assert_eq!(ev.last().unwrap()["kind"], "done");
+            assert!(ev.iter().any(|e| e["kind"] == "browsing" && e["active"] == true));
+            assert!(ev.iter().any(|e| e["kind"] == "browsing" && e["active"] == false));
+        }
+        // Turn 1 read the page.
+        assert!(all[0].iter().any(|e| e["kind"] == "toolResult" && e["summary"].as_str().unwrap_or("").contains("Example Domain")));
+        // Turn 2: whatever the model did, nothing was submitted without approval.
+        let submitted = all[1].iter().any(|e| e["kind"] == "toolResult" && e["ok"] == true && e["summary"].as_str().unwrap_or("").contains("Submit order"));
+        assert!(!submitted, "submitted without approval");
     }
 
     /// Real engine + real internet (also needs BYTE_TEST_WEB=1).
@@ -697,7 +854,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, true, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let mut counts = std::collections::BTreeMap::new();
@@ -744,7 +901,7 @@ mod tests {
             let system = crate::prompt::system_prompt(chrono::Local::now(), mode, true, None);
             let plan = crate::router::plan_turn(mode, ThinkingPref::Auto, &q);
             let (ch, seen) = collecting_channel();
-            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false };
+            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false };
             let t = std::time::Instant::now();
             let r = run(turn, CancellationToken::new(), &ch).await;
             let ev = seen.lock().unwrap().clone();

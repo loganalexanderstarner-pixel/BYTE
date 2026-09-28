@@ -30,6 +30,8 @@ export interface Settings {
   kbEnabled: boolean;
   /** Kitchen module: recipes, meal plans, the recipe box. */
   kitchenEnabled?: boolean;
+  /** Web agent module: BYTE may use a browser for the user (asks before submitting). */
+  webAgentEnabled?: boolean;
   /** Reuse the answer to a question asked (almost exactly) in the last week. */
   answerCache: boolean;
   /** Models reloaded alongside the main one at launch. */
@@ -362,7 +364,37 @@ export type ChatEvent =
   | ({ kind: "recipe" } & Recipe)
   | ({ kind: "recipeIdeas" } & RecipeIdeas)
   | ({ kind: "mealPlan" } & MealPlan)
-  | ({ kind: "video" } & VideoCard);
+  | ({ kind: "video" } & VideoCard)
+  | ({ kind: "approval" } & ApprovalAsk)
+  | { kind: "approvalDone"; id: string; ok: boolean }
+  | ({ kind: "saved" } & SavedFile)
+  | { kind: "browsing"; active: boolean };
+
+/** The web agent asks before submitting, committing or downloading (Rust `web_agent::ApprovalAsk`). */
+export interface ApprovalAsk {
+  id: string;
+  action: "submit" | "download" | "click";
+  title: string;
+  site: string;
+  url: string;
+  /** The button's or link's label. */
+  target: string;
+  fields: { label: string; value: string }[];
+}
+
+/** An approval card on a message, with what the user decided. */
+export interface ApprovalCard extends ApprovalAsk {
+  status: "waiting" | "approved" | "declined" | "expired";
+}
+
+/** A file the web agent saved in Downloads/BYTE (Rust `web_agent::SavedFile`). */
+export interface SavedFile {
+  path: string;
+  name: string;
+  format: "download" | "pdf" | "image" | "archive" | "text";
+  bytes: number;
+  url: string;
+}
 
 /** A YouTube video's summary (Rust `youtube::VideoCard`). */
 export interface VideoCard {
@@ -489,7 +521,7 @@ export interface TripItem {
 }
 
 /** A job asked for with a button (Rust `agent::Task`). */
-export type ChatTask = "factCheck";
+export type ChatTask = "factCheck" | "browse";
 
 /** Compare & decide score table (Rust `decide::Decision`): `scores[option][criterion]`. */
 export interface Decision {

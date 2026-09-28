@@ -1,6 +1,6 @@
 [package]
 name = "byte"
-version = "0.6.5"
+version = "0.6.6"
 description = "BYTE — a local-first AI assistant for Apple Silicon Macs"
 authors = ["Logan Starner"]
 edition = "2021"
@@ -61,7 +61,10 @@ objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSDictionary", "NSEnumerator", "NSError", "NSGeometry", "NSString", "NSValue"] }
 objc2-vision = { version = "0.3", default-features = false, features = ["std", "VNObservation", "VNRecognizeTextRequest", "VNRequest", "VNRequestHandler", "VNTypes"] }
 objc2-pdf-kit = { version = "0.3", default-features = false, features = ["std", "PDFDocument", "PDFPage", "objc2-app-kit"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSImage"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSImage", "NSBitmapImageRep", "NSImageRep", "NSGraphics"] }
+# The web agent saves pages as PDF / picture / web archive (web_agent/capture_mac.rs).
+objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-app-kit", "WKWebView", "WKPDFConfiguration", "WKSnapshotConfiguration"] }
+block2 = "0.6"
 
 [dev-dependencies]
 lopdf = "0.42"

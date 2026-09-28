@@ -263,6 +263,11 @@ function initScript({ data }) {
         }
         case "recipe_delete":
           return null;
+        case "agent_approve":
+          setTimeout(() => window.__agentContinue?.(), 50);
+          return true;
+        case "agent_show":
+          return true;
         case "doc_save":
           return null;
         case "kb_status":
@@ -321,6 +326,44 @@ function initScript({ data }) {
             send({ kind: "remote", conversationId: "42", messageId: "421", userMessageId: null });
             send({ kind: "done", finishReason: "stop" });
             return null;
+          }
+          if (data.agent) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            send({ kind: "browsing", active: true });
+            const steps = [
+              ["open_url", { url: "https://www.carnegielibrary.org/" }, true, "Opened carnegielibrary.org — Carnegie Library of Pittsburgh"],
+              ["click", { n: 14 }, true, "Clicked “Get a Library Card” → Library Cards"],
+              ["click", { n: 9 }, true, "Clicked “Apply online” → Apply for a Library Card"],
+              ["type_text", { n: 3, text: "Ada Lovelace" }, true, "Typed “Ada Lovelace” into Full name"],
+              ["type_text", { n: 5, text: "ada@example.com" }, true, "Typed “ada@example.com” into Email"],
+              ["choose_option", { n: 7, option: "Squirrel Hill" }, true, "Chose “Squirrel Hill” in Home branch"],
+              ["click", { n: 12 }, null, ""],
+            ];
+            for (const [i, [name, a, ok, summary]] of steps.entries()) {
+              const id = "s" + i;
+              send({ kind: "toolCall", id, name, args: a }); await wait(5);
+              if (ok !== null) send({ kind: "toolResult", id, ok, summary });
+            }
+            send({ kind: "sources", sources: [
+              { n: 1, title: "Carnegie Library of Pittsburgh", url: "https://www.carnegielibrary.org/", snippet: "", read: true },
+              { n: 2, title: "Apply for a Library Card", url: "https://www.carnegielibrary.org/apply/", snippet: "", read: true },
+            ]});
+            send({ kind: "approval", id: "ap1", action: "submit", title: "Submit the form on carnegielibrary.org?", site: "carnegielibrary.org", url: "https://www.carnegielibrary.org/apply/", target: "Submit application",
+              fields: [{ label: "Full name", value: "Ada Lovelace" }, { label: "Email", value: "ada@example.com" }, { label: "Home branch", value: "Squirrel Hill" }, { label: "Date of birth", value: "" }, { label: "Email me about events", value: "no" }] });
+            let finish;
+            const ended = new Promise((r) => (finish = r));
+            window.__agentContinue = async () => {
+              send({ kind: "approvalDone", id: "ap1", ok: true });
+              send({ kind: "toolResult", id: "s6", ok: true, summary: "Clicked “Submit application” → Application received" });
+              send({ kind: "toolCall", id: "save", name: "save_page", args: { format: "pdf" } }); await wait(5);
+              send({ kind: "saved", path: "/Users/ada/Downloads/BYTE/Application received.pdf", name: "Application received.pdf", format: "pdf", bytes: 184320, url: "https://www.carnegielibrary.org/apply/done" });
+              send({ kind: "toolResult", id: "save", ok: true, summary: "Saved Application received.pdf" });
+              send({ kind: "browsing", active: false });
+              for (const t of ["Done: your library card application went in [2].\n\n", "- **Card number:** it's emailed to ada@example.com within 2 business days\n", "- **Pick up:** bring a photo ID to the **Squirrel Hill** branch to activate it\n\n", "I saved the confirmation page as a PDF in Downloads/BYTE."]) { send({ kind: "content", delta: t }); await wait(10); }
+              send({ kind: "done", finishReason: "stop" });
+              finish(null);
+            };
+            return ended;
           }
           if (data.video) {
             send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
@@ -989,6 +1032,21 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".video").scrollIntoViewIfNeeded();
   await shot(p, "20-video-summary");
   console.log("video errors:", errors);
+  await ctx.close();
+}
+// Web agent: steps, the approval card (waiting), then approved with a saved PDF
+{
+  const { p, ctx, errors } = await page(true, "midnight", { agent: true });
+  await p.getByLabel("Message BYTE").fill("Go to carnegielibrary.org and apply for a library card for Ada Lovelace (ada@example.com), home branch Squirrel Hill");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(700);
+  await p.locator(".approval").scrollIntoViewIfNeeded();
+  await shot(p, "21-agent-approval");
+  await p.getByRole("button", { name: "Submit", exact: true }).click();
+  await p.waitForTimeout(700);
+  await p.locator(".saved-files").scrollIntoViewIfNeeded();
+  await shot(p, "21b-agent-done");
+  console.log("agent errors:", errors);
   await ctx.close();
 }
 // A model that didn't load: what's using memory, with Quit buttons

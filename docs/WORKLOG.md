@@ -17,6 +17,43 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (this commit) — v0.6.6: the web agent (a private browser BYTE drives, with approval before submitting)
+- **Why:** Phase 6 item 7 (owner's plan, round 11): browse and click, fill forms (always stop for approval
+  before submitting), download into a folder, full-page screenshots/archives.
+- **What:**
+  - `src-tauri/src/web_agent/bridge.js` (new, injected into every page): numbered snapshot of links, buttons,
+    inputs, lists (hidden ones skipped; private fields and committing buttons marked), `click` (refuses committing
+    buttons unless approved; clicks after replying so a page load isn't cut off), `type` (native value setter +
+    input/change events; refuses private fields), `choose` (lists and radio groups), `scroll`, `formInfo`, `size`.
+  - `web_agent/browser.rs` (new): `TauriBrowser`, a hidden incognito window; commands via `eval`, replies via a
+    cancelled navigation to `byteagent://r/<id>?d=<json>` (`parse_reply`); `on_navigation` allows only public
+    http(s) (plus about/data/blob), `on_new_window` opens pop-ups in place, page-load counters for waiting.
+    `web_agent/capture_mac.rs` (new, macOS): WKWebView `createPDF`, `takeSnapshot` → PNG (window made page-tall
+    first), `createWebArchiveData` (type-checked with a scratch crate for aarch64-apple-darwin; compiled on the
+    Mac runner). Cargo: `objc2-web-kit`, `block2`, more `objc2-app-kit` features (macOS only).
+  - `web_agent/mod.rs` (new): `Browser` trait, `Session` (tools, step limit 25, approval cards with a 10-minute
+    wait, a Deny ends browsing for the answer, private-field and public-host guards, downloads ≤200 MB to
+    Downloads/BYTE with safe unique names, page saves with a text fallback), `wants_web_agent`, `url_in`,
+    `format_snapshot` (+ a next-step nudge), `compact` (older page views shrink to one line), `AGENT_RULES`.
+  - `agent.rs`: `Turn.agent`, `Task::Browse`; when it applies the agent gets web_search + calculate + the browser
+    tools, opens a linked site first, runs browser tools through the session and closes it at the end
+    (`ChatEvent::Browsing`). `chat.rs`: `Approval`, `ApprovalDone`, `Saved`, `Browsing` events (wire test locks
+    them; `SavedFile.format`, not `kind`, which is the event tag). Commands `agent_approve`, `agent_show`,
+    `agent_file` (only inside Downloads/BYTE; only documents/pictures open, anything else is revealed).
+    `settings.webAgentEnabled` (default on).
+  - UI: `components/chat/AgentCards.tsx` (approval card, saved-file chips, browsing bar with Show browser),
+    `lib/agent.ts` + tests, Agent pill in the composer, Settings → Features toggle, Activity labels, store events,
+    CSS; screenshots 21 and 21b. `mac-engine.yml` watches `web_agent/**`.
+  - Version 0.6.6, `docs/releases/v0.6.6.md`, VERSIONS, CHANGELOG, HANDOFF, PROJECT_GUIDE.
+- **Verify:** `scripts/check-all.sh` (231 Rust incl. 14 session tests with a scripted browser: approvals,
+  deny/timeout/cancel, private fields, local hosts, step limit, compaction, routing; 109 vitest incl. the bridge in
+  jsdom). Real browser (WebKitGTK under Xvfb): `xvfb-run cargo test e2e_real_browser -- --ignored` (bridge round
+  trip, typing, password refused, submit gated, a link click loads example.com). Real engine + real browser:
+  `xvfb-run cargo test e2e_web_agent -- --ignored` with Qwen3.5-2B: opened example.com and summarized it; on
+  httpbin.org/forms/post typed the name, pressed Submit order → approval card → Deny → nothing sent, browsing
+  stopped (before the fix it asked 4 times). Qwen3-0.6B opens and reads pages but doesn't act on forms.
+- **Undo:** revert. To switch off without reverting: Settings → Web agent, or `web_agent_enabled` default false.
+
 ### (this commit) — v0.6.5: YouTube summaries and questions about a video
 - **Why:** Phase 6 item 6 (owner's plan): YouTube transcripts, summaries with timestamps, Q&A.
 - **What:**

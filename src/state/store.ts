@@ -5,6 +5,7 @@ import { api, errorText, events, inTauri, type ChatPatch, type CloudTurn } from 
 import { idOf, isImage, listOf, str, titleOf } from "../lib/cloudDocs";
 import { branchAt, switchVersion, versionsAt } from "../lib/branches";
 import { titleFrom } from "../lib/format";
+import { endBrowsing } from "../lib/agent";
 import type {
   ChatEvent,
   ConversationMeta,
@@ -34,6 +35,8 @@ import type {
   RecipeIdeas,
   MealPlan,
   VideoCard,
+  ApprovalCard,
+  SavedFile,
 } from "../lib/types";
 
 /** One tool use shown in the answer's activity list. */
@@ -112,6 +115,10 @@ export interface Message {
   mealPlan?: MealPlan;
   /** A YouTube video summary card. */
   video?: VideoCard;
+  /** Web agent: approval cards (submit, download…), files it saved, and whether its browser is open. */
+  approvals?: ApprovalCard[];
+  saved?: SavedFile[];
+  browsing?: boolean;
   /** A job this (user) message asked for with a button, e.g. Fact-check. */
   task?: ChatTask;
   /** Thumbs up/down given on the cloud. */
@@ -589,6 +596,25 @@ export const useStore = create<State>((set, get) => {
           patchMessage(convId, reply.id, (m) => ({ ...m, video }));
           break;
         }
+        case "approval": {
+          const { kind: _kind, ...ask } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, approvals: [...(m.approvals ?? []), { ...ask, status: "waiting" }] }));
+          break;
+        }
+        case "approvalDone":
+          patchMessage(convId, reply.id, (m) => ({
+            ...m,
+            approvals: (m.approvals ?? []).map((a) => (a.id === e.id ? { ...a, status: e.ok ? "approved" : a.status === "waiting" ? "declined" : a.status } : a)),
+          }));
+          break;
+        case "saved": {
+          const { kind: _kind, ...file } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, saved: [...(m.saved ?? []), file] }));
+          break;
+        }
+        case "browsing":
+          patchMessage(convId, reply.id, (m) => ({ ...m, browsing: e.active }));
+          break;
         case "stats": {
           const { kind: _kind, ...stats } = e;
           patchMessage(convId, reply.id, (m) => ({ ...m, stats }));
@@ -598,7 +624,7 @@ export const useStore = create<State>((set, get) => {
           cancelAnimationFrame(frame);
           flush();
           patchMessage(convId, reply.id, (m) => ({
-            ...m,
+            ...endBrowsing(m),
             phase: undefined,
             status: e.finishReason === "cancelled" ? "cancelled" : "done",
           }));
@@ -611,7 +637,7 @@ export const useStore = create<State>((set, get) => {
     } catch (err) {
       cancelAnimationFrame(frame);
       flush();
-      patchMessage(convId, reply.id, (m) => ({ ...m, phase: undefined, status: "error", error: errorText(err) }));
+      patchMessage(convId, reply.id, (m) => ({ ...endBrowsing(m), phase: undefined, status: "error", error: errorText(err) }));
     } finally {
       const running = get().running.filter((id) => id !== reply.id);
       set({ running, generating: running.length ? (get().generating === reply.id ? running[0] : get().generating) : null });

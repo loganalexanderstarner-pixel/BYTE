@@ -119,6 +119,14 @@ pub enum ChatEvent {
     MealPlan(crate::kitchen::MealPlan),
     /// A YouTube video's summary card (youtube.rs).
     Video(crate::youtube::VideoCard),
+    /// The web agent wants to submit, commit or download: the user approves or denies.
+    Approval(crate::web_agent::ApprovalAsk),
+    /// The approval card was answered (or timed out: `ok` false).
+    ApprovalDone { id: String, ok: bool },
+    /// A file the web agent saved (a download, or a page as PDF/picture).
+    Saved(crate::web_agent::SavedFile),
+    /// The web agent's browser opened (true) or closed (false).
+    Browsing { active: bool },
 }
 
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]
@@ -782,5 +790,15 @@ mod wire_format {
         let s = crate::engine::EngineStatus::Ready { model: "m".into(), context: 4096, boosted: false, vision: false };
         assert_eq!(serde_json::to_value(s).unwrap(), serde_json::json!({ "state": "ready", "model": "m", "context": 4096, "boosted": false, "vision": false }));
         assert_eq!(serde_json::to_value(crate::engine::EngineStatus::NoModel).unwrap(), serde_json::json!({ "state": "noModel" }));
+        // Web agent events (lib/types.ts ApprovalAsk / SavedFile): no field may clash with the "kind" tag.
+        let ask = crate::web_agent::ApprovalAsk { id: "a1".into(), action: "submit".into(), title: "Submit?".into(), site: "example.com".into(), url: "https://example.com/".into(), target: "Send".into(), fields: vec![] };
+        let v = serde_json::to_value(ChatEvent::Approval(ask)).unwrap();
+        assert_eq!(v, serde_json::json!({ "kind": "approval", "id": "a1", "action": "submit", "title": "Submit?", "site": "example.com", "url": "https://example.com/", "target": "Send", "fields": [] }));
+        let f = crate::web_agent::SavedFile { path: "/d/a.pdf".into(), name: "a.pdf".into(), format: "pdf".into(), bytes: 3, url: "https://x.com".into() };
+        let v = serde_json::to_string(&ChatEvent::Saved(f)).unwrap();
+        assert_eq!(v.matches("\"kind\"").count(), 1, "{v}");
+        assert!(v.contains("\"format\":\"pdf\""));
+        assert_eq!(serde_json::to_value(ChatEvent::ApprovalDone { id: "a1".into(), ok: true }).unwrap(), serde_json::json!({ "kind": "approvalDone", "id": "a1", "ok": true }));
+        assert_eq!(serde_json::to_value(ChatEvent::Browsing { active: true }).unwrap(), serde_json::json!({ "kind": "browsing", "active": true }));
     }
 }

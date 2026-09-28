@@ -419,10 +419,11 @@ checksum = "5dd9dc738b7a8311c7ade152424974d8115f2cdad61e8dab8dac9f2362298510"
 
 [[package]]
 name = "byte"
-version = "0.6.5"
+version = "0.6.6"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "block2",
  "chrono",
  "dom_smoothie",
  "fend-core",
@@ -435,6 +436,7 @@ dependencies = [
  "objc2-foundation",
  "objc2-pdf-kit",
  "objc2-vision",
+ "objc2-web-kit",
  "once_cell",
  "pdf-extract",
  "quick-xml 0.37.5",

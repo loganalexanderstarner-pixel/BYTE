@@ -191,9 +191,9 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
     let catalog = state.catalog.get();
     let profile = catalog.resolve(&ep.model).map(|(m, _)| crate::modelcfg::profile(m)).unwrap_or_default();
     let plan = router::plan_turn(request.mode, request.thinking, last_user).for_model(profile);
-    let (web, user_name, memory, about_me, home, depth, web_always, kitchen) = {
+    let (web, user_name, memory, about_me, home, depth, web_always, kitchen, web_agent) = {
         let s = state.settings.lock().await;
-        (s.web_search, s.user_name.clone(), s.memory_enabled && !request.private, s.about_me.clone(), s.home_place.clone(), s.research_depth, s.web_mode == "always", s.kitchen_enabled)
+        (s.web_search, s.user_name.clone(), s.memory_enabled && !request.private, s.about_me.clone(), s.home_place.clone(), s.research_depth, s.web_mode == "always", s.kitchen_enabled, s.web_agent_enabled)
     };
     let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());
     if memory {
@@ -233,6 +233,7 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
         depth: depth.min(2),
         web_always,
         kitchen,
+        agent: web_agent,
     };
     let result = agent::run(turn, cancel, on_event).await;
     state.generations.finish(&request.request_id).await;

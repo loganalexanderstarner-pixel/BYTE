@@ -32,6 +32,7 @@ mod summarize;
 mod system;
 mod tools;
 mod trip;
+mod web_agent;
 mod youtube;
 mod tune;
 
@@ -155,6 +156,9 @@ pub fn run() {
             commands::doc_write,
             commands::doc_save,
             commands::calendar_open,
+            commands::agent_approve,
+            commands::agent_show,
+            commands::agent_file,
             commands::recipes_list,
             commands::recipe_save,
             commands::recipe_delete,

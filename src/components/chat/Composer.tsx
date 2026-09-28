@@ -1,6 +1,6 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { ArrowUp, Brain, Cloud, FolderSearch, Images, Loader2, Paperclip, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap } from "lucide-react";
+import { AppWindow, ArrowUp, Brain, Cloud, FolderSearch, Images, Loader2, Paperclip, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { api, inTauri } from "../../lib/api";
@@ -54,6 +54,8 @@ export function Composer() {
   const currentId = useStore((s) => s.currentId);
   const webMode = useStore((s) => webState(s.settings));
   const web = webMode !== "off";
+  // Agent pill: this message uses the browser ("go to … and fill in …").
+  const [browse, setBrowse] = useState(false);
   const toggleWeb = useStore((s) => s.toggleWeb);
   const toggleFiles = useStore((s) => s.toggleFiles);
   const hasFiles = useStore((s) => (s.kb?.sources ?? []).some((x) => x.chunks > 0));
@@ -77,6 +79,7 @@ export function Composer() {
   const onBoth = cloudConnected && space === "both";
   // Files are read on this Mac for local chats; photos only when the loaded model can see.
   const onLocal = !onCloud && !onBoth;
+  const canBrowse = onLocal && web && settings?.webAgentEnabled !== false;
   const canSee = engine.state === "ready" && !!engine.vision;
   const cloudModes = cloudStatus?.account?.modes ?? [];
   const cloudMode = settings?.cloudMode ?? cloudModes[0]?.id;
@@ -150,7 +153,8 @@ export function Composer() {
 
   const submit = () => {
     if (!ready || generating || !text.trim() || attaching > 0) return;
-    void send(text);
+    void send(text, browse && canBrowse ? { task: "browse" } : undefined);
+    setBrowse(false);
     setText("");
   };
 
@@ -339,6 +343,18 @@ export function Composer() {
             >
               <Globe size={14} />
               {WEB_LABEL[webMode]}
+            </button>
+          )}
+          {canBrowse && (
+            <button
+              className={`pill ${browse ? "accent" : ""}`}
+              style={{ cursor: "pointer", height: 30 }}
+              onClick={() => setBrowse(!browse)}
+              aria-pressed={browse}
+              title={browse ? "Agent is on for this message: BYTE uses a private browser to do it (it asks before submitting or downloading)" : "Agent: let BYTE use a browser for this message (open sites, click, fill in forms)"}
+            >
+              <AppWindow size={14} />
+              Agent
             </button>
           )}
           {onLocal && hasFiles && (
