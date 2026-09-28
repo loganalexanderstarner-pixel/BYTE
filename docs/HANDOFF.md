@@ -145,6 +145,20 @@ from files). Cloud keeps its existing attachments.
   model; image model + BYTE Cloud; chat model alone. When a helper is chosen (local model or cloud), it turns a
   short request into a detailed prompt first (shown, editable), then the image is made.
 - Gallery: saved to `~/Pictures/BYTE`; open, copy, share, delete; re-run with the same seed; size/steps presets.
+- **Owner, 2026-09-28: use the Mac's hardware, and add upscaling / refining.**
+  - Hardware: image models run on the GPU through Metal (stable-diffusion.cpp's Metal backend, or MLX later);
+    Core ML versions (Apple's ml-stable-diffusion) can also use the **Neural Engine**, which frees the GPU and
+    saves battery. Benchmark both per Mac, like `tune.rs` does for chat, and keep the faster one. The M4's
+    **hardware ray tracing doesn't help**: it speeds up 3D rendering (light rays bouncing through a scene),
+    and image models are pure matrix math, which runs on the GPU's compute units and the Neural Engine.
+  - **Upscale to 4K**: a small upscaler model (Real-ESRGAN / 4x-UltraSharp class; stable-diffusion.cpp has
+    `--upscale-model`) turns a 1024 px image into 4096 px in seconds. Offered as "Upscale ×2 / ×4" on
+    every image in the gallery.
+  - **"More detail" / "More realistic"**: run the finished image back through the model (image-to-image) at
+    low strength (~0.25–0.4), optionally in tiles at the higher resolution ("tiled upscale", keeps memory
+    low on 16 GB). Presets: *More detail* (same prompt, upscale then refine), *More realistic* (adds
+    photo-style wording and a realism-tuned model/LoRA when installed), *Variation* (higher strength).
+    The chat model or BYTE Cloud can rewrite the prompt for the refine pass, as in the first pass.
 
 **Windows and Linux**: separate native apps per OS, and flexible RAM/VRAM use: see
 `docs/DESIGN-AND-PLATFORMS.md` "Owner decisions, 2026-09-28".
