@@ -1168,12 +1168,26 @@ mod tests {
         let p = plan(m, v, &m16, 16384);
         assert_eq!(p.fit, Fit::Tight);
         assert!(p.cpu_moe_layers > 0 && p.cpu_moe_layers < m.arch.n_layer / 2 && p.gpu_layers.is_none(), "{p:?}");
-        assert!(offload_slowdown(m, &p) > 0.8);
-        // A dense model slightly too big runs in stretch mode but is never recommended.
-        let (m, v) = c.resolve("qwen3.8-27b:UD-IQ3_XXS").unwrap();
+        assert!(offload_slowdown(m, &p) > 0.6, "{p:?} {}", offload_slowdown(m, &p));
+        // Dense models slightly too big run in stretch mode but are never recommended.
+        let stretched: Vec<_> = c
+            .models
+            .iter()
+            .flat_map(|m| m.variants.iter().map(move |v| (m, v)))
+            .filter(|(m, v)| plan(m, v, &m16, 16384).gpu_layers.is_some_and(|n| n < m.arch.n_layer))
+            .collect();
+        assert!(!stretched.is_empty());
+        for (m, v) in stretched {
+            assert_ne!(best_variant(m, &m16, 16384).map(|b| b.quant.as_str()), Some(v.quant.as_str()), "{}", m.id);
+        }
+        // Honest about memory: macOS needs its share too (these got killed while loading on a 16 GB Mac).
+        for k in ["qwen3.6-35b-a3b:UD-IQ3_XXS", "qwen3.8-27b:UD-IQ3_XXS"] {
+            let (m, v) = c.resolve(k).unwrap();
+            assert_eq!(plan(m, v, &m16, 16384).fit, Fit::TooBig, "{k}");
+        }
+        let (m, v) = c.resolve("qwen3.6-35b-a3b:UD-IQ2_M").unwrap();
         let p = plan(m, v, &m16, 16384);
-        assert!(p.gpu_layers.is_some_and(|n| n < m.arch.n_layer), "{p:?}");
-        assert_ne!(best_variant(m, &m16, 16384).map(|v| v.quant.as_str()), Some("UD-IQ3_XXS"));
+        assert!(p.fit == Fit::Tight && p.cpu_moe_layers > 0, "{p:?}");
         assert!(!recommend(&c, &m16, 16384).map(|(m, v)| plan(m, v, &m16, 16384).offloaded()).unwrap());
         // Far too big stays too big.
         let (m, v) = c.resolve("qwen3.8-27b:Q8_0").unwrap();

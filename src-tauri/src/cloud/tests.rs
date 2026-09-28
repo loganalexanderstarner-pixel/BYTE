@@ -424,3 +424,32 @@ async fn cloud_search_reads_results_and_reports_limits() {
     assert_eq!(results[0].snippet, "Model 3 starts at $42,490");
     assert!(matches!(client.search("busy", 5).await, Err(CloudError::Limited(_))));
 }
+
+#[tokio::test]
+async fn a_stream_closed_after_every_piece_keeps_going_without_waiting() {
+    // The server ends the stream (bye) after each piece: BYTE must reopen at
+    // once each time, however many times, as long as text keeps coming.
+    let server = MockServer::start().await;
+    let pieces = ["One ", "two ", "three ", "four ", "five ", "six ", "seven ", "eight."];
+    for (i, p) in pieces.iter().enumerate() {
+        let mut events = vec![("delta", json!({ "id": 31, "append": p }))];
+        if i == pieces.len() - 1 {
+            events.push(("status", json!({ "id": 31, "status": "done" })));
+        } else {
+            events.push(("bye", json!({})));
+        }
+        Mock::given(method("GET"))
+            .and(path("/api/conversations/c9/stream"))
+            .respond_with(sse(&events))
+            .up_to_n_times(1)
+            .with_priority(1 + i as u8)
+            .mount(&server)
+            .await;
+    }
+    let client = CloudClient::new(&server.uri(), FAKE_KEY);
+    let (ch, _) = collecting_channel();
+    let t = Instant::now();
+    let end = follow(&client, "c9", Some("30".into()), None, &CancellationToken::new(), &ch).await.unwrap();
+    assert_eq!(end.text, "One two three four five six seven eight.");
+    assert!(t.elapsed() < Duration::from_secs(2), "no growing pauses between pieces: {:?}", t.elapsed());
+}

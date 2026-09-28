@@ -29,6 +29,7 @@ import { createPortal } from "react-dom";
 import { Logo } from "../design/Logo";
 import { api, inTauri } from "../lib/api";
 import type { Project, SearchHit, Workspace } from "../lib/types";
+import { listSignature } from "../lib/throttle";
 import { hasMessages, spaceOf, useStore, workspaceOf, type CloudChat, type Conversation } from "../state/store";
 
 function groupLabel(ts: number): string {
@@ -102,7 +103,10 @@ function Snippet({ text }: { text: string }) {
 }
 
 export function Sidebar() {
-  const allConversations = useStore((s) => s.conversations);
+  // Re-render only when the list changes, not with every streamed word.
+  const signature = useStore((s) => listSignature(s.conversations));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const allConversations = useMemo(() => useStore.getState().conversations, [signature]);
   const settings = useStore((s) => s.settings);
   const workspace = workspaceOf(settings);
   const setWorkspace = useStore((s) => s.setWorkspace);

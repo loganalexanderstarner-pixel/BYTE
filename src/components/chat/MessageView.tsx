@@ -8,6 +8,7 @@ import { Logo } from "../../design/Logo";
 import { duration, tokensPerSec } from "../../lib/format";
 import { displayName } from "../../lib/models";
 import { closeOpenFences, renderMarkdown } from "../../lib/markdown";
+import { useThrottled } from "../../lib/throttle";
 import { AttachmentChips } from "./Attachments";
 import { useStore, type Message, type Step } from "../../state/store";
 import { Activity, Sources } from "./Activity";
@@ -151,9 +152,11 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
   // Name the model when it isn't simply the main one.
   const modelLabel = message.model && (message.group || message.picked) ? displayName(models, message.model, true) : null;
   const [copied, setCopied] = useState(false);
+  // While streaming, formatting is redone ~12 times a second, not every frame (long answers stay smooth).
+  const content = useThrottled(message.content, generating ? 80 : 0);
   const html = useMemo(
-    () => renderMarkdown(generating ? closeOpenFences(message.content) : message.content, message.sources ?? []),
-    [message.content, generating, message.sources],
+    () => renderMarkdown(generating ? closeOpenFences(content) : content, message.sources ?? []),
+    [content, generating, message.sources],
   );
   const toolSteps = (message.steps ?? []).filter((st) => st.name !== "remember");
   const memorySteps = (message.steps ?? []).filter((st) => st.name === "remember");

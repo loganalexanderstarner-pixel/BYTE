@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased (1.0.0-test.13) — Big models that load, a smoother cloud
+
+- **Big mixture-of-experts models load reliably** (Qwen3.6 35B-A3B, gpt-oss 20B on 16 GB Macs): BYTE now
+  leaves enough memory for macOS and the GPU's working buffers when part of a model runs on the CPU, and no
+  longer offers versions that can't really fit (it said Qwen3.6 35B-A3B IQ3_XXS would run on 16 GB; it can't).
+- **If a model fails to load, BYTE tries safer settings by itself** (smaller context, more of the model on the
+  CPU) before showing an error, and remembers what worked.
+- **Cloud answers stream smoothly**: the connection to your cloud is kept open between messages, and when the
+  cloud closes the answer stream mid-answer BYTE reconnects instantly (it used to wait longer each time and
+  give up after five).
+- **Smoother long answers everywhere**: formatting is redrawn about 12 times a second while streaming instead
+  of every frame, and the sidebar no longer redraws with every word.
+
 ## 1.0.0-test.12 — Web search that works
 
 - **Web search through your BYTE cloud**: with a cloud key saved, every search (including the ones this Mac's

@@ -1,23 +1,10 @@
 name: Mac engine test
 
 # Builds llama-server with Metal and runs the end-to-end tests against a real
-# model. Runs only when engine-related code changes (or by hand) because
-# macOS minutes are expensive on private repositories.
+# model. macOS runners cost 10x Linux minutes on private repositories, so this
+# runs only when started by hand (before a test build, or after engine/agent
+# changes): Actions → "Mac engine test" → Run workflow.
 on:
-  push:
-    branches: ["**"]
-    paths:
-      - "src-tauri/src/engine.rs"
-      - "src-tauri/src/chat.rs"
-      - "src-tauri/src/agent.rs"
-      - "src-tauri/src/tools/**"
-      - "src-tauri/src/speed.rs"
-      - "src-tauri/src/tune.rs"
-      - "src-tauri/src/summarize.rs"
-      - "src-tauri/Cargo.lock"
-      - "scripts/LLAMA_TAG"
-      - "scripts/build-llama-server.sh"
-      - ".github/workflows/mac-engine.yml"
   workflow_dispatch:
 
 concurrency:

@@ -344,6 +344,14 @@ pub fn plan_fit(
 /// Dense models may run at most this share of their weights on the CPU.
 const MAX_STRETCH: f64 = 0.15;
 
+/// With part of a model on the CPU, the whole file still sits in memory, so
+/// macOS, BYTE's window and the GPU driver need this much left over (3 GB
+/// wasn't enough on 16 GB Macs: big MoE models got killed while loading).
+const OFFLOAD_OS_RESERVE: u64 = 4 * GB;
+/// GPU memory kept free for llama.cpp's working buffers when offloading
+/// (0.3 GB made Metal fail to allocate them for 35B MoE models).
+const OFFLOAD_GPU_MARGIN: u64 = 1_000_000_000;
+
 /// For a model that doesn't fit the GPU's share of memory: runs part of it on
 /// the CPU when the whole model still fits in RAM (Apple Silicon memory is
 /// shared, so nothing is copied). Mixture-of-experts models move whole expert
@@ -356,14 +364,14 @@ pub fn plan_offload(weights_bytes: u64, arch: ModelArch, desired_ctx: u32, total
     let per_tok = arch.kv_bytes_per_token().max(1);
     let desired = desired_ctx.min(arch.max_ctx).max(MIN_CONTEXT);
     let base = weights_bytes + RUNTIME_OVERHEAD;
-    let ram_room = total_ram.checked_sub(base + OS_RESERVE)?;
+    let ram_room = total_ram.checked_sub(base + OFFLOAD_OS_RESERVE)?;
     if ram_room < per_tok * MIN_CONTEXT as u64 || arch.n_layer == 0 {
         return None;
     }
     let context = ((ram_room / per_tok).min(desired as u64) as u32 / 1024 * 1024).max(MIN_CONTEXT);
     let needed = base + per_tok * context as u64;
     // What must leave the GPU, with a little margin for buffers.
-    let excess = (needed + 300 * 1_000_000).saturating_sub(gpu_budget);
+    let excess = (needed + OFFLOAD_GPU_MARGIN).saturating_sub(gpu_budget);
     if excess == 0 {
         return None; // fits on the GPU: the normal plan applies
     }

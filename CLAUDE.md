@@ -56,7 +56,7 @@ src-tauri/                Rust core (Tauri 2)
   src/settings.rs         persisted settings (camelCase JSON)
   binaries/               sidecars, built by scripts (gitignored)
 scripts/                  build-llama-server.sh, LLAMA_TAG (pinned), bump.mjs
-.github/workflows/        ci.yml (frontend + Linux Rust tests + secret scan), mac-engine.yml (real engine on macOS),
+.github/workflows/        ci.yml (frontend + Linux Rust tests + secret scan), mac-engine.yml (real engine on macOS; manual only, macOS minutes are 10×),
                           release.yml (dmg, workflow_dispatch with a tag)
 ```
 

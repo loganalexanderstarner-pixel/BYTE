@@ -158,11 +158,12 @@ pub fn id_of(v: &Value) -> Option<String> {
 
 impl CloudClient {
     pub fn new(base: &str, key: &str) -> Self {
-        let http = reqwest::Client::builder()
-            .connect_timeout(Duration::from_secs(10))
-            .user_agent(concat!("BYTE-mac/", env!("CARGO_PKG_VERSION")))
-            .build()
-            .expect("http client");
+        Self::with_http(http_client(), base, key)
+    }
+
+    /// Uses a shared HTTP client, so its open connection to the cloud (and
+    /// the TLS handshake) is reused across messages instead of redone each time.
+    pub fn with_http(http: reqwest::Client, base: &str, key: &str) -> Self {
         CloudClient { http, base: base.trim_end_matches('/').to_string(), key: key.trim().to_string() }
     }
 
@@ -352,7 +353,18 @@ pub fn sources_of(v: &Value) -> Vec<crate::tools::Source> {
         .unwrap_or_default()
 }
 
-/// Wait between reconnect attempts (grows with each try).
+/// The HTTP client for the cloud. One is kept for the whole app (AppState).
+pub fn http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .pool_idle_timeout(Duration::from_secs(90))
+        .tcp_keepalive(Duration::from_secs(30))
+        .user_agent(concat!("BYTE-mac/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .expect("http client")
+}
+
+/// Wait between reconnect attempts that got nothing (grows with each try).
 const BACKOFF_MS: u64 = if cfg!(test) { 5 } else { 500 };
 
 /// How one streamed answer ended.
@@ -378,7 +390,11 @@ pub async fn follow(
     let started = Instant::now();
     let mut first_token: Option<Instant> = None;
     let mut text_out = String::new();
-    let mut reconnects = 0;
+    // Connection attempts in a row that brought no events. A stream that
+    // closes after delivering text (the server's `bye`, a redeploy) is
+    // reopened at once; only empty attempts wait, and only they count.
+    let mut empty = 0u64;
+    let mut connected_once = false;
     let emit = |e: ChatEvent| {
         let _ = on_event.send(e);
     };
@@ -390,16 +406,18 @@ pub async fn follow(
         let resp = match resp {
             Ok(r) => r,
             // The stream came back once and now won't reopen: keep trying below, then re-read.
-            Err(CloudError::Unreachable(m)) if reconnects > 0 => {
-                reconnects += 1;
-                if reconnects > 5 {
+            Err(CloudError::Unreachable(m)) if connected_once => {
+                empty += 1;
+                if empty > 5 {
                     return recover(client, cid, since.as_deref(), assistant, text_out, on_event).await.ok_or(CloudError::Unreachable(m));
                 }
-                tokio::time::sleep(Duration::from_millis(BACKOFF_MS * reconnects)).await;
+                tokio::time::sleep(Duration::from_millis(BACKOFF_MS * empty)).await;
                 continue;
             }
             Err(e) => return Err(e),
         };
+        connected_once = true;
+        let mut got_events = false;
         let mut body = resp.bytes_stream();
         let mut parser = sse::Parser::default();
         let mut finished: Option<String> = None;
@@ -414,6 +432,9 @@ pub async fn follow(
                 Err(_) => break 'read, // dropped: reconnect below
             };
             for ev in parser.push(&String::from_utf8_lossy(&chunk)) {
+                if ev.event != "bye" {
+                    got_events = true;
+                }
                 let data: Value = serde_json::from_str(&ev.data).unwrap_or(Value::Null);
                 let row_id = id_of(&data);
                 let mine = |a: &Option<String>| a.is_none() || a == &row_id;
@@ -493,13 +514,17 @@ pub async fn follow(
             }
             return Ok(TurnEnd { assistant_id: assistant, text: text_out, finish: "stop".into() });
         }
-        reconnects += 1;
-        if reconnects > 5 {
+        if got_events {
+            empty = 0;
+            continue; // the answer is still coming: reopen right away
+        }
+        empty += 1;
+        if empty > 5 {
             return recover(client, cid, since.as_deref(), assistant, text_out, on_event)
                 .await
                 .ok_or_else(|| CloudError::Unreachable("the answer stream kept dropping".into()));
         }
-        tokio::time::sleep(Duration::from_millis(BACKOFF_MS * reconnects)).await;
+        tokio::time::sleep(Duration::from_millis(BACKOFF_MS * empty)).await;
     }
 }
 

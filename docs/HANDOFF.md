@@ -137,8 +137,11 @@ then stability, then looks, then feature count.
 - **UI screenshots:** `tools/ui-shots/` (see its README): build, serve with `npx vite preview`, run
   `node shots.mjs`; it mocks every Tauri command and walks the main screens. Add mocks for new commands, and
   look at the pictures before claiming UI works.
-- **CI:** `ci.yml` (frontend + Linux Rust tests + secret scan) on every push; `mac-engine.yml` (real engine on
-  macOS/Metal) only when engine/chat/agent/tools/speed/tune/summarize/Cargo.lock/LLAMA_TAG change.
+- **CI (the owner's Actions minutes are limited: be sparing):** `ci.yml` (frontend + Linux Rust tests + secret
+  scan) runs once per push, skipping docs-only pushes; `mac-engine.yml` (real engine on macOS/Metal, 10× the
+  minutes) runs **only by hand** (workflow_dispatch): before a test build or after engine/agent changes.
+  Batch commits and push less often; run the real-engine tests locally where you can
+  (`BYTE_TEST_LLAMA_SERVER`/`BYTE_TEST_MODEL`, see chat.rs).
 - **Test build:** `node scripts/bump.mjs 1.0.0-test.N` → commit → push → run the `release.yml` workflow with
   input `tag = v1.0.0-test.N` (workflow_dispatch). Add a CHANGELOG entry per build, in plain language.
 - **Style:** match the surrounding code; no repo-wide reformatting (there is no prettier config — don't run

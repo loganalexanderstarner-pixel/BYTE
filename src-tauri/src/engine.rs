@@ -121,6 +121,9 @@ struct Inner {
     generation: u64,
     restarts: u32,
     log: VecDeque<String>,
+    /// Safer settings that worked this session after a model failed to load
+    /// ("id:quant" → context, CPU expert layers, GPU layers), reused on restarts.
+    safer: std::collections::HashMap<String, (u32, u32, Option<u32>)>,
 }
 
 #[derive(Clone)]
@@ -149,6 +152,7 @@ impl Engine {
                 endpoint: None,
                 generation: 0,
                 restarts: 0,
+                safer: Default::default(),
                 log: VecDeque::with_capacity(LOG_LINES),
             })),
             http: crate::chat::local_client(),
@@ -262,17 +266,58 @@ impl Engine {
                 gpu_layers: plan.gpu_layers,
             },
         };
-        let result = self.spawn(app.clone(), launch.clone()).await;
+        let moe = models::expert_share(model) > 0.3;
+        let mut launch = launch;
+        // Offloaded models: bigger batches mean bigger GPU buffers; keep llama.cpp's default.
+        if launch.opts.cpu_moe_layers > 0 || launch.opts.gpu_layers.is_some() {
+            launch.opts.ubatch = launch.opts.ubatch.map(|u| u.min(512));
+        }
+        // Settings that already worked this session after a failed load.
+        if let Some(&(ctx, cpu_moe, gpu)) = self.inner.lock().await.safer.get(&launch.key) {
+            launch = safer_launch(&launch, ctx, cpu_moe, gpu);
+        }
+        let mut attempts = vec![launch.clone()];
         // A helper that doesn't work with this engine build must never leave
         // the user without a model: start again without it.
-        if result.is_err() && (launch.opts.draft.is_some() || launch.opts.ngram) {
-            log::warn!("engine didn't start with Speed boost; starting {} without it", launch.key);
-            let mut plain = launch;
+        let mut plain = launch.clone();
+        if plain.opts.draft.is_some() || plain.opts.ngram {
             plain.opts.draft = None;
             plain.opts.ngram = false;
-            return self.spawn(app.clone(), plain).await;
+            attempts.push(plain.clone());
         }
-        result
+        // Then safer settings, so a model BYTE said would run does run.
+        let first_fallback = attempts.len();
+        attempts.extend(fallback_launches(&plain, model.arch.n_layer, moe));
+        let mut last = Ok(());
+        for (i, attempt) in attempts.iter().enumerate() {
+            if i > 0 {
+                log::warn!(
+                    "{} didn't start; trying again with {}-token context, {} CPU expert layers, GPU layers {:?}, helper {}",
+                    attempt.key,
+                    attempt.context,
+                    attempt.opts.cpu_moe_layers,
+                    attempt.opts.gpu_layers,
+                    attempt.opts.draft.is_some()
+                );
+            }
+            last = self.spawn(app.clone(), attempt.clone()).await;
+            match &last {
+                Ok(()) => {
+                    let mut inner = self.inner.lock().await;
+                    if i >= first_fallback {
+                        inner.safer.insert(attempt.key.clone(), (attempt.context, attempt.opts.cpu_moe_layers, attempt.opts.gpu_layers));
+                    }
+                    if let Some(l) = inner.loaded.as_mut() {
+                        l.context = attempt.context;
+                    }
+                    return Ok(());
+                }
+                // A damaged file won't load with any settings.
+                Err(e) if e.to_string().contains("damaged") => return last,
+                Err(_) => {}
+            }
+        }
+        last
     }
 
     /// Boxed with an explicit type so the crash-restart path (which calls back
@@ -629,6 +674,43 @@ pub fn server_args(model: &std::path::Path, port: u16, api_key: &str, alias: &st
     ]
 }
 
+/// `launch` with a smaller context and more of the model on the CPU.
+fn safer_launch(launch: &Launch, context: u32, cpu_moe_layers: u32, gpu_layers: Option<u32>) -> Launch {
+    let mut l = launch.clone();
+    l.context = context.min(launch.context).max(MIN_START_CONTEXT);
+    l.opts.cpu_moe_layers = cpu_moe_layers.max(launch.opts.cpu_moe_layers);
+    l.opts.gpu_layers = match (gpu_layers, launch.opts.gpu_layers) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (a, b) => a.or(b),
+    };
+    l.opts.ubatch = Some(512);
+    l.opts.kv_f16 = false;
+    l.opts.flash_attn_off = false;
+    l
+}
+
+const MIN_START_CONTEXT: u32 = 4096;
+
+/// Safer ways to start a model that failed to load (usually memory): half
+/// the context and a quarter more of the model on the CPU, then the smallest
+/// context with every expert (MoE) or half the layers (dense) on the CPU.
+fn fallback_launches(launch: &Launch, n_layer: u32, moe: bool) -> Vec<Launch> {
+    let n = n_layer.max(1);
+    let (moe1, gpu1, moe2, gpu2) = if moe {
+        ((launch.opts.cpu_moe_layers + n / 4).min(n), None, n, None)
+    } else {
+        let on = launch.opts.gpu_layers.unwrap_or(n);
+        (0, Some(on.saturating_sub(n / 5).max(1)), 0, Some((n / 2).max(1)))
+    };
+    let first = safer_launch(launch, launch.context / 2, moe1, gpu1);
+    let second = safer_launch(launch, MIN_START_CONTEXT, moe2, gpu2);
+    let mut out = vec![first];
+    if second.context != out[0].context || second.opts.cpu_moe_layers != out[0].opts.cpu_moe_layers || second.opts.gpu_layers != out[0].opts.gpu_layers {
+        out.push(second);
+    }
+    out
+}
+
 /// Memory for the helper model's context and buffers, on top of its file.
 const DRAFT_OVERHEAD: u64 = 400 * 1_000_000;
 
@@ -778,6 +860,32 @@ mod tests {
         let mut b = server_args(std::path::Path::new("/m/q.gguf"), 1, "k", "m", 4096);
         apply_opts(&mut b, &LaunchOpts::default());
         assert_eq!(b, server_args(std::path::Path::new("/m/q.gguf"), 1, "k", "m", 4096));
+    }
+
+    fn launch(context: u32, cpu_moe: u32, gpu: Option<u32>) -> Launch {
+        Launch {
+            key: "m:Q".into(),
+            path: "/m.gguf".into(),
+            context,
+            opts: LaunchOpts { cpu_moe_layers: cpu_moe, gpu_layers: gpu, ubatch: Some(2048), kv_f16: true, ..Default::default() },
+        }
+    }
+
+    #[test]
+    fn a_model_that_fails_to_load_gets_safer_settings() {
+        // MoE: half the context and a quarter more expert layers on the CPU, then all of them at 4k.
+        let f = fallback_launches(&launch(16384, 6, None), 40, true);
+        assert_eq!(f.len(), 2);
+        assert_eq!((f[0].context, f[0].opts.cpu_moe_layers, f[0].opts.ubatch, f[0].opts.kv_f16), (8192, 16, Some(512), false));
+        assert_eq!((f[1].context, f[1].opts.cpu_moe_layers), (4096, 40));
+        // Dense: fewer layers on the GPU.
+        let f = fallback_launches(&launch(16384, 0, None), 40, false);
+        assert_eq!((f[0].context, f[0].opts.gpu_layers), (8192, Some(32)));
+        assert_eq!((f[1].context, f[1].opts.gpu_layers), (4096, Some(20)));
+        // Never below 4k, never fewer CPU layers than planned.
+        let f = fallback_launches(&launch(4096, 38, None), 40, true);
+        assert_eq!((f[0].context, f[0].opts.cpu_moe_layers), (4096, 40));
+        assert_eq!(f.len(), 1);
     }
 
     #[test]

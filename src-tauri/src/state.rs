@@ -32,6 +32,8 @@ pub struct AppState {
     pub secrets: Box<dyn crate::cloud::keychain::SecretStore>,
     /// The cloud key once read from the Keychain this session.
     pub cloud_key: Mutex<Option<String>>,
+    /// One client for the cloud, so its connection is reused between messages.
+    pub cloud_http: reqwest::Client,
 }
 
 impl AppState {
@@ -50,6 +52,7 @@ impl AppState {
             tuning: std::sync::atomic::AtomicBool::new(false),
             secrets: Box::new(crate::cloud::keychain::Keychain),
             cloud_key: Mutex::new(None),
+            cloud_http: crate::cloud::http_client(),
             db: crate::db::Db::open(&paths.data).unwrap_or_else(|e| {
                 // Chats still work for this session; they just aren't kept.
                 log::error!("database unavailable, chats won't be saved this session: {e}");
@@ -81,6 +84,6 @@ impl AppState {
         }
         let key = cached.clone().ok_or_else(|| AppError::msg("Connect BYTE Cloud first: Settings → Cloud."))?;
         drop(cached);
-        Ok(crate::cloud::CloudClient::new(&self.cloud_base().await, &key))
+        Ok(crate::cloud::CloudClient::with_http(self.cloud_http.clone(), &self.cloud_base().await, &key))
     }
 }
