@@ -17,7 +17,7 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
-### (next commit) — Documents faster, "quit these apps" help, CI manual, work log
+### 90ded06 — Documents faster, "quit these apps" help, CI manual, work log
 - **Why:** the owner found the cloud document maker slow; asked that a model that won't load say which open
   apps use memory and which can be closed; Actions minutes nearly used up; wanted everything documented.
 - **What:**
