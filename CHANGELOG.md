@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.1 — Phase 6 improvements: fact-check and compare & decide
+
+- **Fact-check.** Ask "is it true that…", "fact-check this: …", "true or false: …", or press the new shield
+  button under an answer. BYTE picks out the claims (one for a short question, up to five for longer text),
+  searches each one twice (for it and for rebuttals: "… myth OR false OR debunked"), adds papers for research
+  claims, reads a few pages per claim, and answers with a table: each claim gets a verdict badge (**True**,
+  **Mostly true**, **Mixed**, **Mostly false**, **False** or **Unproven**) and the exact quote that settles
+  it, with its source. Ends with a confidence line.
+- **Compare & decide.** Ask "X vs Y", "should I get X or Y", "which is better…" or "compare X, Y and Z". BYTE
+  reads the options from your question, picks the criteria that matter (weighted from what you said),
+  researches each option and scores it on each criterion (1–10, with the reason and sources on hover). The
+  score table appears above the answer with a **slider per criterion**: move them and the totals re-rank
+  live. Copy the table as Markdown. The written recommendation says which to pick and what would change it.
+- Research answers' confidence line now always gives a real reason.
+
 ## 0.6.0 — Phase 6: deep research with papers and citations
 
 - **Deep and Extended research.** In Deep or Extended mode, a question about the world gets real research:

@@ -228,6 +228,7 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
         log: &state.actions,
         files,
         app: state.app.get(),
+        task: request.task,
     };
     let result = agent::run(turn, cancel, on_event).await;
     state.generations.finish(&request.request_id).await;
@@ -283,6 +284,7 @@ mod tests {
             project_id: None,
             cloud: None,
             fresh: false,
+            task: None,
         }
     }
 

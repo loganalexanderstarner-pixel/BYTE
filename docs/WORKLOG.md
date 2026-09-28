@@ -17,6 +17,30 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (this commit) — v0.6.1: fact-check and compare & decide
+- **Why:** Phase 6 item 4 (owner's plan): trustworthy answers to "is it true…" and help choosing between options.
+- **What:**
+  - `src-tauri/src/factcheck.rs` (new): claims (one for a short question, up to 5 via JSON for longer text) →
+    per claim a plain search and a rebuttal search (+ papers for research claims) → pages per claim → passages
+    ranked per claim (≤2 per source) → `FACT_RULES` (verdict table with exact quotes and [n], confidence line).
+  - `src-tauri/src/decide.rs` (new): `options_from_question` ("X vs Y", "should I get X or Y", "compare X, Y and
+    Z"), criteria + weights via JSON (prompt echoes rejected), a search per option + head-to-head, scores via
+    JSON (`parse_scores`: fuzzy names, clamped 1–10, only real source numbers), `ChatEvent::Decision`, then
+    `DECIDE_RULES` for the written recommendation.
+  - `research.rs`: shared helpers made `pub(crate)` (`Ctx`, `run_searches`, `read_pages`, `find_papers` with a
+    tag, `rank_texts`, `notes_budget`, `lenient_json`, `pick_n`). `router::{wants_fact_check, wants_compare}`.
+    `agent::Task` (`FactCheck`) on `Turn` and `ChatRequest.task`; `agent::run` order: fact-check → compare →
+    research → forced search. Confidence rule wording fixed (the small model copied "reason" literally).
+  - UI: `Decision.tsx` (score table, weight sliders, live totals, Copy), `lib/decide.ts` + tests,
+    `markdown.ts` `markVerdicts` + badge CSS, Activity labels, shield **Fact-check** button
+    (`MessageView.factCheckPrompt`, task on the user message so Regenerate keeps it), store `decision` event.
+  - Version 0.6.1, `docs/releases/v0.6.1.md`, VERSIONS, CHANGELOG, HANDOFF, PROJECT_GUIDE; screenshots 17-*.
+- **Verify:** `scripts/check-all.sh` (191 Rust, 88 vitest). Real engine + web with Qwen3-0.6B:
+  `cargo test e2e_fact_check -- --ignored` (claims → searches → verdict table) and `cargo test e2e_compare --
+  --ignored` (options "MacBook Air M4" / "Dell XPS 13", a Decision event, a recommendation). The 0.6B model's
+  verdicts are unreliable (it called the 10% brain myth True); real use needs the 8B+ models BYTE recommends.
+- **Undo:** revert. To switch one off: `factcheck::applies` / `decide::applies` return false.
+
 ### (this commit) — Phase 6 part 1 (v0.6.0): deep research, research papers, confidence line, citation styles
 - **Why:** Phase 6 (Research+), owner priority "answer quality and research depth win". Deep/Extended mode did
   one search and read 4–5 pages; now it researches properly and cites papers.

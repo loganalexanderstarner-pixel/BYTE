@@ -2684,3 +2684,150 @@ kbd {
 .cite-list .icon-btn {
   flex: none;
 }
+
+/* ---------- fact-check verdicts ---------- */
+.prose .verdict {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.85em;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--bg);
+}
+.prose .verdict-true,
+.prose .verdict-mostly-true {
+  background: var(--ok);
+}
+.prose .verdict-mixed,
+.prose .verdict-unproven {
+  background: var(--warn);
+}
+.prose .verdict-mostly-false,
+.prose .verdict-false {
+  background: var(--danger);
+}
+.prose .verdict-mostly-true,
+.prose .verdict-mostly-false {
+  opacity: 0.85;
+}
+
+/* ---------- compare & decide ---------- */
+.decision {
+  margin: var(--space-2) 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.decision-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.decision-title {
+  font-weight: 700;
+}
+.decision-head .hint {
+  font-size: 0.82em;
+  color: var(--text-3);
+}
+.decision-head .spacer {
+  flex: 1;
+}
+.decision-scroll {
+  overflow-x: auto;
+}
+.decision table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+.decision th,
+.decision td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+.decision th {
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text-2);
+}
+.decision th.best,
+.decision td.best {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.decision td.crit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 220px;
+}
+.decision .crit-name {
+  flex: 1;
+  min-width: 90px;
+}
+.decision input[type="range"] {
+  width: 80px;
+  accent-color: var(--accent);
+}
+.decision .weight {
+  width: 1ch;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+.decision .score {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 64px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: help;
+}
+.decision .score .bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent-soft);
+  transition: width var(--dur) var(--ease);
+}
+.decision .score b,
+.decision .score sup {
+  position: relative;
+}
+.decision .cite-n {
+  font-size: 0.7em;
+  color: var(--text-3);
+}
+.decision td.muted {
+  opacity: 0.4;
+}
+.decision .none {
+  color: var(--text-3);
+}
+.decision tfoot td {
+  border-bottom: 0;
+  font-weight: 600;
+}
+.decision tfoot b {
+  font-size: 1.1em;
+  font-variant-numeric: tabular-nums;
+}
+.decision .rank {
+  margin-left: 6px;
+  font-size: 0.8em;
+  color: var(--text-3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .decision .score .bar {
+    transition: none;
+  }
+}

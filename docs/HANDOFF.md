@@ -394,7 +394,10 @@ Goal: deeper, more trustworthy answers.
 or words, ≤3 per source, ~half the context → Extended gap review → report rules), confidence labels, and item 3
 without PDF reading (`tools/academic.rs`: Crossref + Europe PMC + arXiv; OpenAlex and Semantic Scholar refuse
 keyless requests from shared networks; `academic_search` tool in Deep/Extended; `Source.meta`;
-`src/lib/citations.ts` + Cite menu). **Next:** v0.6.1 fact-check + compare & decide, v0.6.2 trip planner +
+`src/lib/citations.ts` + Cite menu). **Done in v0.6.1:** item 4's fact-check (`factcheck.rs`, verdict table with
+quotes = the quote finder, `markdown.ts` `markVerdicts`, shield button → `ChatRequest.task = factCheck`) and compare
+& decide (`decide.rs`: options read from the question, criteria + scores via JSON, `ChatEvent::Decision`,
+`components/chat/Decision.tsx` with weight sliders, `lib/decide.ts`). **Next:** v0.6.2 trip planner +
 local lookup, v0.6.3 YouTube, v0.6.4 web agent; self-check / best-of-3 / quote finder with fact-check.
 1. **Deep / Extended pipelines** (`research.rs`): plan 3–6 sub-questions → parallel searches → fetch up to
    15 (Deep) / 30 (Extended) pages, 6 at a time → embedding-rank passages → cited report; Extended adds a gap

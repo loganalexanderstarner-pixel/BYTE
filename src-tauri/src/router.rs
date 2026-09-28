@@ -176,6 +176,34 @@ pub fn wants_papers(message: &str) -> bool {
     PAPER_CUES.iter().any(|c| m.contains(&format!(" {c} ")))
 }
 
+const FACT_CUES: &[&str] = &[
+    "is it true that", "is it true", "is that true", "is this true", "fact-check", "fact check", "factcheck",
+    "true or false", "debunk", "is it a myth", "is that a myth", "myth that", "did they really", "is it really true",
+];
+
+/// True when the user asks BYTE to check whether something is true.
+pub fn wants_fact_check(message: &str) -> bool {
+    let m = message.to_lowercase().replace('\u{2019}', "'");
+    FACT_CUES.iter().any(|c| m.contains(c))
+}
+
+const COMPARE_CUES: &[&str] = &[
+    " vs ", " vs. ", " versus ", "compare ", "comparison of", "comparison between", "which is better",
+    "which one is better", "which is best", "which should i", "should i get", "should i buy", "should i choose",
+    "should i pick", "better choice", "or should i",
+];
+
+/// True when the user is choosing between options ("X vs Y", "should I get X or Y").
+pub fn wants_compare(message: &str) -> bool {
+    let m = format!(" {} ", message.to_lowercase().replace('\u{2019}', "'"));
+    if m.contains("```") || m.lines().count() > 12 {
+        return false;
+    }
+    COMPARE_CUES.iter().any(|c| m.contains(c))
+        // "should I get … or …" style without the exact cue.
+        || ((m.contains("should i") || m.contains("which")) && m.contains(" or "))
+}
+
 /// True when BYTE should search the web before the model answers. Answer
 /// quality comes first: small local models often answer from (stale or
 /// wrong) memory instead of choosing to search, so BYTE searches itself for
@@ -423,6 +451,20 @@ fn percent_of(message: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fact_checks_and_comparisons_are_recognised() {
+        assert!(wants_fact_check("Is it true that we only use 10% of our brains?"));
+        assert!(wants_fact_check("Fact-check this: the Great Wall is visible from space"));
+        assert!(wants_fact_check("true or false: bats are blind"));
+        assert!(!wants_fact_check("What's true north?"));
+        assert!(wants_compare("MacBook Air M4 vs Dell XPS 13 for college"));
+        assert!(wants_compare("Should I get an iPhone 17 or a Pixel 10?"));
+        assert!(wants_compare("Which is better for a beginner, Python or JavaScript?"));
+        assert!(wants_compare("compare Netflix and Hulu"));
+        assert!(!wants_compare("Who won the Super Bowl?"));
+        assert!(!wants_compare("Tea or coffee in the morning is fine, I think."));
+    }
 
     #[test]
     fn research_questions_want_papers() {

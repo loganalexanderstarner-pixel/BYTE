@@ -105,6 +105,8 @@ pub enum ChatEvent {
     Remote { conversation_id: String, message_id: Option<String>, user_message_id: Option<String> },
     /// Something the user should know about this answer (e.g. answered on this Mac because the cloud was down).
     Notice { text: String },
+    /// A compare & decide score table (decide.rs), shown above the answer.
+    Decision(crate::decide::Decision),
 }
 
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]

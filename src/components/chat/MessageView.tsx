@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Brain, Check, ChevronLeft, ChevronRight, Cloud, Copy, FastForward, HelpCircle, Layers, Lightbulb, Pencil, RefreshCw, ThumbsDown, ThumbsUp, TriangleAlert } from "lucide-react";
+import { Brain, Check, ChevronLeft, ChevronRight, Cloud, Copy, FastForward, HelpCircle, Layers, Lightbulb, Pencil, RefreshCw, ShieldCheck, ThumbsDown, ThumbsUp, TriangleAlert } from "lucide-react";
 import { memo, useMemo, useState, type MouseEvent } from "react";
 
 import { versionInfo } from "../../lib/branches";
@@ -12,6 +12,7 @@ import { useThrottled } from "../../lib/throttle";
 import { AttachmentChips, LocalFileChips } from "./Attachments";
 import { useStore, type Message, type Step } from "../../state/store";
 import { Activity, Sources } from "./Activity";
+import { DecisionTable } from "./Decision";
 
 function openLinksExternally(e: MouseEvent<HTMLDivElement>) {
   const a = (e.target as HTMLElement).closest("a");
@@ -143,8 +144,19 @@ function UserMessage({ message }: { message: Message }) {
   );
 }
 
+/** What the Fact-check button sends: the answer's text, without citation marks. */
+export function factCheckPrompt(answer: string): string {
+  const text = answer
+    .replace(/\[\d{1,3}\]/g, "")
+    .replace(/^\s*\*\*Confidence:?\*\*.*$/gim, "")
+    .trim();
+  return `Fact-check this:\n\n${text.length > 4000 ? `${text.slice(0, 4000)}…` : text}`;
+}
+
 function AssistantMessage({ message, isLast, generating }: { message: Message; isLast: boolean; generating: boolean }) {
   const regenerate = useStore((s) => s.regenerate);
+  const send = useStore((s) => s.send);
+  const webOn = useStore((s) => s.settings?.webSearch ?? false);
   const cloudAct = useStore((s) => s.cloudAct);
   const cloudModes = useStore((s) => s.cloud?.account?.modes);
   const cloudModeLabel = message.cloudMode ? (cloudModes?.find((m) => m.id === message.cloudMode)?.label ?? message.cloudMode) : null;
@@ -204,6 +216,7 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
           <FastForward size={13} /> Answer now
         </button>
       )}
+      {message.decision && <DecisionTable decision={message.decision} sources={message.sources} />}
       {message.content && (
         <div
           className={`prose ${generating ? "cursor" : ""}`}
@@ -246,6 +259,15 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
           {isLast && (
             <button className="icon-btn" onClick={() => void regenerate()} title="Regenerate (keeps this answer as another version)">
               <RefreshCw size={15} />
+            </button>
+          )}
+          {isLast && webOn && !message.cloud && message.content.trim().length > 40 && (
+            <button
+              className="icon-btn"
+              onClick={() => void send(factCheckPrompt(message.content), { task: "factCheck" })}
+              title="Fact-check this answer against sources on the web"
+            >
+              <ShieldCheck size={15} />
             </button>
           )}
           {onCloud && message.content && (

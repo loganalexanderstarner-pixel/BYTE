@@ -63,10 +63,10 @@ question's angles, with bullets or a table where they help. Cite every fact with
 or [2][5], right after the claim; use only numbers listed above. Where sources disagree, say so and cite both. \
 Papers are known only by their abstracts: say what kind of study it was when that's clear. Don't add a list of sources or links at the end; BYTE shows them. Don't pad: if the \
 notes don't cover something, say it's unclear. End with one line exactly like \
-`**Confidence:** Verified — reason` using Verified (several independent sources agree), Likely (one good \
+`**Confidence:** Verified — <why, in one short sentence>` using Verified (several independent sources agree), Likely (one good \
 source, or most agree) or Unsure (thin or conflicting sources), and a short reason.";
 
-type Emit<'a> = &'a (dyn Fn(ChatEvent) -> AppResult<()> + Sync);
+pub(crate) type Emit<'a> = &'a (dyn Fn(ChatEvent) -> AppResult<()> + Sync);
 
 /// Whether this question gets the research pipeline in `mode`.
 pub fn applies(mode: Mode, web: bool, question: &str) -> bool {
@@ -88,18 +88,19 @@ fn plan_schema(max: usize) -> Value {
     })
 }
 
+/// JSON from a model reply that may wrap it in prose or a code fence;
+/// `Null` when there's none.
+pub(crate) fn lenient_json(reply: &str) -> Value {
+    serde_json::from_str(reply.trim()).unwrap_or_else(|_| match (reply.find('{'), reply.rfind('}')) {
+        (Some(a), Some(b)) if b > a => serde_json::from_str(&reply[a..=b]).unwrap_or(Value::Null),
+        _ => Value::Null,
+    })
+}
+
 /// Searches from the model's reply (lenient: bad JSON gives nothing),
 /// cleaned, without near-duplicates of `first`, at most `max` in total.
 pub fn parse_plan(reply: &str, first: &str, max: usize) -> (Vec<String>, bool) {
-    let v: Value = serde_json::from_str(reply.trim())
-        .or_else(|_| {
-            let (a, b) = (reply.find('{'), reply.rfind('}'));
-            match (a, b) {
-                (Some(a), Some(b)) if b > a => serde_json::from_str(&reply[a..=b]),
-                _ => serde_json::from_str("null"),
-            }
-        })
-        .unwrap_or(Value::Null);
+    let v = lenient_json(reply);
     let mut out = vec![first.to_string()];
     for q in v["searches"].as_array().into_iter().flatten().filter_map(Value::as_str) {
         let q: String = q.trim().trim_matches('"').chars().take(160).collect();
@@ -115,7 +116,7 @@ pub fn parse_plan(reply: &str, first: &str, max: usize) -> (Vec<String>, bool) {
 }
 
 /// Two searches that would return the same results.
-fn similar(a: &str, b: &str) -> bool {
+pub(crate) fn similar(a: &str, b: &str) -> bool {
     let words = |s: &str| -> std::collections::BTreeSet<String> {
         s.to_lowercase().split(|c: char| !c.is_alphanumeric()).filter(|w| w.len() > 2).map(str::to_string).collect()
     };
@@ -160,7 +161,7 @@ or an empty list if the notes already cover it.",
         notes.chars().take(5000).collect::<String>()
     );
     let reply = chat::complete_json(turn.http, turn.ep, "You review research notes. Reply only with JSON.", &user, gap_schema(), 300).await.unwrap_or_default();
-    let v: Value = serde_json::from_str(reply.trim()).unwrap_or(Value::Null);
+    let v = lenient_json(&reply);
     v["missing"]
         .as_array()
         .into_iter()
@@ -207,22 +208,23 @@ pub struct Gathered {
     pub searches: Vec<String>,
 }
 
-struct Ctx<'a, 'b> {
-    turn: &'a Turn<'b>,
-    cancel: &'a CancellationToken,
-    send: Emit<'a>,
+/// What the research steps share: the turn, cancellation and the event sink.
+pub(crate) struct Ctx<'a, 'b> {
+    pub turn: &'a Turn<'b>,
+    pub cancel: &'a CancellationToken,
+    pub send: Emit<'a>,
 }
 
 impl Ctx<'_, '_> {
-    fn call(&self, id: &str, name: &str, args: Value) -> AppResult<()> {
+    pub fn call(&self, id: &str, name: &str, args: Value) -> AppResult<()> {
         (self.send)(ChatEvent::ToolCall { id: id.into(), name: name.into(), args })
     }
 
-    fn result(&self, id: &str, ok: bool, summary: impl Into<String>) -> AppResult<()> {
+    pub fn result(&self, id: &str, ok: bool, summary: impl Into<String>) -> AppResult<()> {
         (self.send)(ChatEvent::ToolResult { id: id.into(), ok, summary: summary.into() })
     }
 
-    async fn cancellable<T>(&self, f: impl std::future::Future<Output = T>) -> AppResult<T> {
+    pub async fn cancellable<T>(&self, f: impl std::future::Future<Output = T>) -> AppResult<T> {
         tokio::select! {
             v = f => Ok(v),
             _ = self.cancel.cancelled() => Err(AppError::Cancelled),
@@ -232,7 +234,7 @@ impl Ctx<'_, '_> {
 
 /// Runs searches (in parallel; the search module spaces them out) and
 /// returns each one's results, adding them to the sources.
-async fn run_searches(c: &Ctx<'_, '_>, g: &mut Gathered, queries: &[String], tag: &str) -> AppResult<Vec<Vec<SearchResult>>> {
+pub(crate) async fn run_searches(c: &Ctx<'_, '_>, g: &mut Gathered, queries: &[String], tag: &str) -> AppResult<Vec<Vec<SearchResult>>> {
     let ids: Vec<String> = (0..queries.len()).map(|i| format!("byte_rsearch_{tag}_{i}")).collect();
     for (id, q) in ids.iter().zip(queries) {
         c.call(id, tools::WEB_SEARCH, json!({ "query": q }))?;
@@ -266,7 +268,7 @@ async fn run_searches(c: &Ctx<'_, '_>, g: &mut Gathered, queries: &[String], tag
 
 /// Reads up to `want` of `candidates`, `BATCH` at a time, trying the next
 /// candidate for each page that can't be read.
-async fn read_pages(c: &Ctx<'_, '_>, g: &mut Gathered, candidates: &[SearchResult], want: usize, tag: &str) -> AppResult<usize> {
+pub(crate) async fn read_pages(c: &Ctx<'_, '_>, g: &mut Gathered, candidates: &[SearchResult], want: usize, tag: &str) -> AppResult<usize> {
     let mut read = 0;
     let mut rest = candidates;
     let mut batch_no = 0;
@@ -303,8 +305,8 @@ async fn read_pages(c: &Ctx<'_, '_>, g: &mut Gathered, candidates: &[SearchResul
     Ok(read)
 }
 
-async fn find_papers(c: &Ctx<'_, '_>, g: &mut Gathered, query: &str, max: usize) -> AppResult<()> {
-    let id = "byte_rpapers_0";
+pub(crate) async fn find_papers(c: &Ctx<'_, '_>, g: &mut Gathered, query: &str, max: usize, tag: &str) -> AppResult<()> {
+    let id = &format!("byte_rpapers_{tag}");
     let args = json!({ "query": query });
     c.call(id, tools::ACADEMIC_SEARCH, args.clone())?;
     match c.cancellable(academic::search(c.turn.net, query, max)).await? {
@@ -418,13 +420,19 @@ pub struct Pick {
 
 /// Picks the best passages within `budget` characters, at most
 /// `PER_SOURCE` per source. `ranked` is best first.
+#[cfg(test)]
 pub fn pick(ranked: &[(u32, usize, String)], budget: usize) -> Vec<Pick> {
+    pick_n(ranked, budget, PER_SOURCE)
+}
+
+/// `pick` with a different cap per source.
+pub fn pick_n(ranked: &[(u32, usize, String)], budget: usize, per_source: usize) -> Vec<Pick> {
     let mut per: std::collections::HashMap<u32, usize> = Default::default();
     let mut used = 0;
     let mut out = Vec::new();
     for (n, order, text) in ranked {
         let c = per.entry(*n).or_default();
-        if *c >= PER_SOURCE || used + text.len() > budget {
+        if *c >= per_source || used + text.len() > budget {
             continue;
         }
         *c += 1;
@@ -460,10 +468,18 @@ pub fn format_notes(book: &SourceBook, picks: &[Pick]) -> String {
 
 /// Ranks all passages and returns the notes and how many passages were used.
 async fn rank(turn: &Turn<'_>, g: &Gathered, question: &str, budget: usize) -> (String, usize, bool) {
+    let (picks, by_meaning) = rank_texts(turn, &g.texts, question, &g.searches.join(" "), budget, PER_SOURCE).await;
+    (format_notes(&g.book, &picks), picks.len(), by_meaning)
+}
+
+/// Picks the best passages of `texts` for `question` (word matches, plus
+/// meaning when the embedding model is there), within `budget` characters
+/// and `per_source` passages per source. Also says whether meaning was used.
+pub(crate) async fn rank_texts(turn: &Turn<'_>, texts: &[(u32, String)], question: &str, extra_terms: &str, budget: usize, per_source: usize) -> (Vec<Pick>, bool) {
     let main = terms(question);
-    let extra = terms(&g.searches.join(" "));
+    let extra = terms(extra_terms);
     let mut all: Vec<(u32, usize, String, f64)> = Vec::new();
-    for (n, text) in &g.texts {
+    for (n, text) in texts {
         for (i, p) in passages(text).into_iter().enumerate() {
             let s = lexical_score(&p, &main, &extra);
             all.push((*n, i, p, s));
@@ -486,8 +502,13 @@ async fn rank(turn: &Turn<'_>, g: &Gathered, question: &str, budget: usize) -> (
         }
     }
     let ranked: Vec<(u32, usize, String)> = all.into_iter().map(|(n, i, p, _)| (n, i, p)).collect();
-    let picks = pick(&ranked, budget);
-    (format_notes(&g.book, &picks), picks.len(), by_meaning)
+    (pick_n(&ranked, budget, per_source), by_meaning)
+}
+
+/// Characters of notes that fit: `share` of the context minus what the
+/// conversation already uses.
+pub(crate) fn notes_budget(turn: &Turn<'_>, used_tokens: usize, share: f64) -> usize {
+    ((turn.ep.context as f64 * share) as usize).saturating_sub(used_tokens).max(1000) * 3
 }
 
 /// Passage indexes ordered by similarity of meaning to the question, or
@@ -526,7 +547,7 @@ pub async fn run(turn: &Turn<'_>, question: &str, first_query: &str, used_tokens
     // 2. Search (and papers).
     let lists = run_searches(&c, &mut g, &queries, "0").await?;
     if papers {
-        find_papers(&c, &mut g, first_query, d.papers).await?;
+        find_papers(&c, &mut g, first_query, d.papers, "0").await?;
     }
     if !g.book.sources.is_empty() {
         send(ChatEvent::Sources { sources: g.book.sources.clone() })?;
@@ -537,7 +558,7 @@ pub async fn run(turn: &Turn<'_>, question: &str, first_query: &str, used_tokens
     read_pages(&c, &mut g, &candidates, d.pages, "0").await?;
 
     // Budget for the notes: half the context minus what's used, in characters.
-    let budget = ((turn.ep.context as f64 * NOTES_SHARE) as usize).saturating_sub(used_tokens).max(1000) * 3;
+    let budget = notes_budget(turn, used_tokens, NOTES_SHARE);
 
     // 4. Rank.
     c.call("byte_rrank_0", "rank_passages", json!({}))?;
@@ -572,7 +593,7 @@ pub async fn run(turn: &Turn<'_>, question: &str, first_query: &str, used_tokens
     Ok((g.book, content))
 }
 
-fn rank_summary(kept: usize, notes: &str, by_meaning: bool) -> String {
+pub(crate) fn rank_summary(kept: usize, notes: &str, by_meaning: bool) -> String {
     let sources = notes.lines().filter(|l| l.starts_with('[')).count();
     format!("{kept} passages from {sources} sources{}", if by_meaning { ", by meaning" } else { "" })
 }
@@ -671,7 +692,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Deep, true, None);
         let plan = crate::router::plan_turn(Mode::Deep, crate::settings::ThinkingPref::Off, &q);
         let (ch, seen) = crate::chat::e2e_support::collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Deep, web: true, memory: false, log: &log, files: None, app: None };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Deep, web: true, memory: false, log: &log, files: None, app: None, task: None };
         let t = std::time::Instant::now();
         crate::agent::run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();

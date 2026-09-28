@@ -25,6 +25,8 @@ import type {
   KbStatus,
   CloudStatus,
   Workspace,
+  ChatTask,
+  Decision,
 } from "../lib/types";
 
 /** One tool use shown in the answer's activity list. */
@@ -91,6 +93,10 @@ export interface Message {
   phase?: string;
   /** Something to point out about this answer (e.g. written locally because the cloud was down). */
   notice?: string;
+  /** Compare & decide score table shown above the answer. */
+  decision?: Decision;
+  /** A job this (user) message asked for with a button, e.g. Fact-check. */
+  task?: ChatTask;
   /** Thumbs up/down given on the cloud. */
   feedback?: "up" | "down";
   /** Photos/files sent with this (user) message. */
@@ -182,7 +188,7 @@ interface State {
   resolveMemory(msgId: string, stepId: string, save: boolean): Promise<void>;
   /** Reload the chat list from the database (after an erase or import). */
   reloadChats(): Promise<void>;
-  send(text: string): Promise<void>;
+  send(text: string, opts?: { task?: ChatTask }): Promise<void>;
   regenerate(): Promise<void>;
   /** Cloud account status (connected, modes). */
   cloud: CloudStatus | null;
@@ -439,10 +445,12 @@ export const useStore = create<State>((set, get) => {
       if (asked?.attachments?.length) cloud.attachmentIds = asked.attachments.map((a) => a.id);
       if (opts.cloud) cloud.noFallback = true;
     }
+    // A button's job (Fact-check) rides on the user message, so Regenerate keeps it.
+    const task = useCloud ? undefined : [...conv.messages].reverse().find((m) => m.role === "user")?.task;
     await streamReply(convId, reply, (onEvent) =>
       api.chatSend(
         // Regenerating (a new version of an answer) never reuses an earlier answer.
-        { requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private, projectId: conv.projectId, cloud, fresh: !!opts.branch },
+        { requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private, projectId: conv.projectId, cloud, fresh: !!opts.branch, task },
         onEvent,
       ),
     );
@@ -529,6 +537,11 @@ export const useStore = create<State>((set, get) => {
         case "notice":
           patchMessage(convId, reply.id, (m) => ({ ...m, notice: e.text, cloud: undefined, cloudMode: undefined }));
           break;
+        case "decision": {
+          const { kind: _kind, ...decision } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, decision }));
+          break;
+        }
         case "stats": {
           const { kind: _kind, ...stats } = e;
           patchMessage(convId, reply.id, (m) => ({ ...m, stats }));
@@ -840,7 +853,7 @@ export const useStore = create<State>((set, get) => {
       set({ conversations, currentId: null });
     },
 
-    async send(text) {
+    async send(text, opts) {
       const content = text.trim();
       if (!content || get().generating) return;
       let convId = get().currentId;
@@ -859,6 +872,7 @@ export const useStore = create<State>((set, get) => {
         createdAt: Date.now(),
         ...(attachments.length ? { attachments } : {}),
         ...(files.length ? { files } : {}),
+        ...(opts?.task ? { task: opts.task } : {}),
       };
       set({ pending: [], pendingFiles: [], attachError: null });
       patchConversation(convId, (c) => ({

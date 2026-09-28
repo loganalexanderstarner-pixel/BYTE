@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { BookOpen, Calculator, Check, ChevronRight, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
+import { BookOpen, Calculator, Check, ChevronRight, Columns3, ListTree, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
 import { Fragment, useState } from "react";
 
 import { CITE_STYLES, cite, citeAll, plainCitation, type CiteStyle } from "../../lib/citations";
@@ -38,6 +38,12 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: ListFilter, text: "Picked the most relevant passages" };
     case "find_gaps":
       return { icon: SearchCheck, text: "Checked what's still missing" };
+    case "extract_claims":
+      return { icon: ListTree, text: "Found the claims to check" };
+    case "plan_comparison":
+      return { icon: Columns3, text: "Set up the comparison" };
+    case "score_options":
+      return { icon: Scale, text: "Scored each option" };
     default:
       return { icon: CircleCheck, text: s.name };
   }
@@ -52,8 +58,12 @@ export function activitySummary(steps: Step[]): string {
   const files = steps.some((s) => s.name === "search_my_files");
   const papers = steps.some((s) => s.name === "academic_search" && s.status === "ok");
   const researched = steps.some((s) => s.name === "plan_research");
+  const checked = steps.some((s) => s.name === "extract_claims");
+  const compared = steps.some((s) => s.name === "plan_comparison");
   const parts: string[] = [];
-  if (researched) parts.push("Researched");
+  if (checked) parts.push("Fact-checked");
+  else if (compared) parts.push("Compared");
+  else if (researched) parts.push("Researched");
   if (files) parts.push("Searched your files");
   if (weather) parts.push("Checked the forecast");
   if (searches) parts.push(searches === 1 ? "Searched the web" : `Searched the web ${searches} times`);

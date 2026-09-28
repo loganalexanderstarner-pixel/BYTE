@@ -310,6 +310,65 @@ function initScript({ data }) {
             send({ kind: "done", finishReason: "stop" });
             return null;
           }
+          if (data.factCheck) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            for (const [id, name, a, summary] of [
+              ["f0", "extract_claims", {}, "1 claim to check"],
+              ["f1", "web_search", { query: "we only use 10 percent of our brain" }, "8 results"],
+              ["f2", "web_search", { query: "we only use 10 percent of our brain myth OR false OR debunked" }, "8 results"],
+              ["f3", "read_page", { url: "https://www.scientificamerican.com/article/do-people-only-use-10-percent-of-their-brains/" }, "Scientific American"],
+              ["f4", "read_page", { url: "https://www.britannica.com/story/do-we-really-use-only-10-percent-of-our-brain" }, "Britannica"],
+              ["f5", "rank_passages", {}, "9 passages from 5 sources"],
+            ]) { send({ kind: "toolCall", id, name, args: a }); await wait(10); send({ kind: "toolResult", id, ok: true, summary }); }
+            send({ kind: "sources", sources: [
+              { n: 1, title: "Do People Only Use 10 Percent of Their Brains?", url: "https://www.scientificamerican.com/article/do-people-only-use-10-percent-of-their-brains/", snippet: "", read: true },
+              { n: 2, title: "Do We Really Use Only 10 Percent of Our Brain?", url: "https://www.britannica.com/story/do-we-really-use-only-10-percent-of-our-brain", snippet: "", read: true },
+            ]});
+            for (const c of [
+              "> **TL;DR:** False. Brain scans show we use virtually all of our brain, just not every part at the same moment [1][2].\n\n",
+              "| Claim | Verdict | Evidence |\n|---|---|---|\n",
+              "| We only use 10% of our brains | **False** | “It turns out though, that we use virtually every part of the brain, and that most of the brain is active almost all the time.” [1] |\n\n",
+              "The myth may come from early 1900s misreadings of brain research; imaging shows even simple tasks light up many regions [2].\n\n",
+              "**Confidence:** Verified — several independent science sources agree.\n",
+            ]) { send({ kind: "content", delta: c }); await wait(15); }
+            send({ kind: "stats", promptTokens: 4100, completionTokens: 150, tokensPerSecond: 20.1, promptMs: 5100, totalMs: 12000, thinkingMs: 0 });
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
+          if (data.compare) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            for (const [id, name, a, summary] of [
+              ["d0", "plan_comparison", {}, "2 options, 5 criteria"],
+              ["d1", "web_search", { query: "MacBook Air M4 review battery life price" }, "8 results"],
+              ["d2", "web_search", { query: "Dell XPS 13 review battery life price" }, "8 results"],
+              ["d3", "web_search", { query: "MacBook Air M4 vs Dell XPS 13" }, "8 results"],
+              ["d4", "rank_passages", {}, "18 passages from 7 sources"],
+              ["d5", "score_options", {}, "10 of 10 scores"],
+            ]) { send({ kind: "toolCall", id, name, args: a }); await wait(10); send({ kind: "toolResult", id, ok: true, summary }); }
+            send({ kind: "sources", sources: [
+              { n: 1, title: "MacBook Air M4 review", url: "https://www.theverge.com/macbook-air-m4-review", snippet: "", read: true },
+              { n: 2, title: "Dell XPS 13 (2026) review", url: "https://www.pcmag.com/reviews/dell-xps-13-2026", snippet: "", read: true },
+              { n: 3, title: "Best laptops for college students", url: "https://www.nytimes.com/wirecutter/reviews/best-laptops-for-college/", snippet: "", read: true },
+            ]});
+            const c = (score, reason, sources) => ({ score, reason, sources });
+            send({ kind: "decision",
+              options: ["MacBook Air M4", "Dell XPS 13"],
+              criteria: [{ name: "Battery life", weight: 5 }, { name: "Price", weight: 4 }, { name: "Performance", weight: 3 }, { name: "Portability", weight: 3 }, { name: "Windows apps for class", weight: 2 }],
+              scores: [
+                [c(9, "About 18 hours in tests", [1]), c(7, "$999, often $899 for students", [1, 3]), c(9, "M4 is fast and silent", [1]), c(9, "2.7 lb", [1]), c(5, "Some course software is Windows-only", [3])],
+                [c(7, "About 12 hours", [2]), c(6, "$1,099 as tested", [2]), c(8, "Snapdragon X is quick", [2]), c(9, "2.6 lb", [2]), c(10, "Runs everything a class needs", [3])],
+              ],
+            });
+            for (const t of [
+              "> **TL;DR:** For most students the **MacBook Air M4** is the better pick: longer battery life and a lower student price [1][3]. Choose the XPS 13 if your courses require Windows-only software [3].\n\n",
+              "## MacBook Air M4\n- All-day battery, about 18 hours [1]\n- Often $899 with education pricing [3]\n\n",
+              "## Dell XPS 13\n- Runs Windows course software without workarounds [3]\n- Shorter battery life, about 12 hours [2]\n\n",
+              "**Confidence:** Likely — two reviews and a buying guide agree; prices change often.\n",
+            ]) { send({ kind: "content", delta: t }); await wait(15); }
+            send({ kind: "stats", promptTokens: 5200, completionTokens: 210, tokensPerSecond: 19.2, promptMs: 6100, totalMs: 17000, thinkingMs: 0 });
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
           if (data.research) {
             send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
             const steps = [
@@ -686,6 +745,32 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".cite-menu").scrollIntoViewIfNeeded();
   await shot(p, "16b-cite-menu");
   console.log("research errors:", errors);
+  await ctx.close();
+}
+// Fact-check and compare & decide
+{
+  const { p, ctx, errors } = await page(true, "midnight", { factCheck: true });
+  await p.getByLabel("Message BYTE").fill("Is it true that we only use 10% of our brains?");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(900);
+  await shot(p, "17-fact-check");
+  console.log("fact-check errors:", errors);
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await page(true, "midnight", { compare: true });
+  await p.getByLabel("Message BYTE").fill("MacBook Air M4 vs Dell XPS 13 for a college student?");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(900);
+  await p.locator(".decision").scrollIntoViewIfNeeded();
+  await shot(p, "17b-decision");
+  // Windows software matters most now: the XPS takes the lead.
+  const sliders = p.locator(".decision input[type=range]");
+  await sliders.nth(4).fill("5");
+  await sliders.nth(0).fill("1");
+  await p.waitForTimeout(200);
+  await shot(p, "17c-decision-reweighted");
+  console.log("compare errors:", errors);
   await ctx.close();
 }
 // A model that didn't load: what's using memory, with Quit buttons

@@ -32,6 +32,7 @@ import type {
   TuneProgress,
   Tuning,
   WireMessage,
+  ChatTask,
 } from "./types";
 
 /** True when running inside the Tauri shell (false in a plain browser tab). */
@@ -107,6 +108,8 @@ export const api = {
       cloud?: CloudTurn;
       /** Don't reuse an earlier answer (Regenerate). */
       fresh?: boolean;
+      /** A job asked for with a button (Rust `agent::Task`). */
+      task?: ChatTask;
     },
     onEvent: (e: ChatEvent) => void,
   ) => {

@@ -480,6 +480,9 @@ pub struct ChatRequest {
     /// Don't reuse an earlier answer ("Ask again").
     #[serde(default)]
     pub fresh: bool,
+    /// A job asked for with a button (e.g. Fact-check).
+    #[serde(default)]
+    pub task: Option<crate::agent::Task>,
 }
 
 /// Remembers a finished first answer for instant reuse (the UI calls this).

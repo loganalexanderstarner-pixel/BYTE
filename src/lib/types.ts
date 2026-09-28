@@ -347,7 +347,24 @@ export type ChatEvent =
   | { kind: "done"; finishReason: string }
   | { kind: "phase"; text: string }
   | { kind: "remote"; conversationId: string; messageId: string | null; userMessageId: string | null }
-  | { kind: "notice"; text: string };
+  | { kind: "notice"; text: string }
+  | ({ kind: "decision" } & Decision);
+
+/** A job asked for with a button (Rust `agent::Task`). */
+export type ChatTask = "factCheck";
+
+/** Compare & decide score table (Rust `decide::Decision`): `scores[option][criterion]`. */
+export interface Decision {
+  options: string[];
+  criteria: { name: string; weight: number }[];
+  scores: (DecisionCell | null)[][];
+}
+
+export interface DecisionCell {
+  score: number;
+  reason: string;
+  sources: number[];
+}
 
 /** One mode the BYTE cloud offers this account (never a fixed list). */
 export interface CloudMode {

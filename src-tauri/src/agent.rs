@@ -43,6 +43,14 @@ pub fn limits(mode: Mode) -> Limits {
 /// Stop offering tools once the conversation uses this share of the context.
 const TOOL_CONTEXT_SHARE: f64 = 0.70;
 
+/// A job the user asked for explicitly (a button), beyond answering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Task {
+    /// Check the claims in the message (the Fact-check button).
+    FactCheck,
+}
+
 pub struct Turn<'a> {
     pub http: &'a reqwest::Client,
     pub net: &'a reqwest::Client,
@@ -61,6 +69,8 @@ pub struct Turn<'a> {
     pub files: Option<&'a tauri::AppHandle>,
     /// The app, for ranking research passages by meaning (None in tests).
     pub app: Option<&'a tauri::AppHandle>,
+    /// A job the user asked for with a button (None: a normal answer).
+    pub task: Option<Task>,
 }
 
 /// BYTE searches before the model answers any question about the world
@@ -326,7 +336,26 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
 
     // Deep and Extended: the research pipeline (research.rs) plans several
     // searches, reads many pages and hands the model ranked, numbered notes.
-    if !weather_done && crate::research::applies(turn.mode, turn.web, &question) {
+    // Fact-check first (asked for, or "is it true that…"), then compare &
+    // decide ("X vs Y"), then research; each hands the model numbered notes.
+    let mut prepared: Option<(SourceBook, String, &str)> = None;
+    if !weather_done && crate::factcheck::applies(turn.web, turn.task == Some(Task::FactCheck), &question) {
+        let (b, notes) = crate::factcheck::run(&turn, &question, estimate(&messages), &cancel, &send).await?;
+        prepared = Some((b, notes, "fact_check"));
+    } else if !weather_done && crate::decide::applies(turn.web, &question) {
+        if let Some((b, notes)) = crate::decide::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
+            prepared = Some((b, notes, "compare"));
+        }
+    }
+    if let Some((found, notes, name)) = prepared {
+        book = found;
+        if !book.sources.is_empty() {
+            send(ChatEvent::Sources { sources: book.sources.clone() })?;
+        }
+        push_tool_exchange(&mut messages, &format!("byte_{name}_0"), name, &json!({ "question": question }), notes);
+        searches.extend(std::iter::repeat_n(question.clone(), lim.max_searches));
+        used_tools = true;
+    } else if !weather_done && crate::research::applies(turn.mode, turn.web, &question) {
         let query = search_query(&question, previous_question(turn.history));
         let (found, notes) = crate::research::run(&turn, &question, &query, estimate(&messages), &cancel, &send).await?;
         book = found;
@@ -592,7 +621,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, false, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log, files: None, app: None };
+        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log, files: None, app: None, task: None };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let calls: Vec<_> = ev.iter().filter(|e| e["kind"] == "toolCall").collect();
@@ -624,7 +653,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, true, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let mut counts = std::collections::BTreeMap::new();
@@ -671,7 +700,7 @@ mod tests {
             let system = crate::prompt::system_prompt(chrono::Local::now(), mode, true, None);
             let plan = crate::router::plan_turn(mode, ThinkingPref::Auto, &q);
             let (ch, seen) = collecting_channel();
-            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None, app: None };
+            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None, app: None, task: None };
             let t = std::time::Instant::now();
             let r = run(turn, CancellationToken::new(), &ch).await;
             let ev = seen.lock().unwrap().clone();
