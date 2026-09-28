@@ -17,7 +17,7 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
-### (next commit) — Build on your own Mac: scripts/build-mac.sh
+### 93c2a4a — Build on your own Mac: scripts/build-mac.sh
 - **Why:** GitHub Actions minutes are at 100%, so release builds can't run on GitHub.
 - **What:** `scripts/build-mac.sh`: checks/installs tools (Xcode CLT, Homebrew cmake + node, rustup), builds
   llama-server with Metal (`build-llama-server.sh`), `npm ci`, `tauri build --target aarch64-apple-darwin`,
