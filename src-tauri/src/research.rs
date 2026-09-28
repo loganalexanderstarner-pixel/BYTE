@@ -40,15 +40,32 @@ pub struct Depth {
 }
 
 pub fn depth(mode: Mode) -> Option<Depth> {
+    depth_at(mode, 0)
+}
+
+/// Research depth for a mode at the Settings level (0 Normal, 1 More, 2 Max).
+pub fn depth_at(mode: Mode, level: u8) -> Option<Depth> {
+    let l = level.min(2) as usize;
     match mode {
-        Mode::Deep => Some(Depth { searches: 4, pages: 12, papers: 6, gap_rounds: 0 }),
-        Mode::Extended => Some(Depth { searches: 6, pages: 24, papers: 8, gap_rounds: 1 }),
+        Mode::Deep => Some(Depth { searches: 4 + l, pages: [12, 20, 32][l], papers: [6, 8, 10][l], gap_rounds: 0 }),
+        Mode::Extended => Some(Depth { searches: 6 + l, pages: [24, 32, 48][l], papers: [8, 10, 10][l], gap_rounds: 1 + usize::from(l == 2) }),
         Mode::Fast | Mode::Auto => None,
     }
 }
 
-/// Pages read at once.
-const BATCH: usize = 6;
+/// Pages read at once, by depth level.
+pub fn batch(level: u8) -> usize {
+    [6, 8, 10][level.min(2) as usize]
+}
+
+/// Scales another pipeline's page count (fact-check, compare, trip) by the depth level.
+pub fn scale_pages(pages: usize, level: u8) -> usize {
+    match level {
+        0 => pages,
+        1 => pages * 3 / 2,
+        _ => pages * 2,
+    }
+}
 /// Most passages kept from one source, so one long page can't fill the notes.
 const PER_SOURCE: usize = 3;
 /// Passage size when splitting pages.
@@ -273,7 +290,7 @@ pub(crate) async fn read_pages(c: &Ctx<'_, '_>, g: &mut Gathered, candidates: &[
     let mut rest = candidates;
     let mut batch_no = 0;
     while read < want && !rest.is_empty() {
-        let take = (want - read).min(BATCH).min(rest.len());
+        let take = (want - read).min(batch(c.turn.depth)).min(rest.len());
         let (batch, tail) = rest.split_at(take);
         rest = tail;
         let ids: Vec<String> = (0..batch.len()).map(|i| format!("byte_rread_{tag}_{batch_no}_{i}")).collect();
@@ -534,18 +551,26 @@ async fn meaning_order(app: &tauri::AppHandle, question: &str, all: &[(u32, usiz
 /// model (with `REPORT_RULES`). `used_tokens` is what the conversation
 /// already takes, so the notes leave room for the answer.
 pub async fn run(turn: &Turn<'_>, question: &str, first_query: &str, used_tokens: usize, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<(SourceBook, String)> {
-    let d = depth(turn.mode).unwrap_or(Depth { searches: 3, pages: 8, papers: 5, gap_rounds: 0 });
+    let d = depth_at(turn.mode, turn.depth).unwrap_or(Depth { searches: 3, pages: 8, papers: 5, gap_rounds: 0 });
     let c = Ctx { turn, cancel, send };
     let mut g = Gathered::default();
 
-    // 1. Plan.
+    // 1. Plan, while the user's own search already runs (it's always the first one).
     c.call("byte_rplan", "plan_research", json!({ "question": question.chars().take(200).collect::<String>() }))?;
-    let (queries, model_wants_papers) = c.cancellable(plan(turn, question, first_query, d.searches)).await?;
+    let first = vec![first_query.to_string()];
+    let mut first_g = Gathered::default();
+    let (planned, first_lists) = tokio::join!(c.cancellable(plan(turn, question, first_query, d.searches)), run_searches(&c, &mut first_g, &first, "0"));
+    let (queries, model_wants_papers) = planned?;
+    let mut lists = first_lists?;
+    for s in &first_g.book.sources {
+        g.book.add(&s.title, &s.url, &s.snippet);
+    }
+    g.searches.extend(first_g.searches);
     let papers = model_wants_papers || crate::router::wants_papers(question);
     c.result("byte_rplan", true, format!("{} searches{}", queries.len(), if papers { " + papers" } else { "" }))?;
 
-    // 2. Search (and papers).
-    let lists = run_searches(&c, &mut g, &queries, "0").await?;
+    // 2. The other searches (and papers).
+    lists.extend(run_searches(&c, &mut g, &queries[1..], "1").await?);
     if papers {
         find_papers(&c, &mut g, first_query, d.papers, "0").await?;
     }
@@ -616,6 +641,18 @@ mod tests {
         assert!(!applies(Mode::Auto, true, "What does research say about intermittent fasting?"));
         assert!(!applies(Mode::Deep, true, "thanks!"));
         assert!(!applies(Mode::Deep, true, "What does my lease say about pets?"));
+    }
+
+    #[test]
+    fn depth_levels_read_more() {
+        assert_eq!(depth_at(Mode::Deep, 0), depth(Mode::Deep));
+        let (n, m, x) = (depth_at(Mode::Deep, 0).unwrap(), depth_at(Mode::Deep, 1).unwrap(), depth_at(Mode::Deep, 9).unwrap());
+        assert!(n.pages < m.pages && m.pages < x.pages && n.searches < x.searches);
+        assert_eq!(x.pages, 32);
+        assert_eq!(depth_at(Mode::Extended, 2).unwrap().pages, 48);
+        assert!(depth_at(Mode::Auto, 2).is_none());
+        assert_eq!((batch(0), batch(1), batch(2), batch(7)), (6, 8, 10, 10));
+        assert_eq!((scale_pages(4, 0), scale_pages(4, 1), scale_pages(4, 2)), (4, 6, 8));
     }
 
     #[test]
@@ -692,7 +729,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Deep, true, None);
         let plan = crate::router::plan_turn(Mode::Deep, crate::settings::ThinkingPref::Off, &q);
         let (ch, seen) = crate::chat::e2e_support::collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Deep, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Deep, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0 };
         let t = std::time::Instant::now();
         crate::agent::run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();

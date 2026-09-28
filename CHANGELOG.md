@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.3 — Phase 6 improvements: faster research
+
+- **Searches start sooner.** Deep and Extended research now run your own search while BYTE is still planning
+  the others, instead of waiting for the plan first.
+- **No needless waiting between searches.** BYTE only spaces out searches to DuckDuckGo and Bing (which block
+  apps that search too fast), and each on its own, so a Bing fallback no longer waits on DuckDuckGo. Your BYTE
+  Cloud's search, Wikipedia, the paper services and the map aren't slowed down at all.
+- **Nothing searched twice.** Searches are remembered for an hour, and papers and places too (pages were already
+  kept for a day), so follow-up questions and Regenerate reuse what BYTE already found. Memory only; nothing is
+  saved to disk.
+- **Research depth setting.** Settings → Engine → Research: **Normal** (as before), **More** (20 pages in Deep,
+  32 in Extended, 8 read at once) or **Max** (32 and 48 pages, 10 at once, an extra gap-check round in
+  Extended). Fact-checks, comparisons and trips read more too. Better answers, longer waits.
+
 ## 0.6.2 — Phase 6 improvements: places nearby and a trip planner
 
 - **Places nearby.** Ask "coffee near me", "pharmacies open now in Shadyside, Pittsburgh" or "best sushi in

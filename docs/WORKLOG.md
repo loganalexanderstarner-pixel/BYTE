@@ -17,6 +17,26 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (this commit) — v0.6.3: faster research, fewer self-imposed limits
+- **Why:** owner: "how can we unthrottle stuff for free to make it quicker… remove limits", with nothing that needs
+  their time or the cluster.
+- **What:**
+  - `tools/search.rs`: pacing per engine (DuckDuckGo and Bing each on their own; the cloud's SearXNG,
+    Wikipedia and the paper/map services were never paced); search results cached for an hour
+    (`tools/cache.rs`, new: bounded TTL + LRU memory cache). Papers (`academic::search`) cached 24 h, places
+    (`places::find_at`) 1 h with "open now" recomputed. Pages already had a 24 h cache (`fetch.rs`); page reads
+    already stop after 15 s, so no change there.
+  - `research::run`: the user's own search runs while the planning request is still being answered.
+  - `settings.research_depth` (Settings → Engine → Research: Normal / More / Max) → `research::depth_at`
+    (Deep 12/20/32 pages, Extended 24/32/48, batch 6/8/10, extra gap round at Max), `scale_pages` for
+    fact-check, compare and trips. `Turn.depth`.
+  - Version 0.6.3, `docs/releases/v0.6.3.md`, VERSIONS (YouTube → v0.6.4, web agent → v0.6.5 at the time),
+    CHANGELOG, HANDOFF, PROJECT_GUIDE; screenshot 07h.
+- **Verify:** `scripts/check-all.sh` (205 Rust incl. cache, pacing and depth tests; 92 vitest). Real engine:
+  `e2e_deep_research` 256 s vs 492 s before for the same question (search luck differs between runs, so this is
+  indicative; most of the remaining time is the small model reading on CPU).
+- **Undo:** revert. Depth defaults to Normal (the old behaviour).
+
 ### (this commit) — v0.6.2: places nearby and a trip planner
 - **Why:** Phase 6 item 5 (owner's plan): local lookup and trip planning, keyless and private.
 - **What:**

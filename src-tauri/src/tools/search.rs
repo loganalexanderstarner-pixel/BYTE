@@ -29,10 +29,15 @@ pub const BROWSER_UA: &str =
 
 /// Minimum gap between two outgoing searches.
 const MIN_GAP: Duration = Duration::from_millis(1200);
-static LAST_SEARCH: Mutex<Option<Instant>> = Mutex::const_new(None);
+/// When each scraped search engine was last asked. Only DuckDuckGo and Bing
+/// (scraped pages that throttle bots) are spaced out, each on its own, so a
+/// Bing fallback doesn't wait for DuckDuckGo. The cloud's search, Wikipedia and
+/// the other services have real APIs and aren't paced.
+static LAST_DDG: Mutex<Option<Instant>> = Mutex::const_new(None);
+static LAST_BING: Mutex<Option<Instant>> = Mutex::const_new(None);
 
-async fn pace() {
-    let mut last = LAST_SEARCH.lock().await;
+async fn pace(engine: Engine) {
+    let mut last = if engine.is_ddg() { LAST_DDG.lock().await } else { LAST_BING.lock().await };
     if let Some(t) = *last {
         let since = t.elapsed();
         if since < MIN_GAP {
@@ -102,6 +107,19 @@ pub async fn search(client: &reqwest::Client, cloud: Option<&crate::cloud::Cloud
     if query.is_empty() {
         return Err(AppError::msg("empty search query"));
     }
+    // The same search in the last hour (a follow-up, Regenerate, research
+    // repeating a query): answer from memory.
+    let key = format!("{}|{max}|{}", cloud.is_some(), super::cache::norm(query));
+    if let Some(hit) = super::cache::SEARCHES.get(&key) {
+        return Ok(hit);
+    }
+    let found = search_uncached(client, cloud, query, max).await?;
+    let size = found.results.iter().map(|r| r.title.len() + r.url.len() + r.snippet.len()).sum::<usize>() + 64;
+    super::cache::SEARCHES.put(&key, found.clone(), size);
+    Ok(found)
+}
+
+async fn search_uncached(client: &reqwest::Client, cloud: Option<&crate::cloud::CloudClient>, query: &str, max: usize) -> AppResult<Searched> {
     let wiki = wikipedia(client, query);
     let web = async {
         if let Some(c) = cloud {
@@ -115,7 +133,7 @@ pub async fn search(client: &reqwest::Client, cloud: Option<&crate::cloud::Cloud
                 errors.push(format!("{}: resting after a bot check", engine.name()));
                 continue;
             }
-            pace().await;
+            pace(engine).await;
             match engine.run(client, query).await {
                 Ok(results) => {
                     let found = results.len();
@@ -389,6 +407,18 @@ fn dedupe(results: Vec<SearchResult>, max: usize) -> Vec<SearchResult> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn engines_are_paced_separately() {
+        // DuckDuckGo then Bing: no wait between different engines.
+        let t = Instant::now();
+        pace(Engine::DdgHtml).await;
+        pace(Engine::Bing).await;
+        assert!(t.elapsed() < Duration::from_millis(300), "{:?}", t.elapsed());
+        // The same engine twice waits for the gap.
+        pace(Engine::DdgLite).await;
+        assert!(t.elapsed() >= Duration::from_millis(1000), "{:?}", t.elapsed());
+    }
 
     fn fixture(name: &str) -> String {
         std::fs::read_to_string(format!("{}/tests/fixtures/{name}", env!("CARGO_MANIFEST_DIR"))).unwrap()

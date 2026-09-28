@@ -18,6 +18,8 @@ export interface Settings {
   userName: string | null;
   /** The user's town for "near me" questions, e.g. "Pittsburgh, PA". */
   homePlace?: string | null;
+  /** Research depth: 0 Normal, 1 More, 2 Max. */
+  researchDepth?: number;
   /** Free-form "About me", included in every conversation. */
   aboutMe: string | null;
   /** Use saved memories and let BYTE suggest new ones. */

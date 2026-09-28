@@ -104,6 +104,9 @@ pub struct Settings {
     /// The user's town, for "near me" questions ("Pittsburgh, PA"). Never guessed.
     #[serde(default)]
     pub home_place: Option<String>,
+    /// How far research goes: 0 Normal, 1 More, 2 Max (more pages and searches).
+    #[serde(default)]
+    pub research_depth: u8,
     /// Where to fetch model catalog updates (default: the BYTE repository).
     pub catalog_url: Option<String>,
     /// Free-form "About me" the user writes; included in every conversation.
@@ -155,6 +158,7 @@ impl Default for Settings {
             web_search: true,
             user_name: None,
             home_place: None,
+            research_depth: 0,
             catalog_url: None,
             about_me: None,
             memory_enabled: true,

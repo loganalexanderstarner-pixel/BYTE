@@ -131,6 +131,7 @@ search-engine query for it. If the text is a single question like \"is it true t
 /// Runs the fact-check and returns the sources and the notes for the model.
 pub async fn run(turn: &Turn<'_>, question: &str, used_tokens: usize, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<(SourceBook, String)> {
     let (max_claims, pages) = budget(turn.mode);
+    let pages = research::scale_pages(pages, turn.depth);
     let c = Ctx { turn, cancel, send };
     let mut g = Gathered::default();
 
@@ -237,7 +238,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, true, None);
         let plan = crate::router::plan_turn(Mode::Auto, crate::settings::ThinkingPref::Off, q);
         let (ch, seen) = crate::chat::e2e_support::collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0 };
         crate::agent::run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         for e in ev.iter().filter(|e| e["kind"] == "toolCall" || e["kind"] == "toolResult") {

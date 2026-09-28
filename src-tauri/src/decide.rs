@@ -327,8 +327,8 @@ weighted 1 (minor) to 5 (crucial) from what the user said about their needs."
     let mut queries: Vec<String> = options.iter().map(|o| format!("{o} review {}", focus.join(" "))).collect();
     queries.push(options.join(" vs "));
     let lists = research::run_searches(&c, &mut g, &queries, "d").await?;
-    let candidates = research::interleave(&lists, &[], pages(turn.mode) * 2);
-    research::read_pages(&c, &mut g, &candidates, pages(turn.mode), "d").await?;
+    let candidates = research::interleave(&lists, &[], research::scale_pages(pages(turn.mode), turn.depth) * 2);
+    research::read_pages(&c, &mut g, &candidates, research::scale_pages(pages(turn.mode), turn.depth), "d").await?;
 
     c.call("byte_drank", "rank_passages", json!({}))?;
     let terms = format!("{} {}", options.join(" "), criteria.iter().map(|c| c.name.as_str()).collect::<Vec<_>>().join(" "));
@@ -444,7 +444,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, true, None);
         let plan = crate::router::plan_turn(Mode::Auto, crate::settings::ThinkingPref::Off, q);
         let (ch, seen) = crate::chat::e2e_support::collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0 };
         crate::agent::run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         for e in ev.iter().filter(|e| e["kind"] == "toolCall" || e["kind"] == "toolResult" || e["kind"] == "decision") {

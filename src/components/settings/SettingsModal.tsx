@@ -243,6 +243,41 @@ function SpeedPrefPicker() {
 }
 
 /** Speed boost (speculative decoding) and a real speed test on this Mac. */
+export const RESEARCH_LEVELS = [
+  { level: 0, label: "Normal", pages: "12 pages in Deep, 24 in Extended" },
+  { level: 1, label: "More", pages: "20 pages in Deep, 32 in Extended" },
+  { level: 2, label: "Max", pages: "32 pages in Deep, 48 in Extended" },
+];
+
+/** How much Deep and Extended research reads (Settings `researchDepth`). */
+function ResearchSection() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  if (!settings) return null;
+  const level = settings.researchDepth ?? 0;
+  const current = RESEARCH_LEVELS[Math.min(2, level)];
+  return (
+    <div className="section">
+      <h4>Research</h4>
+      <div className="field">
+        <label>
+          How much to read
+          <small>
+            {current.pages}, plus fact-checks, comparisons and trips. More reads more sources and gives better answers, but takes longer.
+          </small>
+        </label>
+        <div className="segmented" aria-label="Research depth">
+          {RESEARCH_LEVELS.map((l) => (
+            <button key={l.level} aria-pressed={level === l.level} onClick={() => void update({ researchDepth: l.level })}>
+              {l.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SpeedSection() {
   const engine = useStore((s) => s.engine);
   const settings = useStore((s) => s.settings);
@@ -564,6 +599,7 @@ function EngineTab() {
         </button>
       </div>
       <SpeedSection />
+      <ResearchSection />
       <div className="field">
         <label>
           Context window

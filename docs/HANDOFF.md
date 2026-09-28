@@ -401,7 +401,11 @@ quotes = the quote finder, `markdown.ts` `markVerdicts`, shield button → `Chat
 OpenStreetMap Overpass with mirrors, category map, opening-hours "open now", `find_places` tool + forced lookup via
 `router::places_request`, `settings.homePlace`, `Places.tsx`; `trip.rs`: ask → weather (forecast or last year via the
 Open-Meteo archive) → research + sights → `TripPlan` JSON → `Trip.tsx`, `lib/trip.ts` (PDF via DocSpec), `lib/ics.ts`,
-`calendar_open` command). CoreLocation left for Phase 12 (needs a signed app). **Next:** v0.6.3 YouTube, v0.6.4 web agent; self-check / best-of-3 / quote finder with fact-check.
+`calendar_open` command). CoreLocation left for Phase 12 (needs a signed app). **Done in v0.6.3 (owner: "unthrottle… for free", nothing that
+needs them or the cluster):** per-engine pacing (only DuckDuckGo/Bing scraping), `tools/cache.rs` memory caches
+(searches 1 h, papers 24 h, places 1 h), the user's search overlaps the planning call, `settings.researchDepth`
+(Normal/More/Max → `research::depth_at`, `batch`, `scale_pages`). Free keys (OpenAlex/Semantic Scholar) and self-hosted
+Open-Meteo/Overpass on the cluster were offered and declined for now. **Next:** v0.6.4 YouTube, v0.6.5 web agent; self-check / best-of-3 / quote finder with fact-check.
 1. **Deep / Extended pipelines** (`research.rs`): plan 3–6 sub-questions → parallel searches → fetch up to
    15 (Deep) / 30 (Extended) pages, 6 at a time → embedding-rank passages → cited report; Extended adds a gap
    review, follow-up searches and a rewrite into a sectioned report. Progress steps shown live; cancel anytime.

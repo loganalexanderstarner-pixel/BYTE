@@ -37,6 +37,20 @@ const TIMEOUT: Duration = Duration::from_secs(15);
 /// between them so one source can't crowd out the others. Papers with an
 /// abstract come first; duplicates (same DOI or title) are dropped.
 pub async fn search(net: &reqwest::Client, query: &str, max: usize) -> AppResult<Vec<Paper>> {
+    let key = format!("{max}|{}", super::cache::norm(query));
+    if let Some(hit) = super::cache::PAPERS.get(&key) {
+        return Ok(hit);
+    }
+    let papers = search_uncached(net, query, max).await?;
+    // Only a real answer is kept (an empty one may be a service hiccup).
+    if !papers.is_empty() {
+        let size = papers.iter().map(|p| p.title.len() + p.abstract_text.len() + 200).sum();
+        super::cache::PAPERS.put(&key, papers.clone(), size);
+    }
+    Ok(papers)
+}
+
+async fn search_uncached(net: &reqwest::Client, query: &str, max: usize) -> AppResult<Vec<Paper>> {
     let per = max.clamp(3, 10);
     let (cr, pmc, ax) = tokio::join!(crossref(net, query, per), europe_pmc(net, query, per), arxiv(net, query, per));
     let mut errors = Vec::new();

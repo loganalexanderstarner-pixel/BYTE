@@ -3,6 +3,7 @@
 //! action log of every call.
 
 pub mod academic;
+pub mod cache;
 pub mod calc;
 pub mod fetch;
 pub mod places;

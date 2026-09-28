@@ -288,6 +288,24 @@ pub async fn find(net: &reqwest::Client, what: &str, near: &str) -> AppResult<(P
 }
 
 pub async fn find_at(net: &reqwest::Client, what: &str, place: &Place) -> AppResult<Vec<Spot>> {
+    let key = format!("{:.3},{:.3}|{}", place.lat, place.lon, super::cache::norm(what));
+    if let Some(mut hit) = super::cache::PLACES.get(&key) {
+        // "Open now" is worked out again for the current time.
+        let now = chrono::Local::now().naive_local();
+        for s in &mut hit {
+            s.open_now = open_at(&s.hours, now);
+        }
+        return Ok(hit);
+    }
+    let spots = find_uncached(net, what, place).await?;
+    if !spots.is_empty() {
+        let size = spots.iter().map(|s| s.name.len() + s.address.len() + s.hours.len() + s.website.len() + 120).sum();
+        super::cache::PLACES.put(&key, spots.clone(), size);
+    }
+    Ok(spots)
+}
+
+async fn find_uncached(net: &reqwest::Client, what: &str, place: &Place) -> AppResult<Vec<Spot>> {
     let filters = filters_for(what);
     let now = chrono::Local::now().naive_local();
     let mut spots = Vec::new();
