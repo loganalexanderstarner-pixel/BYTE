@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — Files and photos in local chats
+## 1.0.0-test.14 — Your files, scans and photos
 
 - **Attach files to local chats**: click the paperclip or drop files on the window. BYTE reads PDFs, Word,
   PowerPoint, Excel (and OpenDocument), web pages, text, CSV/JSON and code on your Mac and gives the model the

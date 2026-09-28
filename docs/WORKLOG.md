@@ -17,6 +17,11 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (this commit) — Version 1.0.0-test.14 (Phase 4: files, scans, photos, knowledge base, instant answers)
+- **What:** `node scripts/bump.mjs 1.0.0-test.14`; CHANGELOG "Unreleased" → test.14. CI and the Mac engine test
+  (OCR + embeddings on Metal) green on `4410b53`. Release: `release.yml` with `tag=v1.0.0-test.14`.
+- **Undo:** bump back to test.13.
+
 ### 33488f7 — Phase 4: instant answers for questions asked before
 - **Why:** Phase 4 item 8 (instant-answer cache, moved from Phase 2): speed for repeated questions without
   risking stale answers.
