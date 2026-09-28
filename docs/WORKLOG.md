@@ -17,6 +17,14 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (this commit) — CI fixes: Windows check uses Strawberry Perl; releases keep the .dmg as an artifact
+- **Why:** the Windows job failed configuring SQLCipher's bundled OpenSSL (Git Bash perl lacks modules);
+  the test.14 release built but couldn't publish ("Resource not accessible by integration": the repo's
+  workflow token is read-only, Settings → Actions → General → Workflow permissions).
+- **What:** `ci.yml` windows job sets `PERL` to Strawberry Perl; `release.yml` uploads the .dmg as a run
+  artifact (`if: always()`).
+- **Undo:** revert the two workflow edits.
+
 ### (this commit) — CI: the Rust core must compile on Windows
 - **Why:** owner decision: Mac phases first, but keep the core portable for the Windows/Linux apps later.
 - **What:** `.github/workflows/ci.yml` job `windows` (`windows-latest`, `cargo check --all-targets` with a

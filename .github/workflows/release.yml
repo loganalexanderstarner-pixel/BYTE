@@ -81,3 +81,13 @@ jobs:
           test -x "$app/Contents/MacOS/llama-server"
           codesign --verify --deep --strict --verbose=2 "$app"
           "$app/Contents/MacOS/llama-server" --version
+
+      # The .dmg is also kept on the run's page, so a build can be downloaded
+      # even if publishing the release fails (e.g. the token is read-only).
+      - name: Keep the .dmg as a run artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BYTE-${{ env.TAG }}-dmg
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: ignore

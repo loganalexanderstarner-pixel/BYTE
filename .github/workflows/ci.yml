@@ -80,4 +80,8 @@ jobs:
           touch src-tauri/binaries/llama-server-x86_64-pc-windows-msvc.exe
       - name: cargo check (lib and tests)
         working-directory: src-tauri
+        # SQLCipher's bundled OpenSSL is configured with perl; Git Bash's perl
+        # lacks modules it needs, the runner's Strawberry Perl has them.
+        env:
+          PERL: C:\Strawberry\perl\bin\perl.exe
         run: cargo check --locked --all-targets
