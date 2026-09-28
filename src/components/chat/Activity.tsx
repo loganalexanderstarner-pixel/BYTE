@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Calculator, ChevronRight, CircleCheck, Globe, LoaderCircle, Search, TriangleAlert } from "lucide-react";
+import { Calculator, ChevronRight, CircleCheck, CloudSun, Globe, LoaderCircle, Search, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 
 import type { Source } from "../../lib/types";
@@ -22,6 +22,8 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: Globe, text: `Read ${hostOf(arg("url"))}` };
     case "calculate":
       return { icon: Calculator, text: `Calculated ${arg("expression")}` };
+    case "weather":
+      return { icon: CloudSun, text: `Checked the forecast for ${arg("place")}` };
     default:
       return { icon: CircleCheck, text: s.name };
   }
@@ -32,7 +34,9 @@ export function activitySummary(steps: Step[]): string {
   const searches = steps.filter((s) => s.name === "web_search").length;
   const reads = steps.filter((s) => s.name === "read_page" && s.status === "ok").length;
   const calcs = steps.filter((s) => s.name === "calculate").length;
+  const weather = steps.some((s) => s.name === "weather" && s.status === "ok");
   const parts: string[] = [];
+  if (weather) parts.push("Checked the forecast");
   if (searches) parts.push(searches === 1 ? "Searched the web" : `Searched the web ${searches} times`);
   if (reads) parts.push(`read ${reads} page${reads === 1 ? "" : "s"}`);
   if (calcs) parts.push(`${calcs} calculation${calcs === 1 ? "" : "s"}`);

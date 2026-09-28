@@ -5,6 +5,7 @@
 pub mod calc;
 pub mod fetch;
 pub mod search;
+pub mod weather;
 
 use std::path::PathBuf;
 
@@ -82,6 +83,7 @@ pub struct ToolOutput {
 pub const WEB_SEARCH: &str = "web_search";
 pub const READ_PAGE: &str = "read_page";
 pub const CALCULATE: &str = "calculate";
+pub const WEATHER: &str = "weather";
 /// Suggests saving a fact about the user; the UI asks before saving it.
 pub const REMEMBER: &str = "remember";
 
@@ -98,6 +100,18 @@ pub fn specs(web: bool, memory: bool) -> Vec<Value> {
                     "type": "object",
                     "properties": { "query": { "type": "string", "description": "A concise search query, like you would type into a search engine." } },
                     "required": ["query"]
+                }
+            }
+        }));
+        v.push(json!({
+            "type": "function",
+            "function": {
+                "name": WEATHER,
+                "description": "Current weather and a 7-day forecast for a place. Use this for any weather question instead of searching.",
+                "parameters": {
+                    "type": "object",
+                    "properties": { "place": { "type": "string", "description": "City, with state or country if it helps, e.g. 'Pittsburgh, PA' or 'Paris, France'." } },
+                    "required": ["place"]
                 }
             }
         }));
@@ -177,6 +191,14 @@ pub async fn run(ctx: &ToolContext<'_>, book: &mut SourceBook, name: &str, args:
                 Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Couldn't read {url}: {e}") },
             }
         }
+        WEATHER => match weather::forecast(ctx.net, &arg("place")).await {
+            Ok((place, text)) => {
+                let n = book.add(&format!("Weather forecast for {}", place.label()), &weather::source_url(&place), "");
+                book.mark_read(&weather::source_url(&place), &format!("Weather forecast for {}", place.label()));
+                ToolOutput { ok: true, summary: place.label(), content: format!("[{n}] {text}") }
+            }
+            Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Couldn't get the weather: {e}") },
+        },
         CALCULATE => match calc::calculate(&arg("expression")) {
             Ok(r) => ToolOutput { ok: true, summary: format!("= {r}"), content: r },
             Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Error: {e}") },
@@ -245,7 +267,7 @@ mod tests {
     #[test]
     fn specs_respect_web_toggle() {
         let names = |v: Vec<Value>| v.iter().map(|t| t["function"]["name"].as_str().unwrap().to_string()).collect::<Vec<_>>();
-        assert_eq!(names(specs(true, false)), vec![WEB_SEARCH, READ_PAGE, CALCULATE]);
+        assert_eq!(names(specs(true, false)), vec![WEB_SEARCH, WEATHER, READ_PAGE, CALCULATE]);
         assert_eq!(names(specs(false, false)), vec![CALCULATE]);
         assert_eq!(names(specs(false, true)), vec![CALCULATE, REMEMBER]);
     }

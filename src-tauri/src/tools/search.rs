@@ -1,5 +1,7 @@
-//! Keyless web search. Tries DuckDuckGo (HTML, then Lite), then Bing, and
-//! spaces requests out so search engines don't throttle BYTE.
+//! Keyless web search. Tries DuckDuckGo (HTML, then Lite), then Bing, keeps
+//! only results that are actually about the query (Bing serves unrelated
+//! pages to clients it thinks are bots), adds matching Wikipedia articles,
+//! and spaces requests out so search engines don't throttle BYTE.
 
 use std::time::{Duration, Instant};
 
@@ -37,23 +39,150 @@ async fn pace() {
     *last = Some(Instant::now());
 }
 
-/// Runs a web search, falling back across engines until one returns results.
+/// After DuckDuckGo throttles BYTE (a 202 bot check), leave it alone this long.
+const DDG_COOLDOWN: Duration = Duration::from_secs(120);
+static DDG_BLOCKED_AT: Mutex<Option<Instant>> = Mutex::const_new(None);
+
+/// Runs a web search, falling back across engines until one returns results
+/// that are about the query. Matching Wikipedia articles are mixed in (they're
+/// reliable for people, companies, places and things).
 pub async fn search(client: &reqwest::Client, query: &str, max: usize) -> AppResult<Vec<SearchResult>> {
     let query = query.trim();
     if query.is_empty() {
         return Err(AppError::msg("empty search query"));
     }
-    let mut errors = Vec::new();
-    for engine in [Engine::DdgHtml, Engine::DdgLite, Engine::Bing] {
-        pace().await;
-        match engine.run(client, query).await {
-            Ok(results) if !results.is_empty() => return Ok(dedupe(results, max)),
-            Ok(_) => errors.push(format!("{}: no results", engine.name())),
-            Err(e) => errors.push(format!("{}: {e}", engine.name())),
+    let wiki = wikipedia(client, query);
+    let web = async {
+        let mut errors = Vec::new();
+        for engine in [Engine::DdgHtml, Engine::DdgLite, Engine::Bing] {
+            if engine.is_ddg() && DDG_BLOCKED_AT.lock().await.is_some_and(|t| t.elapsed() < DDG_COOLDOWN) {
+                errors.push(format!("{}: resting after a bot check", engine.name()));
+                continue;
+            }
+            pace().await;
+            match engine.run(client, query).await {
+                Ok(results) => {
+                    let found = results.len();
+                    let relevant = on_topic(results, query);
+                    // Mostly unrelated results mean the engine is serving junk: try the next one.
+                    if !relevant.is_empty() && relevant.len() * 2 >= found.min(6) {
+                        return Ok(relevant);
+                    }
+                    errors.push(format!("{}: {} of {found} results on topic", engine.name(), relevant.len()));
+                }
+                Err(e) => {
+                    if engine.is_ddg() && e.to_string().contains("202") {
+                        *DDG_BLOCKED_AT.lock().await = Some(Instant::now());
+                    }
+                    errors.push(format!("{}: {e}", engine.name()));
+                }
+            }
+        }
+        Err(errors)
+    };
+    let (web, wiki) = tokio::join!(web, wiki);
+    // Wikipedia's own search already matched these; one topic word in the title or snippet is enough.
+    let wiki = keep_matching(wiki.unwrap_or_default(), query, 1);
+    match web {
+        Ok(results) => Ok(dedupe(blend(results, wiki), max)),
+        Err(errors) => {
+            log::warn!("web search engines failed for {query:?}: {errors:?}");
+            if wiki.is_empty() {
+                Err(AppError::msg("web search is unavailable right now (the search engines didn't respond); try again in a minute"))
+            } else {
+                Ok(dedupe(wiki, max))
+            }
         }
     }
-    log::warn!("all search engines failed for {query:?}: {errors:?}");
-    Err(AppError::msg("web search is unavailable right now (the search engines didn't respond); try again in a minute"))
+}
+
+/// Web results with the best Wikipedia article second (after the top web
+/// result), so the pages BYTE reads include it.
+fn blend(mut web: Vec<SearchResult>, wiki: Vec<SearchResult>) -> Vec<SearchResult> {
+    if let Some(w) = wiki.into_iter().next() {
+        let already = web.iter().any(|r| r.url.contains("wikipedia.org/wiki/"));
+        if !already {
+            web.insert(1.min(web.len()), w);
+        }
+    }
+    web
+}
+
+/// Words that say nothing about the topic.
+const QUERY_NOISE: &[&str] = &[
+    "the", "and", "for", "are", "was", "were", "what", "whats", "when", "where", "which", "who", "whom", "why", "how",
+    "does", "did", "can", "could", "should", "would", "will", "much", "many", "with", "this", "that", "these",
+    "those", "there", "from", "about", "into", "than", "then", "have", "has", "had", "you", "your", "get", "got",
+    "is", "a", "an", "of", "to", "in", "on", "at", "by", "or", "it", "its", "my", "me", "i", "do", "be", "any",
+    "best", "good", "worth", "buy", "buying", "now", "current", "currently", "latest", "new", "today", "tell", "know",
+    "fix", "error", "make", "use", "using", "way", "ways", "some",
+];
+
+fn topic_words(query: &str) -> Vec<String> {
+    query
+        .to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty() && !QUERY_NOISE.contains(w) && (w.len() > 1 || w.chars().all(|c| c.is_ascii_digit())))
+        .map(str::to_string)
+        .collect()
+}
+
+/// Keeps results that mention enough of the topic words (two, or a third of a
+/// long query) in their title, address or snippet.
+pub fn on_topic(results: Vec<SearchResult>, query: &str) -> Vec<SearchResult> {
+    let n = topic_words(query).len();
+    keep_matching(results, query, if n <= 1 { 1 } else { 2.max(n.div_ceil(3)) })
+}
+
+fn keep_matching(results: Vec<SearchResult>, query: &str, need: usize) -> Vec<SearchResult> {
+    let words = topic_words(query);
+    if words.is_empty() {
+        return results;
+    }
+    results
+        .into_iter()
+        .filter(|r| {
+            let hay = format!("{} {} {}", r.title, r.url, r.snippet).to_lowercase();
+            words.iter().filter(|w| hay.contains(w.as_str())).count() >= need
+        })
+        .collect()
+}
+
+/// Wikipedia's search API: reliable and keyless. Returns article links.
+async fn wikipedia(client: &reqwest::Client, query: &str) -> AppResult<Vec<SearchResult>> {
+    let words = topic_words(query).join(" ");
+    if words.is_empty() {
+        return Ok(Vec::new());
+    }
+    let v: serde_json::Value = client
+        .get("https://en.wikipedia.org/w/api.php")
+        .query(&[("action", "query"), ("list", "search"), ("srsearch", words.as_str()), ("format", "json"), ("srlimit", "3"), ("utf8", "1")])
+        .header(reqwest::header::USER_AGENT, "BYTE/1.0 (desktop assistant; https://github.com/loganalexanderstarner-pixel/BYTE)")
+        .timeout(Duration::from_secs(8))
+        .send()
+        .await?
+        .json()
+        .await?;
+    Ok(parse_wikipedia(&v))
+}
+
+pub fn parse_wikipedia(v: &serde_json::Value) -> Vec<SearchResult> {
+    v["query"]["search"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|r| {
+                    let title = r["title"].as_str()?;
+                    let snippet = Html::parse_fragment(r["snippet"].as_str().unwrap_or("")).root_element().text().collect::<String>();
+                    Some(SearchResult {
+                        title: format!("{title} - Wikipedia"),
+                        url: format!("https://en.wikipedia.org/wiki/{}", title.replace(' ', "_")),
+                        snippet: snippet.split_whitespace().collect::<Vec<_>>().join(" "),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 #[derive(Clone, Copy)]
@@ -64,6 +193,10 @@ enum Engine {
 }
 
 impl Engine {
+    fn is_ddg(self) -> bool {
+        matches!(self, Engine::DdgHtml | Engine::DdgLite)
+    }
+
     fn name(self) -> &'static str {
         match self {
             Engine::DdgHtml => "duckduckgo",
@@ -247,6 +380,46 @@ mod tests {
         assert_eq!(clean_ddg_url("javascript:alert(1)"), None);
         // base64url of "https://tauri.app/"
         assert_eq!(clean_bing_url("https://www.bing.com/ck/a?!&u=a1aHR0cHM6Ly90YXVyaS5hcHAv&ntb=1").as_deref(), Some("https://tauri.app/"));
+    }
+
+    fn r(title: &str, url: &str) -> SearchResult {
+        SearchResult { title: title.into(), url: url.into(), snippet: String::new() }
+    }
+
+    #[test]
+    fn junk_results_are_dropped() {
+        // What Bing served for "How much does a Tesla Model 3 cost".
+        let junk = vec![
+            r("Create a Google Account for Gmail", "https://support.google.com/mail/answer/56256"),
+            r("Definition of MUCH", "https://www.merriam-webster.com/dictionary/much"),
+            r("Can I upgrade to Windows 11? | Microsoft Support", "https://support.microsoft.com/windows-11"),
+        ];
+        assert!(on_topic(junk, "How much does a Tesla Model 3 cost").is_empty());
+        let good = vec![r("Tesla Model 3 price and specs", "https://www.edmunds.com/tesla/model-3/"), r("Model 3 | Tesla", "https://www.tesla.com/model3")];
+        assert_eq!(on_topic(good, "How much does a Tesla Model 3 cost").len(), 2);
+        // "What is a CEO?" isn't about OpenAI's CEO.
+        let ceo = vec![r("What is a CEO? Roles and Responsibilities", "https://www.investopedia.com/terms/c/ceo.asp"), r("OpenAI - Wikipedia", "https://en.wikipedia.org/wiki/OpenAI")];
+        let kept = on_topic(ceo, "Who is the CEO of OpenAI");
+        assert!(kept.is_empty(), "each page has only one of the two topic words: {kept:?}");
+        let both = vec![r("Sam Altman returns as CEO of OpenAI", "https://www.theverge.com/openai-ceo")];
+        assert_eq!(on_topic(both, "Who is the CEO of OpenAI").len(), 1);
+        assert!(on_topic(vec![r("OpenAI", "https://openai.com")], "").len() == 1);
+    }
+
+    #[test]
+    fn wikipedia_articles_join_the_results_second() {
+        let v = serde_json::json!({ "query": { "search": [
+            { "title": "OpenAI", "snippet": "<span class=\"searchmatch\">OpenAI</span> is an American AI company" },
+            { "title": "Sam Altman", "snippet": "CEO of OpenAI" }
+        ]}});
+        let wiki = parse_wikipedia(&v);
+        assert_eq!(wiki[0].url, "https://en.wikipedia.org/wiki/OpenAI");
+        assert_eq!(wiki[0].snippet, "OpenAI is an American AI company");
+        assert_eq!(wiki[1].url, "https://en.wikipedia.org/wiki/Sam_Altman");
+        let web = vec![r("OpenAI leadership", "https://openai.com/about"), r("News", "https://news.example/openai")];
+        let mixed = blend(web, wiki);
+        assert_eq!(mixed[1].url, "https://en.wikipedia.org/wiki/OpenAI");
+        assert_eq!(mixed.len(), 3);
     }
 
     #[test]

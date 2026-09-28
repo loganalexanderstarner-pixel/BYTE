@@ -84,6 +84,55 @@ pub fn needs_fresh_info(message: &str) -> bool {
     (year - 1..=year + 1).any(|y| m.contains(&y.to_string()))
 }
 
+const WEATHER_CUES: &[&str] = &["weather", "forecast", "temperature", "rain", "snow", "sunny", "humid", "how hot", "how cold", "degrees outside", "umbrella", "storm"];
+const WHEN_WORDS: &[&str] = &[" this ", " today", " tomorrow", " tonight", " next ", " on ", " over ", " right now", " now", " later", " during", " for the ", " at the ", " like", " going ", " be "];
+
+/// The place in a weather question ("weather in Portland, Maine tomorrow" →
+/// "Portland, Maine"), or None if it isn't about the weather or names no place.
+pub fn weather_place(message: &str) -> Option<String> {
+    let text = message.trim().replace('\u{2019}', "'");
+    let lower = text.to_lowercase();
+    if !WEATHER_CUES.iter().any(|c| lower.contains(c)) {
+        return None;
+    }
+    let clean = |raw: &str| -> Option<String> {
+        let mut end = raw.len();
+        let lower_raw = raw.to_lowercase();
+        for w in WHEN_WORDS {
+            if let Some(i) = format!("{lower_raw} ").find(w) {
+                end = end.min(i);
+            }
+        }
+        for c in ['?', '.', '!', ';', '\n'] {
+            if let Some(i) = raw.find(c) {
+                end = end.min(i);
+            }
+        }
+        let place = raw[..end].trim().trim_end_matches(',').trim();
+        let words = place.split_whitespace().count();
+        (!place.is_empty() && words <= 5 && !["the", "my area", "here", "my city"].contains(&place.to_lowercase().as_str())).then(|| place.to_string())
+    };
+    // "... in / for / at <place> ..."
+    for marker in [" in ", " for ", " at "] {
+        if let Some(i) = lower.rfind(marker) {
+            let after = &text[i + marker.len()..];
+            if let Some(p) = clean(after) {
+                if !WEATHER_CUES.iter().any(|c| p.to_lowercase().contains(c)) {
+                    return Some(p);
+                }
+            }
+        }
+    }
+    // "<Place> weather ..."
+    let i = lower.find(" weather").or_else(|| lower.find(" forecast"))?;
+    let before = text[..i].trim();
+    let ok = !before.is_empty()
+        && before.split_whitespace().count() <= 3
+        && before.split_whitespace().all(|w| w.chars().next().is_some_and(char::is_uppercase))
+        && !["what", "what's", "whats", "how", "the", "is"].contains(&before.to_lowercase().split_whitespace().next().unwrap_or(""));
+    ok.then(|| before.to_string())
+}
+
 /// Requests that are writing or coding jobs, not questions about the world.
 const MAKE_JOBS: &[&str] = &[
     "write ", "draft ", "compose ", "create a ", "create an ", "generate ", "make me ", "code ", "implement ",
@@ -353,6 +402,19 @@ mod tests {
         assert!(needs_fresh_info(&format!("Best laptops of {year}")));
         assert!(!needs_fresh_info("Explain how photosynthesis works"));
         assert!(!needs_fresh_info("Write a poem about the sea"));
+    }
+
+    #[test]
+    fn finds_the_place_in_weather_questions() {
+        assert_eq!(weather_place("What's the weather in Pittsburgh this weekend?").as_deref(), Some("Pittsburgh"));
+        assert_eq!(weather_place("weather in Portland, Maine tomorrow").as_deref(), Some("Portland, Maine"));
+        assert_eq!(weather_place("Will it rain in Seattle tomorrow?").as_deref(), Some("Seattle"));
+        assert_eq!(weather_place("forecast for Paris").as_deref(), Some("Paris"));
+        assert_eq!(weather_place("Pittsburgh weather this weekend").as_deref(), Some("Pittsburgh"));
+        assert_eq!(weather_place("New York City forecast").as_deref(), Some("New York City"));
+        assert_eq!(weather_place("what's the weather like?"), None);
+        assert_eq!(weather_place("Who is the CEO of OpenAI?"), None);
+        assert_eq!(weather_place("what's the weather in my area"), None);
     }
 
     #[test]

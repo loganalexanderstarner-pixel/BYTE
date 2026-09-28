@@ -80,6 +80,8 @@ async fn read_top(
     question: &str,
     want: usize,
     page_chars: usize,
+    // Sources from this index on came from the latest search; they're read first.
+    from: usize,
     tag: &str,
     cancel: &CancellationToken,
     send: Emit<'_>,
@@ -87,9 +89,10 @@ async fn read_top(
     if want == 0 {
         return Ok(0);
     }
-    let candidates: Vec<String> = book
-        .sources
+    let (earlier, latest) = book.sources.split_at(from.min(book.sources.len()));
+    let candidates: Vec<String> = latest
         .iter()
+        .chain(earlier)
         .filter(|s| !s.read && tools::fetch::worth_reading(&s.url))
         .map(|s| s.url.clone())
         .take(want * 2)
@@ -274,14 +277,37 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     let mut searches: Vec<String> = Vec::new();
     let mut used_tools = messages.len() > chat::base_messages(turn.system, turn.history).len();
 
+    // Weather: BYTE asks a forecast service instead of reading weather sites
+    // (they're JavaScript apps with no readable text).
+    let mut weather_done = false;
+    if turn.web {
+        if let Some(place) = crate::router::weather_place(&question) {
+            let call_id = "byte_weather_0".to_string();
+            let args = json!({ "place": place });
+            send(ChatEvent::ToolCall { id: call_id.clone(), name: tools::WEATHER.into(), args: args.clone() })?;
+            let out = tokio::select! {
+                o = tools::run(&ctx, &mut book, tools::WEATHER, &args) => o,
+                _ = cancel.cancelled() => return Err(AppError::Cancelled),
+            };
+            send(ChatEvent::ToolResult { id: call_id.clone(), ok: out.ok, summary: out.summary.clone() })?;
+            if out.ok {
+                send(ChatEvent::Sources { sources: book.sources.clone() })?;
+                weather_done = true;
+                used_tools = true;
+            }
+            push_tool_exchange(&mut messages, &call_id, tools::WEATHER, &args, out.content);
+        }
+    }
+
     // Questions about the world: BYTE runs the first search itself and reads
     // the top pages instead of trusting the model to (small models often
     // answer from memory, or search again and again without reading).
-    if must_search_first(&turn, &question) {
+    if !weather_done && must_search_first(&turn, &question) {
         let call_id = "byte_search_0".to_string();
         let query = search_query(&question, previous_question(turn.history));
         let args = json!({ "query": query });
         send(ChatEvent::ToolCall { id: call_id.clone(), name: tools::WEB_SEARCH.into(), args: args.clone() })?;
+        let from = book.sources.len();
         let out = tokio::select! {
             o = tools::run(&ctx, &mut book, tools::WEB_SEARCH, &args) => o,
             _ = cancel.cancelled() => return Err(AppError::Cancelled),
@@ -294,7 +320,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         searches.push(query);
         used_tools = true;
         let pages = page_budget(&turn, &messages, lim);
-        read_top(&turn, &mut book, &mut messages, &question, pages.0, pages.1, "0", &cancel, &send).await?;
+        read_top(&turn, &mut book, &mut messages, &question, pages.0, pages.1, from, "0", &cancel, &send).await?;
     }
 
     let mut round = 0;
@@ -385,6 +411,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
             .collect();
         messages.push(json!({ "role": "assistant", "content": r.content, "tool_calls": calls }));
         let mut searched = false;
+        let from = book.sources.len();
         for call in &calls {
             if cancel.is_cancelled() {
                 return Err(AppError::Cancelled);
@@ -419,7 +446,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         // After a search the model asked for, BYTE reads the best new pages too.
         if searched {
             let pages = page_budget(&turn, &messages, lim);
-            read_top(&turn, &mut book, &mut messages, &question, pages.0, pages.1, &round.to_string(), &cancel, &send).await?;
+            read_top(&turn, &mut book, &mut messages, &question, pages.0, pages.1, from, &round.to_string(), &cancel, &send).await?;
         }
         round += 1;
     }
