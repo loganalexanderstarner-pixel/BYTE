@@ -10,6 +10,9 @@ import { gunzipSync } from "node:zlib";
 const here = dirname(fileURLToPath(import.meta.url));
 // A real `models_list` reply for a 16 GB M4 (regenerate if the ModelStatus shape changes).
 const REAL = JSON.parse(gunzipSync(readFileSync(process.env.MODELS ?? join(here, "models16.json.gz"))).toString("utf8"));
+// Model details (the dropdown) come from the current catalog, so the snapshot above needn't be rebuilt.
+const CATALOG = JSON.parse(readFileSync(join(here, "../../src-tauri/catalog/models.json"), "utf8"));
+const DETAILS = new Map(CATALOG.models.map((m) => [m.id, { details: m.details ?? null, ...(m.tags ? { tags: m.tags } : {}) }]));
 
 const URL = process.env.URL ?? "http://localhost:4173/";
 const OUT = process.env.OUT ?? join(here, "out");
@@ -19,6 +22,7 @@ function mock(onboarded, theme) {
   const GB = 1e9;
   const fit = (f, ctx, note) => ({ fit: f, context: ctx, neededBytes: 11.1 * GB, gpuBudgetBytes: 11.45 * GB, totalRamBytes: 17.18 * GB, note });
   const models = JSON.parse(JSON.stringify(REAL.models));
+  for (const m of models) if (DETAILS.has(m.id)) Object.assign(m, DETAILS.get(m.id));
   for (const m of models) for (const v of m.variants) if (v.key === "qwen3.5-9b:Q6_K" && onboarded) v.measuredTps = 21.4;
   if (onboarded) {
     const m = models.find((x) => x.id === "qwen3.5-9b");
@@ -387,6 +391,7 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(1500);
   await shot(p, "06b-compare");
   await p.keyboard.press("Meta+Comma");
+
   await p.getByRole("button", { name: "Models", exact: true }).click();
   await p.waitForTimeout(300);
   await shot(p, "07-settings-models");
@@ -397,6 +402,11 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".modal-body").evaluate((el) => (el.scrollTop = 0));
   await p.waitForTimeout(150);
   await shot(p, "07c-settings-models-32gb");
+  await p.getByRole("button", { name: "This Mac", exact: true }).click();
+  await p.locator(".details-toggle").first().click();
+  await p.waitForTimeout(200);
+  await p.locator(".model-details").first().scrollIntoViewIfNeeded();
+  await shot(p, "07g-model-details");
   await p.getByRole("button", { name: "Memory & chats", exact: true }).click();
   await p.waitForTimeout(300);
   await shot(p, "07d-settings-memory");

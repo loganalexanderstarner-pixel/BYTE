@@ -149,6 +149,18 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 
 ## Model catalog (added after Phase 2)
 
+- **Pipeline (run in this order):** `node scripts/discover-models.mjs` (official models →
+  `catalog-discovered.json`), `node scripts/discover-models.mjs --community` (→ `catalog-community.json`:
+  community fine-tunes — uncensored versions capped at 45 and one per base model and size, Dolphin, story and
+  role-play tunes — tagged `community`; plus independent models from smaller makers, listed as regular; repos
+  marked `not-for-all-audiences` and explicit names excluded), `node scripts/build-catalog.mjs`, then
+  `node scripts/enrich-catalog.mjs` (adds `details` to every chat model: `about` from the original model's
+  card, `author` (the creator, not the GGUF uploader), `sourceUrl`, `strengths` 1–5 for chat / writing /
+  coding / reasoning / math / languages / speed (BYTE's estimate from quality, tags, family and size),
+  `ideas`, `community`, `caution`; card text cached in `scripts/catalog-cards.json`).
+- Community models are never recommended (`CatalogModel::is_community`, `models::recommend`) and only show
+  under the Community / Stories / Uncensored filters or in search (`CatalogBrowser.tsx`). Each model card has a
+  "Details" dropdown (`ModelCard.tsx` `ModelDetailsView`).
 - `scripts/catalog-sources.json` (curated models with quality scores and "used for" text, helpers, quality
   overrides) + `scripts/catalog-discovered.json` (from `scripts/discover-models.mjs`: trusted authors, official
   name allowlist, excludes uncensored/abliterated/RP/vision/merges) → `scripts/build-catalog.mjs` (picks

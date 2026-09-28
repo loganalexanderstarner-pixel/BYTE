@@ -4,12 +4,12 @@ import { useMemo, useState } from "react";
 
 import { api, errorText } from "../../lib/api";
 import { bytes, ramSize } from "../../lib/format";
-import { displayName, fitGroup, RAM_TIERS, TAG_LABELS } from "../../lib/models";
+import { COMMUNITY_CAPS, displayName, fitGroup, RAM_TIERS, TAG_LABELS } from "../../lib/models";
 import type { ModelStatus, VariantStatus } from "../../lib/types";
 import { useStore } from "../../state/store";
 import { ModelCard } from "./ModelCard";
 
-const CAPABILITIES = ["reasoning", "coding", "writing", "multilingual", "fast", "small", "moe"] as const;
+const CAPABILITIES = ["reasoning", "coding", "writing", "multilingual", "fast", "small", "moe", "community", "stories", "uncensored"] as const;
 const PAGE = 20;
 
 type Sort = "best" | "newest" | "smallest" | "fastest";
@@ -85,10 +85,12 @@ export function CatalogBrowser() {
     const q = query.trim().toLowerCase();
     if (q) {
       list = list.filter((m) =>
-        [m.name, m.family ?? "", m.tagline, m.usedFor ?? "", m.tags.join(" "), m.repo].join(" ").toLowerCase().includes(q),
+        [m.name, m.family ?? "", m.tagline, m.usedFor ?? "", m.tags.join(" "), m.repo, m.details?.about ?? "", m.details?.author ?? ""].join(" ").toLowerCase().includes(q),
       );
     }
     if (cap) list = list.filter((m) => m.tags.includes(cap));
+    // Community fine-tunes show under their own filters or when searching, not in the main list.
+    if (!q && !(cap && COMMUNITY_CAPS.includes(cap))) list = list.filter((m) => !m.tags.includes("community"));
     if (typeof tier === "number") list = list.filter((m) => m.minRamGb <= tier);
     if (tier === "downloaded") list = list.filter((m) => m.variants.some((v) => v.installed || v.partialBytes > 0));
     const bySort: Record<Sort, (a: ModelStatus, b: ModelStatus) => number> = {
@@ -213,7 +215,7 @@ export function CatalogBrowser() {
         <div className="chips" role="group" aria-label="Strength">
           <button className="chip" aria-pressed={cap === null} onClick={() => setCap(null)}>All</button>
           {CAPABILITIES.map((c) => (
-            <button key={c} className="chip" aria-pressed={cap === c} onClick={() => setCap(cap === c ? null : c)} title={c === "moe" ? "Mixture-of-experts: big-model knowledge, small-model speed" : undefined}>
+            <button key={c} className="chip" aria-pressed={cap === c} onClick={() => setCap(cap === c ? null : c)} title={c === "moe" ? "Mixture-of-experts: big-model knowledge, small-model speed" : c === "community" ? "Fine-tunes and merges made by the community: stories, role-play, uncensored versions" : c === "uncensored" ? "Safety tuning removed: refuses less, can say things other models won't" : undefined}>
               {TAG_LABELS[c]}
             </button>
           ))}

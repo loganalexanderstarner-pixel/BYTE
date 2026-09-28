@@ -17,6 +17,28 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (next commit) — Catalog: 713 models, community fine-tunes, a details dropdown
+- **Why:** the owner asked for ~250 more regular models, the community models left out before (with their
+  creator and what they're good for), and a dropdown per model with details and use ideas.
+- **What:**
+  - `scripts/discover-models.mjs`: looser official filters (older generations, language/domain models, more
+    quantizer accounts) → 480 official (was 320); `--community` pass → `scripts/catalog-community.json`: 90
+    community models (uncensored capped at 45, one per base model and size; Dolphin; story/role-play tunes;
+    repos marked `not-for-all-audiences` and explicit names excluded) and 130 independent models from smaller
+    makers (listed as regular).
+  - `scripts/enrich-catalog.mjs` (new): `details` per chat model: `about` from the original model's card (never
+    a quantizer's card; boilerplate, bios, setup text filtered), `author`, `sourceUrl`, `strengths` 1–5,
+    `ideas`, `community`, `caution`. Card starts cached in `scripts/catalog-cards.json` (git-ignored).
+  - `scripts/build-catalog.mjs` merges the community list. `src-tauri/catalog/models.json`: 713 models, 1.4 MB.
+  - Rust `models.rs`: `ModelDetails`, `CatalogModel::is_community`; `recommend` never picks community models.
+    Test `embedded_catalog_is_valid_and_small` now: 600+ chat models, < 2 MB, details for all, authors for 80%+.
+  - UI: `ModelCard.tsx` Details dropdown (`ModelDetailsView`), Community badge, "by <creator>";
+    `CatalogBrowser.tsx` Community / Stories / Uncensored chips (community models hidden from the main list
+    unless those or a search are used); search covers descriptions and creators.
+  - `tools/ui-shots`: details come from the current catalog; new shot `07g-model-details.png`.
+- **Verify:** `scripts/check-all.sh`; `cargo test community_models_are_never_recommended`; screenshots.
+- **Undo:** revert the commit; or rebuild the old catalog with the previous `catalog-discovered.json`.
+
 ### 90ded06 — Documents faster, "quit these apps" help, CI manual, work log
 - **Why:** the owner found the cloud document maker slow; asked that a model that won't load say which open
   apps use memory and which can be closed; Actions minutes nearly used up; wanted everything documented.

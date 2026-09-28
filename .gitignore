@@ -28,3 +28,4 @@ dist-ssr
 
 # UI screenshot output
 tools/ui-shots/out/
+scripts/catalog-cards.json

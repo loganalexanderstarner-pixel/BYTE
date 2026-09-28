@@ -169,8 +169,8 @@ then stability, then looks, then feature count.
 - Engine & speed: `src-tauri/src/engine.rs` (launch args, `LaunchOpts`, `Draft`, retry without helper),
   `tune.rs` (per-Mac tuning), `speed.rs` (measurement), `models.rs` (catalog, helpers, scoring, offload plan),
   `system.rs` (RAM/GPU planner, `plan_offload`, GPU share), `chip.rs` (speed estimates).
-- Catalog: `src-tauri/catalog/models.json`, built by `scripts/build-catalog.mjs` from
-  `scripts/catalog-sources.json` + `catalog-discovered.json` (includes `speedHead`).
+- Catalog: `src-tauri/catalog/models.json`: `discover-models.mjs` (+ `--community`) → `build-catalog.mjs` →
+  `enrich-catalog.mjs` (details dropdown data). See PROJECT_GUIDE "Model catalog".
 - Chat & agent: `chat.rs` (SSE client, `ChatEvent`), `agent.rs`, `router.rs` (thinking effort), `prompt.rs`,
   `tools/` (web search, page reading, calculator).
 - Data: `db.rs` (SQLCipher, schema v3 with `cloud_id`), `settings.rs`, `profiles.rs`, `export.rs`.

@@ -10,6 +10,15 @@
 - **Cloud answers stream smoothly**: the connection to your cloud is kept open between messages, and when the
   cloud closes the answer stream mid-answer BYTE reconnects instantly (it used to wait longer each time and
   give up after five).
+- **713 models to choose from** (was 334), and **every model has a Details dropdown**: what it is (from its
+  model card), who made it, how strong it is at conversation, writing, coding, reasoning, math, other languages
+  and speed, and ideas for using it.
+- **Community models**: popular fine-tunes people make (Dolphin, story and role-play models like Cydonia and
+  Rocinante, uncensored versions), each with its creator and a plain note on what's different. They sit under
+  the Community, Stories and Uncensored filters and are never picked automatically.
+- **"Quit these apps" help**: when a model can't load, BYTE lists the apps using the most memory with a Quit
+  button for each, and "Try loading again".
+- **Cloud documents load faster** (pages aren't downloaded twice, and the cloud connection is reused).
 - **Smoother long answers everywhere**: formatting is redrawn about 12 times a second while streaming instead
   of every frame, and the sidebar no longer redraws with every word.
 

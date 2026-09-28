@@ -235,6 +235,18 @@ export interface VariantStatus {
   measuredTps?: number | null;
 }
 
+/** What a model shows when opened (Rust `models::ModelDetails`). */
+export interface ModelDetails {
+  about: string;
+  author: string | null;
+  sourceUrl: string | null;
+  /** chat, writing, coding, reasoning, math, languages, speed: 1–5 each (BYTE's estimate). */
+  strengths: Record<string, number>;
+  ideas: string[];
+  community: boolean;
+  caution: string | null;
+}
+
 export interface ModelStatus {
   id: string;
   name: string;
@@ -260,6 +272,7 @@ export interface ModelStatus {
   /** Key of the best version for this Mac, or null if none fits. */
   best: string | null;
   minRamGb: number;
+  details?: ModelDetails | null;
 }
 
 export type EngineStatus =

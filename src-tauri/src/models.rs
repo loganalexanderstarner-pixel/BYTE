@@ -97,6 +97,43 @@ pub struct CatalogModel {
     /// A speed-up head published with the model (see `Helper`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub speed_head: Option<SpeedHead>,
+    /// Details for the model's dropdown (scripts/enrich-catalog.mjs).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub details: Option<ModelDetails>,
+}
+
+impl CatalogModel {
+    /// A community fine-tune or merge (not from the model's original maker).
+    pub fn is_community(&self) -> bool {
+        self.tags.iter().any(|t| t == "community") || self.details.as_ref().is_some_and(|d| d.community)
+    }
+}
+
+/// What the model list shows when a model is opened: a longer description
+/// from its model card, who made it, how strong it is at different things
+/// (BYTE's estimate from size, family and card), and ideas for using it.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelDetails {
+    #[serde(default)]
+    pub about: String,
+    /// Who made the model (the original creator, not the uploader of the GGUF files).
+    #[serde(default)]
+    pub author: Option<String>,
+    /// The original model's page.
+    #[serde(default)]
+    pub source_url: Option<String>,
+    /// Chat, writing, coding, reasoning, math, languages, speed: 1–5 each.
+    #[serde(default)]
+    pub strengths: std::collections::BTreeMap<String, u8>,
+    #[serde(default)]
+    pub ideas: Vec<String>,
+    /// A community fine-tune or merge (not from the model's original maker).
+    #[serde(default)]
+    pub community: bool,
+    /// Plain notes shown with community models ("fewer refusals: no safety tuning").
+    #[serde(default)]
+    pub caution: Option<String>,
 }
 
 /// How a Speed boost helper guesses ahead (llama.cpp `--spec-type`).
@@ -540,8 +577,13 @@ const QUALITY_FLOOR: i32 = 8;
 /// The recommended chat model + version for this Mac.
 pub fn recommend<'a>(catalog: &'a Catalog, info: &SystemInfo, ctx: u32) -> Option<(&'a CatalogModel, &'a Variant)> {
     let comfy = |m: &CatalogModel, v: &Variant| plan(m, v, info, ctx).fit == Fit::Great;
-    let options: Vec<(&CatalogModel, &Variant)> =
-        catalog.models.iter().filter(|m| m.role == Role::Chat).filter_map(|m| best_variant(m, info, ctx).map(|v| (m, v))).collect();
+    // Community fine-tunes are there for people who go looking; BYTE never picks one for them.
+    let options: Vec<(&CatalogModel, &Variant)> = catalog
+        .models
+        .iter()
+        .filter(|m| m.role == Role::Chat && !m.is_community())
+        .filter_map(|m| best_variant(m, info, ctx).map(|v| (m, v)))
+        .collect();
     // Accuracy first: never trade more than a few quality points for speed
     // unless the user chose "Faster".
     let top = options.iter().filter(|(m, v)| comfy(m, v)).map(|(m, v)| effective_quality(m, v)).max();
@@ -609,6 +651,7 @@ pub struct ModelStatus {
     pub best: Option<String>,
     /// Smallest Mac memory size that can run any version.
     pub min_ram_gb: u32,
+    pub details: Option<ModelDetails>,
 }
 
 pub struct ListContext<'a> {
@@ -678,6 +721,7 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
                 active_b: m.active_b,
                 used_for: m.used_for.clone(),
                 max_context: m.arch.max_ctx,
+                details: m.details.clone(),
                 variants,
             }
         })
@@ -972,8 +1016,13 @@ mod tests {
     #[test]
     fn embedded_catalog_is_valid_and_small() {
         let c = Catalog::embedded();
-        assert!(c.models.iter().filter(|m| m.role == Role::Chat).count() >= 150, "catalog should offer 150+ chat models");
-        assert!(EMBEDDED_CATALOG.len() < 1024 * 1024, "catalog should stay small (models download separately)");
+        let chat: Vec<_> = c.models.iter().filter(|m| m.role == Role::Chat).collect();
+        assert!(chat.len() >= 600, "catalog should offer 600+ chat models");
+        assert!(EMBEDDED_CATALOG.len() < 2 * 1024 * 1024, "catalog should stay small (models download separately)");
+        // Every chat model has details for its dropdown, most with a description from its card.
+        assert!(chat.iter().all(|m| m.details.as_ref().is_some_and(|d| !d.about.is_empty() && d.strengths.len() == 7)));
+        assert!(chat.iter().filter(|m| m.details.as_ref().is_some_and(|d| d.author.is_some())).count() * 10 >= chat.len() * 8);
+        assert!(chat.iter().filter(|m| m.is_community()).count() >= 50, "community fine-tunes are listed");
         assert!(c.models.iter().filter(|m| m.active_b.is_some()).count() >= 20, "catalog should include MoE models");
         assert!(c.models.iter().any(|m| m.role == Role::Draft));
         assert!(c.models.iter().any(|m| m.role == Role::Embed));
@@ -1192,6 +1241,17 @@ mod tests {
         // Far too big stays too big.
         let (m, v) = c.resolve("qwen3.8-27b:Q8_0").unwrap();
         assert_eq!(plan(m, v, &m16, 16384).fit, Fit::TooBig);
+    }
+
+    #[test]
+    fn community_models_are_never_recommended() {
+        let mut c = Catalog::embedded();
+        let best = recommend(&c, &mac(16), 16384).map(|(m, _)| m.id.clone()).unwrap();
+        // Make the recommended model a community one: something else must be picked.
+        c.models.iter_mut().find(|m| m.id == best).unwrap().tags.push("community".into());
+        let now = recommend(&c, &mac(16), 16384).map(|(m, _)| m.id.clone()).unwrap();
+        assert_ne!(now, best);
+        assert!(!c.models.iter().find(|m| m.id == now).unwrap().is_community());
     }
 
     #[test]

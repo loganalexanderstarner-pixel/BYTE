@@ -7,20 +7,22 @@
 // the architecture numbers BYTE's RAM planner needs (layers, KV heads, head
 // size, context length). Nothing large is downloaded.
 //
-//   node scripts/build-catalog.mjs
+//   node scripts/build-catalog.mjs && node scripts/enrich-catalog.mjs
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sources = JSON.parse(readFileSync(join(root, "scripts/catalog-sources.json"), "utf8"));
-const discovered = (() => {
+const readList = (file) => {
   try {
-    return JSON.parse(readFileSync(join(root, "scripts/catalog-discovered.json"), "utf8")).models;
+    return JSON.parse(readFileSync(join(root, "scripts", file), "utf8")).models;
   } catch {
     return [];
   }
-})();
+};
+// Official models found by discover-models.mjs, then community fine-tunes (--community).
+const discovered = [...readList("catalog-discovered.json"), ...readList("catalog-community.json")];
 const HF = "https://huggingface.co";
 
 async function json(url) {

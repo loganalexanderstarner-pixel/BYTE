@@ -1,9 +1,10 @@
-import { Brain, CircleCheck, Clock, Download, Gauge, Layers, Pause, Play, Sparkles, Trash2, TriangleAlert, Wrench } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { Brain, ChevronDown, CircleCheck, Clock, Download, ExternalLink, Gauge, Layers, Pause, Play, Sparkles, Trash2, TriangleAlert, Users, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { bytes, contextLabel, eta } from "../../lib/format";
 import { approxDuration, paramsLabel, quantLabel, shortQuant, speedClass, TAG_LABELS } from "../../lib/models";
-import type { LoadedModel, ModelStatus, VariantStatus } from "../../lib/types";
+import type { LoadedModel, ModelDetails, ModelStatus, VariantStatus } from "../../lib/types";
 import type { DownloadState } from "../../state/store";
 
 /** How well one version fits this Mac. */
@@ -12,6 +13,67 @@ export function FitPill({ v }: { v: VariantStatus }) {
   if (f.fit === "toobig") return <span className="pill danger" title={f.note}><TriangleAlert size={12} /> Needs {v.minRamGb} GB</span>;
   if (f.fit === "tight") return <span className="pill warn" title={f.note}>Fits · {contextLabel(f.context)} context</span>;
   return <span className="pill ok" title={f.note}>Great fit · {contextLabel(f.context)} context</span>;
+}
+
+const STRENGTH_LABELS: [string, string][] = [
+  ["chat", "Conversation"],
+  ["writing", "Writing"],
+  ["coding", "Coding"],
+  ["reasoning", "Reasoning"],
+  ["math", "Math"],
+  ["languages", "Other languages"],
+  ["speed", "Speed"],
+];
+
+/** The dropdown: what the model is, who made it, what it's good at, ideas. */
+export function ModelDetailsView({ d, model }: { d: ModelDetails; model: ModelStatus }) {
+  return (
+    <div className="model-details">
+      {d.about && <p>{d.about}</p>}
+      <div className="details-meta">
+        {d.author && (
+          <span>
+            <span className="faint">Made by</span> <b>{d.author}</b>
+          </span>
+        )}
+        {model.released && <span className="faint">Released {model.released}</span>}
+        {model.license && <span className="faint">{model.license}</span>}
+        {d.sourceUrl && (
+          <button className="linklike" onClick={() => void openUrl(d.sourceUrl!)}>
+            Model page <ExternalLink size={11} />
+          </button>
+        )}
+      </div>
+      {d.caution && (
+        <div className="details-caution">
+          <TriangleAlert size={13} /> {d.caution}
+        </div>
+      )}
+      <div className="strengths" aria-label="How good it is at different things">
+        {STRENGTH_LABELS.filter(([k]) => d.strengths[k]).map(([k, label]) => (
+          <div key={k} className="strength">
+            <span>{label}</span>
+            <span className="bar" aria-label={`${d.strengths[k]} of 5`}>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <i key={i} className={i <= d.strengths[k] ? "on" : ""} />
+              ))}
+            </span>
+          </div>
+        ))}
+        <span className="faint strengths-note">BYTE's estimate from the model's size, family and card.</span>
+      </div>
+      {d.ideas.length > 0 && (
+        <div>
+          <span className="faint">Try it for</span>
+          <ul className="ideas">
+            {d.ideas.map((i) => (
+              <li key={i}>{i}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function DownloadProgress({ variant, dl }: { variant: VariantStatus; dl?: DownloadState }) {
@@ -91,6 +153,8 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
   const isPick = !!recommended && model.variants.some((x) => x.key === recommended);
   const extra = loaded.find((l) => l.key === v.key && !l.primary);
   const canChat = v.installed && model.role === "chat";
+  const [open, setOpen] = useState(false);
+  const d = model.details;
 
   return (
     <div className={`model-card ${active ? "active" : ""}`}>
@@ -100,6 +164,7 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
             {model.name}
             {paramsLabel(model) && <span className="faint" style={{ fontWeight: 500, fontSize: "0.85em" }}>{paramsLabel(model)}</span>}
             {isPick && <span className="pill accent"><Sparkles size={11} /> BYTE's pick</span>}
+            {d?.community && <span className="pill" title="Made by the community, not the original model's maker"><Users size={11} /> Community</span>}
             {active && <span className="pill ok"><CircleCheck size={12} /> In use</span>}
             {extra && (
               <span className="pill accent" title="Loaded alongside the main model">
@@ -111,6 +176,7 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
           {model.usedFor && (
             <div style={{ fontSize: "0.88em", marginTop: 2 }}>
               <span className="faint">Good for:</span> {model.usedFor}
+              {d?.author && <span className="faint"> · by {d.author}</span>}
             </div>
           )}
         </div>
@@ -191,6 +257,14 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
         </div>
       )}
       {(downloading || hasPartial) && <DownloadProgress variant={v} dl={dl} />}
+      {d && (
+        <>
+          <button className="details-toggle" onClick={() => setOpen(!open)} aria-expanded={open}>
+            <ChevronDown size={14} style={{ transform: open ? "rotate(180deg)" : undefined }} /> {open ? "Hide details" : "Details: what it's good at, who made it, ideas"}
+          </button>
+          {open && <ModelDetailsView d={d} model={model} />}
+        </>
+      )}
     </div>
   );
 }
