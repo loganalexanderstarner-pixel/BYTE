@@ -251,7 +251,12 @@ fn estimate(messages: &[Value]) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chat::e2e_support::{collecting_channel, start_server};
+    use crate::chat::e2e_support::{collecting_channel, start_server, start_server_with};
+
+    async fn start_server_with_ctx(ctx: u32) -> Option<(crate::chat::e2e_support::Server, crate::engine::Endpoint)> {
+        let model = std::env::var("BYTE_TEST_MODEL").ok()?;
+        start_server_with(&model, &["-c".into(), ctx.to_string()], None).await
+    }
     use crate::settings::ThinkingPref;
 
     #[test]
@@ -328,6 +333,71 @@ mod tests {
         assert!(ev.iter().any(|e| e["kind"] == "sources"), "no sources emitted");
         assert!(!content.trim().is_empty());
     }
+
+    /// Web-search quality check on everyday questions (real engine + real internet).
+    /// Prints what BYTE searched, read and answered for each question. Needs
+    /// BYTE_TEST_LLAMA_SERVER, BYTE_TEST_MODEL and BYTE_TEST_WEB=1; optional
+    /// BYTE_TEST_QUESTIONS (one per line) replaces the built-in list.
+    #[tokio::test]
+    #[ignore]
+    async fn e2e_web_quality_report() {
+        if std::env::var("BYTE_TEST_WEB").is_err() {
+            return;
+        }
+        let Some((_server, mut ep)) = start_server_with_ctx(16384).await else { return };
+        ep.context = 16384;
+        let dir = tempfile::tempdir().unwrap();
+        let log = ActionLog::new(dir.path().join("a.jsonl"));
+        let http = chat::local_client();
+        let net = tools::fetch::web_client();
+        let questions: Vec<String> = std::env::var("BYTE_TEST_QUESTIONS")
+            .map(|q| q.lines().map(str::to_string).filter(|l| !l.trim().is_empty()).collect())
+            .unwrap_or_else(|_| WEB_QUESTIONS.iter().map(|s| s.to_string()).collect());
+        let mode = match std::env::var("BYTE_TEST_MODE").as_deref() {
+            Ok("deep") => Mode::Deep,
+            Ok("fast") => Mode::Fast,
+            _ => Mode::Auto,
+        };
+        for q in questions {
+            let history = vec![ChatMessage { role: "user".into(), content: q.clone() }];
+            let system = crate::prompt::system_prompt(chrono::Local::now(), mode, true, None);
+            let plan = crate::router::plan_turn(mode, ThinkingPref::Auto, &q);
+            let (ch, seen) = collecting_channel();
+            let turn = Turn { http: &http, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log };
+            let t = std::time::Instant::now();
+            let r = run(turn, CancellationToken::new(), &ch).await;
+            let ev = seen.lock().unwrap().clone();
+            eprintln!("\n=== {q}  ({:.0}s, forced search: {})", t.elapsed().as_secs_f64(), must_search_q(&q));
+            for e in &ev {
+                match e["kind"].as_str() {
+                    Some("toolCall") => eprintln!("  call  {} {}", e["name"], e["args"]),
+                    Some("toolResult") => eprintln!("  -> ok={} {}", e["ok"], e["summary"]),
+                    _ => {}
+                }
+            }
+            let content: String = ev.iter().filter(|e| e["kind"] == "content").filter_map(|e| e["delta"].as_str()).collect();
+            eprintln!("  answer: {}", content.chars().take(700).collect::<String>().replace('\n', " / "));
+            if let Err(e) = r {
+                eprintln!("  ERROR: {e}");
+            }
+        }
+    }
+
+    fn must_search_q(q: &str) -> bool {
+        crate::router::needs_fresh_info(q)
+    }
+
+    /// Everyday questions that need the web to be answered well.
+    const WEB_QUESTIONS: &[&str] = &[
+        "Who won the most recent Super Bowl?",
+        "What's the weather in Pittsburgh this weekend?",
+        "Who is the CEO of OpenAI?",
+        "How much does a Tesla Model 3 cost?",
+        "How do I fix \"xcrun: error: invalid active developer path\" on my Mac?",
+        "Is the Steam Deck OLED worth buying?",
+        "What time do the Steelers play next?",
+        "What is llama.cpp?",
+    ];
 
     #[test]
     fn search_query_cleans_prefixes() {
