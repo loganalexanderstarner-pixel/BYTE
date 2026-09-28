@@ -24,6 +24,7 @@ import type {
   Project,
   SearchHit,
   Settings,
+  Source,
   SystemInfo,
   ThinkingPref,
   TuneProgress,
@@ -102,6 +103,8 @@ export const api = {
       private?: boolean;
       projectId?: string | null;
       cloud?: CloudTurn;
+      /** Don't reuse an earlier answer (Regenerate). */
+      fresh?: boolean;
     },
     onEvent: (e: ChatEvent) => void,
   ) => {
@@ -110,6 +113,10 @@ export const api = {
     return invoke<void>("chat_send", { request, onEvent: channel });
   },
   chatCancel: (requestId: string) => invoke<boolean>("chat_cancel", { requestId }),
+  /** Remembers a chat's first answer for instant reuse (Rust decides whether it qualifies). */
+  answerCachePut: (question: string, mode: Mode, answer: string, sources: Source[]) =>
+    invoke<void>("answer_cache_put", { question, mode, answer, sources }),
+  answerCacheClear: () => invoke<void>("answer_cache_clear"),
 
   // BYTE cloud (docs/CLOUD-MODE.md). The key goes straight to the Keychain.
   cloudStatus: () => invoke<CloudStatus>("cloud_status"),

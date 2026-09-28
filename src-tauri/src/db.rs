@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 4;
+const SCHEMA_VERSION: i32 = 5;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -559,7 +559,25 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 4);
+    if version < 5 {
+        // Instant answers (answer_cache.rs): earlier answers to first questions, by meaning.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE answer_cache (
+                 id INTEGER PRIMARY KEY,
+                 question TEXT NOT NULL,
+                 mode TEXT NOT NULL,
+                 embedding BLOB NOT NULL,
+                 answer TEXT NOT NULL,
+                 sources TEXT NOT NULL DEFAULT '[]',
+                 created_at INTEGER NOT NULL
+             );
+             CREATE INDEX answer_cache_by_mode ON answer_cache(mode, created_at);
+             PRAGMA user_version = 5;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 5);
     Ok(())
 }
 

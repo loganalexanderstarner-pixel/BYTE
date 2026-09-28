@@ -134,6 +134,20 @@ export function KnowledgeTab() {
             )}
           </div>
         )}
+        <label className="row" style={{ gap: 10, cursor: "pointer", marginTop: 12 }}>
+          <input type="checkbox" checked={settings.answerCache} onChange={(e) => void update({ answerCache: e.target.checked })} />
+          <span className="grow">
+            <b>Instant answers</b>
+            <span className="faint" style={{ display: "block", fontSize: "0.88em" }}>
+              When a new chat asks almost exactly what you asked in the last week, BYTE shows that answer at once (marked, with
+              Regenerate for a fresh one). Never for questions about the news, prices or anything else that changes.
+              {!kb?.embedInstalled && " Needs search by meaning."}
+            </span>
+          </span>
+          <button className="btn sm ghost" onClick={(e) => (e.preventDefault(), void guard(() => api.answerCacheClear()))} title="Forget saved answers">
+            Clear
+          </button>
+        </label>
       </div>
     </>
   );

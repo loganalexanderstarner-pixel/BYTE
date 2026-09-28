@@ -18,6 +18,10 @@
   your files first. Answers cite the file and page. A **My files** switch sits next to Web in the chat box.
 - **Search by meaning**: an optional 146 MB model lets BYTE find passages worded differently from your question
   (it runs only while searching and stops after 5 idle minutes). Without it, BYTE finds passages by their words.
+- **Instant answers**: when a new chat asks almost exactly what you asked in the last week (any wording: "whats a
+  roth ira" matches "What is a Roth IRA?"), BYTE shows that answer at once, marked, with Regenerate for a fresh
+  one. Never for news, prices, weather or anything else that changes, never in private chats. Settings →
+  Knowledge base (on by default once search by meaning is downloaded; Clear forgets them).
 - **Reader**: click a file source (or a file you sent) to open its text in a side panel with the cited passage
   highlighted; "Show in Finder" opens its folder.
 

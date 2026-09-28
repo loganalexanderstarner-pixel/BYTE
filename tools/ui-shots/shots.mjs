@@ -58,7 +58,7 @@ function mock(onboarded, theme) {
         { id: "m3", text: "Uses a MacBook Air M4 with 16 GB", source: "chat", createdAt: now - 1 * day },
       ]
     : [];
-  const settings = { autoTune: true, tuning: onboarded ? { "qwen3.5-9b:Q6_K": { boost: true, kvF16: false, ubatch: 1024, tokensPerSec: 21.4, promptPerSec: 412, chip: "Apple M4 10-core GPU", testedAt: Date.now(), flashAttn: true, draftNMax: 16, draftPMin: 0.75, thorough: true, helperKind: "draft", ngram: true } } : {}, speedBoost: true, speedPref: "balanced", memoryEnabled: true, kbEnabled: true, aboutMe: "I'm Logan. I like clear, practical answers.", loadedAlongside: [], webSearch: true, userName: "Logan", onboardingComplete: onboarded, activeModel: onboarded ? "qwen3.5-9b:Q6_K" : null, contextSize: null, defaultMode: "auto", thinking: "auto", theme, accent: null, fontScale: 1, density: "comfortable", showStats: true };
+  const settings = { autoTune: true, tuning: onboarded ? { "qwen3.5-9b:Q6_K": { boost: true, kvF16: false, ubatch: 1024, tokensPerSec: 21.4, promptPerSec: 412, chip: "Apple M4 10-core GPU", testedAt: Date.now(), flashAttn: true, draftNMax: 16, draftPMin: 0.75, thorough: true, helperKind: "draft", ngram: true } } : {}, speedBoost: true, speedPref: "balanced", memoryEnabled: true, kbEnabled: true, answerCache: true, aboutMe: "I'm Logan. I like clear, practical answers.", loadedAlongside: [], webSearch: true, userName: "Logan", onboardingComplete: onboarded, activeModel: onboarded ? "qwen3.5-9b:Q6_K" : null, contextSize: null, defaultMode: "auto", thinking: "auto", theme, accent: null, fontScale: 1, density: "comfortable", showStats: true };
   const system = REAL.system;
   const loaded = onboarded
     ? [

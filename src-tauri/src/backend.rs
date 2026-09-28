@@ -132,6 +132,36 @@ fn finish(r: Result<(), BackendError>) -> AppResult<()> {
     }
 }
 
+/// Instant answers (answer_cache.rs): a chat's first question that was asked
+/// (almost exactly) in the last week gets that answer at once, marked as
+/// reused. Any problem just means answering normally.
+async fn reuse_earlier_answer(state: &AppState, request: &ChatRequest, ep: &crate::engine::Endpoint, on_event: &Channel<ChatEvent>) -> bool {
+    if request.private || request.fresh || request.model.is_some() || !state.settings.lock().await.answer_cache {
+        return false;
+    }
+    let Some(question) = crate::answer_cache::cacheable(&request.messages) else { return false };
+    let catalog = state.catalog.get();
+    let Some(app) = state.app.get() else { return false };
+    if crate::answer_cache::count(&state.db) == 0 || !crate::embed::Embedder::installed(&catalog, &state.paths.models) {
+        return false;
+    }
+    let Ok(v) = state.embedder.embed(app, &state.paths.models, &catalog, &[question.to_string()], crate::embed::Purpose::Query).await else { return false };
+    let mode = serde_json::to_value(request.mode).ok().and_then(|m| m.as_str().map(String::from)).unwrap_or_default();
+    let Ok(Some(hit)) = crate::answer_cache::find(&state.db, &v[0], &mode) else { return false };
+    let when = chrono::DateTime::from_timestamp_millis(hit.created_at).map(|t| t.with_timezone(&chrono::Local).format("%b %-d").to_string()).unwrap_or_default();
+    let sources: Vec<crate::tools::Source> = serde_json::from_str(&hit.sources).unwrap_or_default();
+    let _ = on_event.send(ChatEvent::Started { thinking: false, model: ep.model.clone() });
+    let _ = on_event.send(ChatEvent::Notice {
+        text: format!("Instant answer: you asked \"{}\" on {when}. Use Regenerate for a fresh answer.", hit.question.chars().take(80).collect::<String>()),
+    });
+    if !sources.is_empty() {
+        let _ = on_event.send(ChatEvent::Sources { sources });
+    }
+    let _ = on_event.send(ChatEvent::Content { delta: hit.answer });
+    let _ = on_event.send(ChatEvent::Done { finish_reason: "cache".into() });
+    true
+}
+
 async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<ChatEvent>) -> AppResult<()> {
     if state.tuning.load(std::sync::atomic::Ordering::SeqCst) {
         return Err(AppError::msg("BYTE is tuning itself for this Mac (about a minute). Try again when it's done."));
@@ -148,6 +178,9 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
             .await
             .ok_or_else(|| AppError::msg("The AI engine isn't ready yet. It usually takes a few seconds after launch."))?,
     };
+    if reuse_earlier_answer(state, request, &ep, on_event).await {
+        return Ok(());
+    }
     let last_user = request
         .messages
         .iter()
@@ -248,6 +281,7 @@ mod tests {
             private,
             project_id: None,
             cloud: None,
+            fresh: false,
         }
     }
 

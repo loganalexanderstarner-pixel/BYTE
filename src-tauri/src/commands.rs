@@ -412,6 +412,31 @@ pub struct ChatRequest {
     /// Answer on the BYTE cloud instead of this Mac.
     #[serde(default)]
     pub cloud: Option<crate::cloud::cmd::CloudTurn>,
+    /// Don't reuse an earlier answer ("Ask again").
+    #[serde(default)]
+    pub fresh: bool,
+}
+
+/// Remembers a finished first answer for instant reuse (the UI calls this).
+#[tauri::command]
+pub async fn answer_cache_put(state: State<'_, AppState>, question: String, mode: Mode, answer: String, sources: serde_json::Value) -> AppResult<()> {
+    let catalog = state.catalog.get();
+    if !state.settings.lock().await.answer_cache
+        || answer.trim().is_empty()
+        || crate::answer_cache::cacheable(&[ChatMessage::new("user", question.clone())]).is_none()
+        || !crate::embed::Embedder::installed(&catalog, &state.paths.models)
+    {
+        return Ok(());
+    }
+    let Some(app) = state.app.get() else { return Ok(()) };
+    let v = state.embedder.embed(app, &state.paths.models, &catalog, &[question.clone()], crate::embed::Purpose::Query).await?;
+    let mode = serde_json::to_value(mode)?.as_str().unwrap_or("auto").to_string();
+    crate::answer_cache::put(&state.db, &question, &mode, &v[0], &answer, &sources.to_string())
+}
+
+#[tauri::command]
+pub async fn answer_cache_clear(state: State<'_, AppState>) -> AppResult<()> {
+    crate::answer_cache::clear(&state.db)
 }
 
 #[tauri::command]

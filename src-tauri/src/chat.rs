@@ -29,7 +29,6 @@ pub struct ChatMessage {
 }
 
 impl ChatMessage {
-    #[cfg(test)]
     pub fn new(role: &str, content: impl Into<String>) -> Self {
         ChatMessage { role: role.into(), content: content.into(), ..Default::default() }
     }

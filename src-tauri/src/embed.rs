@@ -270,6 +270,31 @@ mod tests {
         assert!(scores[0] > scores[1] && scores[0] > scores[2], "{scores:?}");
     }
 
+    /// The instant-answer threshold (answer_cache::THRESHOLD) with the real
+    /// model: rewordings of a question pass, different questions don't.
+    #[tokio::test]
+    #[ignore]
+    async fn e2e_instant_answer_threshold() {
+        let Ok(model) = std::env::var("BYTE_TEST_EMBED_MODEL") else { return };
+        let opts = LaunchOpts { embedding: true, ubatch: Some(CONTEXT), ..Default::default() };
+        let Some((_server, ep)) = crate::chat::e2e_support::start_server_with(&model, &[], Some(&opts)).await else { return };
+        let http = crate::chat::local_client();
+        let q = |s: &str| s.to_string();
+        let v = embed_at(
+            &http,
+            &ep,
+            &[q("What is a Roth IRA?"), q("what's a roth ira"), q("What is a Roth IRA"), q("What is a traditional IRA?"), q("How do I open a Roth IRA?")],
+            Purpose::Query,
+        )
+        .await
+        .unwrap();
+        let s: Vec<f32> = v[1..].iter().map(|x| cosine(&v[0], x)).collect();
+        eprintln!("similarity to 'What is a Roth IRA?': {s:?}");
+        let t = crate::answer_cache::THRESHOLD;
+        assert!(s[0] >= t && s[1] >= t, "rewordings should match: {s:?}");
+        assert!(s[2] < t && s[3] < t, "different questions must not: {s:?}");
+    }
+
     #[test]
     fn vectors_round_trip_through_bytes_and_long_texts_are_cut() {
         let v = normalize(vec![1.0, 2.0, 2.0]);

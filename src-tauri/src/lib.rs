@@ -1,4 +1,5 @@
 mod agent;
+mod answer_cache;
 mod backend;
 mod chat;
 mod chip;
@@ -141,6 +142,8 @@ pub fn run() {
             commands::kb_remove,
             commands::kb_reindex,
             commands::kb_search,
+            commands::answer_cache_put,
+            commands::answer_cache_clear,
             commands::app_quit,
             commands::settings_get,
             commands::settings_update,

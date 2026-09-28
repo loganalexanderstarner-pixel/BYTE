@@ -313,7 +313,13 @@ is not ignored on macOS).
   when `router::wants_files` ("my lease/notes/files…"); `AppState.app` (OnceLock) gives turns an AppHandle.
 - UI: `KnowledgeTab.tsx`, composer "My files" pill (only when the KB has passages), `Reader.tsx` +
   `lib/reader.ts` (`fileSource`, `locate`), file sources and sent-file chips open the reader.
-- Left in Phase 4: item 8, the instant-answer cache.
+- **Item 8 done: instant answers** (`answer_cache.rs`, DB schema **v5** `answer_cache`): first standalone
+  questions only (`cacheable`: no files, 8–600 chars, not `router::needs_fresh_info`), same mode, < 7 days,
+  cosine ≥ 0.97 (measured with nomic: rewordings 0.995+, different questions ~0.77, test
+  `embed::tests::e2e_instant_answer_threshold`). Lookup in `backend::reuse_earlier_answer` (emits
+  Started/Notice/Sources/Content/Done "cache"); the UI stores answers via `answer_cache_put` after a first
+  local answer; Regenerate sends `fresh`. `settings.answerCache`, Clear in the Knowledge base tab.
+- **Phase 4 is complete** apart from paste-to-attach and local files in Both chats.
 
 1. **Attachments in local chats** (`src-tauri/src/files/{mod,pdf,office,text}.rs`): pick/drop/paste →
    `file_ingest(path)` → `{name, kind, pages, text, truncated}`. PDF via `pdf-extract`, DOCX/PPTX/XLSX via

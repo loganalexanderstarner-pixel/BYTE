@@ -22,6 +22,8 @@ export interface Settings {
   memoryEnabled: boolean;
   /** Knowledge base module ("My files"): index chosen folders and search them in answers. */
   kbEnabled: boolean;
+  /** Reuse the answer to a question asked (almost exactly) in the last week. */
+  answerCache: boolean;
   /** Models reloaded alongside the main one at launch. */
   loadedAlongside: string[];
   /** Speculative decoding with a small same-family helper model. */

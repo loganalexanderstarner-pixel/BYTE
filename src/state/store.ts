@@ -441,7 +441,8 @@ export const useStore = create<State>((set, get) => {
     }
     await streamReply(convId, reply, (onEvent) =>
       api.chatSend(
-        { requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private, projectId: conv.projectId, cloud },
+        // Regenerating (a new version of an answer) never reuses an earlier answer.
+        { requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private, projectId: conv.projectId, cloud, fresh: !!opts.branch },
         onEvent,
       ),
     );
@@ -558,8 +559,19 @@ export const useStore = create<State>((set, get) => {
       if (done && inTauri) {
         scheduleSave(done, 100);
         maybeAutotitle(done);
+        rememberAnswer(done, reply.id);
       }
     }
+  };
+
+  /** A chat's first local answer is kept for instant reuse (answer_cache.rs decides
+   * whether the question qualifies: timeless, standalone, no files). */
+  const rememberAnswer = (c: Conversation, replyId: string) => {
+    if (c.private || !get().settings?.answerCache) return;
+    const [q, a] = c.messages;
+    const ok = c.messages.length === 2 && q.role === "user" && !q.files?.length && !q.attachments?.length && a.id === replyId;
+    if (!ok || a.status !== "done" || a.cloud || a.alt || a.group || a.model || a.notice || !a.content.trim()) return;
+    void api.answerCachePut(q.content, a.mode ?? "auto", a.content, a.sources ?? []).catch((e) => console.warn("answer not cached", e));
   };
 
   /** After the first answer, BYTE titles, summarizes and tags the chat (once). */
