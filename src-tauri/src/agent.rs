@@ -46,6 +46,8 @@ const TOOL_CONTEXT_SHARE: f64 = 0.70;
 pub struct Turn<'a> {
     pub http: &'a reqwest::Client,
     pub net: &'a reqwest::Client,
+    /// The BYTE cloud for web search (None: keyless search only).
+    pub cloud: Option<&'a crate::cloud::CloudClient>,
     pub ep: &'a Endpoint,
     pub system: &'a str,
     pub history: &'a [ChatMessage],
@@ -252,7 +254,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
 
     let lim = limits(turn.mode);
     let question = turn.history.iter().rev().find(|m| m.role == "user").map(|m| m.content.clone()).unwrap_or_default();
-    let ctx = ToolContext { net: turn.net, question: &question, max_results: lim.max_results, page_chars: lim.page_chars, log: turn.log };
+    let ctx = ToolContext { net: turn.net, cloud: turn.cloud, question: &question, max_results: lim.max_results, page_chars: lim.page_chars, log: turn.log };
     let specs = tools::specs(turn.web, turn.memory);
     let mut messages = chat::base_messages(turn.system, turn.history);
     let mut book = SourceBook::default();
@@ -553,7 +555,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, false, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log };
+        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let calls: Vec<_> = ev.iter().filter(|e| e["kind"] == "toolCall").collect();
@@ -585,7 +587,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, true, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let mut counts = std::collections::BTreeMap::new();
@@ -632,7 +634,7 @@ mod tests {
             let system = crate::prompt::system_prompt(chrono::Local::now(), mode, true, None);
             let plan = crate::router::plan_turn(mode, ThinkingPref::Auto, &q);
             let (ch, seen) = collecting_channel();
-            let turn = Turn { http: &http, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log };
+            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log };
             let t = std::time::Instant::now();
             let r = run(turn, CancellationToken::new(), &ch).await;
             let ev = seen.lock().unwrap().clone();

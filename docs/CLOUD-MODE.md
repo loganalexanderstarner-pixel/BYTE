@@ -148,6 +148,32 @@ approval step, with "built-in designs" as the default.
 
 ---
 
+## Web search
+
+    GET /api/search?q=<query>&count=5        (&images=1 for image results)
+    Authorization: Bearer <the byte_ key>
+    -> { "engine": "searxng" | "ddgs" | "none",
+         "results": [ { "title": ..., "body": ..., "href": ... }, ... ] }
+
+SearXNG on the cluster (Google, Bing, DuckDuckGo and Brave merged); the server
+falls back to `ddgs` (plain DuckDuckGo) only when SearXNG returns nothing. The
+SearXNG instance itself is cluster-internal and stays that way: its upstream
+engines rate-limit by the server's egress IP, so exposing it would break search
+for the cloud models too. Use this endpoint, never a SearXNG address.
+
+- **Primary source for all of BYTE's web search** when a key is saved, in every
+  workspace (the local model's searches too). The keyless chain on the Mac
+  (DuckDuckGo → Bing with a junk filter, plus Wikipedia) is the fallback.
+- `engine: "ddgs"` is the same DuckDuckGo the Mac scrapes: filter it the same way.
+- **429 = rate limited (60 searches per 5 minutes per user).** Back off; never
+  retry in a loop (the limit protects the upstream engines).
+- Results are raw: apply your own relevance filtering (the server's filter is
+  tuned for conversational messages and would drop most keyword-query results).
+- No quota cost; unauthenticated → 401.
+
+In the app: `CloudClient::search`, `tools::search::cloud_search` (5-minute rest
+after a 429, 10 after a 401, 1 after a failure). Private chats don't use it.
+
 ## The rest of the web app
 
     GET/POST/DELETE /api/memories            things BYTE remembers

@@ -61,6 +61,8 @@ impl SourceBook {
 /// Per-answer limits and context for tool execution.
 pub struct ToolContext<'a> {
     pub net: &'a reqwest::Client,
+    /// The BYTE cloud, whose search answers first when a key is saved (not for private chats).
+    pub cloud: Option<&'a crate::cloud::CloudClient>,
     /// The user's question, used to pick relevant passages from pages.
     pub question: &'a str,
     pub max_results: usize,
@@ -162,15 +164,16 @@ pub async fn run(ctx: &ToolContext<'_>, book: &mut SourceBook, name: &str, args:
     let out = match name {
         WEB_SEARCH => {
             let q = arg("query");
-            match search::search(ctx.net, &q, ctx.max_results).await {
-                Ok(results) => {
+            match search::search(ctx.net, ctx.cloud, &q, ctx.max_results).await {
+                Ok(search::Searched { results, source }) => {
                     let mut content = format!("Search results for \"{q}\":\n");
                     for r in &results {
                         let n = book.add(&r.title, &r.url, &r.snippet);
                         content.push_str(&format!("\n[{n}] {}\n{}\n{}\n", r.title, r.url, r.snippet));
                     }
                     content.push_str("\nAnswer only from these results and pages you read, citing them as [n]. If they don't clearly contain the answer, use read_page on the most relevant link, or say you couldn't confirm it.");
-                    ToolOutput { ok: true, summary: format!("{} results", results.len()), content }
+                    let via = if source == "your BYTE cloud" { " via your BYTE cloud" } else { "" };
+                    ToolOutput { ok: true, summary: format!("{} results{via}", results.len()), content }
                 }
                 Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Search failed: {e}") },
             }
@@ -277,7 +280,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let log = ActionLog::new(dir.path().join("actions.jsonl"));
         let net = reqwest::Client::new();
-        let ctx = ToolContext { net: &net, question: "", max_results: 5, page_chars: 1000, log: &log };
+        let ctx = ToolContext { net: &net, cloud: None, question: "", max_results: 5, page_chars: 1000, log: &log };
         let out = run(&ctx, &mut SourceBook::default(), CALCULATE, &json!({"expression": "6*7"})).await;
         assert!(out.ok);
         assert_eq!(out.content, "42");
@@ -290,7 +293,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let net = reqwest::Client::new();
-        let ctx = ToolContext { net: &net, question: "", max_results: 5, page_chars: 1000, log: &log };
+        let ctx = ToolContext { net: &net, cloud: None, question: "", max_results: 5, page_chars: 1000, log: &log };
         let out = run(&ctx, &mut SourceBook::default(), READ_PAGE, &json!({"url": "http://127.0.0.1:8080/"})).await;
         assert!(!out.ok);
     }
@@ -303,9 +306,9 @@ mod tests {
             return;
         }
         let net = fetch::web_client();
-        let results = search::search(&net, "rust programming language", 5).await.expect("search");
-        eprintln!("results: {:#?}", results.iter().map(|r| (&r.title, &r.url)).collect::<Vec<_>>());
-        assert!(!results.is_empty());
+        let found = search::search(&net, None, "rust programming language", 5).await.expect("search");
+        eprintln!("results from {}: {:#?}", found.source, found.results.iter().map(|r| (&r.title, &r.url)).collect::<Vec<_>>());
+        assert!(!found.results.is_empty());
         let page = fetch::fetch_page(&net, "https://www.rust-lang.org/").await.expect("read");
         eprintln!("page: {} ({} chars)", page.title, page.text.len());
         assert!(page.text.to_lowercase().contains("rust"));

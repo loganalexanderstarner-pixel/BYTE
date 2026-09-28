@@ -34,6 +34,8 @@ pub enum CloudError {
     Unreachable(String),
     /// The key was rejected (401/403).
     Unauthorized,
+    /// 429: a daily allowance or a rate limit is spent (the message says which).
+    Limited(String),
     Other(AppError),
 }
 
@@ -44,6 +46,7 @@ impl From<CloudError> for AppError {
             CloudError::Unauthorized => {
                 AppError::msg("The BYTE cloud didn't accept your key. It may have been revoked; paste a new one in Settings → Cloud.")
             }
+            CloudError::Limited(m) => AppError::msg(m),
             CloudError::Other(e) => e,
         }
     }
@@ -54,9 +57,9 @@ type CloudResult<T> = Result<T, CloudError>;
 /// A 429 means one of the account's daily allowances is spent: not a bug, so say so plainly.
 fn limit_error(detail: Option<String>) -> CloudError {
     let why = detail.filter(|d| !d.trim().is_empty()).map(|d| format!(" ({})", d.chars().take(200).collect::<String>())).unwrap_or_default();
-    CloudError::Other(AppError::msg(format!(
+    CloudError::Limited(format!(
         "Today's allowance for this on your BYTE cloud is used up{why}. It resets tomorrow; until then try a lighter mode, or answer on this Mac."
-    )))
+    ))
 }
 
 fn net_error(e: reqwest::Error) -> CloudError {
@@ -189,6 +192,32 @@ impl CloudClient {
             return Err(CloudError::Other(AppError::msg(format!("The BYTE cloud said: {} ({status})", detail.chars().take(300).collect::<String>()))));
         }
         Ok(if body.trim().is_empty() { Value::Null } else { serde_json::from_str(&body).unwrap_or(Value::String(body)) })
+    }
+
+    /// Web search through the cloud (`GET /api/search`, SearXNG on the cluster):
+    /// `{engine: "searxng"|"ddgs"|"none", results: [{title, body, href}]}`.
+    pub async fn search(&self, query: &str, count: usize) -> CloudResult<(String, Vec<crate::tools::search::SearchResult>)> {
+        let rb = self.req(reqwest::Method::GET, "/api/search").query(&[("q", query), ("count", &count.to_string())]);
+        let v = self.send(rb, Duration::from_secs(20)).await?;
+        let engine = v.get("engine").and_then(Value::as_str).unwrap_or("none").to_string();
+        let results = v
+            .get("results")
+            .and_then(Value::as_array)
+            .map(|a| {
+                a.iter()
+                    .filter_map(|r| {
+                        let url = r.get("href").or_else(|| r.get("url")).and_then(Value::as_str)?;
+                        let parsed = url::Url::parse(url).ok()?;
+                        matches!(parsed.scheme(), "http" | "https").then(|| crate::tools::search::SearchResult {
+                            title: text(r.get("title").unwrap_or(&Value::Null)).unwrap_or_default(),
+                            url: parsed.to_string(),
+                            snippet: r.get("body").or_else(|| r.get("content")).and_then(text).unwrap_or_default(),
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Ok((engine, results))
     }
 
     pub async fn get(&self, path: &str) -> CloudResult<Value> {

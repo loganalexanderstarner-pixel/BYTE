@@ -103,6 +103,17 @@ second local answer).
   implementations; `chat_send` goes through it. No Windows/Linux ports before 1.0, but new code must not add
   macOS assumptions outside `#[cfg(target_os = "macos")]` modules.
 
+### 3.2c Web search (done 2026-09-28, for test.12)
+The owner reported web search "doesn't work well at all". A live report (`agent::tests::e2e_web_quality_report`,
+real engine + internet; `BYTE_TEST_WEB=1 BYTE_TEST_LLAMA_SERVER=… BYTE_TEST_MODEL=…`) went from 1/8 usable answers
+to 7/8 after: forced search for any question about the world (`router::wants_web`), BYTE reading pages itself
+after every search (`agent::read_top`), a search budget and no repeat searches, an "answer now" step plus a filter
+for tool-call markup (`agent::ToolTextFilter`), a junk-result filter (`search::on_topic`: Bing serves unrelated
+pages to bots), Wikipedia alongside, Open-Meteo weather (`tools/weather.rs`), and the cloud's `/api/search`
+(SearXNG) as the primary source when a key is saved (`docs/CLOUD-MODE.md` "Web search").
+**Server-side notes from the owner's session:** the searxng-settings ConfigMap holds SearXNG's `secret_key`
+in plaintext; it belongs in a Secret (low risk, internal-only).
+
 ### 3.3 Then Phase 4 — Files & knowledge base
 Full plan in §8 (Phase 4). After that, Phases 5–12 in order (§8). The owner prioritizes **answer quality**,
 then stability, then looks, then feature count.

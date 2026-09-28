@@ -392,3 +392,35 @@ async fn downloads_keep_bytes_and_type() {
     assert_eq!((b, mime.as_str()), (vec![1, 2, 3], "image/png"));
     assert!(matches!(client.bytes("/api/documents/404/download").await, Err(CloudError::Other(_))));
 }
+
+#[tokio::test]
+async fn cloud_search_reads_results_and_reports_limits() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/search"))
+        .and(query_param("q", "Tesla Model 3 price"))
+        .and(header("authorization", format!("Bearer {FAKE_KEY}").as_str()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "engine": "searxng",
+            "results": [
+                { "title": "Model 3 | Tesla", "body": "Model 3 starts at $42,490", "href": "https://www.tesla.com/model3" },
+                { "title": "no link", "body": "x" },
+                { "title": "bad scheme", "body": "x", "href": "javascript:alert(1)" }
+            ]
+        })))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/search"))
+        .and(query_param("q", "busy"))
+        .respond_with(ResponseTemplate::new(429).set_body_json(json!({ "detail": "60 searches per 5 minutes" })))
+        .mount(&server)
+        .await;
+    let client = CloudClient::new(&server.uri(), FAKE_KEY);
+    let (engine, results) = client.search("Tesla Model 3 price", 5).await.unwrap();
+    assert_eq!(engine, "searxng");
+    assert_eq!(results.len(), 1, "results without a web link are dropped");
+    assert_eq!(results[0].url, "https://www.tesla.com/model3");
+    assert_eq!(results[0].snippet, "Model 3 starts at $42,490");
+    assert!(matches!(client.search("busy", 5).await, Err(CloudError::Limited(_))));
+}

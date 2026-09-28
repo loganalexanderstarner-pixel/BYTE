@@ -173,10 +173,14 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
     let reserve = plan.max_tokens + plan.thinking_budget.max(0) as u32;
     let history = chat::fit_history(&request.messages, &system, ep.context, reserve.min(ep.context / 2));
 
+    // Web search goes through the BYTE cloud when a key is saved (its SearXNG
+    // beats scraping search engines from this Mac); private chats stay keyless.
+    let cloud = if web && !request.private && state.settings.lock().await.cloud_connected { state.cloud_client().await.ok() } else { None };
     let cancel = state.generations.register(&request.request_id).await;
     let turn = agent::Turn {
         http: &state.local_http,
         net: &state.net,
+        cloud: cloud.as_ref(),
         ep: &ep,
         system: &system,
         history: &history,

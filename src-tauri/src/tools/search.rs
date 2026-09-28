@@ -1,4 +1,7 @@
-//! Keyless web search. Tries DuckDuckGo (HTML, then Lite), then Bing, keeps
+//! Web search. With a BYTE cloud key, the cloud's `/api/search` (SearXNG on
+//! the cluster: Google, Bing, DuckDuckGo and Brave merged) answers first.
+//! Without one, or when it can't help, the keyless chain runs: DuckDuckGo
+//! (HTML, then Lite), then Bing. Either way BYTE keeps
 //! only results that are actually about the query (Bing serves unrelated
 //! pages to clients it thinks are bots), adds matching Wikipedia articles,
 //! and spaces requests out so search engines don't throttle BYTE.
@@ -43,16 +46,69 @@ async fn pace() {
 const DDG_COOLDOWN: Duration = Duration::from_secs(120);
 static DDG_BLOCKED_AT: Mutex<Option<Instant>> = Mutex::const_new(None);
 
+/// After the cloud's search says 429 (60 searches per 5 minutes) or fails,
+/// BYTE leaves it alone for a while instead of retrying.
+static CLOUD_RESTING_UNTIL: Mutex<Option<Instant>> = Mutex::const_new(None);
+
+/// Search results and where they came from ("your BYTE cloud", "duckduckgo", …).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Searched {
+    pub results: Vec<SearchResult>,
+    pub source: String,
+}
+
+/// Asks the cloud's search. `Ok(None)` means "use the keyless chain".
+async fn cloud_search(cloud: &crate::cloud::CloudClient, query: &str, max: usize) -> Option<Vec<SearchResult>> {
+    if CLOUD_RESTING_UNTIL.lock().await.is_some_and(|t| Instant::now() < t) {
+        return None;
+    }
+    let rest = |secs: u64| async move {
+        *CLOUD_RESTING_UNTIL.lock().await = Some(Instant::now() + Duration::from_secs(secs));
+    };
+    match cloud.search(query, max.max(8)).await {
+        Ok((engine, results)) => {
+            let found = results.len();
+            let relevant = on_topic(results.clone(), query);
+            // SearXNG merges several engines, so its results are trusted a little
+            // more: one topic word is enough if the stricter check leaves nothing.
+            let relevant = if relevant.is_empty() && engine == "searxng" { keep_matching(results, query, 1) } else { relevant };
+            // "ddgs" is the same DuckDuckGo BYTE scrapes itself: same suspicion.
+            let good = !relevant.is_empty() && (engine == "searxng" || relevant.len() * 2 >= found.min(6));
+            log::info!("cloud search ({engine}): {} of {found} results on topic for {query:?}", relevant.len());
+            good.then_some(relevant)
+        }
+        Err(crate::cloud::CloudError::Limited(m)) => {
+            log::warn!("cloud search rate-limited, resting 5 minutes: {m}");
+            rest(300).await;
+            None
+        }
+        Err(crate::cloud::CloudError::Unauthorized) => {
+            rest(600).await;
+            None
+        }
+        Err(e) => {
+            log::warn!("cloud search failed: {}", AppError::from(e));
+            rest(60).await;
+            None
+        }
+    }
+}
+
 /// Runs a web search, falling back across engines until one returns results
 /// that are about the query. Matching Wikipedia articles are mixed in (they're
 /// reliable for people, companies, places and things).
-pub async fn search(client: &reqwest::Client, query: &str, max: usize) -> AppResult<Vec<SearchResult>> {
+pub async fn search(client: &reqwest::Client, cloud: Option<&crate::cloud::CloudClient>, query: &str, max: usize) -> AppResult<Searched> {
     let query = query.trim();
     if query.is_empty() {
         return Err(AppError::msg("empty search query"));
     }
     let wiki = wikipedia(client, query);
     let web = async {
+        if let Some(c) = cloud {
+            if let Some(results) = cloud_search(c, query, max).await {
+                return Ok((results, "your BYTE cloud".to_string()));
+            }
+        }
         let mut errors = Vec::new();
         for engine in [Engine::DdgHtml, Engine::DdgLite, Engine::Bing] {
             if engine.is_ddg() && DDG_BLOCKED_AT.lock().await.is_some_and(|t| t.elapsed() < DDG_COOLDOWN) {
@@ -66,7 +122,7 @@ pub async fn search(client: &reqwest::Client, query: &str, max: usize) -> AppRes
                     let relevant = on_topic(results, query);
                     // Mostly unrelated results mean the engine is serving junk: try the next one.
                     if !relevant.is_empty() && relevant.len() * 2 >= found.min(6) {
-                        return Ok(relevant);
+                        return Ok((relevant, engine.name().to_string()));
                     }
                     errors.push(format!("{}: {} of {found} results on topic", engine.name(), relevant.len()));
                 }
@@ -84,13 +140,13 @@ pub async fn search(client: &reqwest::Client, query: &str, max: usize) -> AppRes
     // Wikipedia's own search already matched these; one topic word in the title or snippet is enough.
     let wiki = keep_matching(wiki.unwrap_or_default(), query, 1);
     match web {
-        Ok(results) => Ok(dedupe(blend(results, wiki), max)),
+        Ok((results, source)) => Ok(Searched { results: dedupe(blend(results, wiki), max), source }),
         Err(errors) => {
             log::warn!("web search engines failed for {query:?}: {errors:?}");
             if wiki.is_empty() {
                 Err(AppError::msg("web search is unavailable right now (the search engines didn't respond); try again in a minute"))
             } else {
-                Ok(dedupe(wiki, max))
+                Ok(Searched { results: dedupe(wiki, max), source: "wikipedia".into() })
             }
         }
     }
@@ -420,6 +476,23 @@ mod tests {
         let mixed = blend(web, wiki);
         assert_eq!(mixed[1].url, "https://en.wikipedia.org/wiki/OpenAI");
         assert_eq!(mixed.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn the_cloud_answers_first_and_junk_falls_back() {
+        use wiremock::matchers::{method, path, query_param};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        let server = MockServer::start().await;
+        let reply = |engine: &str, title: &str, href: &str| {
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "engine": engine, "results": [{ "title": title, "body": "", "href": href }] }))
+        };
+        Mock::given(method("GET")).and(path("/api/search")).and(query_param("q", "steelers schedule")).respond_with(reply("searxng", "Steelers 2026 Schedule", "https://www.steelers.com/schedule/")).mount(&server).await;
+        Mock::given(method("GET")).and(path("/api/search")).and(query_param("q", "tesla model price")).respond_with(reply("ddgs", "Definition of MUCH", "https://www.merriam-webster.com/dictionary/much")).mount(&server).await;
+        let cloud = crate::cloud::CloudClient::new(&server.uri(), "byte_test_key");
+        let got = cloud_search(&cloud, "steelers schedule", 5).await.expect("searxng results are used");
+        assert_eq!(got[0].url, "https://www.steelers.com/schedule/");
+        // DuckDuckGo junk from the cloud's fallback: BYTE tries its own chain instead.
+        assert!(cloud_search(&cloud, "tesla model price", 5).await.is_none());
     }
 
     #[test]

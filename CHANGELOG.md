@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased (1.0.0-test.12) — Web search that works
+
+- **Web search through your BYTE cloud**: with a cloud key saved, every search (including the ones this Mac's
+  model makes) goes to the cloud's search first, which asks Google, Bing, DuckDuckGo and Brave at once. Without
+  a key, or if the cloud can't help, BYTE searches by itself as before. Private chats never use the cloud.
+- **BYTE searches before answering any question about the world**, not only news-like ones, and reads the best
+  pages itself after every search instead of hoping the model will.
+- **No more raw tool code in answers**, no endless re-searching, and no answers made up from memory when the
+  search came back empty.
+- **Junk results are thrown away** (a search engine that serves unrelated pages is skipped), login walls and
+  empty app pages are skipped, and **Wikipedia** is searched alongside.
+- **Weather** comes from a real forecast (Open-Meteo): current conditions and 7 days, °F in the US.
+- Follow-up questions ("how much does it cost?") search with the earlier topic.
+
 ## 1.0.0-test.11 — Cloud and Both workspaces, byte-ai colors, new logo
 
 - **This Mac · Cloud · Both** at the top of the sidebar (once BYTE Cloud is connected) replaces the Cloud /
