@@ -31,7 +31,7 @@ talks in a normal friendly tone; the *visuals* are neon/cyberpunk. No paid Apple
 | Cloud redesign: This Mac · Cloud · Both workspaces, server chat list with new/delete, Both answers side by side with "Keep this one", budgets chip, 429 message, re-read after a dropped stream, invite-only onboarding path | ✅ built (for test.11) |
 | Phases 4–7, 9–12 (files & knowledge base, local documents, research+, writing/learning, Mac control, automation, voice/windows, privacy & polish) | ⏳ planned — every phase in detail in §8 |
 
-Test builds are GitHub pre-releases `v1.0.0-test.N` (latest: test.11). The owner installs them on the M4 Air
+Test builds are GitHub pre-releases `v1.0.0-test.N` (latest: test.12). The owner installs them on the M4 Air
 and reports back with screenshots; this environment can't run macOS.
 
 ## 3. Next work, in order

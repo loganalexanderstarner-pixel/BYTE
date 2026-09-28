@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (1.0.0-test.12) — Web search that works
+## 1.0.0-test.12 — Web search that works
 
 - **Web search through your BYTE cloud**: with a cloud key saved, every search (including the ones this Mac's
   model makes) goes to the cloud's search first, which asks Google, Bing, DuckDuckGo and Brave at once. Without
