@@ -50,6 +50,7 @@ src-tauri/                Rust core (Tauri 2)
   src/chat.rs             SSE streaming client, context fitting, cancellation, e2e test
   src/router.rs           per-turn thinking/length plan by mode
   src/prompt.rs           system prompt (identity, date, mode rules)
+  src/backend.rs          ModelBackend trait: LocalLlama + Cloud, fallback rules (chat_send goes through it)
   src/cloud/              cloud mode (docs/CLOUD-MODE.md): client + SSE follower, Keychain key store, commands
   src/commands.rs         #[tauri::command] wrappers (thin)
   src/settings.rs         persisted settings (camelCase JSON)

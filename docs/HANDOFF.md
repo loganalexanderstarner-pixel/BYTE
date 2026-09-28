@@ -98,7 +98,8 @@ second local answer).
   needs `color-mix`, fine since the minimum macOS is 13.3). Was: (`docs/DESIGN-AND-PLATFORMS.md` Part 1): five-token themes with derived `color-mix` values,
   byte-ai's themes added (Midnight becomes the default), the eight-bit logo (✅ done: `src/design/Logo.tsx` + app icon) drawn in the
   live accent, a contrast check for every theme. Keep the layout and the many themes.
-- **`ModelBackend` boundary** (Part 2): one trait for "answer this turn" with the local engine and the cloud as
+- ✅ **`ModelBackend` boundary** (done: `src-tauri/src/backend.rs`, `LocalLlama` + `Cloud`, fallback rules in
+  `backend::with_fallback`, tested with fake backends). Was (Part 2): one trait for "answer this turn" with the local engine and the cloud as
   implementations; `chat_send` goes through it. No Windows/Linux ports before 1.0, but new code must not add
   macOS assumptions outside `#[cfg(target_os = "macos")]` modules.
 

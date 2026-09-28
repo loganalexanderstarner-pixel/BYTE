@@ -68,6 +68,15 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 - **Thinking router** (`router::effort`): accuracy first. Auto mode skips thinking only for small talk,
   rewrites/translations and sums the calculator answers; budget 384 (short) / 1024 / 2048 (reasoning).
 
+## Backends (`backend.rs`)
+
+- `chat_send` → `backend::answer`: every turn goes through the `ModelBackend` trait (`name`, `capabilities`,
+  `answer`). `LocalLlama` is the bundled engine (the agent loop, tools, memory, projects); `Cloud` is the BYTE
+  cloud. `backend::with_fallback` holds the rules: private chats only reach backends with
+  `capabilities().private`; an unreachable primary hands the turn (with the mapped local mode) to the
+  secondary with a quiet `Notice`, unless the request has no fallback (Both workspace); other failures are
+  reported, never answered twice. Windows/Linux engines later are new `ModelBackend`s.
+
 ## Cloud mode (`cloud/`, contract in `docs/CLOUD-MODE.md`)
 
 - `cloud::CloudClient` (bearer key, 10 s connect timeout, no read timeout on streams: queueing is normal).

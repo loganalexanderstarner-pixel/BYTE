@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
 
-use crate::chat::{self, ChatEvent, ChatMessage};
+use crate::chat::{ChatEvent, ChatMessage};
 use crate::db::{ConversationMeta, Memory, MetaPatch, Project, SearchHit};
 use crate::profiles::{Profile, Profiles};
 use crate::summarize::ChatSummary;
@@ -14,7 +14,6 @@ use crate::models::{self, ModelStatus};
 use crate::settings::{Mode, Settings, ThinkingPref};
 use crate::state::AppState;
 use crate::system::{self, SystemInfo};
-use crate::{agent, prompt, router};
 
 #[tauri::command]
 pub fn system_info(state: State<'_, AppState>) -> SystemInfo {
@@ -313,7 +312,7 @@ pub async fn engine_log(state: State<'_, AppState>) -> AppResult<Vec<String>> {
     Ok(state.engine.log_tail().await)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatRequest {
     pub request_id: String,
@@ -336,90 +335,7 @@ pub struct ChatRequest {
 
 #[tauri::command]
 pub async fn chat_send(state: State<'_, AppState>, request: ChatRequest, on_event: Channel<ChatEvent>) -> AppResult<()> {
-    let mut request = request;
-    if let Some(turn) = request.cloud.take() {
-        if request.private {
-            return Err(AppError::msg("Private chats stay on this Mac. Switch to a model on this Mac, or turn off Private."));
-        }
-        match crate::cloud::cmd::send(&state, &request, &turn, &on_event).await {
-            Err(crate::cloud::CloudError::Unreachable(why)) if turn.no_fallback => {
-                return Err(AppError::msg(format!("Your BYTE cloud can't be reached right now ({why}). The answer from this Mac is beside this one.")));
-            }
-            Err(crate::cloud::CloudError::Unreachable(why)) => {
-                // The cluster lives in a house; when it's down, answer here instead.
-                log::warn!("cloud unreachable, answering locally: {why}");
-                let _ = on_event.send(ChatEvent::Notice { text: "The BYTE cloud couldn't be reached, so this answer was written on this Mac.".into() });
-                request.mode = crate::cloud::cmd::local_mode(&turn.mode);
-            }
-            other => return other.map_err(Into::into),
-        }
-    }
-    local_turn(&state, request, on_event).await
-}
-
-async fn local_turn(state: &AppState, request: ChatRequest, on_event: Channel<ChatEvent>) -> AppResult<()> {
-    if state.tuning.load(std::sync::atomic::Ordering::SeqCst) {
-        return Err(AppError::msg("BYTE is tuning itself for this Mac (about a minute). Try again when it's done."));
-    }
-    let main_key = state.engine.loaded().await.map(|l| l.key);
-    let ep = match request.model.as_deref() {
-        Some(k) if main_key.as_deref() != Some(k) => {
-            let engine = state.extras.get(k).await.ok_or_else(|| AppError::msg(format!("{k} isn't loaded. Load it in Settings → Models.")))?;
-            engine.endpoint().await.ok_or_else(|| AppError::msg("That model is still loading. Try again in a few seconds."))?
-        }
-        _ => state
-            .engine
-            .endpoint()
-            .await
-            .ok_or_else(|| AppError::msg("The AI engine isn't ready yet. It usually takes a few seconds after launch."))?,
-    };
-    let last_user = request
-        .messages
-        .iter()
-        .rev()
-        .find(|m| m.role == "user")
-        .map(|m| m.content.as_str())
-        .unwrap_or("");
-    let catalog = state.catalog.get();
-    let profile = catalog.resolve(&ep.model).map(|(m, _)| crate::modelcfg::profile(m)).unwrap_or_default();
-    let plan = router::plan_turn(request.mode, request.thinking, last_user).for_model(profile);
-    let (web, user_name, memory, about_me) = {
-        let s = state.settings.lock().await;
-        (s.web_search, s.user_name.clone(), s.memory_enabled && !request.private, s.about_me.clone())
-    };
-    let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());
-    if memory {
-        let memories: Vec<String> = state.db.memories()?.into_iter().map(|m| m.text).collect();
-        system.push_str(&prompt::memory_section(about_me.as_deref(), &memories, true));
-    }
-    if let Some(project) = request.project_id.as_deref().filter(|p| !p.is_empty()).map(|p| state.db.project(p)).transpose()?.flatten() {
-        system.push_str(&prompt::project_section(&project.name, &project.instructions));
-    }
-    let reserve = plan.max_tokens + plan.thinking_budget.max(0) as u32;
-    let history = chat::fit_history(&request.messages, &system, ep.context, reserve.min(ep.context / 2));
-
-    let cancel = state.generations.register(&request.request_id).await;
-    let turn = agent::Turn {
-        http: &state.local_http,
-        net: &state.net,
-        ep: &ep,
-        system: &system,
-        history: &history,
-        plan,
-        mode: request.mode,
-        web,
-        memory,
-        log: &state.actions,
-    };
-    let result = agent::run(turn, cancel, &on_event).await;
-    state.generations.finish(&request.request_id).await;
-    match result {
-        Err(AppError::Cancelled) => {
-            let _ = on_event.send(ChatEvent::Done { finish_reason: "cancelled".into() });
-            Ok(())
-        }
-        other => other,
-    }
+    crate::backend::answer(&state, request, &on_event).await
 }
 
 #[tauri::command]

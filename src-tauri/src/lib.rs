@@ -1,4 +1,5 @@
 mod agent;
+mod backend;
 mod chat;
 mod chip;
 mod cloud;
