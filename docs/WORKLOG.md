@@ -17,7 +17,7 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
-### (next commit) — Catalog: 713 models, community fine-tunes, a details dropdown
+### 72ce820 — Catalog: 713 models, community fine-tunes, a details dropdown
 - **Why:** the owner asked for ~250 more regular models, the community models left out before (with their
   creator and what they're good for), and a dropdown per model with details and use ideas.
 - **What:**
