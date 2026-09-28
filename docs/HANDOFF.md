@@ -8,7 +8,7 @@ is public, with history).
 
 Last updated: 2026-09-28. Owner decisions since test.10 (recorded by another session in
 `docs/DESIGN-AND-PLATFORMS.md` / `docs/CLOUD-MODE.md`): **Windows and Linux are now targets** (macOS first,
-ports after 1.0, define a `ModelBackend` boundary now; **no iOS**); **adopt byte-ai's palette and bolt logo**
+ports after 1.0, define a `ModelBackend` boundary now; **no iOS**); **adopt byte-ai's palette and eight-bit logo** (two rows of four squares, two lit — not a bolt)
 (keep the layout and many themes); cloud sign-up is **invite-only**; every phase is still built natively.
 
 ---
@@ -95,7 +95,7 @@ second local answer).
 
 ### 3.2b Also next (owner decisions from 2026-09-27)
 - **byte-ai skin** (`docs/DESIGN-AND-PLATFORMS.md` Part 1): five-token themes with derived `color-mix` values,
-  byte-ai's themes added (Midnight becomes the default), the bolt logo in `src/design/Logo.tsx` drawn in the
+  byte-ai's themes added (Midnight becomes the default), the eight-bit logo (✅ done: `src/design/Logo.tsx` + app icon) drawn in the
   live accent, a contrast check for every theme. Keep the layout and the many themes.
 - **`ModelBackend` boundary** (Part 2): one trait for "answer this turn" with the local engine and the cloud as
   implementations; `chat_send` goes through it. No Windows/Linux ports before 1.0, but new code must not add

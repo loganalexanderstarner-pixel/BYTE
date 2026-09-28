@@ -11,6 +11,8 @@
 - **Both workspace**: every question goes to this Mac and your cloud at once. The Mac's answer streams right
   away, the cloud's appears beside it; the cloud's answer continues the chat when it finishes, or pick the
   other with **Keep this one**.
+- **New logo**: BYTE's eight-bit mark (one byte, two bits lit) in the app, drawn in the theme's accent, and as
+  the app icon.
 - **First launch** offers "Use BYTE Cloud instead (invite only)" next to the model list, suggested when no
   model fits the Mac well.
 - A spent daily allowance (429) now says so plainly instead of looking like an error. If a cloud answer's

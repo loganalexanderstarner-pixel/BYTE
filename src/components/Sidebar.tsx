@@ -181,7 +181,7 @@ export function Sidebar() {
         </button>
       </div>
       <div className="sidebar-brand">
-        <Logo size={26} />
+        <Logo size={32} />
         <span className="wordmark">BYTE</span>
       </div>
       {settings?.cloudConnected && (

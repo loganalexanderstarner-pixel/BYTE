@@ -16,7 +16,7 @@ So this is **not** "make it look like the web app".
 | **Layout, button arrangement, command-deck home** | **Keep.** He likes it. Do not restyle toward the web app. |
 | **Having many themes** | **Keep.** The 20-theme plan stands. |
 | **Colour palette** | **Adopt byte-ai's**, as the default/base theme and as the model for how tokens are structured. |
-| **Logo** | **Replace the letter-B mark** (`src/design/Logo.tsx`, currently a drawn `B`) with byte-ai's bolt-in-rounded-square below. |
+| **Logo** | **Replace the letter-B mark** (`src/design/Logo.tsx`, currently a drawn `B`) with the eight-bit mark below (done). |
 
 In short: **byte-ai's skin on the app's bones.** The structure you have is
 right; the palette and the mark are what should come across.
@@ -68,22 +68,30 @@ lines rather than fifty:
 
 ### The logo
 
-A rounded square with a bolt cut through it, filled with an accent gradient.
+**Eight bits: one byte.** Two rows of four rounded squares; two are lit (top
+row second, bottom row third), the other six are the same colour at about 30%
+opacity. It sits to the left of the `BYTE` wordmark. (An earlier version of
+this doc described a lightning bolt; that was wrong, corrected by the owner
+2026-09-28 with a screenshot of the real mark.)
+
 It is drawn in the **live theme's accent**, so it recolours with the theme
-instead of being a fixed asset that clashes in half of them.
+instead of being a fixed asset that clashes in half of them. In the app:
+`src/design/Logo.tsx` (`LIT_BITS = [1, 6]`). The app icon
+(`src-tauri/icons/app-icon.svg`, rendered with `npx tauri icon`) uses the same
+grid in gold (`#f5bd3c`) on a near-black rounded square, since an icon can't
+follow the theme.
 
 ```svg
-<svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-  <defs>
-    <linearGradient id="bm" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="var(--accent)"/>
-      <stop offset="1" stop-color="var(--accent)" stop-opacity="0.55"/>
-    </linearGradient>
-  </defs>
-  <rect x="3.2" y="3.2" width="25.6" height="25.6" rx="8" fill="url(#bm)"/>
-  <path d="M17.9 7.6 10.4 17.6h4.4l-1.2 6.9 7.6-10.1h-4.4z" fill="#fff" fill-opacity="0.96"/>
-  <rect x="3.2" y="3.2" width="25.6" height="25.6" rx="8"
-        stroke="#fff" stroke-opacity="0.16" stroke-width="1.1"/>
+<svg viewBox="0 0 50.5 23.5" aria-label="BYTE">
+  <!-- cell 10, gap 3.5, rx 2.6; lit cells at full opacity, the rest 0.32 -->
+  <rect x="0"    y="0"    width="10" height="10" rx="2.6" fill="var(--accent)" fill-opacity="0.32"/>
+  <rect x="13.5" y="0"    width="10" height="10" rx="2.6" fill="var(--accent)"/>
+  <rect x="27"   y="0"    width="10" height="10" rx="2.6" fill="var(--accent)" fill-opacity="0.32"/>
+  <rect x="40.5" y="0"    width="10" height="10" rx="2.6" fill="var(--accent)" fill-opacity="0.32"/>
+  <rect x="0"    y="13.5" width="10" height="10" rx="2.6" fill="var(--accent)" fill-opacity="0.32"/>
+  <rect x="13.5" y="13.5" width="10" height="10" rx="2.6" fill="var(--accent)" fill-opacity="0.32"/>
+  <rect x="27"   y="13.5" width="10" height="10" rx="2.6" fill="var(--accent)"/>
+  <rect x="40.5" y="13.5" width="10" height="10" rx="2.6" fill="var(--accent)" fill-opacity="0.32"/>
 </svg>
 ```
 
