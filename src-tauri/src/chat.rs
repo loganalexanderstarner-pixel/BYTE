@@ -70,6 +70,11 @@ pub fn with_files(history: &[ChatMessage], context: u32, vision: bool) -> Vec<Ch
                 match &f.image {
                     Some(url) if vision && latest && images.len() < 4 => images.push(url.clone()),
                     _ if vision => content.push_str(&format!("\n\n[Photo \"{}\" was attached earlier.]", f.name)),
+                    // Its words were read (text recognition) and are in the file block above.
+                    _ if !f.text.trim().is_empty() => content.push_str(&format!(
+                        "\n\n[The user attached a photo, \"{}\". You can't see images, but the text in it was read for you (above). Use it, and if the question is about what the photo shows beyond its text, say a model marked \"Sees images\" can look at it.]",
+                        f.name
+                    )),
                     _ => content.push_str(&format!(
                         "\n\n[The user attached a photo, \"{}\", but the current model can't see images. Say so, and suggest a model marked \"Sees images\".]",
                         f.name
@@ -463,7 +468,7 @@ mod tests {
     use super::*;
 
     fn attached(name: &str, kind: crate::files::FileKind, text: &str, image: Option<&str>) -> crate::files::Ingested {
-        crate::files::Ingested { name: name.into(), kind, pages: None, text: text.into(), truncated: false, image: image.map(Into::into) }
+        crate::files::Ingested { name: name.into(), kind, pages: None, text: text.into(), truncated: false, image: image.map(Into::into), ocr: false }
     }
 
     #[test]

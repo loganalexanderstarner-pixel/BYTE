@@ -272,7 +272,14 @@ download key `"<id>:vision"` into `models/vision/<id>/` (repos reuse the name `m
 `tune::launch_opts` adds it when downloaded, the engine's last fallback drops it. HEIC/WebP photos are
 converted and big photos shrunk with macOS `sips`. UI: paperclip + drop in local chats (photos only when the
 loaded model can see), `LocalFileChips`, "Sees images" tag and image-reader row on model cards. Not yet: paste,
-scanned PDFs (needs OCR, item 2), local files in Both chats (cloud side doesn't get them).
+local files in Both chats (cloud side doesn't get them).
+
+**Item 2 (OCR) done:** `src-tauri/src/ocr.rs` (Apple Vision `VNRecognizeTextRequest`, accurate + language
+correction; PDFKit renders scanned pages at ~200 dpi, max 60 pages; non-macOS returns "needs macOS").
+`files::ingest` uses it when a PDF has under ~20 letters per page (`has_text_layer`) and for words in photos;
+`Ingested.ocr`. Mac-only code: type-checked here with a scratch crate (`cargo check --target
+aarch64-apple-darwin`), compiled and tested for real by `mac-engine.yml` (`ocr::tests::e2e_reads_text_from_a_rendered_page`
+is not ignored on macOS).
 
 1. **Attachments in local chats** (`src-tauri/src/files/{mod,pdf,office,text}.rs`): pick/drop/paste →
    `file_ingest(path)` → `{name, kind, pages, text, truncated}`. PDF via `pdf-extract`, DOCX/PPTX/XLSX via

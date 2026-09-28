@@ -8,6 +8,7 @@ mod db;
 mod engine;
 mod export;
 mod files;
+mod ocr;
 mod memory;
 mod error;
 mod modelcfg;

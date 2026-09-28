@@ -375,4 +375,6 @@ export interface LocalFile {
   truncated: boolean;
   /** Photos: a data URL (sent only to models that can see). */
   image?: string;
+  /** The text was read from a scan or photo (text recognition). */
+  ocr?: boolean;
 }

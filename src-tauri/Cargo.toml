@@ -56,6 +56,12 @@ zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
 # Cloud mode: the API key lives in the macOS Keychain, never in files.
 [target.'cfg(target_os = "macos")'.dependencies]
 keyring = { version = "3", features = ["apple-native"] }
+# Reading text in photos and scanned PDFs (Apple Vision + PDFKit, see ocr.rs).
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSDictionary", "NSEnumerator", "NSError", "NSGeometry", "NSString", "NSValue"] }
+objc2-vision = { version = "0.3", default-features = false, features = ["std", "VNObservation", "VNRecognizeTextRequest", "VNRequest", "VNRequestHandler", "VNTypes"] }
+objc2-pdf-kit = { version = "0.3", default-features = false, features = ["std", "PDFDocument", "PDFPage", "objc2-app-kit"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSImage"] }
 
 [dev-dependencies]
 lopdf = "0.42"

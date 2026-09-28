@@ -51,6 +51,10 @@ pub struct Ingested {
     /// Photos: a data URL for vision models.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<String>,
+    /// The text was read from a scan or photo (text recognition), so it may
+    /// have small mistakes.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ocr: bool,
 }
 
 pub fn kind_of(path: &Path) -> Option<FileKind> {
@@ -125,11 +129,26 @@ pub fn ingest(path: &Path) -> AppResult<Ingested> {
         AppError::msg(format!("{name}: BYTE can read PDF, Word, PowerPoint, Excel, text, code and photos, but not this kind of file"))
     })?;
     let bytes = std::fs::read(path)?;
+    let mut ocr = false;
     let (text, pages, image) = match kind {
-        FileKind::Pdf => {
-            let (t, p) = pdf_text(&bytes).map_err(|e| AppError::msg(format!("{name}: {e}")))?;
-            (t, Some(p), None)
-        }
+        FileKind::Pdf => match pdf_text(&bytes) {
+            Ok((t, p)) if has_text_layer(&t, p) => (t, Some(p), None),
+            // No text layer (a scan): read the rendered pages.
+            other => match scanned_pdf_text(&bytes) {
+                Some((t, p)) => {
+                    ocr = true;
+                    (t, Some(p), None)
+                }
+                None => match other {
+                    Ok((t, p)) if t.lines().any(|l| !l.starts_with("[Page ") && l.chars().any(char::is_alphanumeric)) => (t, Some(p), None),
+                    Ok(_) => {
+                        let hint = if cfg!(target_os = "macos") { "" } else { " (it may be a scan: reading scans needs macOS)" };
+                        return Err(AppError::msg(format!("{name} has no readable text{hint}")));
+                    }
+                    Err(e) => return Err(AppError::msg(format!("{name}: {e}"))),
+                },
+            },
+        },
         FileKind::Word => (office_text(&bytes, OfficeKind::Word)?.0, None, None),
         FileKind::Slides => {
             let (t, n) = office_text(&bytes, OfficeKind::Slides)?;
@@ -146,18 +165,21 @@ pub fn ingest(path: &Path) -> AppResult<Ingested> {
                 return Err(AppError::msg(format!("{name} is too large for a photo (8 MB max)")));
             }
             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+            // Words in the photo (a receipt, a screenshot, a page) help every model, not only ones that see.
+            let words = crate::ocr::image_text(&bytes).unwrap_or_default();
+            ocr = !words.trim().is_empty();
             let (mime, bytes) = photo_for_model(path, &ext, bytes, &name)?;
-            (String::new(), None, Some(format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(&bytes))))
+            (words, None, Some(format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(&bytes))))
         }
     };
     let text = tidy(&text);
     if kind != FileKind::Image && text.trim().is_empty() {
-        let hint = if kind == FileKind::Pdf { " (it may be a scan: text recognition for scans comes later)" } else { "" };
+        let hint = if kind == FileKind::Pdf && !cfg!(target_os = "macos") { " (it may be a scan: reading scans needs macOS)" } else { "" };
         return Err(AppError::msg(format!("{name} has no readable text{hint}")));
     }
     let truncated = text.chars().count() > MAX_TEXT_CHARS;
     let text = if truncated { text.chars().take(MAX_TEXT_CHARS).collect() } else { text };
-    Ok(Ingested { name, kind, pages, text, truncated, image })
+    Ok(Ingested { name, kind, pages, text, truncated, image, ocr })
 }
 
 /// No known extension: treat it as text if the first bytes are valid UTF-8 without NULs.
@@ -186,6 +208,27 @@ fn tidy(text: &str) -> String {
         out.push('\n');
     }
     out.trim().to_string()
+}
+
+/// A PDF with real text has at least ~20 letters or digits per page; scans have
+/// none (or only a stray page number).
+fn has_text_layer(text: &str, pages: u32) -> bool {
+    let chars = text.lines().filter(|l| !l.starts_with("[Page ")).flat_map(|l| l.chars()).filter(|c| c.is_alphanumeric()).count();
+    chars as u32 >= 20 * pages.max(1)
+}
+
+/// Text of a scanned PDF (Apple Vision), with `[Page N]` markers; None if
+/// nothing could be read.
+fn scanned_pdf_text(bytes: &[u8]) -> Option<(String, u32)> {
+    let (texts, total) = crate::ocr::pdf_text(bytes).ok()?;
+    if texts.iter().all(|t| t.trim().is_empty()) {
+        return None;
+    }
+    let mut text = texts.iter().enumerate().map(|(i, p)| format!("[Page {}]\n{}", i + 1, p.trim())).collect::<Vec<_>>().join("\n\n");
+    if total > texts.len() {
+        text.push_str(&format!("\n\n[Only the first {} of {total} scanned pages were read.]", texts.len()));
+    }
+    Some((text, total as u32))
 }
 
 fn pdf_text(bytes: &[u8]) -> Result<(String, u32), String> {
@@ -348,7 +391,7 @@ fn sheet_rows(xml: &str, shared: &[String]) -> String {
 /// short files whole, long ones reduced to the passages that best match the
 /// question.
 pub fn for_model(files: &[Ingested], question: &str, budget: usize) -> String {
-    let texts: Vec<&Ingested> = files.iter().filter(|f| f.kind != FileKind::Image && !f.text.is_empty()).collect();
+    let texts: Vec<&Ingested> = files.iter().filter(|f| !f.text.is_empty()).collect();
     if texts.is_empty() {
         return String::new();
     }
@@ -370,7 +413,7 @@ pub fn for_model(files: &[Ingested], question: &str, budget: usize) -> String {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use std::io::Write;
 
@@ -441,8 +484,8 @@ mod tests {
         assert_eq!(f.text, "[Sheet 1]\nItem | Cost\nPaint | 120.5");
     }
 
-    #[test]
-    fn reads_pdfs_page_by_page() {
+    /// A small PDF with one line of Helvetica text per page (also used by `ocr` tests).
+    pub(crate) fn test_pdf(lines: &[&str]) -> Vec<u8> {
         use lopdf::content::{Content, Operation};
         use lopdf::{dictionary, Document, Object, Stream};
         let mut doc = Document::with_version("1.5");
@@ -450,7 +493,7 @@ mod tests {
         let font_id = doc.add_object(dictionary! { "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica" });
         let resources_id = doc.add_object(dictionary! { "Font" => dictionary! { "F1" => font_id } });
         let mut kids = vec![];
-        for text in ["Tides come from the Moon.", "Spring tides happen twice a month."] {
+        for &text in lines {
             let content = Content {
                 operations: vec![
                     Operation::new("BT", vec![]),
@@ -466,12 +509,18 @@ mod tests {
         }
         doc.objects.insert(
             pages_id,
-            Object::Dictionary(dictionary! { "Type" => "Pages", "Kids" => kids, "Count" => 2, "Resources" => resources_id, "MediaBox" => vec![0.into(), 0.into(), 595.into(), 842.into()] }),
+            Object::Dictionary(dictionary! { "Type" => "Pages", "Kids" => kids, "Count" => lines.len() as i64, "Resources" => resources_id, "MediaBox" => vec![0.into(), 0.into(), 595.into(), 842.into()] }),
         );
         let catalog_id = doc.add_object(dictionary! { "Type" => "Catalog", "Pages" => pages_id });
         doc.trailer.set("Root", catalog_id);
         let mut bytes = Vec::new();
         doc.save_to(&mut bytes).unwrap();
+        bytes
+    }
+
+    #[test]
+    fn reads_pdfs_page_by_page() {
+        let bytes = test_pdf(&["Tides come from the Moon.", "Spring tides happen twice a month."]);
         let dir = tempfile::tempdir().unwrap();
         let f = ingest(&write(dir.path(), "tides.pdf", &bytes)).unwrap();
         assert_eq!(f.pages, Some(2));
@@ -502,14 +551,30 @@ mod tests {
             text.push_str(&format!("Paragraph {i} about gardening and soil.\n"));
         }
         text.push_str("The warranty lasts five years from purchase.\n");
-        let f = Ingested { name: "manual.pdf".into(), kind: FileKind::Pdf, pages: Some(40), text, truncated: false, image: None };
+        let f = Ingested { name: "manual.pdf".into(), kind: FileKind::Pdf, pages: Some(40), text, truncated: false, image: None, ocr: false };
         let out = for_model(&[f], "How long is the warranty?", 3000);
         assert!(out.contains("warranty lasts five years"));
         assert!(out.contains("<file name=\"manual.pdf\", 40 pages — only the parts most relevant"));
         assert!(out.len() < 3600, "{}", out.len());
-        // Short files go in whole; photos add no text.
-        let short = Ingested { name: "a.txt".into(), kind: FileKind::Text, pages: None, text: "Hi".into(), truncated: false, image: None };
-        let photo = Ingested { name: "p.png".into(), kind: FileKind::Image, pages: None, text: String::new(), truncated: false, image: Some("data:".into()) };
-        assert_eq!(for_model(&[short, photo], "q", 3000), "\n\n<file name=\"a.txt\">\nHi\n</file>");
+        // Short files go in whole; photos add only the words read in them.
+        let short = Ingested { name: "a.txt".into(), kind: FileKind::Text, pages: None, text: "Hi".into(), truncated: false, image: None, ocr: false };
+        let photo = Ingested { name: "p.png".into(), kind: FileKind::Image, pages: None, text: String::new(), truncated: false, image: Some("data:".into()), ocr: false };
+        assert_eq!(for_model(&[short.clone(), photo], "q", 3000), "\n\n<file name=\"a.txt\">\nHi\n</file>");
+        let receipt = Ingested { name: "r.png".into(), kind: FileKind::Image, pages: None, text: "TOTAL 12.40".into(), truncated: false, image: Some("data:".into()), ocr: true };
+        assert!(for_model(&[receipt], "q", 3000).contains("TOTAL 12.40"));
+    }
+
+    #[test]
+    fn scans_are_told_apart_from_pdfs_with_text() {
+        assert!(has_text_layer("[Page 1]\nTides come from the Moon and the Sun.", 1));
+        assert!(!has_text_layer("[Page 1]\n\n\n[Page 2]\n3", 2));
+        // A scan without macOS: a clear message, not garbage.
+        #[cfg(not(target_os = "macos"))]
+        {
+            let dir = tempfile::tempdir().unwrap();
+            let blank = test_pdf(&[""]);
+            let err = ingest(&write(dir.path(), "scan.pdf", &blank)).unwrap_err().to_string();
+            assert!(err.contains("reading scans needs macOS"), "{err}");
+        }
     }
 }

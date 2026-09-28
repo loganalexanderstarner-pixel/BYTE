@@ -9,6 +9,9 @@
 - **Models that can see photos**: 128 models are marked **Sees images**. Download a model's image reader from
   its card and you can attach photos (HEIC and WebP photos are converted automatically). With a model that
   can't see, the photo option is hidden and BYTE says so if you drop one.
+- **Scanned PDFs and photos of text are read**: when a PDF has no text layer (a scan), BYTE reads its pages with
+  macOS's built-in text recognition (up to 60 pages), and the words in attached photos (receipts, screenshots,
+  pages) are read too, so even models that can't see get the text. Chips say "scan: text read".
 
 ## 1.0.0-test.13 — Big models that load, a smoother cloud, 713 models
 

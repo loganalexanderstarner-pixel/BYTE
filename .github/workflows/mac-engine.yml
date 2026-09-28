@@ -13,6 +13,10 @@ on:
       - "src-tauri/src/speed.rs"
       - "src-tauri/src/tune.rs"
       - "src-tauri/src/summarize.rs"
+      # Mac-only code (Apple Vision text recognition) compiles and is tested only here.
+      - "src-tauri/src/ocr.rs"
+      - "src-tauri/src/files.rs"
+      - "src-tauri/Cargo.toml"
       - "src-tauri/Cargo.lock"
       - "scripts/LLAMA_TAG"
       - "scripts/build-llama-server.sh"

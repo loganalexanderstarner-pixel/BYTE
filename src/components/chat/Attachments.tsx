@@ -63,7 +63,8 @@ export function fileDetail(f: LocalFile): string {
   const n = f.pages ?? 0;
   const unit = f.kind === "slides" ? "slide" : f.kind === "sheet" ? "sheet" : "page";
   const count = n > 0 ? `${n} ${unit}${n === 1 ? "" : "s"}` : "";
-  return [count, f.truncated ? "long: best parts used" : ""].filter(Boolean).join(" · ");
+  const scan = f.ocr ? (f.kind === "image" ? "text read" : "scan: text read") : "";
+  return [count, scan, f.truncated ? "long: best parts used" : ""].filter(Boolean).join(" · ");
 }
 
 /** Files read on this Mac (local chats), on a message or waiting to be sent. */

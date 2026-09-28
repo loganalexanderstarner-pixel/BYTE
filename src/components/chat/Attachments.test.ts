@@ -8,5 +8,6 @@ describe("fileDetail", () => {
     expect(fileDetail({ name: "a.pptx", kind: "slides", pages: 1, text: "x", truncated: false })).toBe("1 slide");
     expect(fileDetail({ name: "a.xlsx", kind: "sheet", pages: 2, text: "x", truncated: true })).toBe("2 sheets · long: best parts used");
     expect(fileDetail({ name: "a.txt", kind: "text", text: "x", truncated: false })).toBe("");
+    expect(fileDetail({ name: "scan.pdf", kind: "pdf", pages: 3, text: "x", truncated: false, ocr: true })).toBe("3 pages · scan: text read");
   });
 });
