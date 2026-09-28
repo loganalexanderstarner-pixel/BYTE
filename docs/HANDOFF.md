@@ -1,11 +1,15 @@
 # BYTE — handoff for the next session
 
 **Read this first, then `CLAUDE.md` (rules), `docs/PROJECT_GUIDE.md` (full spec, architecture, feature
-catalog) and `docs/CLOUD-MODE.md` (the cloud API contract).** This file says where things stand, how to work
+catalog), `docs/DESIGN-AND-PLATFORMS.md` (byte-ai's palette and logo, and the Windows/Linux plan) and
+`docs/CLOUD-MODE.md` (the cloud API contract and how the cluster behaves).** This file says where things stand, how to work
 on the project, and exactly what to build next. It contains no secrets and must never contain any (the repo
 is public, with history).
 
-Last updated: 2026-09-27, after test build `v1.0.0-test.10` was dispatched.
+Last updated: 2026-09-28. Owner decisions since test.10 (recorded by another session in
+`docs/DESIGN-AND-PLATFORMS.md` / `docs/CLOUD-MODE.md`): **Windows and Linux are now targets** (macOS first,
+ports after 1.0, define a `ModelBackend` boundary now; **no iOS**); **adopt byte-ai's palette and bolt logo**
+(keep the layout and many themes); cloud sign-up is **invite-only**; every phase is still built natively.
 
 ---
 
@@ -55,8 +59,9 @@ the `keyring` crate (Keychain). If it fails, fix it before anything else.
   3. **Bring your own key** (what exists now): each user signs up on the website and pastes their key.
   Decide with the owner which of these the backend will support, then build the app side (the Keychain
   storage, `/api/auth/me` validation, modes-from-account and fallback already exist).
-- **Ask the owner:** can anyone sign up on byteai.bytebylogan.xyz (is there a public/free tier)? If sign-up is
-  invite-only, the onboarding must say so instead of implying anyone can use the cloud.
+- **Answered:** sign-up is **invite-only** (no open registration), so onboarding must say "BYTE Cloud needs an
+  invite" rather than implying anyone can use it. Show the account's budgets; a 429 means an allowance is
+  spent, not an error.
 
 **B. Cloud as its own tab, not a toggle.**
 - Replace the composer's Cloud/This Mac pill with a top-level workspace switch in the sidebar header:
@@ -77,6 +82,15 @@ the `keyring` crate (Keychain). If it fails, fix it before anything else.
   finishes, the local one if the cloud is unreachable.
 - Optional later: local writes a quick draft while the cloud "refines" it (send the draft as context).
 - Private chats never go to the cloud, in any tab.
+
+### 3.2b Also next (owner decisions from 2026-09-27)
+- **byte-ai skin** (`docs/DESIGN-AND-PLATFORMS.md` Part 1): five-token themes with derived `color-mix` values,
+  byte-ai's themes added (Midnight becomes the default), the bolt logo in `src/design/Logo.tsx` drawn in the
+  live accent, a contrast check for every theme. Keep the layout and the many themes.
+- **`ModelBackend` boundary** (Part 2): one trait for "answer this turn" with the local engine and the cloud as
+  implementations; `chat_send` goes through it. No Windows/Linux ports before 1.0, but new code must not add
+  macOS assumptions outside `#[cfg(target_os = "macos")]` modules.
+- After a dropped cloud stream, re-read the conversation and use the saved answer (CLOUD-MODE.md).
 
 ### 3.3 Then Phase 4 — Files & knowledge base
 Full plan in §8 (Phase 4). After that, Phases 5–12 in order (§8). The owner prioritizes **answer quality**,

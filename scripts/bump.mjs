@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Keeps the version identical in package.json, tauri.conf.json, Cargo.toml and
-// Cargo.lock (CI builds with --locked, so a stale lock fails the build).
+// Cargo.lock and package-lock.json (CI builds with --locked, so a stale lock fails the build).
 //   node scripts/bump.mjs 1.0.0-test.1    set the version everywhere
 //   node scripts/bump.mjs --check 1.0.0    fail if any file differs
 import { readFileSync, writeFileSync } from "node:fs";
@@ -13,6 +13,7 @@ const files = {
   conf: join(root, "src-tauri", "tauri.conf.json"),
   cargo: join(root, "src-tauri", "Cargo.toml"),
   lock: join(root, "src-tauri", "Cargo.lock"),
+  npmLock: join(root, "package-lock.json"),
 };
 
 const read = () => ({
@@ -50,5 +51,9 @@ if (check) {
   writeFileSync(files.cargo, cargo);
   const lock = readFileSync(files.lock, "utf8").replace(/(\[\[package\]\]\nname = "byte"\nversion = )"[^"]+"/, `$1"${version}"`);
   writeFileSync(files.lock, lock);
+  const npmLock = JSON.parse(readFileSync(files.npmLock, "utf8"));
+  npmLock.version = version;
+  if (npmLock.packages?.[""]) npmLock.packages[""].version = version;
+  writeFileSync(files.npmLock, `${JSON.stringify(npmLock, null, 2)}\n`);
   console.log(`set version ${version}`);
 }

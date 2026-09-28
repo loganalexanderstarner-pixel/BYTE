@@ -169,3 +169,123 @@ first token is normal; do not treat it as an error or retry into the queue.
 **Expect it to be unreachable sometimes.** If the cluster is down, fall back
 to local models rather than showing an error. A cloud option backed by
 hardware in a house should degrade, not break — that is the honest design.
+
+---
+
+## What is actually behind the endpoint
+
+Worth knowing, because it shapes sensible timeouts, retries and fallbacks.
+Deliberately no addresses or topology here — this repository is going public,
+and a map of someone's home network does not belong in it. These are
+behavioural characteristics, which is what the app needs.
+
+### Two engines, one endpoint
+
+| | dense model | MoE model |
+|---|---|---|
+| runs on | a discrete GPU | CPU, RAM-backed |
+| context | ~33k tokens | **49k per request** |
+| concurrency | shared | **4 simultaneous requests** |
+| suits | short interactive turns, lower latency | long context, large documents |
+
+**The app must not choose.** A router picks per request based on prompt size:
+short turns go to the GPU for latency, long ones to the MoE because its
+context is RAM-backed and there is far more RAM than VRAM. Sending a hint
+about which engine you want will be ignored, and hardcoding an assumption
+about which one answered will break when the router changes.
+
+### Speed, honestly
+
+It is consumer hardware, not a datacentre. Expect **roughly 20–35 tokens per
+second** on the MoE — fine to read as it streams, noticeably slower than a
+commercial API. First-token latency is usually sub-second but a long prompt
+must be processed before generation starts, so a large document can take
+tens of seconds before anything appears.
+
+Design implication: **stream, always.** A spinner for twenty seconds reads as
+broken; the same twenty seconds with text arriving reads as working. Use the
+`phase` event to say what it is doing (`searching: ...`) during the gaps.
+
+### Four concurrent requests, then a queue
+
+Past four, requests queue rather than fail. A slow start is normal under
+load — **do not retry into the queue**, that makes it worse. Distinguish
+"queued" from "failed" before showing an error.
+
+### It lives in a house
+
+This is the part most worth designing around. The cluster is physical
+machines in one person's home, so:
+
+* **power cuts, reboots and upgrades happen.** It is not 99.9%.
+* **one machine is a dual-boot gaming PC** that leaves the cluster entirely
+  when it boots Windows. Capacity varies by time of day.
+* **a redeploy drops in-flight connections.** The work usually continues
+  server-side, but the stream dies.
+
+So: **treat unreachable as normal, not exceptional.** If the cluster does not
+answer, fall back to local models silently and say so quietly in the UI —
+never an error dialog. A cloud option backed by someone's house should
+degrade, not break. Retry with backoff, and when a stream dies mid-answer,
+reconnect and re-read the conversation rather than assuming the turn was
+lost; the answer is usually already saved.
+
+### Accounts and limits
+
+Every key belongs to an account with a tier, and tiers carry real daily
+allowances for documents and heavy modes. `GET /api/auth/me` returns the
+budgets — **show them**, so a user understands a refusal instead of
+experiencing it as a bug. A 429 means an allowance is spent, not that
+something is broken.
+
+New users sign up through an invite link; there is no open registration. If
+the app is shared, the onboarding needs to account for that: a key cannot be
+created without an account, and an account cannot be created without an
+invite.
+
+---
+
+## What cloud mode actually gives you
+
+Not just "a bigger model". byte-ai already has several things working that
+appear in this project's roadmap as **Planned** — reachable today through one
+bearer token, while the native versions get built.
+
+| capability | byte-ai today | this app |
+|---|---|---|
+| Documents: PDF, PPTX, DOCX, flyer, worksheet | **working** — real renderers, template library, page-image previews | Phase 5, planned |
+| Web search with citations | **working** — self-hosted SearXNG, numbered sources, relevance filtering | Phase 2 done (DDG) |
+| Knowledge base / reference extraction | **working** — upload a PDF/DOCX/PPTX, use its text as source material | Phase 4, planned |
+| Long-term memory across devices | **working** — semantic recall, same memory from any client | Phase 3 done (local only) |
+| Vision | **working** — the MoE is a vision-language model | Phase 11, planned |
+| Runnable code projects | **working** — generated, verified, zipped | not on the roadmap |
+| Conversation sync | **working** — the same chats on Mac, phone and web | not on the roadmap |
+
+The last two are worth sitting with. **Conversation sync** is something a
+local-only app structurally cannot do, and it is one of the clearest reasons
+a user would turn cloud mode on: start on the Mac, continue on the phone.
+
+### Build every phase anyway
+
+To be explicit, because an earlier draft of this file suggested otherwise and
+Logan overruled it on 2026-09-27: **all 14 phases still get built natively.**
+Cloud mode does not replace any of them and is not a shortcut past Phase 5.
+
+What it changes is that you are no longer building them blind. byte-ai is a
+**working reference implementation** of phases 4, 5 and 6, running in
+production, with the defects already found and fixed. When you build the
+native document pipeline you have something to compare output against — and
+the cluster session can tell you what broke the first time.
+
+A concrete example, because it is the kind of thing that only shows up in a
+real deployment: the deck generator produced *unreadable* slides for months.
+Title contrast measured 2.59:1 against a requirement of 4.5:1. Nobody caught
+it, because every improvement was written and shipped without anyone ever
+looking at a rendered slide. The fix was a rendering sidecar that turns
+generated documents into page images so they can be inspected. **Build the
+looking-at-it step at the same time as the generator**, not after.
+
+Cloud mode's own value, then, is what a local engine structurally cannot do:
+conversation sync across devices, vision, persistent semantic memory, and a
+much larger model than a 16 GB laptop can hold — available in parallel with
+the native features, not instead of them.
