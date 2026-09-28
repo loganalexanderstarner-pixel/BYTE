@@ -172,6 +172,9 @@ then stability, then looks, then feature count.
 - **UI screenshots:** `tools/ui-shots/` (see its README): build, serve with `npx vite preview`, run
   `node shots.mjs`; it mocks every Tauri command and walks the main screens. Add mocks for new commands, and
   look at the pictures before claiming UI works.
+- **Actions minutes ran out (100%, 2026-09-28)**: no workflows run until the monthly reset. Test builds are made
+  on the owner's Mac with `scripts/build-mac.sh --install` (same steps as `release.yml`). Making the repo public
+  would also make Actions free (the history was checked: no secrets).
 - **CI (the owner's Actions minutes are limited):** every workflow is **manual** (workflow_dispatch): `ci.yml`,
   `mac-engine.yml` (macOS minutes cost 10×) and `release.yml`. Run them at milestones (phases 8, 10, 12) or when
   the owner asks. Before every push run `scripts/check-all.sh` locally; push every change (free, the backup) and

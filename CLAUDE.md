@@ -72,6 +72,7 @@ scripts/                  build-llama-server.sh, LLAMA_TAG (pinned), bump.mjs
 | Real-engine e2e | `BYTE_TEST_LLAMA_SERVER=<bin> BYTE_TEST_MODEL=<Qwen3-0.6B gguf> cargo test e2e -- --ignored` |
 | Set version everywhere | `node scripts/bump.mjs 1.0.0-test.N` |
 | Publish a test build | bump → commit → push → run `release.yml` (workflow_dispatch, input `tag=v1.0.0-test.N`) |
+| Build on the owner's Mac (no Actions minutes) | `scripts/build-mac.sh` (`--install` copies BYTE.app to /Applications) |
 | Secret scan | `scripts/check-secrets.sh` (also in CI) |
 
 On Linux, Tauri needs `libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libsoup-3.0-dev`.

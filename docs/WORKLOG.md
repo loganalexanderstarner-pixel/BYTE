@@ -17,6 +17,15 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (next commit) — Build on your own Mac: scripts/build-mac.sh
+- **Why:** GitHub Actions minutes are at 100%, so release builds can't run on GitHub.
+- **What:** `scripts/build-mac.sh`: checks/installs tools (Xcode CLT, Homebrew cmake + node, rustup), builds
+  llama-server with Metal (`build-llama-server.sh`), `npm ci`, `tauri build --target aarch64-apple-darwin`,
+  verifies the engine is in the bundle and the ad-hoc signature, prints the .dmg path; `--install` copies to
+  /Applications and clears quarantine. CLAUDE.md and HANDOFF mention it.
+- **Verify:** on an Apple Silicon Mac: `scripts/build-mac.sh --install`. (Syntax-checked here; this container is Linux.)
+- **Undo:** delete the script.
+
 ### 72ce820 — Catalog: 713 models, community fine-tunes, a details dropdown
 - **Why:** the owner asked for ~250 more regular models, the community models left out before (with their
   creator and what they're good for), and a dropdown per model with details and use ideas.
