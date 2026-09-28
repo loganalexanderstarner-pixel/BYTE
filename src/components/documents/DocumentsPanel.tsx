@@ -2,10 +2,11 @@ import { documentDir, join } from "@tauri-apps/api/path";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { ArrowDown, ArrowLeft, ArrowUp, Check, Download, FilePlus2, FileText, Loader2, Paperclip, Plus, RefreshCw, Trash2, Wand2, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { api, errorText } from "../../lib/api";
 import { DOC_KINDS, idOf, jobState, listOf, readOutline, str, titleOf, writeOutline, type DocKind, type OutlineItem, type Row } from "../../lib/cloudDocs";
+import { useStore } from "../../state/store";
 import { CloudThumb, cloudImageCached } from "../chat/Attachments";
 
 type View = { kind: "create" } | { kind: "jobs" } | { kind: "docs" } | { kind: "job"; id: string } | { kind: "doc"; id: string };
@@ -17,6 +18,9 @@ type View = { kind: "create" } | { kind: "jobs" } | { kind: "docs" } | { kind: "
  * previewed page by page, downloaded, revised or turned into another format.
  */
 export function DocumentsPanel({ onClose }: { onClose(): void }) {
+  const cloudConnected = useStore((s) => !!s.settings?.cloudConnected);
+  // The cloud makes the best documents; this Mac works offline and privately.
+  const [where, setWhere] = useState<"local" | "cloud">(cloudConnected ? "cloud" : "local");
   const [view, setView] = useState<View>({ kind: "create" });
 
   useEffect(() => {
@@ -37,31 +41,50 @@ export function DocumentsPanel({ onClose }: { onClose(): void }) {
       <div className="modal docs-modal" role="dialog" aria-modal="true" aria-label="Documents">
         <nav className="modal-nav">
           <h2>Documents</h2>
-          {tabs.map((t) => (
-            <button key={t.id} aria-current={current === t.id} onClick={() => setView({ kind: t.id })}>
-              {t.label}
-            </button>
-          ))}
+          {cloudConnected && (
+            <div className="segmented workspace-switch" role="tablist" aria-label="Where documents are made">
+              <button role="tab" aria-selected={where === "cloud"} onClick={() => setWhere("cloud")}>
+                BYTE Cloud
+              </button>
+              <button role="tab" aria-selected={where === "local"} onClick={() => setWhere("local")}>
+                This Mac
+              </button>
+            </div>
+          )}
+          {where === "cloud" &&
+            tabs.map((t) => (
+              <button key={t.id} aria-current={current === t.id} onClick={() => setView({ kind: t.id })}>
+                {t.label}
+              </button>
+            ))}
           <p className="faint" style={{ fontSize: "0.78em", marginTop: "auto" }}>
-            Made on your BYTE cloud.
+            {where === "cloud" ? "Made on your BYTE cloud." : "Made by the model on this Mac. Private, works offline."}
           </p>
         </nav>
         <section className="modal-body">
           <button className="icon-btn modal-close" onClick={onClose} aria-label="Close documents">
             <X size={18} />
           </button>
-          {view.kind === "create" && <CreateDoc onCreated={(id) => setView({ kind: "job", id })} />}
-          {view.kind === "jobs" && <JobList onOpen={(id) => setView({ kind: "job", id })} />}
-          {view.kind === "docs" && <DocList onOpen={(id) => setView({ kind: "doc", id })} />}
-          {view.kind === "job" && (
+          {where === "local" && (
+            <Suspense fallback={<Loader2 className="spin" size={16} />}>
+              <LocalDocs />
+            </Suspense>
+          )}
+          {where === "cloud" && view.kind === "create" && <CreateDoc onCreated={(id) => setView({ kind: "job", id })} />}
+          {where === "cloud" && view.kind === "jobs" && <JobList onOpen={(id) => setView({ kind: "job", id })} />}
+          {where === "cloud" && view.kind === "docs" && <DocList onOpen={(id) => setView({ kind: "doc", id })} />}
+          {where === "cloud" && view.kind === "job" && (
             <JobView id={view.id} onBack={() => setView({ kind: "jobs" })} onDocument={(id) => setView({ kind: "doc", id })} />
           )}
-          {view.kind === "doc" && <DocView id={view.id} onBack={() => setView({ kind: "docs" })} onJob={(id) => setView({ kind: "job", id })} />}
+          {where === "cloud" && view.kind === "doc" && <DocView id={view.id} onBack={() => setView({ kind: "docs" })} onJob={(id) => setView({ kind: "job", id })} />}
         </section>
       </div>
     </div>
   );
 }
+
+/** Loaded on first use (charts and document writers are large). */
+const LocalDocs = lazy(() => import("./LocalDocs").then((m) => ({ default: m.LocalDocs })));
 
 function CreateDoc({ onCreated }: { onCreated(jobId: string): void }) {
   const [kind, setKind] = useState<DocKind>("pdf");

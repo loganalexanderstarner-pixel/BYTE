@@ -15,6 +15,71 @@ use crate::settings::{Mode, Settings, ThinkingPref};
 use crate::state::AppState;
 use crate::system::{self, SystemInfo};
 
+// ---------- documents made on this Mac (docs.rs) ----------
+
+/// Text of a source document the user picked (empty if none or unreadable).
+async fn reference_text(path: Option<String>) -> AppResult<String> {
+    let Some(p) = path.filter(|p| !p.is_empty()) else { return Ok(String::new()) };
+    let f = tokio::task::spawn_blocking(move || crate::files::ingest(std::path::Path::new(&p))).await.map_err(|e| AppError::msg(e.to_string()))??;
+    Ok(f.text)
+}
+
+async fn main_endpoint(state: &AppState) -> AppResult<crate::engine::Endpoint> {
+    state.engine.endpoint().await.ok_or_else(|| AppError::msg("The model on this Mac isn't ready yet. Load one in Settings → Models, or use BYTE Cloud."))
+}
+
+#[tauri::command]
+pub async fn doc_outline(state: State<'_, AppState>, kind: crate::docs::DocKind, prompt: String, reference_path: Option<String>) -> AppResult<crate::docs::Outline> {
+    let ep = main_endpoint(&state).await?;
+    let reference = reference_text(reference_path).await?;
+    crate::docs::outline(&state.local_http, &ep, kind, prompt.trim(), &reference).await
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocWriteRequest {
+    pub request_id: String,
+    pub kind: crate::docs::DocKind,
+    pub prompt: String,
+    pub outline: crate::docs::Outline,
+    /// Search the web first and cite what was read.
+    #[serde(default)]
+    pub research: bool,
+    #[serde(default)]
+    pub reference_path: Option<String>,
+}
+
+/// Writes an approved outline section by section (stop it with `chat_cancel`).
+#[tauri::command]
+pub async fn doc_write(state: State<'_, AppState>, request: DocWriteRequest, on_event: Channel<crate::docs::DocEvent>) -> AppResult<crate::docs::DocSpec> {
+    let ep = main_endpoint(&state).await?;
+    let reference = reference_text(request.reference_path.clone()).await?;
+    let research = if request.research {
+        let _ = on_event.send(crate::docs::DocEvent::Phase { text: "Searching the web and reading pages".into() });
+        let cloud = if state.settings.lock().await.cloud_connected { state.cloud_client().await.ok() } else { None };
+        let query = format!("{} {}", request.outline.title, request.prompt.chars().take(120).collect::<String>());
+        crate::docs::research(&state.net, cloud.as_ref(), &query).await
+    } else {
+        crate::docs::Research::default()
+    };
+    let cancel = state.generations.register(&request.request_id).await;
+    let result = crate::docs::write(&state.local_http, &ep, request.kind, &request.outline, &research, &reference, &cancel, &on_event).await;
+    state.generations.finish(&request.request_id).await;
+    result
+}
+
+/// Saves a finished file (made by the UI's renderers) where the user chose.
+#[tauri::command]
+pub async fn doc_save(path: String, data: String) -> AppResult<()> {
+    use base64::Engine as _;
+    let bytes = base64::engine::general_purpose::STANDARD.decode(data.as_bytes()).map_err(|e| AppError::msg(format!("bad file data: {e}")))?;
+    if let Some(dir) = std::path::Path::new(&path).parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&path, bytes)?;
+    Ok(())
+}
+
 // ---------- knowledge base (kb.rs) ----------
 
 /// The knowledge base at a glance: folders, and the search model's state.

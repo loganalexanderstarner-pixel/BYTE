@@ -12,7 +12,7 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 | 2 | Agent & web: tool registry, action log, web search/read, forced grounding, citations, calculator | ✅ Done (test.2) |
 | 3 | Memory: encrypted DB, chats, memory/About me, projects, profiles, branching, pins, export | ✅ Done (test.5 + test.6): encrypted DB, search, pins, folders, private chats, memory + About me, export, edit & versions, auto titles/summaries/tags, projects, profiles, interrupted-answer recovery |
 | 4 | Files & knowledge base: parsers, OCR, embeddings, folder indexing, reader | Done (test.14): attachments, vision, OCR, embeddings, knowledge base, My files tool, reader, instant answers |
-| 5 | Documents: PDF/PPTX/DOCX/HTML, edit existing files, infographics, math/diagrams | Planned |
+| 5 | Documents (light local version; the cloud makes the full range) | Done: plan → edit outline → write on the Mac → save as PDF / PPTX / DOCX, 4 designs, charts |
 | 6 | Research+: Deep/Extended, academic, quote finder, fact-check, compare, web agent, YouTube | Planned |
 | 7 | Writing & learning: studio, long-form, style, flashcards, quizzes, tutor, custom assistants | Planned |
 | 8 | Speed: Speed boost (drafters + MTP/EAGLE-3/DSpark heads), repeated-text guessing, per-Mac tuning, measured-speed recommendations, CPU offload, GPU share, thinking router | ✅ Mostly done (test.7–test.9); model lab left |

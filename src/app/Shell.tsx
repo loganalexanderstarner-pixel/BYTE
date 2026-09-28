@@ -60,11 +60,13 @@ export function Shell() {
           </div>
           <div className="row no-drag">
             <EngineBadge />
-            {cloudConnected && (
-              <button className="icon-btn" onClick={() => setDocsOpen(true)} title="Documents: PDFs, slides and more, made on your BYTE cloud">
-                <FileText size={18} />
-              </button>
-            )}
+            <button
+              className="icon-btn"
+              onClick={() => setDocsOpen(true)}
+              title={cloudConnected ? "Documents: PDFs, slides and Word files, made on your BYTE cloud or this Mac" : "Documents: PDFs, slides and Word files, made on this Mac"}
+            >
+              <FileText size={18} />
+            </button>
             <button className="icon-btn" onClick={() => openSettings("models")} title="Settings (⌘,)">
               <SettingsIcon size={18} />
             </button>

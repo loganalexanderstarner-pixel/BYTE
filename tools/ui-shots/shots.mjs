@@ -227,6 +227,32 @@ function initScript({ data }) {
           return { conversationId: "42", attachment: { id: String(100 + Math.floor(Math.random() * 900)), filename: args.file.split("/").pop(), content_type: "image/jpeg" } };
         case "plugin:dialog|open":
           return data.dialogPaths ?? ["/Users/logan/Pictures/tide-pool.jpg"];
+        case "doc_outline":
+          return { title: "Saving for Your First Home", subtitle: "A practical plan for the next three years", sections: [
+            { title: "How much you need", notes: "Down payment, closing costs, emergency fund" },
+            { title: "Where to keep the money", notes: "High-yield savings, CDs, what to avoid" },
+            { title: "A monthly plan", notes: "Budget, automatic transfers, milestones" },
+            { title: "Help you might qualify for", notes: "First-time buyer programs" },
+          ] };
+        case "doc_write": {
+          const send = (e) => args.onEvent.onmessage(e);
+          const o = args.request.outline;
+          for (let i = 0; i < o.sections.length; i++) { send({ kind: "section", index: i, total: o.sections.length, title: o.sections[i].title }); await new Promise((r) => setTimeout(r, 40)); }
+          return { kind: args.request.kind, title: o.title, subtitle: o.subtitle, sources: [{ n: 1, title: "Buying your first home", url: "https://www.consumerfinance.gov/owning-a-home/" }], sections: [
+            { title: o.sections[0].title, blocks: [
+              { type: "paragraph", text: "Most lenders want 3–20% of the price as a down payment, plus 2–5% for closing costs [1]. Keep three months of expenses aside as well, so a surprise bill doesn't touch the house fund." },
+              { type: "table", columns: ["Home price", "5% down", "Closing (3%)", "Total"], rows: [["$250,000", "$12,500", "$7,500", "$20,000"], ["$350,000", "$17,500", "$10,500", "$28,000"]] },
+              { type: "callout", text: "Aim for $20,000–$28,000 for a $250k–$350k home." },
+            ] },
+            { title: o.sections[1].title, blocks: [
+              { type: "bullets", items: ["High-yield savings: easy access, about 4% a year", "CDs: a bit more interest, money locked for months", "Avoid stocks for money you need within 3 years"] },
+              { type: "chart", chart: "bar", title: "Savings after 3 years at $600/month", labels: ["Checking", "High-yield savings", "CD ladder"], values: [21600, 23900, 24200] },
+            ] },
+            { title: o.sections[2].title, blocks: [ { type: "numbered", items: ["Set up an automatic transfer on payday", "Cut two subscriptions", "Check progress every 3 months"] } ] },
+          ] };
+        }
+        case "doc_save":
+          return null;
         case "kb_status":
           return data.kb ?? { sources: [], embedKey: "nomic-embed-v1.5:Q8_0", embedBytes: 146146432, embedInstalled: false, embedRunning: false };
         case "kb_add":
@@ -587,6 +613,22 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(500);
   await shot(p, "14c-reader");
   console.log("kb errors:", errors);
+  await ctx.close();
+}
+// Documents made on this Mac: outline, then the written document
+{
+  const { p, ctx, errors } = await page(true, "midnight");
+  await p.getByTitle(/Documents: PDFs/).click();
+  await p.waitForTimeout(400);
+  await p.getByLabel("What the document is about").fill("A plan to save for a first home in three years");
+  await shot(p, "15-docs-local");
+  await p.getByRole("button", { name: /Plan it/ }).click();
+  await p.waitForTimeout(400);
+  await shot(p, "15b-docs-outline");
+  await p.getByRole("button", { name: /Write it/ }).click();
+  await p.waitForTimeout(1500);
+  await shot(p, "15c-docs-written");
+  console.log("docs errors:", errors);
   await ctx.close();
 }
 // A model that didn't load: what's using memory, with Quit buttons

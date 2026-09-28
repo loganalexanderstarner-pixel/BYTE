@@ -2218,6 +2218,100 @@ kbd {
   flex: 1;
   min-width: 0;
 }
+.outline-item .grow {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.outline-item .grow .text-input,
+.outline-review > .text-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+.outline-review > .text-input {
+  margin-bottom: 6px;
+}
+.outline-item .text-input.faint {
+  font-size: 0.85em;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.doc-title-input {
+  font-size: 1.15em;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.docs-modal .modal-nav .workspace-switch {
+  margin: 4px 0 10px;
+}
+
+/* A written document, previewed in its own design (colours from the document
+   theme, set as --doc-* on the element; the page itself is always white). */
+.doc-preview {
+  margin-top: 14px;
+  padding: 36px 40px;
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--doc-text);
+  line-height: 1.55;
+  font-size: 0.95em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.doc-preview .doc-bar {
+  width: 56px;
+  height: 5px;
+  background: var(--doc-accent);
+}
+.doc-preview h1 {
+  color: var(--doc-heading);
+  margin: 10px 0 4px;
+  font-size: 1.8em;
+}
+.doc-preview h2 {
+  color: var(--doc-accent);
+  margin: 22px 0 8px;
+  font-size: 1.2em;
+}
+.doc-preview .doc-sub {
+  color: var(--doc-muted);
+}
+.doc-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0 14px;
+}
+.doc-preview th {
+  background: var(--doc-soft);
+  color: var(--doc-heading);
+  text-align: left;
+}
+.doc-preview th,
+.doc-preview td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #d9dde3;
+}
+.doc-preview .doc-callout {
+  background: var(--doc-soft);
+  border-left: 3px solid var(--doc-accent);
+  padding: 8px 12px;
+  margin: 8px 0 14px;
+  color: var(--doc-heading);
+}
+.doc-preview blockquote {
+  font-style: italic;
+  color: var(--doc-muted);
+  margin: 6px 18px 12px;
+}
+.doc-preview .doc-chart {
+  display: block;
+  max-width: 100%;
+  margin: 8px auto 14px;
+}
+.doc-preview .doc-sources {
+  font-size: 0.85em;
+}
 .template-picker h4 {
   margin: 16px 0 8px;
 }

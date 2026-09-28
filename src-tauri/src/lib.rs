@@ -6,6 +6,7 @@ mod chip;
 mod cloud;
 mod commands;
 mod db;
+mod docs;
 mod embed;
 mod kb;
 mod engine;
@@ -144,6 +145,9 @@ pub fn run() {
             commands::kb_search,
             commands::answer_cache_put,
             commands::answer_cache_clear,
+            commands::doc_outline,
+            commands::doc_write,
+            commands::doc_save,
             commands::app_quit,
             commands::settings_get,
             commands::settings_update,

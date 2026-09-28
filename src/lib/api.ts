@@ -1,6 +1,8 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
+import type { DocEvent, DocKind, DocOutline, DocSpec } from "./docs/spec";
+
 import type {
   BoostInfo,
   ChatEvent,
@@ -117,6 +119,17 @@ export const api = {
   answerCachePut: (question: string, mode: Mode, answer: string, sources: Source[]) =>
     invoke<void>("answer_cache_put", { question, mode, answer, sources }),
   answerCacheClear: () => invoke<void>("answer_cache_clear"),
+  // Documents made on this Mac (docs.rs); files are rendered in lib/docs.
+  docOutline: (kind: DocKind, prompt: string, referencePath: string | null) => invoke<DocOutline>("doc_outline", { kind, prompt, referencePath }),
+  docWrite: (
+    request: { requestId: string; kind: DocKind; prompt: string; outline: DocOutline; research: boolean; referencePath: string | null },
+    onEvent: (e: DocEvent) => void,
+  ) => {
+    const channel = new Channel<DocEvent>();
+    channel.onmessage = onEvent;
+    return invoke<DocSpec>("doc_write", { request, onEvent: channel });
+  },
+  docSave: (path: string, data: string) => invoke<void>("doc_save", { path, data }),
 
   // BYTE cloud (docs/CLOUD-MODE.md). The key goes straight to the Keychain.
   cloudStatus: () => invoke<CloudStatus>("cloud_status"),

@@ -355,6 +355,18 @@ a cloud invite: PDF, PPTX, DOCX with a few themes (not the full template library
 Save as. Not in scope: template library, editing existing PPTX/DOCX, posters/infographics (the cloud has
 those). The plan below is the full version; build only the light subset, then go to Phase 6.
 
+**Built (light version, 2026-09-28):** `src-tauri/src/docs.rs` (outline + section JSON via llama-server
+`response_format` json_schema, lenient `clean_blocks`, one retry each, optional web research with numbered
+sources, reference file via `files::ingest`, progress `DocEvent`s, stop via `chat_cancel`); commands
+`doc_outline`, `doc_write`, `doc_save`. Rendering happens in the UI so it ports to Windows/Linux as is:
+`src/lib/docs/` — `spec.ts` (types, 4 document themes), `pdf.ts` (pdfmake; `pdfDefinition` clones the spec
+because pdfmake mutates lists), `pptx.ts` (pptxgenjs, `planSlides`: ≤6 bullets / ~550 chars per slide, one
+table/chart per slide, native charts), `docx.ts` (docx, TOC field), `charts.ts` (Chart.js → PNG), `render.ts`
+(lazy imports). UI `components/documents/LocalDocs.tsx` (form → outline editor → progress → preview → Save as
+any format), Documents panel "This Mac / BYTE Cloud" switch, 📄 button always shown. Verified: real-engine
+e2e with Qwen3-0.6B (outline + section JSON), vitest renderers, sample files opened with python-docx /
+python-pptx / PyMuPDF (LibreOffice is broken in this container), screenshots `15-*`.
+
 Goal: real PDF / PPTX / DOCX / shareable HTML files made locally, looking professionally designed. (The
 cloud already makes documents through the byte-ai API — keep both; local works offline and on any Mac.)
 1. **DocSpec**: the model writes JSON — title, meta, sections of heading / paragraphs / bullets / table /

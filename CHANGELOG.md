@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — Documents made on this Mac
+
+- **Make documents without the cloud**: the 📄 Documents button now works for everyone. Choose **This Mac** (or
+  BYTE Cloud when connected), pick PDF report, Slides or Word document, say what it's about, optionally add a
+  source file and "research the web and cite sources". BYTE plans an outline you can edit (rename, reorder, add,
+  remove sections), then writes it section by section on your Mac: private and offline.
+- **Save as PDF, PowerPoint or Word** from the same written document, in four designs (Midnight, Clean, Paper,
+  Academic): PDFs get a cover, table of contents, page numbers and sources; slides get native PowerPoint charts
+  and split long lists across slides; Word files get a table of contents and real headings and lists. A preview
+  shows the document before you save. The cloud stays the choice for its bigger template library.
+
 ## 1.0.0-test.14 — Your files, scans and photos
 
 - **Attach files to local chats**: click the paperclip or drop files on the window. BYTE reads PDFs, Word,
