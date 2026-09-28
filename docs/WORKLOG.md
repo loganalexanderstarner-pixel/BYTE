@@ -17,6 +17,14 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-28
 
+### (this commit) — Versions follow the phases (v0.5.0 = Phase 5), with a description per release
+- **Why:** owner: name builds after phases instead of "test.N" ("Phase 1 improvements v0.1…"), and describe
+  each version on the repo so people can choose one with fewer features.
+- **What:** `docs/VERSIONS.md` (scheme + every version, old test builds mapped to v0.1.0–v0.4.0),
+  `docs/releases/v0.5.0.md` (release title + description), `release.yml` reads `docs/releases/<tag>.md` for
+  the release title/body; `node scripts/bump.mjs 0.5.0`; CHANGELOG, CLAUDE.md, HANDOFF, README updated.
+- **Undo:** revert; tags already published stay.
+
 ### (this commit) — Windows icon (icon.ico) so the Windows compile check gets past tauri-build
 - **Why:** the Windows CI job stopped at "icons/icon.ico not found; required for generating a Windows Resource".
 - **What:** `src-tauri/icons/icon.ico` (16–256 px, made from `icons/icon.png`), listed in `tauri.conf.json`.

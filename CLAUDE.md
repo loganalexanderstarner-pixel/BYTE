@@ -22,7 +22,7 @@ tokens + logo, and the Windows/Linux plan) and `docs/CLOUD-MODE.md` (BYTE as a r
 - Every feature is a **module** the user can toggle; disabled modules add no prompt text, tools, or memory use.
 - Answers are well structured: headings, numbered steps, bullets, TL;DR box for long answers, callouts.
 - Unique BYTE layout with a **command-deck home**; 20 themes; smooth 60 fps animations.
-- Work happens on branch `claude/new-session-tu1a5x`; test builds are tags `v1.0.0-test.N` (pre-releases).
+- Work happens on branch `claude/new-session-tu1a5x`; builds are tagged by phase: **v0.<phase>.<n>** (`v0.5.0` = Phase 5, `v0.5.1` = a Phase 5 improvement build; `v1.0.0` = finished). Each release's title and description come from `docs/releases/v<version>.md`; `docs/VERSIONS.md` lists every version (owner decision 2026-09-28; before that, builds were `v1.0.0-test.1…14`).
 
 ## Layout
 
@@ -74,8 +74,8 @@ scripts/                  build-llama-server.sh, LLAMA_TAG (pinned), bump.mjs
 | Frontend checks | `npm run typecheck && npx vitest run && npm run build` |
 | Rust tests | `cd src-tauri && cargo test` |
 | Real-engine e2e | `BYTE_TEST_LLAMA_SERVER=<bin> BYTE_TEST_MODEL=<Qwen3-0.6B gguf> cargo test e2e -- --ignored` |
-| Set version everywhere | `node scripts/bump.mjs 1.0.0-test.N` |
-| Publish a test build | bump → commit → push → run `release.yml` (workflow_dispatch, input `tag=v1.0.0-test.N`) |
+| Set version everywhere | `node scripts/bump.mjs 0.<phase>.<n>` |
+| Publish a build | write `docs/releases/v0.P.N.md` (first line `# Phase P — … (v0.P.N)`, then new / what it can do / not yet) + a row in `docs/VERSIONS.md` → bump → commit → push → run `release.yml` (workflow_dispatch, `tag=v0.P.N`) |
 | Build on the owner's Mac (no Actions minutes) | `scripts/build-mac.sh` (`--install` copies BYTE.app to /Applications) |
 | Secret scan | `scripts/check-secrets.sh` (also in CI) |
 

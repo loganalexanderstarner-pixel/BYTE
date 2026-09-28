@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — Documents made on this Mac
+## 0.5.0 — Phase 5: documents made on this Mac
+
+Versions now follow the phases: v0.5.0 = Phase 5 (see docs/VERSIONS.md). Earlier builds were 1.0.0-test.1…14.
 
 - **Make documents without the cloud**: the 📄 Documents button now works for everyone. Choose **This Mac** (or
   BYTE Cloud when connected), pick PDF report, Slides or Word document, say what it's about, optionally add a

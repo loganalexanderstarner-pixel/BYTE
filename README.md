@@ -43,7 +43,7 @@ BYTE is being built in phases. PDF/PowerPoint/Word export, file and knowledge-ba
      ```
 4. Follow the welcome guide. It downloads your model (about 9 GB for the recommended one) and you're ready.
 
-> Test builds (tags like `v1.0.0-test.1`) are marked **Pre-release** on the Releases page.
+> Versions follow the build plan: **v0.5.0 is Phase 5**, v0.5.1 a Phase 5 improvement, and so on up to v1.0.0. Each release says what it has, and [docs/VERSIONS.md](docs/VERSIONS.md) lists them all, so you can pick an older, simpler version if you want fewer features.
 
 ## Models
 
@@ -129,8 +129,8 @@ npm run tauri dev                  # run the app
 | Frontend type-check / tests / build | `npm run typecheck` · `npx vitest run` · `npm run build` |
 | Rust tests | `cd src-tauri && cargo test` |
 | End-to-end test with a real engine | `BYTE_TEST_LLAMA_SERVER=… BYTE_TEST_MODEL=… cargo test e2e -- --ignored` |
-| Set the version everywhere | `node scripts/bump.mjs 1.0.0-test.2` |
-| Publish a test build | bump, commit, then `git tag v1.0.0-test.2 && git push --tags` |
+| Set the version everywhere | `node scripts/bump.mjs 0.5.1` |
+| Publish a build | add `docs/releases/v0.5.1.md`, bump, commit, then run the Release workflow with `tag=v0.5.1` |
 
 **Stack:** Tauri 2 (Rust) · React 19 + TypeScript + Vite · llama.cpp (`llama-server`, Metal) · Qwen3 GGUF models.
 

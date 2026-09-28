@@ -1,7 +1,8 @@
 name: Release BYTE
 
-# Tags like v1.0.0-test.1 publish a hidden pre-release (for testing on a real
-# Mac); a plain tag like v1.0.0 publishes the public release.
+# Tags name the phase: v0.5.0 = Phase 5, v0.5.1 = a Phase 5 improvement build
+# (docs/VERSIONS.md). Tags with a "-" (e.g. v0.6.0-beta.1) publish a hidden
+# pre-release for testing; v1.0.0 is the finished app.
 on:
   push:
     tags: ["v*"]
@@ -54,6 +55,35 @@ jobs:
 
       - run: npm ci
 
+      # Title and description from docs/releases/<tag>.md (first line "# Title"),
+      # so every version on the Releases page says what it has. Falls back to
+      # a plain title when the file doesn't exist.
+      - name: Release notes
+        id: notes
+        run: |
+          f="docs/releases/${TAG}.md"
+          if [ -f "$f" ]; then
+            title=$(head -n1 "$f" | sed 's/^# *//')
+            body=$(tail -n +2 "$f")
+          else
+            title="BYTE ${TAG}"
+            body=""
+          fi
+          {
+            echo "title=$title"
+            echo "body<<BYTE_NOTES_END"
+            echo "$body"
+            echo
+            echo "## Install"
+            echo "**Apple Silicon Macs (M1 or newer), macOS 13.3+.** Download the \`.dmg\`, open it, and drag BYTE to Applications."
+            echo
+            echo "**First launch:** BYTE isn't signed with an Apple Developer ID yet, so macOS will block it the first time."
+            echo "- macOS 15 (Sequoia) or later: open BYTE once, click **Done**, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**."
+            echo "- macOS 13–14: right-click BYTE in Applications → **Open** → **Open**."
+            echo "- If macOS says the app is \"damaged\", run this in Terminal: \`xattr -cr /Applications/BYTE.app\`"
+            echo "BYTE_NOTES_END"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and publish
         uses: tauri-apps/tauri-action@v0
         env:
@@ -61,16 +91,8 @@ jobs:
         with:
           tagName: ${{ env.TAG }}
           releaseCommitish: ${{ github.sha }}
-          releaseName: "BYTE ${{ env.TAG }}"
-          releaseBody: |
-            **Apple Silicon Macs (M1 or newer), macOS 13.3+.** Download the `.dmg`, open it, and drag BYTE to Applications.
-
-            **First launch:** BYTE isn't signed with an Apple Developer ID yet, so macOS will block it the first time.
-            - macOS 15 (Sequoia) or later: open BYTE once, click **Done**, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
-            - macOS 13–14: right-click BYTE in Applications → **Open** → **Open**.
-            - If macOS says the app is "damaged", run this in Terminal: `xattr -cr /Applications/BYTE.app`
-
-            See the README for details.
+          releaseName: ${{ steps.notes.outputs.title }}
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           prerelease: ${{ contains(env.TAG, '-') }}
           args: --target aarch64-apple-darwin
