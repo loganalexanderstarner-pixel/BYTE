@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.2 — More models, and cards everywhere in Cloud mode
 
 - **Cards in Cloud mode even with no model on your Mac.** BYTE asks your cloud to fill in the card behind the scenes
   (in a short "BYTE card helper" chat that it deletes afterwards), then shows the card and the cloud's answer.
