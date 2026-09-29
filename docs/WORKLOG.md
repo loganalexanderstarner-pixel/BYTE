@@ -17,6 +17,26 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — Models that reason when told not to; no example in the title prompt
+- **Why:** the second pass of the per-family e2e tests.
+  - DeepSeek-R1-Distill 1.5B still failed the calculator, recipe and document-section tests. Its extra
+    `complete_json` room overflowed the 4k test context, and chat rounds had no room at all, so it reasoned until
+    `max_tokens` and answered "**".
+  - Qwen3-0.6B sometimes copied the example title from the chat-title prompt, now that the format is enforced by a
+    schema.
+- **What:**
+  - `chat.rs`:
+    - `with_room` fits the extra room into what the context has left.
+    - `cap_reasoning` sets `reasoning_budget_tokens` (1,536) when a model reasons unasked.
+    - `stream_round` learns that quirk from any round that reasoned without being asked (thinking not planned). It
+      retries a round that ran out before answering, and gives later rounds room plus the cap (`for_reasoner`).
+  - `summarize.rs`: the prompt has no example (the schema fixes the shape).
+- **Verify:**
+  - `cargo test chat::` (`reasoners_get_room_within_the_context`);
+  - `e2e_summarizes_a_chat` passed 12/12 with 0.6B;
+  - the family e2e set on R1, Qwen 0.6B, Gemma 3 1B and Llama 3.2 1B.
+- **Undo:** revert.
+
 ### (this commit) — Cards in Cloud mode with no model on this Mac
 - **Why:** the owner said yes to cards in Cloud mode even with no model loaded here, accepting that the helper
   requests may show in the cloud's chat list. Until now, `prepare_for_cloud` needed a local engine.

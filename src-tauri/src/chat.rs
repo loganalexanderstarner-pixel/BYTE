@@ -170,12 +170,16 @@ pub async fn complete_json(http: &reqwest::Client, ep: &Endpoint, system: &str, 
     for _ in 0..2 {
         let body = serde_json::json!({
             "messages": [ { "role": "system", "content": system }, { "role": "user", "content": user } ],
-            "max_tokens": max_tokens + if thinks { REASONING_ROOM } else { 0 },
+            "max_tokens": if thinks { with_room(ep, max_tokens, system.len() + user.len() + schema.to_string().len()) } else { max_tokens },
             "temperature": 0.5,
             "stream": false,
             "response_format": { "type": "json_schema", "json_schema": { "name": "reply", "schema": schema } },
             "chat_template_kwargs": { "enable_thinking": false },
         });
+        let mut body = body;
+        if thinks {
+            cap_reasoning(&mut body);
+        }
         let r = http.post(format!("{}/v1/chat/completions", ep.base_url)).bearer_auth(&ep.api_key).timeout(std::time::Duration::from_secs(600)).json(&body).send().await?;
         if !r.status().is_success() {
             return Err(AppError::msg(format!("the engine returned {}", r.status())));
@@ -195,8 +199,37 @@ pub async fn complete_json(http: &reqwest::Client, ep: &Endpoint, system: &str, 
     Ok(String::new())
 }
 
-/// Extra tokens for a model that reasons before its JSON.
+/// Extra tokens for a model that reasons when asked not to (DeepSeek-R1 and the like).
 const REASONING_ROOM: u32 = 3072;
+/// How long such a model may reason before it has to answer.
+const REASONING_CAP: u32 = 1536;
+
+/// `max_tokens` plus room to reason first, within what the context has left
+/// after a prompt of `prompt_chars` (never less than `max_tokens`).
+fn with_room(ep: &Endpoint, max_tokens: u32, prompt_chars: usize) -> u32 {
+    let left = (ep.context as usize).saturating_sub(prompt_chars / 3 + 64) as u32;
+    (max_tokens + REASONING_ROOM).min(left).max(max_tokens)
+}
+
+/// Asks the engine to end the reasoning after `REASONING_CAP` tokens (unless the plan set its own budget).
+fn cap_reasoning(body: &mut serde_json::Value) {
+    if body.get("reasoning_budget_tokens").is_none() {
+        body["reasoning_budget_tokens"] = REASONING_CAP.into();
+        body["reasoning_budget_message"] = "\n\nI've thought enough; answering now.".into();
+    }
+}
+
+/// A chat request adjusted for a model that reasons when asked not to.
+fn for_reasoner(ep: &Endpoint, body: &serde_json::Value) -> serde_json::Value {
+    let mut b = body.clone();
+    if b.get("reasoning_budget_tokens").is_none() {
+        let asked = b["max_tokens"].as_u64().unwrap_or(1024) as u32;
+        let prompt_chars = b["messages"].to_string().len();
+        b["max_tokens"] = with_room(ep, asked, prompt_chars).into();
+        cap_reasoning(&mut b);
+    }
+    b
+}
 
 /// What BYTE learned about the running model's quirks (per engine and model).
 #[derive(Default)]
@@ -520,16 +553,34 @@ pub async fn stream_round(
     on_event: &mut (dyn FnMut(ChatEvent) -> AppResult<()> + Send),
 ) -> AppResult<Round> {
     let key = model_key(ep);
-    if !quirks().lock().await.plain.contains(&key) {
+    // Thinking wasn't planned for this request (off, or a model with no thinking switch).
+    let kw = &body["chat_template_kwargs"];
+    let asked_not_to_think = kw["enable_thinking"] != true && kw["reasoning_effort"].is_null() && body.get("reasoning_budget_tokens").is_none();
+    let reasoner = asked_not_to_think && quirks().lock().await.reasons.contains(&key);
+    let body = &if reasoner { for_reasoner(ep, body) } else { body.clone() };
+    let round = if !quirks().lock().await.plain.contains(&key) {
         match stream_round_once(http, ep, body, cancel, on_event).await {
             Err(AppError::Msg(m)) if needs_plain(&m) => {
                 log::warn!("{}: no tool calling for this model ({m})", ep.model);
-                quirks().lock().await.plain.insert(key);
+                quirks().lock().await.plain.insert(key.clone());
+                stream_round_once(http, ep, &plain_body(body), cancel, on_event).await
             }
-            other => return other,
+            other => other,
+        }
+    } else {
+        stream_round_once(http, ep, &plain_body(body), cancel, on_event).await
+    }?;
+    // It reasoned though asked not to, and ran out before answering: learn it, and once more with room.
+    if asked_not_to_think && !reasoner && !round.reasoning.trim().is_empty() {
+        quirks().lock().await.reasons.insert(key.clone());
+        if round.content.trim().is_empty() && round.tool_calls.is_empty() && round.finish == "length" {
+            log::info!("{} reasons before answering; retrying with room", ep.model);
+            let again = for_reasoner(ep, body);
+            let again = if quirks().lock().await.plain.contains(&key) { plain_body(&again) } else { again };
+            return stream_round_once(http, ep, &again, cancel, on_event).await;
         }
     }
-    stream_round_once(http, ep, &plain_body(body), cancel, on_event).await
+    Ok(round)
 }
 
 async fn stream_round_once(
@@ -650,6 +701,21 @@ mod tests {
 
     fn attached(name: &str, kind: crate::files::FileKind, text: &str, image: Option<&str>) -> crate::files::Ingested {
         crate::files::Ingested { name: name.into(), kind, pages: None, text: text.into(), truncated: false, image: image.map(Into::into), ocr: false }
+    }
+
+    #[test]
+    fn reasoners_get_room_within_the_context() {
+        let ep = Endpoint { base_url: "x".into(), api_key: String::new(), model: "m".into(), context: 4096, vision: false, cloud: None };
+        assert_eq!(with_room(&ep, 500, 300), 500 + REASONING_ROOM);
+        // A long prompt (~3 characters a token) leaves less room, but never less than asked.
+        assert_eq!(with_room(&ep, 500, 9000), 4096 - 3000 - 64);
+        assert_eq!(with_room(&ep, 500, 20000), 500);
+        let b = for_reasoner(&ep, &serde_json::json!({ "max_tokens": 300, "messages": [] }));
+        assert_eq!(b["reasoning_budget_tokens"], REASONING_CAP);
+        assert!(b["max_tokens"].as_u64().unwrap() > 300);
+        // A plan with its own budget is left alone.
+        let planned = serde_json::json!({ "max_tokens": 300, "reasoning_budget_tokens": 512, "messages": [] });
+        assert_eq!(for_reasoner(&ep, &planned), planned);
     }
 
     #[test]

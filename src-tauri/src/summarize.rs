@@ -18,14 +18,14 @@ pub struct ChatSummary {
     pub tags: Vec<String>,
 }
 
-/// The example in the instructions; a reply that copies it is rejected.
+/// The example older prompts used; a reply that copies it is still rejected.
 const EXAMPLE_TITLE: &str = "Fixing a slipping bike chain";
 /// Small models sometimes copy these from the example; kept only if the chat mentions them.
 const EXAMPLE_TAGS: [&str; 2] = ["cycling", "repair"];
 
-const INSTRUCTIONS: &str = "You label conversations for a chat list. Reply with JSON only, in this shape: \
-{\"title\": \"Fixing a slipping bike chain\", \"summary\": \"How to diagnose and fix a bike chain that slips when pedaling.\", \"tags\": [\"cycling\", \"repair\"]}. \
-Describe the conversation below, not this example. \
+// No example in the prompt: the reply format is enforced by a schema, and small
+// models copied the example ("Fixing a slipping bike chain") instead of labelling the chat.
+const INSTRUCTIONS: &str = "You label conversations for a chat list. Reply with JSON only (title, summary, tags) describing the conversation below. \
 title: 2 to 6 words, no quotes or trailing period. summary: one sentence, under 20 words, about what the user wanted. \
 tags: 1 to 3 short lowercase topic words.";
 
