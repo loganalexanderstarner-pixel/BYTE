@@ -18,6 +18,7 @@ import type {
   KbHit,
   KbProgress,
   KbStatus,
+  LookerStatus,
   LocalFile,
   Mode,
   ModelStatus,
@@ -66,6 +67,7 @@ export const api = {
   appQuit: (name: string) => invoke<void>("app_quit", { name }),
   fileIngest: (path: string) => invoke<LocalFile>("file_ingest", { path }),
   kbStatus: () => invoke<KbStatus>("kb_status"),
+  lookerStatus: () => invoke<LookerStatus>("looker_status"),
   kbAdd: (path: string) => invoke<number>("kb_add", { path }),
   kbRemove: (id: number) => invoke<void>("kb_remove", { id }),
   /** Re-reads changed files in one folder, or all when `id` is omitted. */

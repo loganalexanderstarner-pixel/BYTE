@@ -215,6 +215,27 @@ pub async fn kb_status(state: State<'_, AppState>) -> AppResult<KbStatus> {
     })
 }
 
+/// The photo helper (a small vision model for models that can't see photos).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LookerStatus {
+    /// The helper model in use, when one is downloaded ("id:quant").
+    pub model: Option<String>,
+    /// What to download for the default helper (model, then its image adapter).
+    pub downloads: Vec<String>,
+    pub download_bytes: u64,
+}
+
+#[tauri::command]
+pub fn looker_status(state: State<'_, AppState>) -> AppResult<LookerStatus> {
+    let catalog = state.catalog.get();
+    Ok(LookerStatus {
+        model: crate::looker::choose(&catalog, &state.paths.models),
+        downloads: crate::looker::downloads(&catalog),
+        download_bytes: crate::looker::download_bytes(&catalog),
+    })
+}
+
 /// Adds a folder and starts reading it in the background.
 #[tauri::command]
 pub async fn kb_add(app: AppHandle, state: State<'_, AppState>, path: String) -> AppResult<i64> {

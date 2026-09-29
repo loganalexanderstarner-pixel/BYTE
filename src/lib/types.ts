@@ -43,6 +43,8 @@ export interface Settings {
   bestOfThree?: boolean;
   /** Flashcards, quizzes, tutor mode and the Study panel. */
   studyEnabled?: boolean;
+  /** Photo helper: a small vision model describes photos for models that can't see them. */
+  photoHelper?: boolean;
   /** Reuse the answer to a question asked (almost exactly) in the last week. */
   answerCache: boolean;
   /** Models reloaded alongside the main one at launch. */
@@ -676,6 +678,15 @@ export interface KbSource {
   /** Passages searchable by meaning (have an embedding). */
   embedded: number;
   bytes: number;
+}
+
+/** Rust `commands::LookerStatus`: the photo helper. */
+export interface LookerStatus {
+  /** The helper model in use, when one is downloaded. */
+  model: string | null;
+  /** What to download for the default helper (model, then its image adapter). */
+  downloads: string[];
+  downloadBytes: number;
 }
 
 /** Rust `commands::KbStatus`. */

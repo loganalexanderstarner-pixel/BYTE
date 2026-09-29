@@ -36,6 +36,8 @@ pub struct AppState {
     pub cloud_http: reqwest::Client,
     /// Embedding engine for searching files by meaning (started on demand).
     pub embedder: crate::embed::Embedder,
+    /// Photo helper: a small vision model that describes photos for models that can't see (on demand).
+    pub looker: crate::looker::Looker,
     /// The app, set at startup; for work that starts engines from deep inside
     /// a turn (searching the knowledge base starts the embedding engine).
     pub app: std::sync::OnceLock<tauri::AppHandle>,
@@ -59,6 +61,7 @@ impl AppState {
             cloud_key: Mutex::new(None),
             cloud_http: crate::cloud::http_client(),
             embedder: crate::embed::Embedder::new(paths.root.join("embed.pid")),
+            looker: crate::looker::Looker::new(paths.root.join("looker.pid")),
             app: std::sync::OnceLock::new(),
             db: crate::db::Db::open(&paths.data).unwrap_or_else(|e| {
                 // Chats still work for this session; they just aren't kept.

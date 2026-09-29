@@ -218,6 +218,9 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
     if reuse_earlier_answer(state, request, &ep, on_event).await {
         return Ok(());
     }
+    // A model that can't see gets the photos described by the photo helper.
+    let described = if ep.vision { None } else { describe_photos(state, request, on_event).await };
+    let request = described.as_ref().unwrap_or(request);
     let setup = Setup::new(state, request, ep).await?;
     let cancel = state.generations.register(&request.request_id).await;
     let result = agent::run(setup.turn(state, request), cancel, on_event).await;
@@ -342,6 +345,47 @@ async fn prepare_for_cloud(state: &AppState, request: &ChatRequest, on_event: &C
     let r = agent::prepare(setup.turn(state, request), cancel, on_event).await;
     state.generations.finish(&request.request_id).await;
     r
+}
+
+/// The request with its latest photos described in words by the photo helper
+/// (`None`: nothing to describe, the helper is off or not downloaded).
+async fn describe_photos(state: &AppState, request: &ChatRequest, on_event: &Channel<ChatEvent>) -> Option<ChatRequest> {
+    use crate::files::FileKind;
+    if !state.settings.lock().await.photo_helper {
+        return None;
+    }
+    let i = request.messages.iter().rposition(|m| m.role == "user")?;
+    let todo: Vec<usize> = request.messages[i]
+        .files
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| f.kind == FileKind::Image && f.image.is_some() && !f.text.starts_with(crate::looker::DESCRIBED))
+        .map(|(n, _)| n)
+        .take(4)
+        .collect();
+    let app = state.app.get()?;
+    let catalog = state.catalog.get();
+    if todo.is_empty() || crate::looker::choose(&catalog, &state.paths.models).is_none() {
+        return None;
+    }
+    let mut out = request.clone();
+    let question = chat::question_text(&request.messages[i].content).to_string();
+    for n in todo {
+        let f = &mut out.messages[i].files[n];
+        let id = format!("byte_look_{n}");
+        let _ = on_event.send(ChatEvent::ToolCall { id: id.clone(), name: "look_at_photo".into(), args: serde_json::json!({ "name": f.name }) });
+        match state.looker.describe(app, &state.paths.models, &catalog, f.image.as_deref().unwrap_or_default(), &question).await {
+            Ok(d) => {
+                f.text = format!("{}{d}{}{}", crate::looker::DESCRIBED, if f.text.trim().is_empty() { "" } else { "\n\nText read from the photo:\n" }, f.text);
+                let _ = on_event.send(ChatEvent::ToolResult { id, ok: true, summary: format!("Described {}", f.name) });
+            }
+            Err(e) => {
+                log::warn!("photo helper: {e}");
+                let _ = on_event.send(ChatEvent::ToolResult { id, ok: false, summary: "The photo helper couldn't look at it".into() });
+            }
+        }
+    }
+    Some(out)
 }
 
 /// With no model on this Mac: an endpoint whose structured replies (the cards' JSON)

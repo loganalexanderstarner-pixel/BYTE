@@ -16,6 +16,7 @@ mod selfcheck;
 mod embed;
 mod kb;
 mod kitchen;
+mod looker;
 mod engine;
 mod export;
 mod factcheck;
@@ -73,6 +74,7 @@ pub fn run() {
             engine.reap_stale();
             state.extras.reap_stale();
             state.embedder.reap_stale();
+            state.looker.reap_stale();
             let _ = state.app.set(app.handle().clone());
             let catalog = state.catalog.get();
             let models_dir = state.paths.models.clone();
@@ -100,6 +102,7 @@ pub fn run() {
                     engine.kill_now();
                     handle.state::<AppState>().extras.kill_all_now();
                     handle.state::<AppState>().embedder.kill_now();
+                    handle.state::<AppState>().looker.kill_now();
                     handle.exit(0);
                 });
             }
@@ -154,6 +157,7 @@ pub fn run() {
             commands::memory_report,
             commands::file_ingest,
             commands::kb_status,
+            commands::looker_status,
             commands::kb_add,
             commands::kb_remove,
             commands::kb_reindex,
@@ -248,6 +252,7 @@ pub fn run() {
                 state.engine.kill_now();
                 state.extras.kill_all_now();
                 state.embedder.kill_now();
+                state.looker.kill_now();
             }
         }
     });

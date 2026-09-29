@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.3 — Better cards from small models, and a photo helper
+
+- **Card checks for small models.** When a small model's card has an obvious problem (flashcard fronts that just
+  repeat the topic, a recipe for a different dish, the same dinner every night, identical compare scores, missing
+  trip days), BYTE asks once for a fix and keeps it only if it's better.
+- **Photo helper.** When the model you use can't see images, a small model that can (740 MB download, Settings →
+  About → Features) describes your photo so you can still ask about it.
+
 ## 0.7.2 — More models, and cards everywhere in Cloud mode
 
 - **Cards in Cloud mode even with no model on your Mac.** BYTE asks your cloud to fill in the card behind the scenes

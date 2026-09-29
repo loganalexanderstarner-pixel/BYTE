@@ -17,6 +17,24 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — v0.7.3: the photo helper for models that can't see
+- **Why:** the owner asked for every model to "do good". Until now, a photo sent to a model without vision got
+  only its OCR text and a "can't see images" note.
+- **What:**
+  - New `looker.rs` (like `embed.rs`): a second on-demand `Engine::helper` runs a small vision model from the catalog
+    with its image adapter; it prefers the default `qwen3.5-0.8b` (≈740 MB with its adapter) and stops after 5 idle
+    minutes. `describe()` makes one request with anti-repeat sampling, since the 0.8B looped without it.
+  - `backend::describe_photos`: when the model can't see and `settings.photo_helper` is on, the latest photos (up to
+    4) are described first. The text starts with `looker::DESCRIBED`, and a "look_at_photo" activity step is shown.
+  - `chat::with_files` tells the model the description came from the helper.
+  - `commands::looker_status`; Settings → About → Features "Photo helper" row (toggle + Download); Activity label.
+- **Verify:**
+  - `cargo test looker::`;
+  - real engine: `BYTE_TEST_VISION_MODEL=Qwen3.5-0.8B-Q4_K_M.gguf BYTE_TEST_VISION_MMPROJ=mmproj-F16.gguf cargo
+    test e2e_looker -- --ignored` (fixture `tests/fixtures/photo_red_square.png`), 3/3: "red" and "BYTE 1234";
+  - screenshot `07i-settings-photo-helper`.
+- **Undo:** revert (photos go back to OCR text only for non-vision models).
+
 ### (this commit) — Card quality checks and one repair for small models (v0.7.3, part 1)
 - **Why:** the owner asked to "make all models do good". 1B models pass the card tests, but their cards can be poor
   (six fronts saying "Photosynthesis", a "Flat White Lentil Soup").

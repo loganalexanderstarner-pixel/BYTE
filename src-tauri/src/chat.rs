@@ -69,6 +69,11 @@ pub fn with_files(history: &[ChatMessage], context: u32, vision: bool) -> Vec<Ch
                 match &f.image {
                     Some(url) if vision && latest && images.len() < 4 => images.push(url.clone()),
                     _ if vision => content.push_str(&format!("\n\n[Photo \"{}\" was attached earlier.]", f.name)),
+                    // BYTE's photo helper described it (and its text) in the file block above.
+                    _ if f.text.starts_with(crate::looker::DESCRIBED) => content.push_str(&format!(
+                        "\n\n[The user attached a photo, \"{}\". You can't see images, so BYTE's photo helper described it for you (above). Answer from that description; if the question needs a detail it doesn't mention, say so.]",
+                        f.name
+                    )),
                     // Its words were read (text recognition) and are in the file block above.
                     _ if !f.text.trim().is_empty() => content.push_str(&format!(
                         "\n\n[The user attached a photo, \"{}\". You can't see images, but the text in it was read for you (above). Use it, and if the question is about what the photo shows beyond its text, say a model marked \"Sees images\" can look at it.]",

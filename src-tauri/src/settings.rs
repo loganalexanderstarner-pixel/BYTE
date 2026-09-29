@@ -147,6 +147,9 @@ pub struct Settings {
     /// Study tools: flashcards, quizzes, tutor mode, the Study panel.
     #[serde(default = "yes")]
     pub study_enabled: bool,
+    /// Photo helper: a small vision model describes photos for models that can't see them.
+    #[serde(default = "yes")]
+    pub photo_helper: bool,
     /// Reuse the answer to a question asked (almost exactly) in the last week
     /// (needs the search-by-meaning model; see answer_cache.rs).
     pub answer_cache: bool,
@@ -204,6 +207,7 @@ impl Default for Settings {
             self_check: true,
             best_of_three: true,
             study_enabled: true,
+            photo_helper: true,
             answer_cache: true,
             loaded_alongside: Vec::new(),
             speed_boost: true,

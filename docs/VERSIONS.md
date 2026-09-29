@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.7.2** | Phase 7 improvements | Works well with more kinds of models (Gemma, Llama, DeepSeek-R1), cards in Cloud mode even with no model on your Mac, steadier flashcards | Any model, any mode |
+| **v0.7.3** | Phase 7 improvements | Card checks and one repair for small models; a photo helper so models that can't see can still answer about photos | Small Macs, small models |
+| v0.7.2 | Phase 7 improvements | Works well with more kinds of models (Gemma, Llama, DeepSeek-R1), cards in Cloud mode even with no model on your Mac, steadier flashcards | Any model, any mode |
 | v0.7.1 | Phase 7 improvements | The cards (recipes, compare, trips, reviews, prices, study…) in Cloud mode, made on your Mac; a tutor that never gives the answer away | Cloud users get everything |
 | v0.7.0 | Phase 7 · Study tools | Flashcards with spaced repetition (Study panel, Anki export), self-scoring quizzes, tutor mode | Learning anything |
 | v0.6.8 | Phase 6 improvements | Recipes in US cups, spoons and °F by default, with a US / Metric switch on every recipe card | Cooking the American way |
@@ -53,7 +54,6 @@ which download is which. Their files and notes are unchanged.
 
 | Version | Phase |
 |---|---|
-| v0.7.3 | Better cards from small models (quality checks), photo help for models that can't see |
 | v0.7.4 | Writing studio (rewrite, expand, shorten, tone, grammar) |
 | v0.8.0 | Speed |
 | v0.9.0 | Mac control |

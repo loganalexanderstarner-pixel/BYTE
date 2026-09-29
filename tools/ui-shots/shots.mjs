@@ -278,6 +278,8 @@ function initScript({ data }) {
           return true;
         case "doc_save":
           return null;
+        case "looker_status":
+          return { model: null, downloads: ["qwen3.5-0.8b:Q4_K_M", "qwen3.5-0.8b:vision"], downloadBytes: 737504352 };
         case "kb_status":
           return data.kb ?? { sources: [], embedKey: "nomic-embed-v1.5:Q8_0", embedBytes: 146146432, embedInstalled: false, embedRunning: false };
         case "kb_add":
@@ -847,6 +849,9 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(300);
   await p.locator(".modal-body").evaluate((el) => (el.scrollTop = 200));
   await shot(p, "07e-settings-profiles");
+  await p.locator(".field", { hasText: "Photo helper" }).scrollIntoViewIfNeeded();
+  await p.waitForTimeout(150);
+  await shot(p, "07i-settings-photo-helper");
   await p.getByRole("button", { name: "Appearance", exact: true }).click();
   await p.waitForTimeout(200);
   await shot(p, "08-settings-appearance");

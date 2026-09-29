@@ -469,8 +469,9 @@ split out of `run`), `agent::prepare` + `Prepared` + `cloud_message`; `backend::
 sends the question plus notes to the cloud, and re-sends the card's sources after; study cards get `study::reply_for`
 with no cloud call. Tutor hints are checked with `solve_linear`/`states_value`. **Done in v0.7.2:** tested the card flows on Gemma 3, Llama 3.2 and DeepSeek-R1 (not just Qwen) and fixed what
 broke (`chat::plain_body` fallback, reasoning room, `Quirks`); `serde_json` `preserve_order`; cards in Cloud mode
-with no local model (`cloud/json.rs`); `docs/CLUSTER-REQUESTS.md`. **Next:** v0.7.3 card quality checks + photo
-helper for non-vision models, then v0.7.4 writing studio.
+with no local model (`cloud/json.rs`); `docs/CLUSTER-REQUESTS.md`. **Done in v0.7.3:** `quality.rs` (card checkers + one repair,
+small models only) and `looker.rs` (photo helper). Not done: the "a better model fits" hint (planned, small).
+**Next:** v0.7.4 writing studio.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
    poetry / lyrics / speeches with meter and rhyme controls.

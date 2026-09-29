@@ -7,7 +7,7 @@ import { Logo } from "../../design/Logo";
 import { api, errorText } from "../../lib/api";
 import { bytes, contextLabel, ramSize } from "../../lib/format";
 import { displayName } from "../../lib/models";
-import type { BoostInfo, GpuShare, Memory, Profiles, Settings } from "../../lib/types";
+import type { BoostInfo, GpuShare, LookerStatus, Memory, Profiles, Settings } from "../../lib/types";
 import { useStore, type SettingsTab } from "../../state/store";
 import { CatalogBrowser } from "../models/CatalogBrowser";
 import { CloudTab } from "./CloudTab";
@@ -708,6 +708,7 @@ function AboutTab() {
           </span>
           <input type="checkbox" checked={settings?.webAgentEnabled ?? true} onChange={(e) => void update({ webAgentEnabled: e.target.checked })} />
         </label>
+        <PhotoHelperRow />
         <label className="field">
           <span>
             Study tools
@@ -866,6 +867,52 @@ function ProfilesSection() {
           <Plus size={14} /> Add profile
         </button>
       </form>
+    </div>
+  );
+}
+
+/** Settings → Features: the photo helper (describes photos for models that can't see them). */
+function PhotoHelperRow() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const downloads = useStore((s) => s.downloads);
+  const [status, setStatus] = useState<LookerStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const on = settings?.photoHelper ?? true;
+  const active = (status?.downloads ?? []).map((k) => downloads[k]).filter(Boolean);
+  const busy = active.some((d) => ["downloading", "resuming", "verifying"].includes(d!.phase));
+  const done = active.length > 0 && active.every((d) => d!.phase === "finished");
+  useEffect(() => {
+    api.lookerStatus().then(setStatus, (e) => setError(errorText(e)));
+  }, [done]);
+  const got = active.reduce((n, d) => n + (d!.bytes ?? 0), 0);
+  const download = async () => {
+    setError(null);
+    try {
+      for (const k of status?.downloads ?? []) await api.modelDownload(k);
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
+  return (
+    <div className="field">
+      <span>
+        Photo helper
+        <small>
+          When the model you use can't see images, a small model that can ({status?.model ? "downloaded" : `${bytes(status?.downloadBytes ?? 0)} download`}) looks at
+          your photo and describes it, so you can still ask about it. It runs only while it's needed.
+          {error && <span className="error"> {error}</span>}
+        </small>
+      </span>
+      <span className="row" style={{ gap: 8 }}>
+        {on && !status?.model && (status?.downloads.length ?? 0) > 0 && (
+          <button className="btn sm" disabled={busy} onClick={() => void download()}>
+            <Download size={14} />
+            {busy && status ? `${Math.min(99, Math.round((got / Math.max(1, status.downloadBytes)) * 100))}%` : "Download"}
+          </button>
+        )}
+        <input type="checkbox" checked={on} onChange={(e) => void update({ photoHelper: e.target.checked })} />
+      </span>
     </div>
   );
 }
