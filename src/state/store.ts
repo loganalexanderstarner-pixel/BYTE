@@ -161,6 +161,8 @@ export interface Conversation {
   summary?: string | null;
   tags?: string[];
   projectId?: string | null;
+  /** The custom assistant this chat was started with. */
+  assistantId?: string | null;
   /** Conversation id on the BYTE cloud once this chat has used it. */
   cloudId?: string | null;
   /** Newest message the cloud conversation continues from (this session). */
@@ -210,7 +212,7 @@ interface State {
   refreshModels(): Promise<void>;
   refreshLoaded(): Promise<void>;
   setAnswerWith(v: string): void;
-  newChat(isPrivate?: boolean, projectId?: string | null): void;
+  newChat(isPrivate?: boolean, projectId?: string | null, assistant?: { id: string; mode: string } | null): void;
   selectChat(id: string): Promise<void>;
   deleteChat(id: string): void;
   updateChat(id: string, patch: ChatPatch): Promise<void>;
@@ -358,6 +360,7 @@ const fromMeta = (m: ConversationMeta): Conversation => ({
   summary: m.summary,
   tags: m.tags,
   projectId: m.projectId,
+  assistantId: m.assistantId ?? null,
   cloudId: m.cloudId ?? null,
   messages: [],
   loaded: false,
@@ -496,7 +499,7 @@ export const useStore = create<State>((set, get) => {
     await streamReply(convId, reply, (onEvent) =>
       api.chatSend(
         // Regenerating (a new version of an answer) never reuses an earlier answer.
-        { requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private, projectId: conv.projectId, cloud, fresh: !!opts.branch, task },
+        { requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private, projectId: conv.projectId, assistantId: conv.assistantId ?? null, cloud, fresh: !!opts.branch, task },
         onEvent,
       ),
     );
@@ -878,7 +881,10 @@ export const useStore = create<State>((set, get) => {
       set({ models, recommended });
     },
 
-    newChat(isPrivate = false, projectId = null) {
+    newChat(isPrivate = false, projectId = null, assistant = null) {
+      const assistantId = assistant?.id ?? null;
+      // An assistant's default mode applies to its chats.
+      if (assistant?.mode && ["fast", "auto", "deep", "extended"].includes(assistant.mode)) get().setMode(assistant.mode as Mode);
       // Reuse an empty chat of the same kind instead of stacking empty ones.
       const ws = workspaceOf(get().settings);
       const empty = get().conversations.find(
@@ -887,6 +893,7 @@ export const useStore = create<State>((set, get) => {
           !hasMessages(c) &&
           !!c.private === isPrivate &&
           (c.projectId ?? null) === projectId &&
+          (c.assistantId ?? null) === assistantId &&
           (isPrivate || spaceOf(c.id) === ws),
       );
       if (empty) {
@@ -901,6 +908,7 @@ export const useStore = create<State>((set, get) => {
         messages: [],
         private: isPrivate,
         projectId,
+        assistantId,
         loaded: true,
       };
       set({ conversations: [conv, ...get().conversations], currentId: conv.id, pending: [], pendingFiles: [] });

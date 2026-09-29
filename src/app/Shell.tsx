@@ -1,4 +1,4 @@
-import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase } from "lucide-react";
+import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ChatView } from "../components/chat/ChatView";
@@ -9,6 +9,7 @@ import { RecipeBox } from "../components/kitchen/RecipeBox";
 import { StudyPanel } from "../components/study/StudyPanel";
 import { WritingPanel } from "../components/writing/WritingPanel";
 import { JobsPanel } from "../components/jobs/JobsPanel";
+import { AssistantsPanel } from "../components/assistants/AssistantsPanel";
 import { Reader } from "../components/reader/Reader";
 import { SettingsModal } from "../components/settings/SettingsModal";
 import { Sidebar } from "../components/Sidebar";
@@ -31,6 +32,8 @@ export function Shell() {
   const openWriting = useStore((s) => s.openWriting);
   const jobsOn = useStore((s) => s.settings?.jobsEnabled !== false);
   const [jobsOpen, setJobsOpen] = useState(false);
+  const assistantsOn = useStore((s) => s.settings?.assistantsEnabled !== false);
+  const [assistantsOpen, setAssistantsOpen] = useState(false);
   const settingsTab = useStore((s) => s.settingsTab);
   const stop = useStore((s) => s.stop);
   const reading = useStore((s) => !!s.reader);
@@ -86,6 +89,11 @@ export function Shell() {
                 <BookOpen size={18} />
               </button>
             )}
+            {assistantsOn && (
+              <button className="icon-btn" onClick={() => setAssistantsOpen(true)} title="Assistants: BYTE set up for one job">
+                <Bot size={18} />
+              </button>
+            )}
             {jobsOn && (
               <button className="icon-btn" onClick={() => setJobsOpen(true)} title="Job search: postings, deadlines, interview prep">
                 <Briefcase size={18} />
@@ -116,6 +124,7 @@ export function Shell() {
       {studyOpen && <StudyPanel />}
       {writingOpen && <WritingPanel />}
       {jobsOpen && <JobsPanel onClose={() => setJobsOpen(false)} />}
+      {assistantsOpen && <AssistantsPanel onClose={() => setAssistantsOpen(false)} />}
     </div>
   );
 }

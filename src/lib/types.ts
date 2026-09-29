@@ -51,6 +51,8 @@ export interface Settings {
   translateEnabled?: boolean;
   /** The job search tracker (💼). */
   jobsEnabled?: boolean;
+  /** Custom assistants (🤖). */
+  assistantsEnabled?: boolean;
   /** Reuse the answer to a question asked (almost exactly) in the last week. */
   answerCache: boolean;
   /** Models reloaded alongside the main one at launch. */
@@ -147,6 +149,20 @@ export interface ConversationMeta {
   projectId: string | null;
   /** Conversation id on the BYTE cloud. */
   cloudId?: string | null;
+  /** The custom assistant the chat was started with. */
+  assistantId?: string | null;
+}
+
+/** Rust `assistants::Assistant`: BYTE set up for one job. */
+export interface Assistant {
+  id: string;
+  name: string;
+  emoji: string;
+  instructions: string;
+  starters: string[];
+  /** fast, auto, deep, extended, or "" for the current mode. */
+  mode: string;
+  created: number;
 }
 
 /** Chats that share instructions. */

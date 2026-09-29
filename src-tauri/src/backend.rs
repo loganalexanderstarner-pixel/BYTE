@@ -290,6 +290,9 @@ impl Setup {
         if let Some(project) = request.project_id.as_deref().filter(|p| !p.is_empty()).map(|p| state.db.project(p)).transpose()?.flatten() {
             system.push_str(&prompt::project_section(&project.name, &project.instructions));
         }
+        if let Some(a) = request.assistant_id.as_deref().filter(|a| !a.is_empty()).map(|a| crate::assistants::get(&state.db, a)).transpose()?.flatten() {
+            system.push_str(&crate::assistants::prompt_section(&a));
+        }
         let reserve = plan.max_tokens + plan.thinking_budget.max(0) as u32;
         let messages = chat::with_files(&request.messages, ep.context, ep.vision);
         let history = chat::fit_history(&messages, &system, ep.context, reserve.min(ep.context / 2));
@@ -473,6 +476,7 @@ mod tests {
             model: None,
             private,
             project_id: None,
+            assistant_id: None,
             cloud: None,
             fresh: false,
             task: None,

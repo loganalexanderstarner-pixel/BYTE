@@ -17,6 +17,21 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — v0.7.6: custom assistants
+- **Why:** custom assistants are the next Phase 7 item. Built while the v0.7.5 release was building.
+- **What:**
+  - `assistants.rs` + DB schema v9 (`assistants`, and `conversations.assistant_id`, kept on save like `cloud_id`):
+    name, emoji, instructions, up to 4 starters, a default mode; four presets (Email helper, Study coach, Coding
+    buddy, Fitness planner).
+  - `ChatRequest.assistant_id` → `backend::Setup` adds `prompt_section` ("you are the user's '<name>' assistant
+    (you're still BYTE)" + the instructions).
+  - UI: `components/assistants/AssistantsPanel.tsx` (list, edit, presets, Chat), a 🤖 top-bar button, store
+    `newChat(…, assistant)` (sets the assistant's mode), `EmptyState` shows the assistant and its starters, and
+    Settings → Features `assistantsEnabled`.
+  - Not yet: assistants in Cloud mode (the cloud chat gets the user's words only).
+- **Verify:** `cargo test assistants:: db::`; typecheck; screenshots `25-assistants`, `25b-assistant-chat`.
+- **Undo:** revert (the v9 table and column stay, unused).
+
 ### (this commit) — v0.7.5 (part): job search tracker
 - **Why:** the job tracker is the next Phase 7 item. Built while the v0.7.4 release was building.
 - **What:**

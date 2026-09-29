@@ -602,6 +602,9 @@ pub struct ChatRequest {
     /// The chat's project, whose instructions apply.
     #[serde(default)]
     pub project_id: Option<String>,
+    /// The custom assistant the chat was started with (its instructions apply).
+    #[serde(default)]
+    pub assistant_id: Option<String>,
     /// Answer on the BYTE cloud instead of this Mac.
     #[serde(default)]
     pub cloud: Option<crate::cloud::cmd::CloudTurn>,

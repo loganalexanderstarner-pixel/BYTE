@@ -4424,3 +4424,20 @@ kbd {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- assistants ---------- */
+.assistant-emoji {
+  font-size: 1.5em;
+  width: 1.6em;
+  text-align: center;
+}
+.assistant-hero {
+  font-size: 3.2em;
+  line-height: 1;
+}
+.clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

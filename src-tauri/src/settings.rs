@@ -159,6 +159,9 @@ pub struct Settings {
     /// The job search tracker (💼).
     #[serde(default = "yes")]
     pub jobs_enabled: bool,
+    /// Custom assistants (🤖).
+    #[serde(default = "yes")]
+    pub assistants_enabled: bool,
     /// Reuse the answer to a question asked (almost exactly) in the last week
     /// (needs the search-by-meaning model; see answer_cache.rs).
     pub answer_cache: bool,
@@ -223,6 +226,7 @@ impl Default for Settings {
             writing_enabled: true,
             translate_enabled: true,
             jobs_enabled: true,
+            assistants_enabled: true,
             answer_cache: true,
             loaded_alongside: Vec::new(),
             better_model_hint_for: Vec::new(),

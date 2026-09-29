@@ -732,6 +732,13 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
+            Assistants
+            <small>The 🤖 button: BYTE set up for one job (an email helper, a study coach, your own) with its own instructions and starter prompts.</small>
+          </span>
+          <input type="checkbox" checked={settings?.assistantsEnabled ?? true} onChange={(e) => void update({ assistantsEnabled: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
             Study tools
             <small>Flashcards with spaced repetition (the 🎓 Study panel, Anki export), self-scoring quizzes, and the Tutor button.</small>
           </span>

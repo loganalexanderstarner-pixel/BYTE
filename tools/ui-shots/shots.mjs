@@ -285,6 +285,18 @@ function initScript({ data }) {
           send({ kind: "done", finishReason: "stop" });
           return null;
         }
+        case "assistants_list":
+          return [
+            { id: "a1", name: "Email helper", emoji: "✉️", instructions: "Help me write and reply to emails. Short paragraphs, a clear ask, friendly but professional.", starters: ["Reply to this email politely saying no:", "Write a follow-up after a job interview", "Ask my landlord to fix the heating"], mode: "fast", created: 1 },
+            { id: "a2", name: "Steelers stats nerd", emoji: "🏈", instructions: "Talk football with me like a friend who knows every stat. Use tables for numbers.", starters: ["How did the defense do last season?"], mode: "auto", created: 2 },
+          ];
+        case "assistant_presets":
+          return [
+            { id: "email", name: "Email helper", emoji: "✉️", instructions: "…", starters: [], mode: "fast", created: 0 },
+            { id: "coach", name: "Study coach", emoji: "🎓", instructions: "…", starters: [], mode: "auto", created: 0 },
+            { id: "code", name: "Coding buddy", emoji: "🧑‍💻", instructions: "…", starters: [], mode: "auto", created: 0 },
+            { id: "fitness", name: "Fitness planner", emoji: "🏃", instructions: "…", starters: [], mode: "auto", created: 0 },
+          ];
         case "jobs_list": {
           const soon = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
           const job = (id, company, role, status, extra = {}) => ({ id, company, role, location: "", pay: "", url: "https://jobs.example.com/" + id, status, deadline: "", applied: "", summary: "", requirements: [], notes: "", updated: 0, ...extra });
@@ -885,6 +897,12 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await shot(p, "24-jobs");
   await p.getByRole("button", { name: "Close", exact: true }).click();
   await p.waitForTimeout(200);
+  await p.getByTitle("Assistants: BYTE set up for one job").click();
+  await p.waitForTimeout(300);
+  await shot(p, "25-assistants");
+  await p.locator(".study-panel button.primary", { hasText: "Chat" }).first().click();
+  await p.waitForTimeout(400);
+  await shot(p, "25b-assistant-chat");
   await p.getByTitle("Settings (⌘,)").click();
   await p.getByRole("button", { name: "About", exact: true }).click();
   await p.waitForTimeout(200);

@@ -1,4 +1,5 @@
 mod agent;
+mod assistants;
 mod answer_cache;
 mod backend;
 mod chat;
@@ -163,6 +164,10 @@ pub fn run() {
             commands::looker_status,
             writing::writing_run,
             jobs::jobs_list,
+            assistants::assistants_list,
+            assistants::assistant_presets,
+            assistants::assistant_save,
+            assistants::assistant_delete,
             jobs::job_save,
             jobs::job_delete,
             jobs::job_from_url,

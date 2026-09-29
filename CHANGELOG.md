@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.6 — Custom assistants
+
+- **Assistants** (🤖): BYTE set up for one job, with your instructions, starter prompts and a default mode. Start
+  from a preset (Email helper, Study coach, Coding buddy, Fitness planner) or write your own; its chats follow its
+  instructions every time.
+
 ## 0.7.5 — Translate and a job search tracker
 
 - **Translate**: "translate this into Spanish", "translate the attached file to German", "translate <link> to

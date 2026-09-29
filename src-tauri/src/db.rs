@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 8;
+const SCHEMA_VERSION: i32 = 9;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -44,6 +44,8 @@ pub struct ConversationMeta {
     pub project_id: Option<String>,
     /// Conversation id on the BYTE cloud when the chat runs there.
     pub cloud_id: Option<String>,
+    /// The custom assistant the chat was started with.
+    pub assistant_id: Option<String>,
 }
 
 /// Changes to a chat's sidebar properties (only the fields present change).
@@ -137,7 +139,7 @@ impl Db {
         let mut st = conn.prepare(
             "SELECT c.id, c.title, c.created_at, c.updated_at, c.pinned, c.folder,
                     (SELECT count(*) FROM messages m WHERE m.conversation_id = c.id),
-                    c.summary, c.tags, c.project_id, c.cloud_id
+                    c.summary, c.tags, c.project_id, c.cloud_id, c.assistant_id
              FROM conversations c ORDER BY c.pinned DESC, c.updated_at DESC",
         )?;
         let rows = st.query_map([], |r| {
@@ -153,6 +155,7 @@ impl Db {
                 tags: split_tags(r.get::<_, Option<String>>(8)?),
                 project_id: r.get(9)?,
                 cloud_id: r.get(10)?,
+                assistant_id: r.get(11)?,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
@@ -163,7 +166,7 @@ impl Db {
         let conn = self.conn();
         let meta = conn
             .query_row(
-                "SELECT title, created_at, updated_at, pinned, folder, summary, tags, project_id, cloud_id FROM conversations WHERE id = ?1",
+                "SELECT title, created_at, updated_at, pinned, folder, summary, tags, project_id, cloud_id, assistant_id FROM conversations WHERE id = ?1",
                 [id],
                 |r| {
                     Ok(serde_json::json!({
@@ -177,6 +180,7 @@ impl Db {
                         "tags": split_tags(r.get::<_, Option<String>>(6)?),
                         "projectId": r.get::<_, Option<String>>(7)?,
                         "cloudId": r.get::<_, Option<String>>(8)?,
+                        "assistantId": r.get::<_, Option<String>>(9)?,
                     }))
                 },
             )
@@ -203,18 +207,20 @@ impl Db {
 
         let project = conv.get("projectId").and_then(Value::as_str).filter(|p| !p.is_empty());
         let cloud = conv.get("cloudId").and_then(Value::as_str).filter(|p| !p.is_empty());
+        let assistant = conv.get("assistantId").and_then(Value::as_str).filter(|p| !p.is_empty());
         let mut conn = self.conn();
         let tx = conn.transaction()?;
         // Pinned/folder/project/summary are changed through `update_meta` and
         // `set_summary`, so an upsert keeps them. Once the user renamed the chat
         // or BYTE titled it, the UI's first-message title no longer applies.
         tx.execute(
-            "INSERT INTO conversations (id, title, created_at, updated_at, project_id, cloud_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            "INSERT INTO conversations (id, title, created_at, updated_at, project_id, cloud_id, assistant_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
              ON CONFLICT(id) DO UPDATE SET
                  title = CASE WHEN conversations.title_locked = 1 OR conversations.summary IS NOT NULL THEN conversations.title ELSE excluded.title END,
                  updated_at = excluded.updated_at,
-                 cloud_id = COALESCE(excluded.cloud_id, conversations.cloud_id)",
-            params![id, title, created, updated, project, cloud],
+                 cloud_id = COALESCE(excluded.cloud_id, conversations.cloud_id),
+                 assistant_id = COALESCE(excluded.assistant_id, conversations.assistant_id)",
+            params![id, title, created, updated, project, cloud, assistant],
         )?;
         let search_title: String = tx.query_row("SELECT title, summary, tags FROM conversations WHERE id = ?1", [id], |r| {
             Ok(search_label(&r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?.as_deref(), r.get::<_, Option<String>>(2)?.as_deref()))
@@ -649,7 +655,25 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 8);
+    if version < 9 {
+        // Custom assistants (assistants.rs); a chat remembers the one it was started with.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE assistants (
+                 id TEXT PRIMARY KEY,
+                 name TEXT NOT NULL,
+                 emoji TEXT NOT NULL DEFAULT '',
+                 instructions TEXT NOT NULL DEFAULT '',
+                 starters TEXT NOT NULL DEFAULT '[]',
+                 mode TEXT NOT NULL DEFAULT '',
+                 created INTEGER NOT NULL
+             );
+             ALTER TABLE conversations ADD COLUMN assistant_id TEXT;
+             PRAGMA user_version = 9;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 9);
     Ok(())
 }
 

@@ -20,6 +20,7 @@ import type {
   KbStatus,
   LookerStatus,
   Job,
+  Assistant,
   LocalFile,
   Mode,
   ModelStatus,
@@ -70,6 +71,10 @@ export const api = {
   kbStatus: () => invoke<KbStatus>("kb_status"),
   lookerStatus: () => invoke<LookerStatus>("looker_status"),
   jobsList: () => invoke<Job[]>("jobs_list"),
+  assistantsList: () => invoke<Assistant[]>("assistants_list"),
+  assistantPresets: () => invoke<Assistant[]>("assistant_presets"),
+  assistantSave: (assistant: Assistant) => invoke<string>("assistant_save", { assistant }),
+  assistantDelete: (id: string) => invoke<void>("assistant_delete", { id }),
   jobSave: (job: Job) => invoke<number>("job_save", { job }),
   jobDelete: (id: number) => invoke<void>("job_delete", { id }),
   jobFromUrl: (url: string) => invoke<Job>("job_from_url", { url }),
@@ -114,6 +119,7 @@ export const api = {
       model?: string;
       private?: boolean;
       projectId?: string | null;
+      assistantId?: string | null;
       cloud?: CloudTurn;
       /** Don't reuse an earlier answer (Regenerate). */
       fresh?: boolean;

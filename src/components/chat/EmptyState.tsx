@@ -1,4 +1,8 @@
-import { Lightbulb, Rocket, Sparkles, Telescope } from "lucide-react";
+import { Lightbulb, MessageCircle, Rocket, Sparkles, Telescope } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { api } from "../../lib/api";
+import type { Assistant } from "../../lib/types";
 
 import { Logo } from "../../design/Logo";
 import { spaceOf, useStore, workspaceOf } from "../../state/store";
@@ -28,6 +32,31 @@ export function EmptyState() {
     const c = s.conversations.find((x) => x.id === s.currentId);
     return c?.private ? "local" : c ? spaceOf(c.id) : workspaceOf(s.settings);
   });
+  const assistantId = useStore((s) => s.conversations.find((x) => x.id === s.currentId)?.assistantId ?? null);
+  const [assistant, setAssistant] = useState<Assistant | null>(null);
+  useEffect(() => {
+    if (!assistantId) return setAssistant(null);
+    api.assistantsList().then((l) => setAssistant(l.find((a) => a.id === assistantId) ?? null), () => setAssistant(null));
+  }, [assistantId]);
+  if (assistant) {
+    return (
+      <div className="empty">
+        <div className="assistant-hero">{assistant.emoji}</div>
+        <h1>{assistant.name}</h1>
+        <p className="muted">{assistant.instructions.split(/(?<=[.!?])\s/)[0]}</p>
+        <div className="suggestions">
+          {assistant.starters.map((prompt) => (
+            <button key={prompt} className="suggestion" disabled={!ready} onClick={() => void send(prompt)} title={prompt}>
+              <b>
+                <MessageCircle size={16} style={{ color: "var(--accent)" }} />
+                {prompt.length > 48 ? `${prompt.slice(0, 46)}…` : prompt}
+              </b>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
   const where =
     space === "cloud"
       ? "Answers come from your BYTE cloud."
