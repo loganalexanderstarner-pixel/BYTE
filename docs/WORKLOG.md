@@ -15,6 +15,37 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ---
 
+## 2026-09-29
+
+### (this commit) — v0.6.7: reviews, price compare, game hints, self-check, best of 3 (Phase 6 finished)
+- **Why:** the owner chose to finish Phase 6 before Phase 7: HANDOFF §8 Phase 6 items 2 (self-check, best-of-3),
+  4 (review summarizer, price compare) and 8 (game guides with spoiler-free hints).
+- **What:**
+  - `reviews.rs` (new): `wants_reviews` (not "review my essay", not "X vs Y", not "worth it to learn…"),
+    `subject` (cue/filler stripper, also used by prices), star ratings from AggregateRating/Review JSON-LD,
+    shoppers' review texts, `parse_reviews` (known sources only, deduplicated, most-backed first) → `ChatEvent::Reviews`.
+  - `prices.rs` (new): `wants_prices` (not maths, tips, weights or puzzles), offers from Product/Offer/AggregateOffer
+    JSON-LD or `product:price` meta tags, `matches_product`, `tidy` (one currency, cheapest per store) →
+    `ChatEvent::Prices`. The model never produces prices; with none found it's told plainly not to state any.
+  - `games.rs` (new): `wants_game_help`, hints JSON → `ChatEvent::Hints`; the model is shown only the first hint.
+  - `selfcheck.rs` (new): cited sentences checked against their `[n]` passages after Deep/Extended/fact-check
+    answers → `ChatEvent::SelfCheck`.
+  - `drafts.rs` (new): best of 3 for reasoning questions in Deep/Extended (`is_reasoning` needs two quantities),
+    `final_answer` extraction, majority `pick`, a reconcile pass when all differ; research and the forced search
+    are skipped for these questions.
+  - Shared: `fetch::{json_ld, ld_is, meta_content}`, `research::read_html_pages`. `agent::Modules` in `Turn` from
+    five new settings (default on).
+  - UI: `components/chat/ShopCards.tsx` (ReviewsCard, PricesCard, HintsCard, SelfCheckNote), `lib/cards.ts` + tests,
+    store events, Activity labels and summary, Settings → Features toggles, CSS; screenshots 22, 22b, 22c.
+  - Version 0.6.7, `docs/releases/v0.6.7.md`, VERSIONS, CHANGELOG, HANDOFF (Phase 6 ✅, video-to-slides → Phase 11),
+    PROJECT_GUIDE.
+- **Verify:** `scripts/check-all.sh` (246 Rust incl. fixtures `product_offer.html`, routing cases; 114 vitest).
+  Real engine (Qwen3.5-2B) + web: `BYTE_TEST_WEB=1 cargo test e2e_reviews_prices_hints_drafts -- --ignored`: a reviews
+  card (ratings, pros/cons with sources); prices: searches here only reached Wikipedia, so no offers and the answer
+  says it couldn't read prices (an earlier run invented one; fixed); a hints card with only the first nudge in the
+  answer; the bat-and-ball puzzle in Deep: "3 drafts · 2 agree", $0.05 (was routed to prices before a fix).
+- **Undo:** revert. Or switch each off in Settings → Features.
+
 ## 2026-09-28
 
 ### (this commit) — v0.6.6: the web agent (a private browser BYTE drives, with approval before submitting)

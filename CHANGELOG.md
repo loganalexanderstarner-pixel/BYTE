@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.7 — Phase 6 finished: reviews, prices, game hints, self-check, best of 3
+
+- **Reviews** ("reviews of the Sony WH-1000XM6", "is the Kindle Colorsoft worth it", "… pros and cons"): BYTE reads
+  review sites and owner discussions and shows a card: the verdict, the star ratings sites publish, pros and cons
+  with the sources behind each (the ones most sources agree on first), who it's best for and who should skip it.
+- **Price compare** ("cheapest place to buy AirPods Pro 3", "price of a Dyson V15"): prices read from the stores'
+  own pages (their product data), never guessed; cheapest first, with in stock / out of stock, refurbished or used
+  marked, how much more each costs, links, and when it was checked.
+- **Game hints** ("I'm stuck on the Water Temple in Ocarina of Time"): hints that get stronger one tap at a time,
+  then the full solution behind a spoiler button. The written answer only gives the first nudge.
+- **Self-check**: after Deep, Extended and fact-check answers, BYTE checks each cited claim against the passage it
+  cites and flags the ones the source doesn't clearly back ("2 of 8 checked claims aren't clearly backed").
+- **Best of 3** for maths, logic and puzzles in Deep and Extended: three drafts; the answer most of them reach
+  wins; when all three differ, one more pass works out which is right.
+- Each can be switched off in Settings → About → Features. Video-to-slides moves to Phase 11 (it needs the
+  voice/video tools).
+
 ## 0.6.6 — Phase 6: the web agent
 
 - **BYTE can use a browser for you.** "Go to carnegielibrary.org and find when the Squirrel Hill branch opens",

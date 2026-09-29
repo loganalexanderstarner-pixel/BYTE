@@ -37,6 +37,10 @@ import type {
   VideoCard,
   ApprovalCard,
   SavedFile,
+  Reviews,
+  Prices,
+  GameHints,
+  SelfCheck,
 } from "../lib/types";
 
 /** One tool use shown in the answer's activity list. */
@@ -119,6 +123,11 @@ export interface Message {
   approvals?: ApprovalCard[];
   saved?: SavedFile[];
   browsing?: boolean;
+  /** Reviews, prices and game-hint cards; the self-check note under the answer. */
+  reviews?: Reviews;
+  prices?: Prices;
+  hints?: GameHints;
+  selfCheck?: SelfCheck;
   /** A job this (user) message asked for with a button, e.g. Fact-check. */
   task?: ChatTask;
   /** Thumbs up/down given on the cloud. */
@@ -615,6 +624,26 @@ export const useStore = create<State>((set, get) => {
         case "browsing":
           patchMessage(convId, reply.id, (m) => ({ ...m, browsing: e.active }));
           break;
+        case "reviews": {
+          const { kind: _kind, ...reviews } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, reviews }));
+          break;
+        }
+        case "prices": {
+          const { kind: _kind, ...prices } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, prices }));
+          break;
+        }
+        case "hints": {
+          const { kind: _kind, ...hints } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, hints }));
+          break;
+        }
+        case "selfCheck": {
+          const { kind: _kind, ...selfCheck } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, selfCheck }));
+          break;
+        }
         case "stats": {
           const { kind: _kind, ...stats } = e;
           patchMessage(convId, reply.id, (m) => ({ ...m, stats }));

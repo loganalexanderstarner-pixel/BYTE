@@ -83,6 +83,21 @@ pub struct Turn<'a> {
     pub kitchen: bool,
     /// The web agent module is on (BYTE may use a browser for the user).
     pub agent: bool,
+    /// Which of the smaller research modules are on.
+    pub modules: Modules,
+}
+
+/// Research modules the user can switch off (Settings → Features). Tests
+/// leave them all off (`Modules::default()`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Modules {
+    pub reviews: bool,
+    pub prices: bool,
+    pub game_hints: bool,
+    /// Check cited answers against their sources (Deep, Extended, fact-check).
+    pub self_check: bool,
+    /// Three drafts and a majority vote for hard questions (Deep, Extended).
+    pub best_of_three: bool,
 }
 
 /// BYTE searches before the model answers any question about the world
@@ -421,6 +436,18 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         if let Some((b, notes)) = crate::kitchen::run(&turn, &question, &cancel, &send).await? {
             prepared = Some((b, notes, "kitchen"));
         }
+    } else if crate::games::applies(turn.modules.game_hints, turn.web, &question) {
+        if let Some((b, notes)) = crate::games::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
+            prepared = Some((b, notes, "game_hints"));
+        }
+    } else if crate::reviews::applies(turn.modules.reviews, turn.web, &question) {
+        if let Some((b, notes)) = crate::reviews::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
+            prepared = Some((b, notes, "reviews"));
+        }
+    } else if crate::prices::applies(turn.modules.prices, turn.web, &question) {
+        if let Some((b, notes)) = crate::prices::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
+            prepared = Some((b, notes, "prices"));
+        }
     } else if crate::trip::applies(turn.web, &question) {
         if let Some((b, notes)) = crate::trip::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
             prepared = Some((b, notes, "plan_trip"));
@@ -430,6 +457,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
             prepared = Some((b, notes, "compare"));
         }
     }
+    let prepared_name: Option<&str> = prepared.as_ref().map(|p| p.2);
     if let Some((found, notes, name)) = prepared {
         book = found;
         if !book.sources.is_empty() {
@@ -438,7 +466,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         push_tool_exchange(&mut messages, &format!("byte_{name}_0"), name, &json!({ "question": question }), notes);
         searches.extend(std::iter::repeat_n(question.clone(), lim.max_searches));
         used_tools = true;
-    } else if session.is_none() && !weather_done && crate::research::applies(turn.mode, turn.web, turn.web_always, &question) {
+    } else if session.is_none() && !weather_done && !(turn.modules.best_of_three && crate::drafts::is_reasoning(&question)) && crate::research::applies(turn.mode, turn.web, turn.web_always, &question) {
         let query = search_query(&question, previous_question(turn.history));
         let (found, notes) = crate::research::run(&turn, &question, &query, estimate(&messages), &cancel, &send).await?;
         book = found;
@@ -453,7 +481,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     // Questions about the world: BYTE runs the first search itself and reads
     // the top pages instead of trusting the model to (small models often
     // answer from memory, or search again and again without reading).
-    else if !weather_done && must_search_first(&turn, &question) {
+    else if !weather_done && !(turn.modules.best_of_three && crate::drafts::applies(true, turn.mode, false, &question)) && must_search_first(&turn, &question) {
         let call_id = "byte_search_0".to_string();
         let query = search_query(&question, previous_question(turn.history));
         let args = json!({ "query": query });
@@ -474,10 +502,36 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         read_top(&turn, &mut book, &mut messages, &question, pages.0, pages.1, from, "0", &cancel, &send).await?;
     }
 
+    // Hard questions (maths, logic) in Deep/Extended: three drafts, and the
+    // answer most of them reach. All different: one more pass weighs them.
+    let mut chosen: Option<String> = None;
+    if session.is_none() && crate::drafts::applies(turn.modules.best_of_three, turn.mode, used_tools, &question) {
+        send(ChatEvent::ToolCall { id: "byte_drafts".into(), name: "write_drafts".into(), args: json!({ "drafts": crate::drafts::DRAFTS }) })?;
+        let drafts = crate::drafts::write(turn.http, turn.ep, &messages, turn.plan, &cancel).await?;
+        match crate::drafts::pick(&drafts) {
+            Some((i, agree)) => {
+                send(ChatEvent::ToolResult { id: "byte_drafts".into(), ok: true, summary: format!("{} drafts · {agree} agree", drafts.len()) })?;
+                chosen = Some(drafts[i].clone());
+            }
+            None => {
+                send(ChatEvent::ToolResult { id: "byte_drafts".into(), ok: true, summary: format!("{} drafts disagree · checking them", drafts.len()) })?;
+                messages.push(json!({ "role": "assistant", "content": drafts.first().cloned().unwrap_or_default() }));
+                messages.push(json!({ "role": "user", "content": crate::drafts::reconcile_prompt(&drafts) }));
+            }
+        }
+    }
+
+    let mut answer_text = String::new();
     let mut round = 0;
     let mut nudged = false;
     let mut retried = false;
     loop {
+        if let Some(text) = chosen.take() {
+            send(ChatEvent::Content { delta: text.clone() })?;
+            answer_text.push_str(&text);
+            finish = "stop".into();
+            break;
+        }
         if session.is_some() {
             crate::web_agent::compact(&mut messages);
         }
@@ -512,6 +566,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
                 first_in_round = false;
                 wrote_content = true;
                 shown += delta.trim().len();
+                answer_text.push_str(delta);
             }
             send(e)
         };
@@ -523,6 +578,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
             }
             wrote_content = true;
             shown += tail.trim().len();
+            answer_text.push_str(&tail);
             send(ChatEvent::Content { delta: tail })?;
         }
         if let Some(s) = &r.stats {
@@ -617,6 +673,29 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         round += 1;
     }
 
+    // Self-check: the cited claims against the passages they cite.
+    let cited = matches!(turn.mode, Mode::Deep | Mode::Extended) || prepared_name == Some("fact_check");
+    if turn.modules.self_check && cited && finish != "cancelled" && !book.sources.is_empty() {
+        let contents: Vec<&str> = messages.iter().filter(|m| m["role"] == "tool").filter_map(|m| m["content"].as_str()).collect();
+        let blocks = crate::selfcheck::source_blocks(&contents);
+        if crate::selfcheck::cited_sentences(&answer_text).len() >= 2 {
+            send(ChatEvent::ToolCall { id: "byte_selfcheck".into(), name: "check_answer".into(), args: json!({}) })?;
+            let r = tokio::select! {
+                r = crate::selfcheck::check(turn.http, turn.ep, &answer_text, &blocks) => r,
+                _ = cancel.cancelled() => Err(AppError::Cancelled),
+            };
+            match r {
+                Ok(Some(sc)) => {
+                    let summary = if sc.issues.is_empty() { format!("All {} checked claims match their sources", sc.checked) } else { format!("{} of {} claims need a second look", sc.issues.len(), sc.checked) };
+                    send(ChatEvent::ToolResult { id: "byte_selfcheck".into(), ok: true, summary })?;
+                    send(ChatEvent::SelfCheck(sc))?;
+                }
+                Ok(None) => send(ChatEvent::ToolResult { id: "byte_selfcheck".into(), ok: true, summary: "Nothing to check".into() })?,
+                Err(AppError::Cancelled) => return Err(AppError::Cancelled),
+                Err(e) => send(ChatEvent::ToolResult { id: "byte_selfcheck".into(), ok: false, summary: e.to_string() })?,
+            }
+        }
+    }
     if session.take().is_some() {
         // Dropping the session closes the browser (and its private data).
         send(ChatEvent::Browsing { active: false })?;
@@ -732,7 +811,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, false, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false };
+        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false, modules: Default::default() };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let calls: Vec<_> = ev.iter().filter(|e| e["kind"] == "toolCall").collect();
@@ -804,7 +883,7 @@ mod tests {
                             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                         }
                     });
-                    let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: Some(&handle), task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: true };
+                    let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: Some(&handle), task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: true, modules: Default::default() };
                     run(turn, CancellationToken::new(), &ch).await.unwrap();
                     stop.store(true, std::sync::atomic::Ordering::Relaxed);
                     let _ = denier.await;
@@ -838,6 +917,53 @@ mod tests {
         assert!(!submitted, "submitted without approval");
     }
 
+    /// Real engine + real internet (BYTE_TEST_WEB=1): reviews, prices and game
+    /// hints each produce their card; a puzzle in Deep mode gets best of 3.
+    #[tokio::test]
+    #[ignore]
+    async fn e2e_reviews_prices_hints_drafts() {
+        if std::env::var("BYTE_TEST_WEB").is_err() {
+            return;
+        }
+        let Some((_server, mut ep)) = start_server_with_ctx(16384).await else { return };
+        ep.context = 16384;
+        let dir = tempfile::tempdir().unwrap();
+        let log = ActionLog::new(dir.path().join("a.jsonl"));
+        let http = chat::local_client();
+        let net = tools::fetch::web_client();
+        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true };
+        let cases = [
+            ("Reviews of the Sony WH-1000XM5", Mode::Auto, "reviews"),
+            ("What's the cheapest place to buy a Steam Deck OLED?", Mode::Auto, "prices"),
+            ("I'm stuck on the Water Temple in Ocarina of Time", Mode::Auto, "hints"),
+            ("A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost?", Mode::Deep, "drafts"),
+        ];
+        for (q, mode, want) in cases {
+            let history = vec![ChatMessage::new("user", q)];
+            let system = crate::prompt::system_prompt(chrono::Local::now(), mode, true, None);
+            let plan = crate::router::plan_turn(mode, ThinkingPref::Off, q);
+            let (ch, seen) = collecting_channel();
+            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false, modules };
+            let t = std::time::Instant::now();
+            run(turn, CancellationToken::new(), &ch).await.unwrap();
+            let ev = seen.lock().unwrap().clone();
+            let steps: Vec<String> = ev.iter().filter(|e| e["kind"] == "toolResult").map(|e| format!("{} {}", e["ok"], e["summary"])).collect();
+            let answer: String = ev.iter().filter(|e| e["kind"] == "content").filter_map(|e| e["delta"].as_str()).collect();
+            let card = ev.iter().find(|e| e["kind"] == want).cloned();
+            eprintln!("--- {q} ({:.0} s)\nsteps: {steps:#?}\ncard: {}\nanswer: {answer}", t.elapsed().as_secs_f64(), card.as_ref().map(|c| c.to_string().chars().take(900).collect::<String>()).unwrap_or_default());
+            assert_eq!(ev.last().unwrap()["kind"], "done");
+            match want {
+                "drafts" => {
+                    assert!(ev.iter().any(|e| e["kind"] == "toolResult" && e["summary"].as_str().unwrap_or("").contains("drafts")), "no drafts");
+                    assert!(!answer.trim().is_empty());
+                }
+                // Prices depend on what stores publish today; the flow must run either way.
+                "prices" => assert!(ev.iter().any(|e| e["kind"] == "toolCall" && e["name"] == "find_prices")),
+                _ => assert!(card.is_some(), "no {want} card"),
+            }
+        }
+    }
+
     /// Real engine + real internet (also needs BYTE_TEST_WEB=1).
     #[tokio::test]
     #[ignore]
@@ -854,7 +980,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, true, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false, modules: Default::default() };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let mut counts = std::collections::BTreeMap::new();
@@ -901,7 +1027,7 @@ mod tests {
             let system = crate::prompt::system_prompt(chrono::Local::now(), mode, true, None);
             let plan = crate::router::plan_turn(mode, ThinkingPref::Auto, &q);
             let (ch, seen) = collecting_channel();
-            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false };
+            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false, modules: Default::default() };
             let t = std::time::Instant::now();
             let r = run(turn, CancellationToken::new(), &ch).await;
             let ev = seen.lock().unwrap().clone();

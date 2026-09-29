@@ -127,6 +127,14 @@ pub enum ChatEvent {
     Saved(crate::web_agent::SavedFile),
     /// The web agent's browser opened (true) or closed (false).
     Browsing { active: bool },
+    /// What reviewers say: ratings, pros and cons (reviews.rs).
+    Reviews(crate::reviews::Reviews),
+    /// Prices found on store pages (prices.rs).
+    Prices(crate::prices::Prices),
+    /// Spoiler-free game hints, hidden until tapped (games.rs).
+    Hints(crate::games::Hints),
+    /// Claims in the answer its sources don't clearly back (selfcheck.rs).
+    SelfCheck(crate::selfcheck::SelfCheck),
 }
 
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]

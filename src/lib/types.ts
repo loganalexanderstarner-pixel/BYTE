@@ -32,6 +32,13 @@ export interface Settings {
   kitchenEnabled?: boolean;
   /** Web agent module: BYTE may use a browser for the user (asks before submitting). */
   webAgentEnabled?: boolean;
+  reviewsEnabled?: boolean;
+  pricesEnabled?: boolean;
+  gameHintsEnabled?: boolean;
+  /** Check cited answers against their sources (Deep, Extended, fact-check). */
+  selfCheck?: boolean;
+  /** Three drafts and a majority vote for hard questions (Deep, Extended). */
+  bestOfThree?: boolean;
   /** Reuse the answer to a question asked (almost exactly) in the last week. */
   answerCache: boolean;
   /** Models reloaded alongside the main one at launch. */
@@ -368,7 +375,60 @@ export type ChatEvent =
   | ({ kind: "approval" } & ApprovalAsk)
   | { kind: "approvalDone"; id: string; ok: boolean }
   | ({ kind: "saved" } & SavedFile)
-  | { kind: "browsing"; active: boolean };
+  | { kind: "browsing"; active: boolean }
+  | ({ kind: "reviews" } & Reviews)
+  | ({ kind: "prices" } & Prices)
+  | ({ kind: "hints" } & GameHints)
+  | ({ kind: "selfCheck" } & SelfCheck);
+
+/** What reviewers say (Rust `reviews::Reviews`). */
+export interface Reviews {
+  product: string;
+  verdict: string;
+  ratings: { site: string; value: number; best: number; count: number | null; n: number }[];
+  pros: ReviewPoint[];
+  cons: ReviewPoint[];
+  bestFor: string[];
+  skipIf: string[];
+  read: number;
+}
+export interface ReviewPoint {
+  text: string;
+  sources: number[];
+}
+
+/** Prices read from store pages (Rust `prices::Prices`). */
+export interface Prices {
+  product: string;
+  offers: Offer[];
+  /** RFC 3339 time the pages were read. */
+  checkedAt: string;
+}
+export interface Offer {
+  store: string;
+  title: string;
+  price: number;
+  currency: string;
+  inStock: boolean | null;
+  condition: string;
+  url: string;
+  n: number;
+}
+
+/** Spoiler-free game hints (Rust `games::Hints`). */
+export interface GameHints {
+  game: string;
+  spot: string;
+  hints: string[];
+  solution: string;
+  sources: number[];
+}
+
+/** Claims the answer's sources don't clearly back (Rust `selfcheck::SelfCheck`). */
+export interface SelfCheck {
+  checked: number;
+  issues: { claim: string; sources: number[]; verdict: "partly" | "no"; note: string }[];
+}
 
 /** The web agent asks before submitting, committing or downloading (Rust `web_agent::ApprovalAsk`). */
 export interface ApprovalAsk {

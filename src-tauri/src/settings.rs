@@ -126,6 +126,21 @@ pub struct Settings {
     /// Web agent module: BYTE may use a hidden browser for the user (open, click, fill forms with approval).
     #[serde(default = "yes")]
     pub web_agent_enabled: bool,
+    /// Review summaries ("reviews of X", "is X worth it").
+    #[serde(default = "yes")]
+    pub reviews_enabled: bool,
+    /// Price compare ("cheapest X", "where to buy X").
+    #[serde(default = "yes")]
+    pub prices_enabled: bool,
+    /// Spoiler-free game hints ("stuck on … in <game>").
+    #[serde(default = "yes")]
+    pub game_hints_enabled: bool,
+    /// Check cited answers against their sources (Deep, Extended, fact-check).
+    #[serde(default = "yes")]
+    pub self_check: bool,
+    /// Three drafts and a majority vote for hard questions (Deep, Extended).
+    #[serde(default = "yes")]
+    pub best_of_three: bool,
     /// Reuse the answer to a question asked (almost exactly) in the last week
     /// (needs the search-by-meaning model; see answer_cache.rs).
     pub answer_cache: bool,
@@ -176,6 +191,11 @@ impl Default for Settings {
             kb_enabled: true,
             kitchen_enabled: true,
             web_agent_enabled: true,
+            reviews_enabled: true,
+            prices_enabled: true,
+            game_hints_enabled: true,
+            self_check: true,
+            best_of_three: true,
             answer_cache: true,
             loaded_alongside: Vec::new(),
             speed_boost: true,

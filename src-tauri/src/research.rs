@@ -322,6 +322,45 @@ pub(crate) async fn read_pages(c: &Ctx<'_, '_>, g: &mut Gathered, candidates: &[
     Ok(read)
 }
 
+/// Like `read_pages`, but keeps each page's HTML too (for its JSON-LD data):
+/// returns (source number, page URL, HTML) for every page read.
+pub(crate) async fn read_html_pages(c: &Ctx<'_, '_>, g: &mut Gathered, candidates: &[SearchResult], want: usize, tag: &str) -> AppResult<Vec<(u32, String, String)>> {
+    let mut out = Vec::new();
+    let mut rest = candidates;
+    let mut batch_no = 0;
+    while out.len() < want && !rest.is_empty() {
+        let take = (want - out.len()).min(batch(c.turn.depth)).min(rest.len());
+        let (batch, tail) = rest.split_at(take);
+        rest = tail;
+        let ids: Vec<String> = (0..batch.len()).map(|i| format!("byte_rhtml_{tag}_{batch_no}_{i}")).collect();
+        batch_no += 1;
+        for (id, r) in ids.iter().zip(batch) {
+            c.call(id, tools::READ_PAGE, json!({ "url": r.url }))?;
+        }
+        let net = c.turn.net;
+        let pages = c.cancellable(futures_util::future::join_all(batch.iter().map(|r| tools::fetch::fetch_html(net, &r.url)))).await?;
+        for ((id, r), page) in ids.iter().zip(batch).zip(pages) {
+            let args = json!({ "url": r.url });
+            let (ok, summary) = match page {
+                Ok((p, html)) if p.text.trim().len() >= 200 || !html.is_empty() => {
+                    let n = g.book.mark_read(&r.url, if p.title.is_empty() { &r.title } else { &p.title });
+                    g.texts.push((n, p.text));
+                    out.push((n, p.url.clone(), html));
+                    (true, p.title.chars().take(60).collect::<String>())
+                }
+                Ok(_) => (false, "almost no text".to_string()),
+                Err(e) => (false, e.to_string()),
+            };
+            c.turn.log.record(tools::READ_PAGE, &args, ok, &summary);
+            c.result(id, ok, summary)?;
+        }
+    }
+    if !out.is_empty() {
+        (c.send)(ChatEvent::Sources { sources: g.book.sources.clone() })?;
+    }
+    Ok(out)
+}
+
 pub(crate) async fn find_papers(c: &Ctx<'_, '_>, g: &mut Gathered, query: &str, max: usize, tag: &str) -> AppResult<()> {
     let id = &format!("byte_rpapers_{tag}");
     let args = json!({ "query": query });
@@ -733,7 +772,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Deep, true, None);
         let plan = crate::router::plan_turn(Mode::Deep, crate::settings::ThinkingPref::Off, &q);
         let (ch, seen) = crate::chat::e2e_support::collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Deep, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Deep, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false, modules: Default::default() };
         let t = std::time::Instant::now();
         crate::agent::run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();

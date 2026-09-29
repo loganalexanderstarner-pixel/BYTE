@@ -388,7 +388,7 @@ cloud already makes documents through the byte-ai API — keep both; local works
 Verify: renderer smoke tests (vitest: DocSpec → files open, page counts), JSON-repair tests, screenshots,
 owner opens the files in Preview / Keynote / Pages / Word.
 
-### Phase 6 — Research+ ⏳ (part 1 done: v0.6.0)
+### Phase 6 — Research+ ✅ (v0.6.0–v0.6.7)
 Goal: deeper, more trustworthy answers.
 **Done in v0.6.0:** item 1 (`research.rs`: plan → parallel searches → 12/24 pages → passages ranked by meaning
 or words, ≤3 per source, ~half the context → Extended gap review → report rules), confidence labels, and item 3
@@ -425,8 +425,16 @@ WebKitGTK and WebView2). `Session` runs the tools (`open_url`, `click`, `type_te
 downloads to Downloads/BYTE, older page views compacted. Page capture on macOS: `capture_mac.rs` (WKWebView PDF,
 snapshot → PNG, web archive), text elsewhere. UI: `AgentCards.tsx` (approval card, saved-file chips, Show browser),
 Agent pill, Settings toggle. Tested for real under Xvfb (`browser::e2e`, `agent::tests::e2e_web_agent`).
-**Left in Phase 6 (smaller):** self-check / best-of-3, review summarizer & price compare, game guides,
-video-to-slides. **Next:** ask the owner: those as v0.6.7, or on to Phase 7 (writing & learning).
+**Done in v0.6.7 (Phase 6 finished):** `reviews.rs` (`wants_reviews`, `subject` (shared cue/filler stripper),
+`rating_on_page` from AggregateRating/Review JSON-LD, `review_texts`, `parse_reviews` → `ChatEvent::Reviews`),
+`prices.rs` (`wants_prices`, `offers_on_page` from Product/Offer/AggregateOffer JSON-LD or `product:price` meta,
+`matches_product`, `tidy` → `ChatEvent::Prices`; no model involved in prices), `games.rs` (`wants_game_help`,
+`parse_hints` → `ChatEvent::Hints`; the model only sees the first hint), `selfcheck.rs` (`cited_sentences`,
+`source_blocks`, `check` → `ChatEvent::SelfCheck`, after Deep/Extended/fact-check answers), `drafts.rs`
+(`is_reasoning`, `final_answer`, `pick` majority, `reconcile_prompt`; Deep/Extended, research skipped for such
+questions). Shared: `fetch::{json_ld, ld_is, meta_content}`, `research::read_html_pages`. `Turn.modules`
+(`agent::Modules`) from five settings (all on). UI `ShopCards.tsx`, `lib/cards.ts`. Video-to-slides moved to
+Phase 11. **Next:** Phase 7 (writing & learning) as v0.7.0.
 1. **Deep / Extended pipelines** (`research.rs`): plan 3–6 sub-questions → parallel searches → fetch up to
    15 (Deep) / 30 (Extended) pages, 6 at a time → embedding-rank passages → cited report; Extended adds a gap
    review, follow-up searches and a rewrite into a sectioned report. Progress steps shown live; cancel anytime.
@@ -439,8 +447,8 @@ video-to-slides. **Next:** ask the owner: those as v0.6.7, or on to Phase 7 (wri
    with sliders), review summarizer, price compare & deal finder.
 5. **Trip planner** (itinerary, budget, packing → PDF + Calendar), **local lookup** (CoreLocation +
    Open-Meteo weather + OpenStreetMap places, no keys).
-6. **YouTube**: transcripts (innertube captions; fallback yt-dlp + whisper), summaries with timestamps, Q&A,
-   video-to-slides (ffmpeg as an optional download).
+6. **YouTube**: transcripts (innertube captions; fallback yt-dlp + whisper), summaries with timestamps, Q&A.
+   (Video-to-slides moved to Phase 11, with the ffmpeg/whisper download.)
 7. **Web agent**: hidden WKWebView browser that can browse and click, fill forms (always stops for approval
    before submitting), download files into a folder, save full-page screenshots/archives.
 8. Game guides with spoiler-free hints.
@@ -510,6 +518,7 @@ Verify: scheduler/cron and diff unit tests, recorded-feed tests, owner checks no
 ### Phase 11 — Input & windows ⏳
 1. **Voice**: whisper (sidecar `whisper-cli`, small/base models) push-to-talk / hold Space; hands-free
    conversation; transcripts of dropped or recorded audio with speaker labels (sherpa-onnx diarization).
+1b. **Video-to-slides and videos without captions** (moved from Phase 6): ffmpeg keyframes + whisper transcript.
 2. **Vision**: paste/drop images for a vision model (e.g. Qwen2.5-VL 3B + mmproj; swapped in on 16 GB,
    resident on 24 GB+), OCR fallback.
 3. **Windows**: Quick Ask floating window (⌥Space), menu-bar mini chat (`tauri-plugin-positioner`), floating

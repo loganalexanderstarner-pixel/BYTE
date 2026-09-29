@@ -46,6 +46,63 @@ pub async fn fetch_html(client: &reqwest::Client, raw_url: &str) -> AppResult<(P
     Ok((page, if html_like { body } else { String::new() }))
 }
 
+/// Every schema.org JSON-LD object a page publishes (`@graph` and lists
+/// flattened), for products, offers and ratings.
+pub fn json_ld(html: &str) -> Vec<serde_json::Value> {
+    use serde_json::Value;
+    fn flatten(v: Value, out: &mut Vec<Value>) {
+        match v {
+            Value::Array(a) => a.into_iter().for_each(|x| flatten(x, out)),
+            Value::Object(mut o) => {
+                if let Some(g) = o.remove("@graph") {
+                    flatten(g, out);
+                }
+                if !o.is_empty() {
+                    out.push(Value::Object(o));
+                }
+            }
+            _ => {}
+        }
+    }
+    let doc = scraper::Html::parse_document(html);
+    let Ok(sel) = scraper::Selector::parse(r#"script[type="application/ld+json"]"#) else { return Vec::new() };
+    let mut out = Vec::new();
+    for script in doc.select(&sel) {
+        let raw: String = script.text().collect();
+        if let Ok(v) = serde_json::from_str::<Value>(raw.trim()) {
+            flatten(v, &mut out);
+        }
+    }
+    out
+}
+
+/// True when a JSON-LD object's `@type` is (or includes) `ty`.
+pub fn ld_is(v: &serde_json::Value, ty: &str) -> bool {
+    match &v["@type"] {
+        serde_json::Value::String(s) => s.eq_ignore_ascii_case(ty),
+        serde_json::Value::Array(a) => a.iter().any(|t| t.as_str().is_some_and(|s| s.eq_ignore_ascii_case(ty))),
+        _ => false,
+    }
+}
+
+/// The first `<meta property|name|itemprop="…" content="…">` value for any of `names`.
+pub fn meta_content(html: &str, names: &[&str]) -> Option<String> {
+    let doc = scraper::Html::parse_document(html);
+    let sel = scraper::Selector::parse("meta").ok()?;
+    for name in names {
+        for m in doc.select(&sel) {
+            let e = m.value();
+            let key = e.attr("property").or_else(|| e.attr("name")).or_else(|| e.attr("itemprop")).unwrap_or("");
+            if key.eq_ignore_ascii_case(name) {
+                if let Some(c) = e.attr("content").map(str::trim).filter(|c| !c.is_empty()) {
+                    return Some(c.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
 fn page_from(final_url: &url::Url, body: &str, html_like: bool) -> AppResult<Page> {
     let page = if html_like { extract(body, final_url.as_str()) } else { Page { url: final_url.to_string(), title: final_url.to_string(), text: body.to_string() } };
     // Pages that are an app shell (their content arrives by JavaScript) leave

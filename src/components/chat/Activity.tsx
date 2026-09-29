@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Clapperboard, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
+import { Clapperboard, Gamepad2, ShieldCheck, Store, Star, Layers, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
 import { Fragment, useState } from "react";
 
 import { CITE_STYLES, cite, citeAll, plainCitation, type CiteStyle } from "../../lib/citations";
@@ -79,6 +79,16 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: ArrowLeft, text: s.summary ?? "Going back" };
     case "download_file":
       return { icon: Download, text: s.summary ?? "Getting the download ready" };
+    case "find_prices":
+      return { icon: Store, text: `Read the prices for ${arg("product")}` };
+    case "summarize_reviews":
+      return { icon: Star, text: `Summarized the reviews of ${arg("product")}` };
+    case "write_hints":
+      return { icon: Gamepad2, text: "Wrote spoiler-free hints" };
+    case "write_drafts":
+      return { icon: Layers, text: "Wrote 3 drafts and compared their answers" };
+    case "check_answer":
+      return { icon: ShieldCheck, text: "Checked the answer against its sources" };
     case "save_page":
       return { icon: FileDown, text: s.summary ?? "Saving the page" };
     default:
@@ -105,6 +115,11 @@ export function activitySummary(steps: Step[]): string {
   const cooked = steps.some((s) => ["write_recipe", "recipe_ideas", "meal_plan"].includes(s.name));
   const browsed = steps.filter((s) => BROWSER_STEPS.includes(s.name)).length;
   if (browsed) parts.push(`Used the browser (${browsed} step${browsed === 1 ? "" : "s"})`);
+  if (steps.some((s) => s.name === "summarize_reviews")) parts.push("Read the reviews");
+  if (steps.some((s) => s.name === "find_prices")) parts.push("Compared prices");
+  if (steps.some((s) => s.name === "write_hints")) parts.push("Found hints");
+  if (steps.some((s) => s.name === "write_drafts")) parts.push("Wrote 3 drafts");
+  if (steps.some((s) => s.name === "check_answer")) parts.push("checked against sources");
   if (cooked) parts.push("In the kitchen");
   if (steps.some((s) => s.name === "get_transcript" && s.status === "ok")) parts.push("Watched the video");
   if (tripped) parts.push("Planned the trip");

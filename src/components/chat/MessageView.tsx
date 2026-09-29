@@ -19,6 +19,7 @@ import { MealPlanCard, RecipeIdeasCards } from "../kitchen/KitchenCards";
 import { RecipeCard } from "../kitchen/RecipeCard";
 import { VideoCard } from "./VideoCard";
 import { ApprovalCard, BrowsingBar, SavedFiles } from "./AgentCards";
+import { HintsCard, PricesCard, ReviewsCard, SelfCheckNote } from "./ShopCards";
 
 function openLinksExternally(e: MouseEvent<HTMLDivElement>) {
   const a = (e.target as HTMLElement).closest("a");
@@ -229,6 +230,9 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
       {message.recipeIdeas && <RecipeIdeasCards ideas={message.recipeIdeas} />}
       {message.mealPlan && <MealPlanCard plan={message.mealPlan} />}
       {message.video && <VideoCard video={message.video} />}
+      {message.reviews && <ReviewsCard reviews={message.reviews} />}
+      {message.prices && <PricesCard prices={message.prices} />}
+      {message.hints && <HintsCard hints={message.hints} />}
       {generating && message.browsing && <BrowsingBar />}
       {message.approvals?.map((a) => <ApprovalCard key={a.id} card={a} />)}
       {message.saved && message.saved.length > 0 && <SavedFiles files={message.saved} />}
@@ -239,6 +243,7 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
           dangerouslySetInnerHTML={{ __html: html }}
         />
       )}
+      {message.selfCheck && <SelfCheckNote check={message.selfCheck} />}
       {!generating && message.sources && message.sources.length > 0 && message.content && <Sources sources={message.sources} />}
       {!generating && memorySteps.map((st) => <MemorySuggestion key={st.id} messageId={message.id} step={st} />)}
       {message.status === "error" && (

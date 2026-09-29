@@ -3874,3 +3874,185 @@ kbd {
     animation: none;
   }
 }
+
+/* Reviews, prices, game hints, self-check. */
+.shop-card {
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.shop-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.shop-head svg {
+  color: var(--accent);
+}
+.shop-verdict {
+  margin: var(--space-2) 0;
+}
+.cite-n {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 2px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.7em;
+  vertical-align: 1px;
+}
+.ratings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin: var(--space-2) 0;
+  font-size: 0.9em;
+}
+.rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.stars {
+  display: inline-flex;
+  color: var(--border-strong);
+}
+.stars .on,
+.stars .half {
+  color: var(--warn);
+  fill: var(--warn);
+}
+.stars .half {
+  fill: none;
+}
+.pros-cons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+.pros-cons h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: 0.9em;
+}
+.pros-cons > div:first-child h4 svg {
+  color: var(--ok);
+}
+.pros-cons > div:last-child h4 svg {
+  color: var(--danger);
+}
+.pros-cons ul {
+  margin: 0;
+  padding-left: 1.1em;
+}
+.fit p {
+  margin: var(--space-1) 0 0;
+  font-size: 0.92em;
+}
+@media (max-width: 640px) {
+  .pros-cons {
+    grid-template-columns: 1fr;
+  }
+}
+.offers {
+  width: 100%;
+  margin: var(--space-2) 0;
+  border-collapse: collapse;
+}
+.offers td {
+  padding: 6px 8px;
+  border-top: 1px solid var(--border);
+}
+.offers tr:first-child td {
+  border-top: 0;
+}
+.offers .price {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.offers tr.best .price {
+  color: var(--ok);
+}
+.offers .link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+.small {
+  font-size: 0.85em;
+}
+.hint-list {
+  margin: var(--space-2) 0;
+  padding-left: 1.3em;
+}
+.hint-list li {
+  padding: 4px 0;
+}
+.hint-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.hint-solution {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  white-space: pre-wrap;
+}
+.self-check {
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
+  border-radius: var(--radius);
+  font-size: 0.92em;
+}
+.self-check-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.self-check-head svg {
+  color: var(--warn);
+  flex: none;
+}
+.self-check ul {
+  margin: var(--space-2) 0 0;
+  padding-left: 1.1em;
+}
+.self-check li {
+  margin: 4px 0;
+}
+.badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.78em;
+  font-weight: 600;
+}
+.badge.warn {
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  color: var(--warn);
+}
+.badge.danger {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
+}

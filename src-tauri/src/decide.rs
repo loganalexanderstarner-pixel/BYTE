@@ -444,7 +444,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, true, None);
         let plan = crate::router::plan_turn(Mode::Auto, crate::settings::ThinkingPref::Off, q);
         let (ch, seen) = crate::chat::e2e_support::collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false, modules: Default::default() };
         crate::agent::run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         for e in ev.iter().filter(|e| e["kind"] == "toolCall" || e["kind"] == "toolResult" || e["kind"] == "decision") {

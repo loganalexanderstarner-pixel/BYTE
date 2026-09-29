@@ -694,6 +694,41 @@ function AboutTab() {
           </span>
           <input type="checkbox" checked={settings?.webAgentEnabled ?? true} onChange={(e) => void update({ webAgentEnabled: e.target.checked })} />
         </label>
+        <label className="field">
+          <span>
+            Reviews
+            <small>“Reviews of …”, “is … worth it”: ratings, pros and cons from review sites and owners.</small>
+          </span>
+          <input type="checkbox" checked={settings?.reviewsEnabled ?? true} onChange={(e) => void update({ reviewsEnabled: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
+            Price compare
+            <small>“Cheapest …”, “where to buy …”: prices read from the stores' own pages, cheapest first.</small>
+          </span>
+          <input type="checkbox" checked={settings?.pricesEnabled ?? true} onChange={(e) => void update({ pricesEnabled: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
+            Game hints
+            <small>Stuck in a game? Hints that get stronger one tap at a time, without spoilers.</small>
+          </span>
+          <input type="checkbox" checked={settings?.gameHintsEnabled ?? true} onChange={(e) => void update({ gameHintsEnabled: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
+            Check answers against sources
+            <small>Deep, Extended and fact-checks: BYTE checks each cited claim against its source and flags the ones it can't back.</small>
+          </span>
+          <input type="checkbox" checked={settings?.selfCheck ?? true} onChange={(e) => void update({ selfCheck: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
+            Best of 3 for hard questions
+            <small>Maths, logic and puzzles in Deep and Extended: three drafts, and the answer most of them reach. Slower, more often right.</small>
+          </span>
+          <input type="checkbox" checked={settings?.bestOfThree ?? true} onChange={(e) => void update({ bestOfThree: e.target.checked })} />
+        </label>
       </div>
       <ProfilesSection />
       <div className="section">

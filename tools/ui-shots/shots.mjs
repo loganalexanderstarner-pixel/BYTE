@@ -327,6 +327,42 @@ function initScript({ data }) {
             send({ kind: "done", finishReason: "stop" });
             return null;
           }
+          if (data.shop) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            const q = args.request.messages[args.request.messages.length - 1].content.toLowerCase();
+            const src = (n, title, url) => ({ n, title, url, snippet: "", read: true });
+            if (q.includes("reviews")) {
+              send({ kind: "toolCall", id: "r1", name: "summarize_reviews", args: { product: "Sony WH-1000XM6" } }); await wait(5);
+              send({ kind: "toolResult", id: "r1", ok: true, summary: "7 pages, 3 ratings" });
+              send({ kind: "sources", sources: [src(1, "Sony WH-1000XM6 review", "https://www.rtings.com/headphones/reviews/sony/wh-1000xm6"), src(2, "Sony WH-1000XM6 review: the new benchmark", "https://www.theverge.com/sony-wh-1000xm6-review"), src(3, "XM6 after 3 months — r/headphones", "https://www.reddit.com/r/headphones/comments/xm6"), src(4, "Sony WH-1000XM6", "https://www.bestbuy.com/site/sony-wh-1000xm6")] });
+              send({ kind: "reviews", product: "Sony WH-1000XM6", verdict: "Class-leading noise cancelling and a comfier fit than the XM5, but pricey and the case is bulky.", read: 7,
+                ratings: [{ site: "rtings.com", value: 8.4, best: 10, count: null, n: 1 }, { site: "theverge.com", value: 9, best: 10, count: null, n: 2 }, { site: "bestbuy.com", value: 4.7, best: 5, count: 2143, n: 4 }],
+                pros: [{ text: "Best-in-class noise cancelling", sources: [1, 2, 3] }, { text: "Comfortable for long flights", sources: [2, 3] }, { text: "30-hour battery", sources: [1, 4] }],
+                cons: [{ text: "Expensive at launch", sources: [2, 4] }, { text: "Case is bulkier than the XM5's", sources: [3] }, { text: "Occasional Bluetooth dropouts on Windows", sources: [3] }],
+                bestFor: ["Frequent flyers", "Commuters"], skipIf: ["You want small, foldable headphones"] });
+              for (const t of ["The **Sony WH-1000XM6** are the headphones to beat for noise cancelling [1][2]. Owners love the comfort on long flights [3]; the main complaints are the price and a bulkier case [2][3]."]) { send({ kind: "content", delta: t }); await wait(10); }
+            } else if (q.includes("cheapest")) {
+              send({ kind: "toolCall", id: "p1", name: "find_prices", args: { product: "AirPods Pro 3" } }); await wait(5);
+              send({ kind: "toolResult", id: "p1", ok: true, summary: "4 prices" });
+              send({ kind: "sources", sources: [src(1, "AirPods Pro 3", "https://www.amazon.com/dp/x"), src(2, "AirPods Pro 3", "https://www.bestbuy.com/site/x"), src(3, "AirPods Pro 3", "https://www.apple.com/shop/product/x"), src(4, "AirPods Pro 3 (Refurbished)", "https://www.backmarket.com/x")] });
+              send({ kind: "prices", product: "AirPods Pro 3", checkedAt: new Date().toISOString(), offers: [
+                { store: "backmarket.com", title: "AirPods Pro 3", price: 189, currency: "USD", inStock: true, condition: "refurbished", url: "https://www.backmarket.com/x", n: 4 },
+                { store: "amazon.com", title: "AirPods Pro 3", price: 219.99, currency: "USD", inStock: true, condition: "new", url: "https://www.amazon.com/dp/x", n: 1 },
+                { store: "bestbuy.com", title: "AirPods Pro 3", price: 229.99, currency: "USD", inStock: false, condition: "new", url: "https://www.bestbuy.com/site/x", n: 2 },
+                { store: "apple.com", title: "AirPods Pro 3", price: 249, currency: "USD", inStock: true, condition: "new", url: "https://www.apple.com/shop/product/x", n: 3 } ] });
+              send({ kind: "content", delta: "Cheapest **new** right now is **Amazon at $219.99** [1]. Back Market has one for $189, but it's refurbished [4]. Prices change often; these were checked just now." });
+            } else {
+              send({ kind: "toolCall", id: "g1", name: "write_hints", args: {} }); await wait(5);
+              send({ kind: "toolResult", id: "g1", ok: true, summary: "3 hints" });
+              send({ kind: "sources", sources: [src(1, "Water Temple walkthrough", "https://zelda.fandom.com/wiki/Water_Temple"), src(2, "Water Temple guide", "https://www.ign.com/wikis/ocarina/Water_Temple")] });
+              send({ kind: "hints", game: "Ocarina of Time", spot: "Water Temple, stuck after the first water level change", sources: [1, 2],
+                hints: ["You've changed the water level once. Think about where else in the temple you've seen a Triforce symbol you could play at.", "The middle tower has a room you can only reach when the water is at its lowest.", "Lower the water fully, then go through the middle tower's bottom door to find the key you need."],
+                solution: "1. Go to the Triforce symbol on the middle floor of the central tower.\n2. Play Zelda's Lullaby to raise the water to middle level.\n3. …" });
+              send({ kind: "content", delta: "Here's a gentle nudge: you've changed the water level once, so look for other places where you could do that again [1]. Stronger hints and the full solution are in the card above; tap them only if you want them." });
+            }
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
           if (data.agent) {
             send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
             send({ kind: "browsing", active: true });
@@ -1048,6 +1084,20 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await shot(p, "21b-agent-done");
   console.log("agent errors:", errors);
   await ctx.close();
+}
+// Reviews, prices, game hints
+{
+  for (const [name, q] of [["22-reviews", "Reviews of the Sony WH-1000XM6"], ["22b-prices", "What's the cheapest place to buy AirPods Pro 3?"], ["22c-hints", "I'm stuck on the Water Temple in Ocarina of Time"]]) {
+    const { p, ctx, errors } = await page(true, "midnight", { shop: true });
+    await p.getByLabel("Message BYTE").fill(q);
+    await p.keyboard.press("Enter");
+    await p.waitForTimeout(600);
+    if (name === "22c-hints") await p.getByRole("button", { name: "Show the first hint" }).click();
+    await p.locator(".shop-card").scrollIntoViewIfNeeded();
+    await shot(p, name);
+    console.log(name, "errors:", errors);
+    await ctx.close();
+  }
 }
 // A model that didn't load: what's using memory, with Quit buttons
 {
