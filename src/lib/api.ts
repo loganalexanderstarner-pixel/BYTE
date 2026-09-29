@@ -23,6 +23,8 @@ import type {
   LookerStatus,
   Job,
   Assistant,
+  LabModel,
+  LiveStats,
   LocalFile,
   Mode,
   ModelStatus,
@@ -72,6 +74,17 @@ export const api = {
   fileIngest: (path: string) => invoke<LocalFile>("file_ingest", { path }),
   kbStatus: () => invoke<KbStatus>("kb_status"),
   lookerStatus: () => invoke<LookerStatus>("looker_status"),
+  // Model lab: add any GGUF (a file on this Mac or a Hugging Face link)
+  /** Reads a GGUF file's header and checks it against this Mac's memory (nothing is added yet). */
+  labInspect: (path: string) => invoke<LabModel>("lab_inspect", { path }),
+  /** Same for a Hugging Face file link (reads only the header, not the whole file). */
+  labInspectUrl: (url: string) => invoke<LabModel>("lab_inspect_url", { url }),
+  /** Adds it to the model list; returns its catalog key. Hugging Face models are then downloaded with `modelDownload(key)`. */
+  labAdd: (model: LabModel) => invoke<string>("lab_add", { model }),
+  labList: () => invoke<LabModel[]>("lab_list"),
+  labRemove: (id: string) => invoke<void>("lab_remove", { id }),
+  /** Memory, engine and battery meters. */
+  engineLive: () => invoke<LiveStats>("engine_live"),
   jobsList: () => invoke<Job[]>("jobs_list"),
   assistantsList: () => invoke<Assistant[]>("assistants_list"),
   assistantPresets: () => invoke<Assistant[]>("assistant_presets"),

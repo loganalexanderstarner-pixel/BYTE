@@ -151,6 +151,11 @@ impl Engine {
         Self::with_role(pid_file, true)
     }
 
+    /// The running engine's process id (from its PID file).
+    pub fn pid(&self) -> Option<u32> {
+        read_pid(&self.pid_file)
+    }
+
     /// An engine for a helper model (embeddings): reports no status to the UI.
     pub fn helper(pid_file: PathBuf) -> Self {
         Self::with_role(pid_file, false)

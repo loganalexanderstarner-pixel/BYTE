@@ -49,6 +49,10 @@ export interface Settings {
   writingEnabled?: boolean;
   /** The user's writing style for "Write like me". */
   writingStyle?: string;
+  /** Advanced tuning per model key ("id:quant"): sampling, thinking budget, extra instructions. */
+  modelOverrides?: Record<string, ModelOverride>;
+  /** Battery saver: below 20% and unplugged, lighter modes and shorter thinking. */
+  batterySaver?: boolean;
   /** "Translate … into …" in chat, part by part. */
   translateEnabled?: boolean;
   /** The job search tracker (💼). */
@@ -702,6 +706,63 @@ export interface KbSource {
   /** Passages searchable by meaning (have an embedding). */
   embedded: number;
   bytes: number;
+}
+
+/** Rust `settings::ModelOverride`: advanced tuning for one model (null/empty = the model's recommended value). */
+export interface ModelOverride {
+  /** 0–2. */
+  temperature?: number | null;
+  /** 0.05–1. */
+  topP?: number | null;
+  /** Tokens the model may think before answering (-1 = no limit). */
+  thinkingBudget?: number | null;
+  /** Extra instructions added to every chat with this model. */
+  systemExtra?: string;
+}
+
+/** Rust `lab::LabModel`: a model added by hand (a GGUF file on this Mac, or from Hugging Face). */
+export interface LabModel {
+  /** "local-…" or "hf-…"; its catalog key is `${id}:${quant}`. */
+  id: string;
+  name: string;
+  source: "file" | "huggingface";
+  /** The file on this Mac (source "file"). */
+  path: string;
+  /** Hugging Face repo and file (source "huggingface"). */
+  repo: string;
+  file: string;
+  sizeBytes: number;
+  /** From the file's header, e.g. "qwen3", "llama", "gemma3". */
+  architecture: string;
+  /** Billions of parameters (estimated from size and quantization when the header doesn't say). */
+  paramsB: number | null;
+  /** e.g. "Q4_K_M". */
+  quant: string;
+  layers: number;
+  contextMax: number;
+  /** Its chat template can think (<think> / enable_thinking). */
+  thinking: boolean;
+  /** "great": fits comfortably; "tight": fits, little room left; "no": too big for this Mac. */
+  fit: "great" | "tight" | "no";
+  /** Plain words, e.g. "Fits comfortably with a 16k context (uses about 6.1 GB)". */
+  fitNote: string;
+  /** Context size BYTE suggests for it on this Mac. */
+  context: number;
+  /** Added to BYTE (shows in the model list). */
+  added: boolean;
+}
+
+/** Rust `commands::LiveStats`: meters for the tuning panel (polled every few seconds). */
+export interface LiveStats {
+  ramUsedBytes: number;
+  ramTotalBytes: number;
+  /** Memory the running engine uses (null when none is running). */
+  engineRssBytes: number | null;
+  /** How much memory the GPU may use on this Mac. */
+  gpuBudgetBytes: number;
+  battery: { percent: number; charging: boolean } | null;
+  /** Battery saver is on and in effect right now. */
+  batterySaving: boolean;
 }
 
 /** Rust `jobs::Job`: a job in the tracker. */

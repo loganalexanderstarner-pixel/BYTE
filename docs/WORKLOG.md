@@ -17,6 +17,32 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — Phase 8 backend: model lab, advanced tuning, battery saver, live meters
+- **Why:** these are Phase 8's remaining items. The owner asked for work in parallel: this is the Rust half plus the
+  TS contract (`types.ts`/`api.ts`); a helper builds the UI panels at the same time in separate files (next commit).
+- **What:**
+  - `gguf.rs`: reads a GGUF header only (8 MB, then up to 64 MB): architecture, name, quant (file_type), params
+    (size_label or estimated), thinking template, and `ModelArch` like build-catalog.mjs `archFrom`, including
+    hybrid KV layers.
+  - `lab.rs`:
+    - `lab_inspect` (a file) and `lab_inspect_url` (Hugging Face: size and SHA-256 from the redirect headers,
+      header by range request) → `LabModel`, with fit from `models::plan`;
+    - `lab_add` links a file into the models folder (or keeps the Hugging Face repo/file for the normal
+      downloader); `lab_list`/`lab_remove`; saved in `<data>/added_models.json`;
+    - `CatalogStore::set_added` merges added models into `get()` (tag "added", never recommended), loaded at
+      startup.
+  - `settings.model_overrides` (`ModelOverride::apply`: temperature, top-p, thinking budget, clamped) plus
+    `system_extra` appended to the system prompt, applied in `backend::Setup`.
+  - `settings.battery_saver` + `system::battery`/`parse_pmset`/`low_battery`: under 20% and unplugged, Deep and
+    Extended run as Auto and thinking is capped at 512, with a notice.
+  - `commands::engine_live` (RAM, the engine's RSS by PID, GPU budget, battery, saving).
+- **Verify:**
+  - `cargo test` (294);
+  - real files: `e2e_reads_a_real_gguf` (Qwen3-0.6B Q8_0: qwen3 / 28 layers / 40,960 context / thinks; Gemma 3 1B:
+    gemma3 / 26 layers / 1 KV head / 256 head dimension);
+  - live: `live_hf_header` (unsloth/Qwen3-0.6B-GGUF Q4_K_M in 1.7 s).
+- **Undo:** revert (added_models.json is then ignored).
+
 ### (this commit) — v0.7.7: long-form writer, "Write like me", poems and speeches (Phase 7 done)
 - **Why:** these are the last Phase 7 items; the owner said "Lets start back up".
 - **What:**

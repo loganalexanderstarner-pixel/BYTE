@@ -156,6 +156,12 @@ pub struct Settings {
     /// The user's writing style for "Write like me" (learned from their samples; editable).
     #[serde(default)]
     pub writing_style: String,
+    /// Advanced tuning per model key ("id:quant").
+    #[serde(default)]
+    pub model_overrides: std::collections::HashMap<String, ModelOverride>,
+    /// Below 20% battery and unplugged: Deep/Extended answer like Auto, and thinking is short.
+    #[serde(default = "yes")]
+    pub battery_saver: bool,
     /// "Translate … into …" in chat: part by part, for long texts, files and pages.
     #[serde(default = "yes")]
     pub translate_enabled: bool,
@@ -228,6 +234,8 @@ impl Default for Settings {
             photo_helper: true,
             writing_enabled: true,
             writing_style: String::new(),
+            model_overrides: Default::default(),
+            battery_saver: true,
             translate_enabled: true,
             jobs_enabled: true,
             assistants_enabled: true,
@@ -328,5 +336,67 @@ mod tests {
         let path = dir.path().join("settings.json");
         std::fs::write(&path, "{not json").unwrap();
         assert!(!Settings::load(&path).onboarding_complete);
+    }
+}
+
+/// Advanced tuning for one model (None/empty: the model's recommended value).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ModelOverride {
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
+    /// Tokens the model may think (-1 = no limit).
+    pub thinking_budget: Option<i32>,
+    /// Extra instructions added to every chat with this model.
+    pub system_extra: String,
+}
+
+impl ModelOverride {
+    /// Applies the sampling and thinking overrides to a turn's plan (values clamped to sane ranges).
+    pub fn apply(&self, plan: &mut crate::router::TurnPlan) {
+        for s in [&mut plan.profile.think, &mut plan.profile.plain] {
+            if let Some(t) = self.temperature {
+                s.temperature = t.clamp(0.0, 2.0);
+            }
+            if let Some(p) = self.top_p {
+                s.top_p = p.clamp(0.05, 1.0);
+            }
+        }
+        if let (true, Some(b)) = (plan.thinking, self.thinking_budget) {
+            plan.thinking_budget = if b < 0 { -1 } else { b.clamp(64, 32_768) };
+        }
+    }
+}
+
+#[cfg(test)]
+mod override_tests {
+    use super::*;
+
+    #[test]
+    fn overrides_change_sampling_and_thinking() {
+        let mut plan = crate::router::plan_turn(Mode::Deep, ThinkingPref::Auto, "Explain why the sky is blue");
+        assert!(plan.thinking);
+        let o = ModelOverride { temperature: Some(3.0), top_p: Some(0.5), thinking_budget: Some(10), system_extra: String::new() };
+        o.apply(&mut plan);
+        assert_eq!((plan.profile.think.temperature, plan.profile.plain.top_p), (2.0, 0.5), "clamped");
+        assert_eq!(plan.thinking_budget, 64, "at least 64 tokens");
+        let mut unlimited = crate::router::plan_turn(Mode::Auto, ThinkingPref::On, "x");
+        ModelOverride { thinking_budget: Some(-1), ..Default::default() }.apply(&mut unlimited);
+        assert_eq!(unlimited.thinking_budget, -1);
+        let mut off = crate::router::plan_turn(Mode::Fast, ThinkingPref::Off, "x");
+        let before = off;
+        ModelOverride { thinking_budget: Some(900), ..Default::default() }.apply(&mut off);
+        assert_eq!(off, before, "no thinking, nothing to budget");
+    }
+
+    #[test]
+    fn overrides_are_saved_in_camel_case() {
+        let mut s = Settings::default();
+        s.model_overrides.insert("qwen3-8b:Q4_K_M".into(), ModelOverride { temperature: Some(0.3), system_extra: "Be brief.".into(), ..Default::default() });
+        let v = serde_json::to_value(&s).unwrap();
+        assert_eq!(v["modelOverrides"]["qwen3-8b:Q4_K_M"]["temperature"], serde_json::json!(0.3f32));
+        assert_eq!(v["batterySaver"], true);
+        let back: Settings = serde_json::from_value(v).unwrap();
+        assert_eq!(back.model_overrides["qwen3-8b:Q4_K_M"].system_extra, "Be brief.");
     }
 }

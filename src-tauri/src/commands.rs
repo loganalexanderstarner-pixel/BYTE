@@ -795,3 +795,45 @@ pub async fn profile_switch(app: AppHandle, state: State<'_, AppState>, id: Stri
     }
     app.restart();
 }
+
+/// Meters for the tuning panel.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveStats {
+    pub ram_used_bytes: u64,
+    pub ram_total_bytes: u64,
+    pub engine_rss_bytes: Option<u64>,
+    pub gpu_budget_bytes: u64,
+    pub battery: Option<Battery>,
+    pub battery_saving: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Battery {
+    pub percent: u8,
+    pub charging: bool,
+}
+
+#[tauri::command]
+pub async fn engine_live(state: State<'_, AppState>) -> AppResult<LiveStats> {
+    use sysinfo::{Pid, ProcessesToUpdate, System};
+    let mut sys = System::new();
+    sys.refresh_memory();
+    let engine_rss_bytes = state.engine.pid().and_then(|pid| {
+        let pid = Pid::from_u32(pid);
+        sys.refresh_processes(ProcessesToUpdate::Some(&[pid]), true);
+        sys.process(pid).map(|p| p.memory())
+    });
+    let settings = state.settings.lock().await.clone();
+    let info = system::system_info(&state.paths.data).with_settings(&settings);
+    let battery = system::battery();
+    Ok(LiveStats {
+        ram_used_bytes: sys.used_memory(),
+        ram_total_bytes: sys.total_memory(),
+        engine_rss_bytes,
+        gpu_budget_bytes: info.gpu_budget_bytes,
+        battery_saving: settings.battery_saver && battery.is_some_and(|(p, c)| p < 20 && !c),
+        battery: battery.map(|(percent, charging)| Battery { percent, charging }),
+    })
+}

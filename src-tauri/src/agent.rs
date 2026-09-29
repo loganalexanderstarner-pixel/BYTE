@@ -431,11 +431,9 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     // Fact-check first (asked for, or "is it true that…"), then compare &
     // decide ("X vs Y"), then research; each hands the model numbered notes.
     // Translate: BYTE translates part by part and streams it (translate.rs).
-    if session.is_none() && turn.modules.translate && crate::translate::ask(&question).is_some() {
-        if crate::translate::run(&turn, &question, &cancel, &send).await?.is_some() {
-            send(ChatEvent::Done { finish_reason: "stop".into() })?;
-            return Ok(());
-        }
+    if session.is_none() && turn.modules.translate && crate::translate::ask(&question).is_some() && crate::translate::run(&turn, &question, &cancel, &send).await?.is_some() {
+        send(ChatEvent::Done { finish_reason: "stop".into() })?;
+        return Ok(());
     }
     let mut prepared: Option<(SourceBook, String, &str)> = None;
     if let Some(s) = session.as_mut() {

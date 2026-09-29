@@ -359,7 +359,11 @@ pub fn key(model: &CatalogModel, variant: &Variant) -> String {
 
 /// Holds the current catalog; replaced when a newer one is fetched.
 pub struct CatalogStore {
+    /// The embedded or fetched catalog.
+    base: RwLock<Arc<Catalog>>,
+    /// `base` plus the models the user added (lab.rs); what `get` returns.
     current: RwLock<Arc<Catalog>>,
+    added: RwLock<Vec<CatalogModel>>,
     cache_file: PathBuf,
 }
 
@@ -372,7 +376,28 @@ impl CatalogStore {
             Some(c) if c.generated > embedded.generated => c,
             _ => embedded,
         };
-        CatalogStore { current: RwLock::new(Arc::new(best)), cache_file }
+        let best = Arc::new(best);
+        CatalogStore { base: RwLock::new(best.clone()), current: RwLock::new(best), added: RwLock::new(Vec::new()), cache_file }
+    }
+
+    /// Sets the models the user added (model lab) and rebuilds the merged list.
+    pub fn set_added(&self, models: Vec<CatalogModel>) {
+        *self.added.write().expect("catalog lock") = models;
+        self.rebuild();
+    }
+
+    fn rebuild(&self) {
+        let base = self.base.read().expect("catalog lock").clone();
+        let added = self.added.read().expect("catalog lock").clone();
+        let merged = if added.is_empty() {
+            base
+        } else {
+            let mut c = (*base).clone();
+            c.models.retain(|m| !added.iter().any(|a| a.id == m.id));
+            c.models.extend(added);
+            Arc::new(c)
+        };
+        *self.current.write().expect("catalog lock") = merged;
     }
 
     pub fn get(&self) -> Arc<Catalog> {
@@ -383,11 +408,12 @@ impl CatalogStore {
     pub async fn refresh(&self, client: &reqwest::Client, url: &str) -> AppResult<bool> {
         let text = client.get(url).timeout(Duration::from_secs(15)).send().await?.error_for_status()?.text().await?;
         let fresh = Catalog::parse(&text)?;
-        if fresh.generated <= self.get().generated {
+        if fresh.generated <= self.base.read().expect("catalog lock").generated {
             return Ok(false);
         }
         let _ = std::fs::write(&self.cache_file, &text);
-        *self.current.write().expect("catalog lock") = Arc::new(fresh);
+        *self.base.write().expect("catalog lock") = Arc::new(fresh);
+        self.rebuild();
         Ok(true)
     }
 }
@@ -624,7 +650,7 @@ pub fn recommend<'a>(catalog: &'a Catalog, info: &SystemInfo, ctx: u32) -> Optio
     let options: Vec<(&CatalogModel, &Variant)> = catalog
         .models
         .iter()
-        .filter(|m| m.role == Role::Chat && !m.is_community())
+        .filter(|m| m.role == Role::Chat && !m.is_community() && !m.tags.iter().any(|t| t == "added"))
         .filter_map(|m| best_variant(m, info, ctx).map(|v| (m, v)))
         .collect();
     // Accuracy first: never trade more than a few quality points for speed

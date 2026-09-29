@@ -18,11 +18,13 @@ mod embed;
 mod kb;
 mod jobs;
 mod kitchen;
+mod lab;
 mod looker;
 mod engine;
 mod export;
 mod factcheck;
 mod files;
+mod gguf;
 mod ocr;
 mod memory;
 mod error;
@@ -79,6 +81,8 @@ pub fn run() {
             state.extras.reap_stale();
             state.embedder.reap_stale();
             state.looker.reap_stale();
+            // Models the user added (model lab) join the catalog.
+            state.catalog.set_added(crate::lab::load(&state.paths.data.join("added_models.json")).iter().map(crate::lab::LabModel::to_catalog).collect());
             let _ = state.app.set(app.handle().clone());
             let catalog = state.catalog.get();
             let models_dir = state.paths.models.clone();
@@ -162,6 +166,12 @@ pub fn run() {
             commands::file_ingest,
             commands::kb_status,
             commands::looker_status,
+            commands::engine_live,
+            lab::lab_inspect,
+            lab::lab_inspect_url,
+            lab::lab_add,
+            lab::lab_list,
+            lab::lab_remove,
             writing::writing_run,
             writing::writing_outline,
             writing::writing_section,

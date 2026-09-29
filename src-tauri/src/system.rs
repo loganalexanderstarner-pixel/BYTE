@@ -494,3 +494,54 @@ mod tests {
         assert_eq!(gpu_budget(48 * GIB, None), 36 * GIB);
     }
 }
+
+/// Battery charge (percent) and whether it's charging or plugged in; None on desktops.
+pub fn battery() -> Option<(u8, bool)> {
+    #[cfg(target_os = "macos")]
+    {
+        let out = std::process::Command::new("pmset").args(["-g", "batt"]).output().ok()?;
+        parse_pmset(&String::from_utf8_lossy(&out.stdout))
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let dir = std::path::Path::new("/sys/class/power_supply/BAT0");
+        let pct: u8 = std::fs::read_to_string(dir.join("capacity")).ok()?.trim().parse().ok()?;
+        let status = std::fs::read_to_string(dir.join("status")).unwrap_or_default();
+        Some((pct, !status.trim().eq_ignore_ascii_case("discharging")))
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    {
+        None
+    }
+}
+
+/// `pmset -g batt`: "Now drawing from 'Battery Power' … 18%; discharging; 1:52 remaining".
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub fn parse_pmset(text: &str) -> Option<(u8, bool)> {
+    let line = text.lines().find(|l| l.contains('%'))?;
+    let pct: u8 = line.split('%').next()?.rsplit(|c: char| !c.is_ascii_digit()).next()?.parse().ok()?;
+    let on_ac = text.contains("'AC Power'");
+    let charging = on_ac || (line.contains("charging") && !line.contains("discharging")) || line.contains("charged");
+    Some((pct.min(100), charging))
+}
+
+/// Battery saver applies: under 20% and not plugged in.
+pub fn low_battery() -> bool {
+    battery().is_some_and(|(p, charging)| p < 20 && !charging)
+}
+
+#[cfg(test)]
+mod battery_tests {
+    use super::parse_pmset;
+
+    #[test]
+    fn pmset_output_is_read() {
+        let on_battery = "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=4653155)\t18%; discharging; 1:52 remaining present: true\n";
+        assert_eq!(parse_pmset(on_battery), Some((18, false)));
+        let charging = "Now drawing from 'AC Power'\n -InternalBattery-0 (id=4653155)\t57%; charging; 0:48 remaining present: true\n";
+        assert_eq!(parse_pmset(charging), Some((57, true)));
+        let full = "Now drawing from 'AC Power'\n -InternalBattery-0 (id=1)\t100%; charged; 0:00 remaining present: true";
+        assert_eq!(parse_pmset(full), Some((100, true)));
+        assert_eq!(parse_pmset("Now drawing from 'AC Power'\n"), None, "a desktop Mac has no battery");
+    }
+}

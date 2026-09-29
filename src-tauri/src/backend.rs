@@ -223,6 +223,12 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
     let described = if ep.vision { None } else { describe_photos(state, request, on_event).await };
     let request = described.as_ref().unwrap_or(request);
     let setup = Setup::new(state, request, ep).await?;
+    if setup.saving {
+        let lowered = setup.mode != request.mode;
+        let _ = on_event.send(ChatEvent::Notice {
+            text: format!("Battery saver is on (below 20% and unplugged): shorter thinking{}. Plug in for full answers.", if lowered { ", and Auto instead of Deep or Extended" } else { "" }),
+        });
+    }
     let cancel = state.generations.register(&request.request_id).await;
     let result = agent::run(setup.turn(state, request), cancel, on_event).await;
     state.generations.finish(&request.request_id).await;
@@ -253,6 +259,10 @@ struct Setup {
     modules: agent::Modules,
     cloud: Option<crate::cloud::CloudClient>,
     kb: bool,
+    /// The mode used (battery saver can lower it).
+    mode: crate::settings::Mode,
+    /// Battery saver is lightening this turn.
+    saving: bool,
 }
 
 impl Setup {
@@ -268,7 +278,20 @@ impl Setup {
         let profile = catalog.resolve(&ep.model).map(|(m, _)| crate::modelcfg::profile(m)).unwrap_or_default();
         // Unknown models (added by hand) count as small: checking a good card costs nothing.
         let small_model = ep.cloud.is_none() && catalog.resolve(&ep.model).ok().and_then(|(m, _)| m.params_b).is_none_or(|b| b <= crate::quality::SMALL_B);
-        let plan = router::plan_turn(request.mode, request.thinking, last_user).for_model(profile);
+        let (overrides, saver) = {
+            let s = state.settings.lock().await;
+            (s.model_overrides.get(&ep.model).cloned(), s.battery_saver)
+        };
+        // Battery saver: below 20% and unplugged, lighter answers.
+        let saving = saver && ep.cloud.is_none() && crate::system::low_battery();
+        let mode = if saving && matches!(request.mode, crate::settings::Mode::Deep | crate::settings::Mode::Extended) { crate::settings::Mode::Auto } else { request.mode };
+        let mut plan = router::plan_turn(mode, request.thinking, last_user).for_model(profile);
+        if saving && plan.thinking {
+            plan.thinking_budget = if plan.thinking_budget < 0 { 512 } else { plan.thinking_budget.min(512) };
+        }
+        if let Some(o) = &overrides {
+            o.apply(&mut plan);
+        }
         let (web, user_name, memory, about_me, home, depth, web_always, kitchen, metric, web_agent, modules, kb_on, cloud_on) = {
             let s = state.settings.lock().await;
             (s.web_search, s.user_name.clone(), s.memory_enabled && !request.private, s.about_me.clone(), s.home_place.clone(), s.research_depth, s.web_mode == "always", s.kitchen_enabled, s.measure_units == "metric", s.web_agent_enabled, agent::Modules {
@@ -290,6 +313,9 @@ impl Setup {
         if let Some(project) = request.project_id.as_deref().filter(|p| !p.is_empty()).map(|p| state.db.project(p)).transpose()?.flatten() {
             system.push_str(&prompt::project_section(&project.name, &project.instructions));
         }
+        if let Some(extra) = overrides.as_ref().map(|o| o.system_extra.trim()).filter(|e| !e.is_empty()) {
+            system.push_str(&format!("\n\nThe user's extra instructions for this model:\n{extra}"));
+        }
         if let Some(a) = request.assistant_id.as_deref().filter(|a| !a.is_empty()).map(|a| crate::assistants::get(&state.db, a)).transpose()?.flatten() {
             system.push_str(&crate::assistants::prompt_section(&a));
         }
@@ -301,7 +327,7 @@ impl Setup {
         let cloud = if web && !request.private && cloud_on { state.cloud_client().await.ok() } else { None };
         // "My files": the knowledge base is searchable when it's on and has passages.
         let kb = kb_on && crate::kb::chunk_count(&state.db) > 0;
-        Ok(Setup { ep, system, history, plan, web, memory, home, depth, web_always, kitchen, metric, web_agent, modules, cloud, kb })
+        Ok(Setup { ep, system, history, plan, web, memory, home, depth, web_always, kitchen, metric, web_agent, modules, cloud, kb, mode, saving })
     }
 
     fn turn<'a>(&'a self, state: &'a AppState, request: &ChatRequest) -> agent::Turn<'a> {
@@ -313,7 +339,7 @@ impl Setup {
             system: &self.system,
             history: &self.history,
             plan: self.plan,
-            mode: request.mode,
+            mode: self.mode,
             web: self.web,
             memory: self.memory,
             log: &state.actions,
