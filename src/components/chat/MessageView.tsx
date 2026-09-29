@@ -19,6 +19,7 @@ import { MealPlanCard, RecipeIdeasCards } from "../kitchen/KitchenCards";
 import { RecipeCard } from "../kitchen/RecipeCard";
 import { VideoCard } from "./VideoCard";
 import { ApprovalCard, BrowsingBar, SavedFiles } from "./AgentCards";
+import { MacCard } from "./MacCard";
 import { HintsCard, PricesCard, ReviewsCard, SelfCheckNote } from "./ShopCards";
 import { FlashcardsCard, QuizCard } from "../study/StudyCards";
 
@@ -240,6 +241,7 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
       {message.quiz && <QuizCard quiz={message.quiz} />}
       {generating && message.browsing && <BrowsingBar />}
       {message.approvals?.map((a) => <ApprovalCard key={a.id} card={a} />)}
+      {message.mac?.map((d, i) => <MacCard key={i} done={d} />)}
       {message.saved && message.saved.length > 0 && <SavedFiles files={message.saved} />}
       {message.content && (
         <div

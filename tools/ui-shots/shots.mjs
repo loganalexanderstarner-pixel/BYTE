@@ -271,6 +271,8 @@ function initScript({ data }) {
           return [{ id: 11, deckId: 1, front: "What was the Reign of Terror?", back: "1793–94: mass executions of suspected enemies of the Revolution, led by Robespierre's Committee of Public Safety.", ease: 2.5, interval: 6, reps: 2, lapses: 0, due: 0 }];
         case "card_review":
           return {};
+        case "mac_undo":
+          return true;
         case "agent_approve":
           setTimeout(() => window.__agentContinue?.(), 50);
           return true;
@@ -464,6 +466,23 @@ function initScript({ data }) {
             }
             send({ kind: "done", finishReason: "stop" });
             return null;
+          }
+          if (data.mac) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            send({ kind: "toolCall", id: "m0", name: "mac_reminder_add", args: { app: "Reminders", what: "Add the reminder \"Call Mom\"" } });
+            send({ kind: "approval", id: "mac1", action: "mac", title: "Add the reminder \"Call Mom\"", site: "Reminders", url: "", target: "Reminders",
+              fields: [{ label: "Reminder", value: "Call Mom" }, { label: "When", value: "Wed, Sep 30 at 3 PM" }] });
+            let finish;
+            const ended = new Promise((r) => (finish = r));
+            window.__agentContinue = async () => {
+              send({ kind: "approvalDone", id: "mac1", ok: true });
+              send({ kind: "toolResult", id: "m0", ok: true, summary: "Call Mom, due Wed, Sep 30 at 3 PM" });
+              send({ kind: "macDone", app: "Reminders", title: "Add the reminder \"Call Mom\"", detail: "Call Mom, due Wed, Sep 30 at 3 PM", ok: true, undo: "tok1" });
+              for (const t of ["Done! I added **Call Mom** to Reminders for tomorrow (Wednesday) at 3 PM."]) { send({ kind: "content", delta: t }); await wait(10); }
+              send({ kind: "done", finishReason: "stop" });
+              finish(null);
+            };
+            return ended;
           }
           if (data.agent) {
             send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
@@ -1240,6 +1259,24 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".saved-files").scrollIntoViewIfNeeded();
   await shot(p, "21b-agent-done");
   console.log("agent errors:", errors);
+  await ctx.close();
+}
+// Mac control: a reminder waits for OK, then the done card with Undo
+{
+  const { p, ctx, errors } = await page(true, "midnight", { mac: true });
+  await p.getByLabel("Message BYTE").fill("Remind me to call Mom tomorrow at 3pm");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(600);
+  await p.locator(".approval").scrollIntoViewIfNeeded();
+  await shot(p, "23-mac-approval");
+  await p.getByRole("button", { name: "Do it", exact: true }).click();
+  await p.waitForTimeout(600);
+  await p.locator(".mac-card").scrollIntoViewIfNeeded();
+  await shot(p, "23b-mac-done");
+  await p.getByRole("button", { name: "Undo" }).click();
+  await p.waitForTimeout(300);
+  await shot(p, "23c-mac-undone");
+  console.log("mac errors:", errors);
   await ctx.close();
 }
 // Study: flashcards, a quiz, a study session

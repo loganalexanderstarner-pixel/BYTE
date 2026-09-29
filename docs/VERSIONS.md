@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.8.0** | Phase 8 · Model lab and tuning | Try any GGUF model (file or Hugging Face link) with a fit check; per-model tuning with live meters; battery saver | Trying new models, fine control |
+| **v0.9.0** | Phase 9 · Mac control, part 1 | Reminders, calendar, notes, music, Shortcuts, Safari and system settings by asking; asks first, with Undo | Getting things done on your Mac |
+| v0.8.0 | Phase 8 · Model lab and tuning | Try any GGUF model (file or Hugging Face link) with a fit check; per-model tuning with live meters; battery saver | Trying new models, fine control |
 | v0.7.7 | Phase 7 · Long-form and your style | Essays, stories, reports, speeches and poems written from an editable plan; "Write like me" | Writing anything longer |
 | v0.7.6 | Phase 7 · Custom assistants | BYTE set up for one job: your instructions, starters and mode, or a preset | Repeated jobs, your own helpers |
 | v0.7.5 | Phase 7 · Translate and jobs | Translate texts, files and pages part by part; a job search tracker that reads postings from a link | Job hunting, other languages |
@@ -59,7 +60,7 @@ which download is which. Their files and notes are unchanged.
 
 | Version | Phase |
 |---|---|
-| v0.9.0 | Mac control |
+| v0.9.x | Mac control: Mail, Messages, selected text, files, clipboard, terminal |
 | v0.10.0 | Upkeep & automation |
 | v0.11.0 | Input & windows (voice, vision, quick ask) |
 | v0.12.0 | Privacy & polish |

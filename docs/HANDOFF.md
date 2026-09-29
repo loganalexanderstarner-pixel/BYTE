@@ -477,7 +477,7 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 **Done in v0.8.0:** `gguf.rs` + `lab.rs` (model lab, `<data>/added_models.json`, `CatalogStore::set_added`), per-model
 `settings.model_overrides` (`ModelOverride::apply`) + `TuningPanel`, `battery_saver` (`system::battery`), `commands::engine_live`
 (with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
-**Next:** Phase 9 (Mac control) as v0.9.0, planned when it starts. Way of working
+**Next:** the rest of Phase 9 as v0.9.x (Mail and Messages first). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
@@ -505,7 +505,16 @@ compare. Done in v0.8.0:
    (the rule-based router is accurate enough).
 4. Maybe later: Apple MLX engine (10–20% faster on some models; a big rebuild).
 
-### Phase 9 — Mac control ⏳
+### Phase 9 — Mac control 🔄 part 1 done (v0.9.0)
+**Done in v0.9.0:** `macctl.rs`: fixed AppleScripts that take the user's words only as `argv` (never pasted into
+code), rules first (`plan`, `when_in` times, `reminder_title`) and `complete_json` for details (only the title for
+notes; list/calendar names only when said next to the noun); approval card (`web_agent::ask`, action "mac") for
+anything lasting; `ChatEvent::MacDone` card with Undo (`mac_undo`, in-memory tokens); `settings.mac_control`.
+Reminders, Calendar (AppleScript; repeating events don't expand — EventKit later), Notes, Music, Safari tab, dark
+mode, volume/mute, Wi-Fi (`networksetup`), display sleep (`pmset`), System Settings panes, Shortcuts list/run.
+Tests: unit + fake runner flow; real models (Qwen3 0.6B, Gemma 3 1B, Llama 3.2 1B) for details; on macOS CI
+`e2e_scripts_compile_and_run` compiles every script with `osacompile`. **Left** (v0.9.x): Mail, Messages, creating
+shortcuts, selection hotkey, files, Finder Quick Action + `byte://`, clipboard history, terminal helper.
 Everything asks for permission once, shows what it will do, and can be undone where possible (activity list
 with undo; dry-run mode).
 1. **AppleScript/JXA library** (`mac/applescript.rs`, vetted scripts only — the model never writes raw

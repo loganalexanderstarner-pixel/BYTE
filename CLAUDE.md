@@ -53,6 +53,7 @@ src-tauri/                Rust core (Tauri 2)
   src/ocr.rs              text in photos / scanned PDFs (Apple Vision + PDFKit; macOS only)
   src/embed.rs            embedding engine (nomic-embed, own llama-server, on demand, idle stop)
   src/kb.rs               knowledge base: folders → passages → FTS5 + vectors, hybrid search, rescans
+  src/macctl.rs           Mac control: fixed AppleScripts (user words only as argv), approval card, undo
   src/router.rs           per-turn thinking/length plan by mode
   src/prompt.rs           system prompt (identity, date, mode rules)
   src/backend.rs          ModelBackend trait: LocalLlama + Cloud, fallback rules (chat_send goes through it)

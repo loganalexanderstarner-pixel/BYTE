@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.0 — Mac control, part 1
+
+- Ask BYTE to add **reminders**, **calendar events** and **notes**, read your reminders, schedule and notes, play and
+  control **Music**, run **Shortcuts**, read Safari's current tab, and change **dark mode, volume, Wi-Fi** and open
+  any **System Settings** page.
+- BYTE asks before adding or changing anything, shows exactly what it will do, and can **undo** notes, reminders and
+  events it added. It runs only fixed actions; your words are passed as plain text and can't become commands.
+- Settings → About → Features → **Mac control** switches it off.
+
 ## 0.8.0 — Model lab, advanced tuning and battery saver (Phase 8 complete)
 
 - **Model lab** (Settings → Models): add any GGUF model from a file on your Mac or a Hugging Face link. BYTE reads

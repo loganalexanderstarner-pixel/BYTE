@@ -17,6 +17,26 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — Writing studio: Shorten and Expand get a word target
+- **Why:** the Mac engine test failed on v0.8.0 (`writing::tests::e2e_writing`): asked for "about half", Qwen3 0.6B
+  cut only 15%. A real quality bug on small models, not a flake.
+- **What:** `writing::length_target` adds "The text has N words; your version must have at most N/2 words" (Expand:
+  about 2×N) to the request; unit test `shorten_and_expand_get_a_word_target`.
+- **Verify:** `BYTE_TEST_MODEL=Qwen3-0.6B cargo test writing::tests::e2e_writing -- --ignored` (3/3 pass; 357 → 132
+  characters).
+- **Undo:** revert.
+
+### (this commit) — v0.9.0: Mac control, part 1
+- **Why:** Phase 9 (owner: keep going through the phases). First slice: the Apple apps people use most, done safely.
+- **What:** `macctl.rs` (+ `macctl_tests.rs`): fixed AppleScripts with the user's words only as `argv`, rules first
+  (`plan`, `when_in`, `reminder_title`) and `complete_json` for details, approval card (`web_agent::ask` now
+  `pub(crate)`, action "mac") for lasting changes, `ChatEvent::MacDone` + `mac_undo`, `settings.mac_control`;
+  routed first in `agent::specialist`. UI: `MacCard.tsx`, approval card for "mac", Activity labels, Settings toggle,
+  screenshots `23*`. `mac-engine.yml` runs `e2e_scripts_compile_and_run` (osacompile every script). Docs + bump 0.9.0.
+- **Verify:** `cargo test macctl` (14); real models: `BYTE_TEST_MODEL=<Qwen3-0.6B|gemma-3-1b|Llama-3.2-1B> cargo test
+  macctl -- --include-ignored` (all pass); the owner tries "remind me to … tomorrow at 3pm" on the Mac.
+- **Undo:** revert; the module can also be switched off in Settings.
+
 ### (this commit) — Version 0.8.0 (Phase 8 complete)
 - **What:** `docs/releases/v0.8.0.md`, VERSIONS, CHANGELOG, HANDOFF, PROJECT_GUIDE; `node scripts/bump.mjs 0.8.0`.
 - **Verify:** `scripts/check-all.sh`; the `release.yml` run for `v0.8.0` attaches the .dmg.

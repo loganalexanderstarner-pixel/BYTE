@@ -130,6 +130,8 @@ pub enum ChatEvent {
     ApprovalDone { id: String, ok: bool },
     /// A file the web agent saved (a download, or a page as PDF/picture).
     Saved(crate::web_agent::SavedFile),
+    /// BYTE did something in a Mac app (macctl.rs), with Undo when it added something.
+    MacDone(crate::macctl::MacDone),
     /// The web agent's browser opened (true) or closed (false).
     Browsing { active: bool },
     /// What reviewers say: ratings, pros and cons (reviews.rs).

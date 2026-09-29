@@ -111,7 +111,7 @@ pub struct Field {
 #[serde(rename_all = "camelCase")]
 pub struct ApprovalAsk {
     pub id: String,
-    /// "submit" | "download" | "click"
+    /// "submit" | "download" | "click" | "mac" (Mac control)
     pub action: String,
     /// Short sentence for the card's title, e.g. "Submit the form on example.com".
     pub title: String,
@@ -207,7 +207,7 @@ pub fn answer(id: &str, ok: bool) -> bool {
 }
 
 /// Shows an approval card and waits for the answer (Deny on timeout).
-async fn ask(ask: ApprovalAsk, wait: Duration, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<bool> {
+pub(crate) async fn ask(ask: ApprovalAsk, wait: Duration, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<bool> {
     let id = ask.id.clone();
     let rx = wait_for(&id);
     send(ChatEvent::Approval(ask))?;

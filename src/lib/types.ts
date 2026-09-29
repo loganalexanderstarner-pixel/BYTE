@@ -55,6 +55,8 @@ export interface Settings {
   batterySaver?: boolean;
   /** "Translate … into …" in chat, part by part. */
   translateEnabled?: boolean;
+  /** Mac control: notes, reminders, calendar, music, settings (macOS). */
+  macControl?: boolean;
   /** The job search tracker (💼). */
   jobsEnabled?: boolean;
   /** Custom assistants (🤖). */
@@ -410,6 +412,7 @@ export type ChatEvent =
   | { kind: "approvalDone"; id: string; ok: boolean }
   | ({ kind: "saved" } & SavedFile)
   | { kind: "browsing"; active: boolean }
+  | ({ kind: "macDone" } & MacDone)
   | ({ kind: "reviews" } & Reviews)
   | ({ kind: "prices" } & Prices)
   | ({ kind: "hints" } & GameHints)
@@ -501,10 +504,19 @@ export interface SelfCheck {
   issues: { claim: string; sources: number[]; verdict: "partly" | "no"; note: string }[];
 }
 
+/** BYTE did something in a Mac app (Rust `macctl::MacDone`). `undo` is a token for `mac_undo`. */
+export interface MacDone {
+  app: string;
+  title: string;
+  detail: string;
+  ok: boolean;
+  undo: string | null;
+}
+
 /** The web agent asks before submitting, committing or downloading (Rust `web_agent::ApprovalAsk`). */
 export interface ApprovalAsk {
   id: string;
-  action: "submit" | "download" | "click";
+  action: "submit" | "download" | "click" | "mac";
   title: string;
   site: string;
   url: string;

@@ -183,6 +183,7 @@ export const api = {
   // Web agent (web_agent/ in Rust).
   /** Answers an approval card; false when it's no longer waiting. */
   agentApprove: (id: string, ok: boolean) => invoke<boolean>("agent_approve", { id, ok }),
+  macUndo: (token: string) => invoke<boolean>("mac_undo", { token }),
   /** Shows or hides the agent's browser window; false when none is open. */
   agentShow: (visible: boolean) => invoke<boolean>("agent_show", { visible }),
   /** Opens a saved page/picture, or shows any saved file in Finder. */

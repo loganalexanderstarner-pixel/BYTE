@@ -162,6 +162,9 @@ pub struct Settings {
     /// Below 20% battery and unplugged: Deep/Extended answer like Auto, and thinking is short.
     #[serde(default = "yes")]
     pub battery_saver: bool,
+    /// Mac control: BYTE uses Notes, Reminders, Calendar, Music and settings when asked (macOS).
+    #[serde(default = "yes")]
+    pub mac_control: bool,
     /// "Translate … into …" in chat: part by part, for long texts, files and pages.
     #[serde(default = "yes")]
     pub translate_enabled: bool,
@@ -237,6 +240,7 @@ impl Default for Settings {
             model_overrides: Default::default(),
             battery_saver: true,
             translate_enabled: true,
+            mac_control: true,
             jobs_enabled: true,
             assistants_enabled: true,
             answer_cache: true,

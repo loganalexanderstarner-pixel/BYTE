@@ -729,6 +729,13 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
+            Mac control
+            <small>“Remind me to call Mom tomorrow at 3pm”, “make a note: …”, “what's on my calendar today?”, “turn on dark mode”, “play some jazz”, “run my Morning shortcut”. BYTE asks before adding or changing anything, and macOS asks once per app.</small>
+          </span>
+          <input type="checkbox" checked={settings?.macControl ?? true} onChange={(e) => void update({ macControl: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
             Job search
             <small>The 💼 tracker: paste a posting's link and BYTE fills it in; statuses, deadlines, notes and interview prep.</small>
           </span>

@@ -108,6 +108,8 @@ pub struct Modules {
     pub small_model: bool,
     /// "Translate … into …": part by part, streamed (translate.rs).
     pub translate: bool,
+    /// Mac control: notes, reminders, calendar, music, settings (macctl.rs).
+    pub mac: bool,
 }
 
 /// BYTE searches before the model answers any question about the world
@@ -732,7 +734,9 @@ async fn specialist(
     send: Emit<'_>,
 ) -> AppResult<Option<(SourceBook, String, &'static str)>> {
     let q = question;
-    Ok(if crate::youtube::applies(turn.web, q, turn.history) {
+    Ok(if crate::macctl::applies(turn.modules.mac, q) {
+        crate::macctl::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
+    } else if crate::youtube::applies(turn.web, q, turn.history) {
         crate::youtube::run(turn, q, used_tokens, cancel, send).await?.map(|(b, n)| (b, n, "youtube"))
     } else if !weather_done && crate::factcheck::applies(turn.web, turn.task == Some(Task::FactCheck), q) {
         let (b, n) = crate::factcheck::run(turn, q, used_tokens, cancel, send).await?;
@@ -1055,7 +1059,7 @@ mod tests {
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let http = chat::local_client();
         let net = tools::fetch::web_client();
-        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false };
+        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false, mac: false };
         let cases = [
             ("Reviews of the Sony WH-1000XM5", Mode::Auto, "reviews"),
             ("What's the cheapest place to buy a Steam Deck OLED?", Mode::Auto, "prices"),

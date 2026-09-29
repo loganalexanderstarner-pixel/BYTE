@@ -37,6 +37,7 @@ import type {
   VideoCard,
   ApprovalCard,
   SavedFile,
+  MacDone,
   Reviews,
   Prices,
   GameHints,
@@ -124,6 +125,8 @@ export interface Message {
   /** Web agent: approval cards (submit, download…), files it saved, and whether its browser is open. */
   approvals?: ApprovalCard[];
   saved?: SavedFile[];
+  /** What BYTE did in Mac apps (Mac control), with Undo tokens. */
+  mac?: MacDone[];
   browsing?: boolean;
   /** Reviews, prices and game-hint cards; the self-check note under the answer. */
   reviews?: Reviews;
@@ -635,6 +638,11 @@ export const useStore = create<State>((set, get) => {
         case "saved": {
           const { kind: _kind, ...file } = e;
           patchMessage(convId, reply.id, (m) => ({ ...m, saved: [...(m.saved ?? []), file] }));
+          break;
+        }
+        case "macDone": {
+          const { kind: _kind, ...done } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, mac: [...(m.mac ?? []), done] }));
           break;
         }
         case "browsing":

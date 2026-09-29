@@ -3758,6 +3758,43 @@ kbd {
 }
 
 /* Web agent: approval cards, saved files, the browsing bar. */
+/* Mac control: what BYTE did in an app, with Undo */
+.mac-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--ok) 40%, var(--border));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--ok) 6%, var(--surface));
+}
+.mac-card.failed {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  background: color-mix(in srgb, var(--danger) 6%, var(--surface));
+}
+.mac-card.undone {
+  border-color: var(--border);
+  background: var(--surface);
+  opacity: 0.75;
+}
+.mac-card .mac-icon {
+  flex: none;
+  color: var(--ok);
+}
+.mac-card.failed .mac-icon {
+  color: var(--danger);
+}
+.mac-card .mac-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.mac-card .mac-text .muted {
+  overflow-wrap: anywhere;
+}
 .approval {
   margin: var(--space-2) 0 var(--space-3);
   padding: var(--space-3);

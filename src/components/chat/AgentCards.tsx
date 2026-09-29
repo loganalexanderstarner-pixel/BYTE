@@ -20,7 +20,7 @@ export function ApprovalCard({ card }: { card: Card }) {
       setBusy(false);
     }
   };
-  const Icon = card.action === "download" ? Download : Send;
+  const Icon = card.action === "download" ? Download : card.action === "mac" ? Check : Send;
   return (
     <div className={`approval ${card.status}`} role="region" aria-label="Needs your OK">
       <div className="approval-head">
@@ -38,7 +38,15 @@ export function ApprovalCard({ card }: { card: Card }) {
         </dl>
       )}
       <div className="approval-site">
-        {card.action === "download" ? "From" : "On"} <span className="mono">{card.url}</span>
+        {card.action === "mac" ? (
+          <>
+            In <b>{card.site}</b> on this Mac
+          </>
+        ) : (
+          <>
+            {card.action === "download" ? "From" : "On"} <span className="mono">{card.url}</span>
+          </>
+        )}
       </div>
       {card.status === "waiting" ? (
         <div className="approval-actions">
@@ -48,9 +56,11 @@ export function ApprovalCard({ card }: { card: Card }) {
           <button className="btn sm ghost" disabled={busy} onClick={() => void decide(false)}>
             <X size={13} /> Don't
           </button>
-          <button className="btn sm ghost" onClick={() => void api.agentShow(true)} title="See the page BYTE is using">
-            <AppWindow size={13} /> Show the page
-          </button>
+          {card.action !== "mac" && (
+            <button className="btn sm ghost" onClick={() => void api.agentShow(true)} title="See the page BYTE is using">
+              <AppWindow size={13} /> Show the page
+            </button>
+          )}
           {error && <span className="hint danger">{error}</span>}
         </div>
       ) : (
@@ -61,11 +71,11 @@ export function ApprovalCard({ card }: { card: Card }) {
             </>
           ) : card.status === "declined" ? (
             <>
-              <X size={13} /> You said no, so nothing was sent
+              <X size={13} /> You said no, so nothing {card.action === "mac" ? "was changed" : "was sent"}
             </>
           ) : (
             <>
-              <X size={13} /> Not answered, so nothing was sent
+              <X size={13} /> Not answered, so nothing {card.action === "mac" ? "was changed" : "was sent"}
             </>
           )}
         </div>

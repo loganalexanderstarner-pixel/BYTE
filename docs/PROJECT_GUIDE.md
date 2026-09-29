@@ -17,7 +17,7 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 | 7 | Writing & learning: studio, long-form, style, flashcards, quizzes, tutor, custom assistants | In progress: flashcards (SM-2, Study panel, Anki export), quizzes, tutor (v0.7.0); writing studio (v0.7.4); translate and job tracker (v0.7.5); custom assistants (v0.7.6); long-form writer, style cloning, poems and speeches (v0.7.7). **Done** |
 | 8 | Speed: Speed boost (drafters + MTP/EAGLE-3/DSpark heads), repeated-text guessing, per-Mac tuning, measured-speed recommendations, CPU offload, GPU share, thinking router + model lab, advanced tuning panel, battery saver | ✅ Done (test.7–test.9, v0.8.0) |
 | Cloud | BYTE cloud backend: chat, streaming, actions, attachments, documents with approval, account data | ✅ Built (test.10), awaiting real-cluster check; tab redesign + "Both" next (see HANDOFF) |
-| 9 | Mac control: Apple apps, Shortcuts, files, clipboard, undo & dry-run | Planned |
+| 9 | Mac control: Apple apps, Shortcuts, files, clipboard, undo & dry-run | 🔄 Part 1 done (v0.9.0: Reminders, Calendar, Notes, Music, Shortcuts, Safari, system toggles, approval + undo); Mail, Messages, selection, files, clipboard, terminal left |
 | 10 | Upkeep & automation: scheduler, briefing, watchers, trackers, connectors, dashboards | Planned |
 | 11 | Input & windows: voice, vision, Quick Ask, floating widget, menu-bar popover, palette, notes | Planned |
 | 12 | Privacy & polish: offline, Touch ID, permissions dashboard, sharing, v1.0 (20 themes + byte-ai palette + eight-bit logo already done) | Planned |

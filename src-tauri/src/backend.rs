@@ -309,6 +309,7 @@ impl Setup {
                 study: s.study_enabled,
                 small_model,
                 translate: s.translate_enabled,
+                mac: s.mac_control,
             }, s.kb_enabled, s.cloud_connected)
         };
         let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());

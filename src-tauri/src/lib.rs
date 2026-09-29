@@ -19,6 +19,7 @@ mod kb;
 mod jobs;
 mod kitchen;
 mod lab;
+mod macctl;
 mod looker;
 mod engine;
 mod export;
@@ -172,6 +173,7 @@ pub fn run() {
             lab::lab_add,
             lab::lab_list,
             lab::lab_remove,
+            macctl::mac_undo,
             writing::writing_run,
             writing::writing_outline,
             writing::writing_section,
