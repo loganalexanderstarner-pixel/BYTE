@@ -17,6 +17,20 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — v0.7.1: the cards in Cloud mode (made on this Mac, written by the cloud)
+- **Why:** owner: "Does all these cool features like the recipe thing and the compare thing work on cloud mode too".
+  They didn't: Cloud mode sent the message straight to the cluster, whose API is chat only (no structured replies to
+  build cards from).
+- **What:** `agent.rs`: the card flows move into `specialist()` (used by `run` as before) and `prepare()` runs just
+  them, returning `Prepared { sources, notes, kind }`; `cloud_message()` is the question plus the notes.
+  `backend.rs`: `Setup` builds the local `Turn` for both paths (no duplicated settings reads); `prepare_for_cloud()`;
+  `answer()` for Cloud (not Both, not private) prepares first when a model is loaded here, answers study cards itself
+  (`study::reply_for`), sends the cloud the notes, then re-sends the card's sources so [n] match.
+- **Verify:** `scripts/check-all.sh` (257 Rust incl. `the_cloud_gets_the_question_and_the_notes`); real engine
+  `cargo test e2e_prepare_for_cloud -- --ignored` (a recipe-ideas card and notes, nothing written; a joke prepares
+  nothing). The cloud half is the existing, tested `cloud::cmd::send`.
+- **Undo:** revert; Cloud mode then sends questions unchanged again.
+
 ### (this commit) — tutor mode never solves the problem for you (fix for the red Mac engine test on 2d45eca)
 - **Why:** the Mac engine CI job failed `study::tests::e2e_study`: with Qwen3-0.6B, tutor mode's step said "… x = 4"
   and its question echoed "Learner: How do I solve…". The leak guard only knew the calculator's result, and an

@@ -32,6 +32,7 @@ pub struct Schedule {
 }
 
 impl Schedule {
+    #[cfg(test)]
     pub fn new(today: i64) -> Schedule {
         Schedule { ease: 2.5, interval: 0, reps: 0, lapses: 0, due: today }
     }

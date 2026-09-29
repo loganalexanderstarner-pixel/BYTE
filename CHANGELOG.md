@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.1 — Cards in Cloud mode, and a steadier tutor
+
+- **The cards now work in Cloud mode** when a model is loaded on your Mac: recipes and meal plans, compare tables,
+  trips, reviews, prices, game hints, YouTube summaries, fact-checks, flashcards and quizzes. BYTE makes the card on
+  your Mac (it searches, reads pages and fills in the card), then your BYTE cloud writes the answer from what BYTE
+  found, citing the same sources. Flashcards and quizzes need no cloud answer at all. With no model on your Mac,
+  Cloud mode works as before. (Your cloud chat shows your question with BYTE's notes under it.)
+- **Tutor mode** no longer gives the answer away with small models: hints are checked against the solved problem,
+  and if a model can't help without solving it, BYTE asks a first question instead.
+
 ## 0.7.0 — Phase 7: study tools (flashcards, quizzes, tutor)
 
 - **Flashcards**: "make flashcards about the French Revolution", "20 flashcards on photosynthesis", or attach your

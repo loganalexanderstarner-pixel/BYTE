@@ -94,7 +94,43 @@ pub async fn answer(state: &AppState, mut request: ChatRequest, on_event: &Chann
         local.mode = crate::cloud::cmd::local_mode(&turn.mode);
         local
     });
-    with_fallback(state, &Cloud { turn: &turn }, &request, &LocalLlama, fallback.as_ref(), on_event).await
+    // Cards (recipes, compare tables, trips, reviews…) are made on this Mac when a
+    // model is loaded here; the cloud then writes the answer from BYTE's notes.
+    // Not in Both (this Mac already answers beside the cloud, cards and all).
+    let prepared = if turn.no_fallback {
+        None
+    } else {
+        match prepare_for_cloud(state, &request, on_event).await {
+            Ok(p) => p,
+            Err(AppError::Cancelled) => {
+                let _ = on_event.send(ChatEvent::Done { finish_reason: "cancelled".into() });
+                return Ok(());
+            }
+            Err(e) => {
+                log::warn!("couldn't prepare cards for the cloud: {e}");
+                None
+            }
+        }
+    };
+    if let Some(p) = &prepared {
+        // Flashcards and quizzes need no written answer: BYTE's own short reply.
+        if let Some(reply) = (p.kind == "study").then(|| crate::study::reply_for(&p.notes)).flatten() {
+            let _ = on_event.send(ChatEvent::Content { delta: reply });
+            let _ = on_event.send(ChatEvent::Done { finish_reason: "stop".into() });
+            return Ok(());
+        }
+        if let Some(last) = request.messages.iter_mut().rev().find(|m| m.role == "user") {
+            last.content = agent::cloud_message(chat::question_text(&last.content), p);
+        }
+    }
+    let result = with_fallback(state, &Cloud { turn: &turn }, &request, &LocalLlama, fallback.as_ref(), on_event).await;
+    // The card's sources are the ones the answer cites ([n]).
+    if let Some(p) = prepared.filter(|p| !p.sources.is_empty()) {
+        if result.is_ok() {
+            let _ = on_event.send(ChatEvent::Sources { sources: p.sources });
+        }
+    }
+    result
 }
 
 /// Runs `primary`; if it can't be reached before it accepted the turn,
@@ -181,70 +217,9 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
     if reuse_earlier_answer(state, request, &ep, on_event).await {
         return Ok(());
     }
-    let last_user = request
-        .messages
-        .iter()
-        .rev()
-        .find(|m| m.role == "user")
-        .map(|m| chat::question_text(&m.content))
-        .unwrap_or("");
-    let catalog = state.catalog.get();
-    let profile = catalog.resolve(&ep.model).map(|(m, _)| crate::modelcfg::profile(m)).unwrap_or_default();
-    let plan = router::plan_turn(request.mode, request.thinking, last_user).for_model(profile);
-    let (web, user_name, memory, about_me, home, depth, web_always, kitchen, metric, web_agent, modules) = {
-        let s = state.settings.lock().await;
-        (s.web_search, s.user_name.clone(), s.memory_enabled && !request.private, s.about_me.clone(), s.home_place.clone(), s.research_depth, s.web_mode == "always", s.kitchen_enabled, s.measure_units == "metric", s.web_agent_enabled, agent::Modules {
-            reviews: s.reviews_enabled,
-            prices: s.prices_enabled,
-            game_hints: s.game_hints_enabled,
-            self_check: s.self_check,
-            best_of_three: s.best_of_three,
-            study: s.study_enabled,
-        })
-    };
-    let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());
-    if memory {
-        let memories: Vec<String> = state.db.memories()?.into_iter().map(|m| m.text).collect();
-        system.push_str(&prompt::memory_section(about_me.as_deref(), &memories, true));
-    }
-    if let Some(project) = request.project_id.as_deref().filter(|p| !p.is_empty()).map(|p| state.db.project(p)).transpose()?.flatten() {
-        system.push_str(&prompt::project_section(&project.name, &project.instructions));
-    }
-    let reserve = plan.max_tokens + plan.thinking_budget.max(0) as u32;
-    let messages = chat::with_files(&request.messages, ep.context, ep.vision);
-    let history = chat::fit_history(&messages, &system, ep.context, reserve.min(ep.context / 2));
-
-    // Web search goes through the BYTE cloud when a key is saved (its SearXNG
-    // beats scraping search engines from this Mac); private chats stay keyless.
-    let cloud = if web && !request.private && state.settings.lock().await.cloud_connected { state.cloud_client().await.ok() } else { None };
-    // "My files": the knowledge base is searchable when it's on and has passages.
-    let kb_on = state.settings.lock().await.kb_enabled;
-    let files = state.app.get().filter(|_| kb_on && crate::kb::chunk_count(&state.db) > 0);
+    let setup = Setup::new(state, request, ep).await?;
     let cancel = state.generations.register(&request.request_id).await;
-    let turn = agent::Turn {
-        http: &state.local_http,
-        net: &state.net,
-        cloud: cloud.as_ref(),
-        ep: &ep,
-        system: &system,
-        history: &history,
-        plan,
-        mode: request.mode,
-        web,
-        memory,
-        log: &state.actions,
-        files,
-        app: state.app.get(),
-        task: request.task,
-        home: home.as_deref(),
-        depth: depth.min(2),
-        web_always,
-        kitchen,
-        metric,
-        agent: web_agent,
-        modules,
-    };
-    let result = agent::run(turn, cancel, on_event).await;
+    let result = agent::run(setup.turn(state, request), cancel, on_event).await;
     state.generations.finish(&request.request_id).await;
     match result {
         Err(AppError::Cancelled) => {
@@ -255,6 +230,109 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
     }
 }
 
+/// Everything a local turn needs, owned (settings read once), so the answer
+/// loop and the cloud's card preparation build the same `agent::Turn`.
+struct Setup {
+    ep: crate::engine::Endpoint,
+    system: String,
+    history: Vec<chat::ChatMessage>,
+    plan: router::TurnPlan,
+    web: bool,
+    memory: bool,
+    home: Option<String>,
+    depth: u8,
+    web_always: bool,
+    kitchen: bool,
+    metric: bool,
+    web_agent: bool,
+    modules: agent::Modules,
+    cloud: Option<crate::cloud::CloudClient>,
+    kb: bool,
+}
+
+impl Setup {
+    async fn new(state: &AppState, request: &ChatRequest, ep: crate::engine::Endpoint) -> AppResult<Setup> {
+        let last_user = request
+            .messages
+            .iter()
+            .rev()
+            .find(|m| m.role == "user")
+            .map(|m| chat::question_text(&m.content))
+            .unwrap_or("");
+        let catalog = state.catalog.get();
+        let profile = catalog.resolve(&ep.model).map(|(m, _)| crate::modelcfg::profile(m)).unwrap_or_default();
+        let plan = router::plan_turn(request.mode, request.thinking, last_user).for_model(profile);
+        let (web, user_name, memory, about_me, home, depth, web_always, kitchen, metric, web_agent, modules, kb_on, cloud_on) = {
+            let s = state.settings.lock().await;
+            (s.web_search, s.user_name.clone(), s.memory_enabled && !request.private, s.about_me.clone(), s.home_place.clone(), s.research_depth, s.web_mode == "always", s.kitchen_enabled, s.measure_units == "metric", s.web_agent_enabled, agent::Modules {
+                reviews: s.reviews_enabled,
+                prices: s.prices_enabled,
+                game_hints: s.game_hints_enabled,
+                self_check: s.self_check,
+                best_of_three: s.best_of_three,
+                study: s.study_enabled,
+            }, s.kb_enabled, s.cloud_connected)
+        };
+        let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());
+        if memory {
+            let memories: Vec<String> = state.db.memories()?.into_iter().map(|m| m.text).collect();
+            system.push_str(&prompt::memory_section(about_me.as_deref(), &memories, true));
+        }
+        if let Some(project) = request.project_id.as_deref().filter(|p| !p.is_empty()).map(|p| state.db.project(p)).transpose()?.flatten() {
+            system.push_str(&prompt::project_section(&project.name, &project.instructions));
+        }
+        let reserve = plan.max_tokens + plan.thinking_budget.max(0) as u32;
+        let messages = chat::with_files(&request.messages, ep.context, ep.vision);
+        let history = chat::fit_history(&messages, &system, ep.context, reserve.min(ep.context / 2));
+        // Web search goes through the BYTE cloud when a key is saved (its SearXNG
+        // beats scraping search engines from this Mac); private chats stay keyless.
+        let cloud = if web && !request.private && cloud_on { state.cloud_client().await.ok() } else { None };
+        // "My files": the knowledge base is searchable when it's on and has passages.
+        let kb = kb_on && crate::kb::chunk_count(&state.db) > 0;
+        Ok(Setup { ep, system, history, plan, web, memory, home, depth, web_always, kitchen, metric, web_agent, modules, cloud, kb })
+    }
+
+    fn turn<'a>(&'a self, state: &'a AppState, request: &ChatRequest) -> agent::Turn<'a> {
+        agent::Turn {
+            http: &state.local_http,
+            net: &state.net,
+            cloud: self.cloud.as_ref(),
+            ep: &self.ep,
+            system: &self.system,
+            history: &self.history,
+            plan: self.plan,
+            mode: request.mode,
+            web: self.web,
+            memory: self.memory,
+            log: &state.actions,
+            files: state.app.get().filter(|_| self.kb),
+            app: state.app.get(),
+            task: request.task,
+            home: self.home.as_deref(),
+            depth: self.depth.min(2),
+            web_always: self.web_always,
+            kitchen: self.kitchen,
+            metric: self.metric,
+            agent: self.web_agent,
+            modules: self.modules,
+        }
+    }
+}
+
+/// Cloud mode: when a model is loaded on this Mac, BYTE makes the cards here
+/// (recipes, compare tables, trips, reviews…) and the cloud writes the answer
+/// from the notes. `Ok(None)`: nothing to prepare (or no local model); ask the cloud as usual.
+async fn prepare_for_cloud(state: &AppState, request: &ChatRequest, on_event: &Channel<ChatEvent>) -> AppResult<Option<agent::Prepared>> {
+    if request.private || state.tuning.load(std::sync::atomic::Ordering::SeqCst) {
+        return Ok(None);
+    }
+    let Some(ep) = state.engine.endpoint().await else { return Ok(None) };
+    let setup = Setup::new(state, request, ep).await?;
+    let cancel = state.generations.register(&request.request_id).await;
+    let r = agent::prepare(setup.turn(state, request), cancel, on_event).await;
+    state.generations.finish(&request.request_id).await;
+    r
+}
 
 #[cfg(test)]
 mod tests {

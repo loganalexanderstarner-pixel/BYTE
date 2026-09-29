@@ -443,41 +443,8 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
             push_tool_exchange(&mut messages, &call_id, crate::web_agent::OPEN_URL, &args, step.content);
             used_tools = true;
         }
-    } else if crate::youtube::applies(turn.web, &question, turn.history) {
-        if let Some((b, notes)) = crate::youtube::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
-            prepared = Some((b, notes, "youtube"));
-        }
-    } else if !weather_done && crate::factcheck::applies(turn.web, turn.task == Some(Task::FactCheck), &question) {
-        let (b, notes) = crate::factcheck::run(&turn, &question, estimate(&messages), &cancel, &send).await?;
-        prepared = Some((b, notes, "fact_check"));
-    } else if crate::study::applies(turn.modules.study, &question) {
-        if let Some((b, notes)) = crate::study::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
-            prepared = Some((b, notes, "study"));
-        }
-    } else if crate::kitchen::applies(turn.kitchen, &question) {
-        if let Some((b, notes)) = crate::kitchen::run(&turn, &question, &cancel, &send).await? {
-            prepared = Some((b, notes, "kitchen"));
-        }
-    } else if crate::games::applies(turn.modules.game_hints, turn.web, &question) {
-        if let Some((b, notes)) = crate::games::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
-            prepared = Some((b, notes, "game_hints"));
-        }
-    } else if crate::reviews::applies(turn.modules.reviews, turn.web, &question) {
-        if let Some((b, notes)) = crate::reviews::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
-            prepared = Some((b, notes, "reviews"));
-        }
-    } else if crate::prices::applies(turn.modules.prices, turn.web, &question) {
-        if let Some((b, notes)) = crate::prices::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
-            prepared = Some((b, notes, "prices"));
-        }
-    } else if crate::trip::applies(turn.web, &question) {
-        if let Some((b, notes)) = crate::trip::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
-            prepared = Some((b, notes, "plan_trip"));
-        }
-    } else if !weather_done && crate::decide::applies(turn.web, &question) {
-        if let Some((b, notes)) = crate::decide::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
-            prepared = Some((b, notes, "compare"));
-        }
+    } else {
+        prepared = specialist(&turn, &question, estimate(&messages), weather_done, &cancel, &send).await?;
     }
     let prepared_name: Option<&str> = prepared.as_ref().map(|p| p.2);
     // Flashcards and quizzes get BYTE's own short reply (no spoilers, no repeated lists).
@@ -744,6 +711,75 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     Ok(())
 }
 
+/// BYTE's card-making flows (YouTube, fact-check, study, kitchen, games,
+/// reviews, prices, trips, compare), first match wins. Each shows its card and
+/// returns numbered sources plus notes for the written answer.
+async fn specialist(
+    turn: &Turn<'_>,
+    question: &str,
+    used_tokens: usize,
+    weather_done: bool,
+    cancel: &CancellationToken,
+    send: Emit<'_>,
+) -> AppResult<Option<(SourceBook, String, &'static str)>> {
+    let q = question;
+    Ok(if crate::youtube::applies(turn.web, q, turn.history) {
+        crate::youtube::run(turn, q, used_tokens, cancel, send).await?.map(|(b, n)| (b, n, "youtube"))
+    } else if !weather_done && crate::factcheck::applies(turn.web, turn.task == Some(Task::FactCheck), q) {
+        let (b, n) = crate::factcheck::run(turn, q, used_tokens, cancel, send).await?;
+        Some((b, n, "fact_check"))
+    } else if crate::study::applies(turn.modules.study, q) {
+        crate::study::run(turn, q, used_tokens, cancel, send).await?.map(|(b, n)| (b, n, "study"))
+    } else if crate::kitchen::applies(turn.kitchen, q) {
+        crate::kitchen::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "kitchen"))
+    } else if crate::games::applies(turn.modules.game_hints, turn.web, q) {
+        crate::games::run(turn, q, used_tokens, cancel, send).await?.map(|(b, n)| (b, n, "game_hints"))
+    } else if crate::reviews::applies(turn.modules.reviews, turn.web, q) {
+        crate::reviews::run(turn, q, used_tokens, cancel, send).await?.map(|(b, n)| (b, n, "reviews"))
+    } else if crate::prices::applies(turn.modules.prices, turn.web, q) {
+        crate::prices::run(turn, q, used_tokens, cancel, send).await?.map(|(b, n)| (b, n, "prices"))
+    } else if crate::trip::applies(turn.web, q) {
+        crate::trip::run(turn, q, used_tokens, cancel, send).await?.map(|(b, n)| (b, n, "plan_trip"))
+    } else if !weather_done && crate::decide::applies(turn.web, q) {
+        crate::decide::run(turn, q, used_tokens, cancel, send).await?.map(|(b, n)| (b, n, "compare"))
+    } else {
+        None
+    })
+}
+
+/// What BYTE prepared on this Mac for a cloud answer: the card (already sent
+/// to the UI), its sources, and notes for the cloud model to write from.
+pub struct Prepared {
+    pub sources: Vec<tools::Source>,
+    pub notes: String,
+    pub kind: &'static str,
+}
+
+/// Cloud mode with a model on this Mac: runs the card-making flows here (the
+/// cloud has no way to make cards), so the cloud only writes the answer.
+/// `None` when the question isn't one of them.
+pub async fn prepare(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<ChatEvent>) -> AppResult<Option<Prepared>> {
+    let send = |e: ChatEvent| events.send(e).map_err(|e| AppError::msg(format!("UI channel closed: {e}")));
+    let question = turn.history.iter().rev().find(|m| m.role == "user").map(|m| chat::question_text(&m.content).to_string()).unwrap_or_default();
+    let used = estimate(&chat::base_messages(turn.system, turn.history));
+    let found = specialist(&turn, &question, used, false, &cancel, &send).await?;
+    Ok(found.map(|(book, notes, kind)| {
+        if !book.sources.is_empty() {
+            let _ = send(ChatEvent::Sources { sources: book.sources.clone() });
+        }
+        Prepared { sources: book.sources, notes, kind }
+    }))
+}
+
+/// The message the cloud gets: the question plus what BYTE gathered here.
+pub fn cloud_message(question: &str, p: &Prepared) -> String {
+    format!(
+        "{question}\n\n---\nBYTE already did the research for this on my Mac and showed me a card with the details, so write \
+the answer from these notes (cite them as [n]; no need to search again):\n\n{}",
+        p.notes.chars().take(24_000).collect::<String>()
+    )
+}
+
 /// Opens the web agent's browser; files go to Downloads/BYTE.
 fn open_session(app: &tauri::AppHandle) -> AppResult<crate::web_agent::Session> {
     use tauri::Manager;
@@ -952,6 +988,48 @@ mod tests {
         // Turn 2: whatever the model did, nothing was submitted without approval.
         let submitted = all[1].iter().any(|e| e["kind"] == "toolResult" && e["ok"] == true && e["summary"].as_str().unwrap_or("").contains("Submit order"));
         assert!(!submitted, "submitted without approval");
+    }
+
+    #[test]
+    fn the_cloud_gets_the_question_and_the_notes() {
+        let p = Prepared { sources: vec![], notes: "[1] Banana bread (bbc.co.uk)\nIngredients: …".into(), kind: "kitchen" };
+        let m = cloud_message("How do I make banana bread?", &p);
+        assert!(m.starts_with("How do I make banana bread?\n\n---\n"));
+        assert!(m.contains("[1] Banana bread"));
+        assert!(m.contains("cite them as [n]"));
+        // Long notes are cut so the message stays reasonable.
+        let big = Prepared { sources: vec![], notes: "x".repeat(50_000), kind: "compare" };
+        assert!(cloud_message("q", &big).len() < 25_000);
+    }
+
+    /// Real engine: Cloud mode's preparation makes the card on this Mac and
+    /// hands back notes (no cloud needed to test this half).
+    #[tokio::test]
+    #[ignore]
+    async fn e2e_prepare_for_cloud() {
+        let Some((_server, mut ep)) = start_server_with_ctx(16384).await else { return };
+        ep.context = 16384;
+        let dir = tempfile::tempdir().unwrap();
+        let log = ActionLog::new(dir.path().join("a.jsonl"));
+        let http = chat::local_client();
+        let q = "What can I make with eggs, spinach and feta?";
+        let history = vec![ChatMessage::new("user", q)];
+        let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, false, None);
+        let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, q);
+        let (ch, seen) = collecting_channel();
+        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: true, metric: false, agent: false, modules: Default::default() };
+        let p = prepare(turn, CancellationToken::new(), &ch).await.unwrap().expect("prepared");
+        assert_eq!(p.kind, "kitchen");
+        assert!(!p.notes.is_empty());
+        let ev = seen.lock().unwrap().clone();
+        assert!(ev.iter().any(|e| e["kind"] == "recipeIdeas"), "{ev:?}");
+        // Nothing was written: that's the cloud's job.
+        assert!(!ev.iter().any(|e| e["kind"] == "content"));
+        eprintln!("{}", cloud_message(q, &p));
+        // A plain question prepares nothing.
+        let history = vec![ChatMessage::new("user", "Tell me a joke")];
+        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: true, metric: false, agent: false, modules: Default::default() };
+        assert!(prepare(turn, CancellationToken::new(), &ch).await.unwrap().is_none());
     }
 
     /// Real engine + real internet (BYTE_TEST_WEB=1): reviews, prices and game

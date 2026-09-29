@@ -462,7 +462,12 @@ a small model, owner checks answer quality on real questions.
 flashcards/quiz JSON + `parse_cards`/`parse_quiz`, DB v7 `decks`/`cards`/`card_reviews`, `study_queue`, `card_review`,
 `anki_text` export, `TUTOR_RULES` + `TUTOR_NUDGE` + structured `tutor_reply` for `Task::Tutor`, `reply_for` canned replies);
 UI `components/study/{StudyCards,StudyPanel}.tsx`, `lib/study.ts`, 🎓 top-bar button, Tutor pill; `settings.studyEnabled`.
-Anki export is a tab-separated import file (Anki 2.1.55+ headers), not .apkg. **Next:** v0.7.1 writing studio.
+Anki export is a tab-separated import file (Anki 2.1.55+ headers), not .apkg.
+**Done in v0.7.1 (owner question: "do the cool features work in cloud mode?"):** `agent::specialist` (the card flows,
+split out of `run`), `agent::prepare` + `Prepared` + `cloud_message`; `backend::Setup` (one place that builds a local
+`Turn`), `prepare_for_cloud` in `backend::answer`: Cloud (not Both) with a local model loaded runs the card flow here,
+sends the question plus notes to the cloud, and re-sends the card's sources after; study cards get `study::reply_for`
+with no cloud call. Tutor hints are checked with `solve_linear`/`states_value`. **Next:** v0.7.2 writing studio.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
    poetry / lyrics / speeches with meter and rhyme controls.
