@@ -1,4 +1,4 @@
-import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen } from "lucide-react";
+import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ChatView } from "../components/chat/ChatView";
@@ -7,6 +7,7 @@ import { EngineBadge } from "../components/EngineBadge";
 import { DocumentsPanel } from "../components/documents/DocumentsPanel";
 import { RecipeBox } from "../components/kitchen/RecipeBox";
 import { StudyPanel } from "../components/study/StudyPanel";
+import { WritingPanel } from "../components/writing/WritingPanel";
 import { Reader } from "../components/reader/Reader";
 import { SettingsModal } from "../components/settings/SettingsModal";
 import { Sidebar } from "../components/Sidebar";
@@ -24,6 +25,9 @@ export function Shell() {
   const studyOn = useStore((s) => s.settings?.studyEnabled !== false);
   const studyOpen = useStore((s) => !!s.study);
   const openStudy = useStore((s) => s.openStudy);
+  const writingOn = useStore((s) => s.settings?.writingEnabled !== false);
+  const writingOpen = useStore((s) => !!s.writing);
+  const openWriting = useStore((s) => s.openWriting);
   const settingsTab = useStore((s) => s.settingsTab);
   const stop = useStore((s) => s.stop);
   const reading = useStore((s) => !!s.reader);
@@ -79,6 +83,11 @@ export function Shell() {
                 <BookOpen size={18} />
               </button>
             )}
+            {writingOn && (
+              <button className="icon-btn" onClick={() => openWriting()} title="Writing studio: rewrite, shorten, expand, tone, grammar">
+                <PenLine size={18} />
+              </button>
+            )}
             {studyOn && (
               <button className="icon-btn" onClick={() => openStudy()} title="Study: your flashcard decks">
                 <GraduationCap size={18} />
@@ -97,6 +106,7 @@ export function Shell() {
       {docsOpen && <DocumentsPanel onClose={() => setDocsOpen(false)} />}
       {recipesOpen && <RecipeBox onClose={() => setRecipesOpen(false)} />}
       {studyOpen && <StudyPanel />}
+      {writingOpen && <WritingPanel />}
     </div>
   );
 }

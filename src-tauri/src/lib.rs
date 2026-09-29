@@ -41,6 +41,7 @@ mod system;
 mod tools;
 mod trip;
 mod web_agent;
+mod writing;
 mod youtube;
 mod tune;
 mod units;
@@ -158,6 +159,7 @@ pub fn run() {
             commands::file_ingest,
             commands::kb_status,
             commands::looker_status,
+            writing::writing_run,
             commands::kb_add,
             commands::kb_remove,
             commands::kb_reindex,

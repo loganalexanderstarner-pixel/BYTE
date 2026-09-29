@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Brain, Check, ChevronLeft, ChevronRight, Cloud, Copy, FastForward, HelpCircle, Layers, Lightbulb, Pencil, RefreshCw, ShieldCheck, ThumbsDown, ThumbsUp, TriangleAlert } from "lucide-react";
+import { Brain, Check, ChevronLeft, ChevronRight, Cloud, Copy, FastForward, HelpCircle, Layers, Lightbulb, Pencil, PenLine, RefreshCw, ShieldCheck, ThumbsDown, ThumbsUp, TriangleAlert } from "lucide-react";
 import { memo, useMemo, useState, type MouseEvent } from "react";
 
 import { versionInfo } from "../../lib/branches";
@@ -163,6 +163,8 @@ export function factCheckPrompt(answer: string): string {
 
 function AssistantMessage({ message, isLast, generating }: { message: Message; isLast: boolean; generating: boolean }) {
   const regenerate = useStore((s) => s.regenerate);
+  const writingOn = useStore((s) => s.settings?.writingEnabled !== false);
+  const openWriting = useStore((s) => s.openWriting);
   const send = useStore((s) => s.send);
   const webOn = useStore((s) => s.settings?.webSearch ?? false);
   const cloudAct = useStore((s) => s.cloudAct);
@@ -277,6 +279,11 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
           {message.content && (
             <button className="icon-btn" onClick={copy} title="Copy">
               {copied ? <Check size={15} /> : <Copy size={15} />}
+            </button>
+          )}
+          {writingOn && message.content.trim().length > 20 && (
+            <button className="icon-btn" onClick={() => openWriting(message.content.replace(/\[\d{1,3}\]/g, ""))} title="Edit in the writing studio">
+              <PenLine size={15} />
             </button>
           )}
           {isLast && (

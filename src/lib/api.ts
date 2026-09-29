@@ -174,6 +174,12 @@ export const api = {
     channel.onmessage = onEvent;
     return invoke<void>("cloud_action", { request, onEvent: channel });
   },
+  /** Writing studio: the new text streams as `content` events. */
+  writingRun: (requestId: string, text: string, action: string, tone: string | null, onEvent: (e: ChatEvent) => void) => {
+    const channel = new Channel<ChatEvent>();
+    channel.onmessage = onEvent;
+    return invoke<void>("writing_run", { requestId, text, action, tone, onEvent: channel });
+  },
   cloudDeleteMessage: (messageId: string) => invoke<void>("cloud_delete_message", { messageId }),
   cloudConversations: () => invoke<unknown>("cloud_conversations"),
   cloudImport: (conversationId: string) => invoke<string>("cloud_import", { conversationId }),

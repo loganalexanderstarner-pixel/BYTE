@@ -17,6 +17,26 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — v0.7.4: the writing studio
+- **Why:** it's the next Phase 7 item (VERSIONS). Built while the v0.7.3 release was building.
+- **What:**
+  - `writing.rs`: `Action` (rewrite / expand / shorten / tone / grammar), `instructions`, `max_tokens` per action,
+    `request_body` (thinking off; grammar at temperature 0.1), and the `writing_run` command. It streams `Content`
+    through `chat::stream_round`, is cancellable with `chat_cancel`, and with no local model uses the cloud
+    (`JsonHelper::text`, a helper conversation that's deleted).
+  - UI:
+    - `components/writing/WritingPanel.tsx`: your text on the left, the new version on the right with changed words
+      highlighted; a selection changes only that part; Use this / Copy / Discard / Stop.
+    - `lib/writing.ts` (+ tests): word-level LCS `changes`, `cleanResult` (drops "Here is…", fences, quotes),
+      `target`/`applyResult`.
+    - A ✍️ top-bar button, "Edit in the writing studio" on answers, and Settings → Features `writingEnabled`.
+- **Verify:**
+  - `cargo test writing::`; `npx vitest run src/lib/writing.test.ts`;
+  - real engine: `e2e_writing` (shorten is shorter and keeps "Thursday"; grammar fixes "libary"/"tomorow") passes
+    with Qwen3-0.6B and Llama 3.2 1B. Neither small model fixes "Their going" (a limit of 1B models);
+  - screenshot `23-writing-studio`.
+- **Undo:** revert.
+
 ### (this commit) — "A better model fits your Mac" hint (once per small model)
 - **Why:** it was part of the owner's "make all models do good" request, and left out of v0.7.3. Built while the
   v0.7.3 release was building (new way of working: code during waits).

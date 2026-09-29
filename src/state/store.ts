@@ -264,6 +264,10 @@ interface State {
   study: { deck: number | null } | null;
   openStudy(deck?: number | null): void;
   closeStudy(): void;
+  /** The writing studio, with the text it opened with. */
+  writing: { text: string } | null;
+  openWriting(text?: string): void;
+  closeWriting(): void;
   openReader(doc: ReaderDoc): void;
   closeReader(): void;
   /** Knowledge base folders and search-model state; `kbProgress` while indexing. */
@@ -785,6 +789,9 @@ export const useStore = create<State>((set, get) => {
     study: null,
     openStudy: (deck) => set({ study: { deck: deck ?? null } }),
     closeStudy: () => set({ study: null }),
+    writing: null,
+    openWriting: (text) => set({ writing: { text: text ?? "" } }),
+    closeWriting: () => set({ writing: null }),
     openReader: (doc) => set({ reader: doc }),
     closeReader: () => set({ reader: null }),
     mode: "auto",

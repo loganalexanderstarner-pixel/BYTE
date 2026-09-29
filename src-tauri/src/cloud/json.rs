@@ -56,6 +56,16 @@ impl JsonHelper {
         reply
     }
 
+    /// The cloud's plain-text reply to a one-off request (the writing studio with no local model).
+    pub async fn text(&self, system: &str, user: &str) -> AppResult<String> {
+        let cid = self.client.create_conversation(HELPER_TITLE).await?;
+        let reply = self.ask(&cid, &format!("{system}\n\n{user}")).await;
+        if let Err(e) = self.client.delete(&format!("/api/conversations/{cid}")).await {
+            log::info!("couldn't delete the helper conversation: {}", crate::error::AppError::from(e));
+        }
+        reply
+    }
+
     async fn ask(&self, cid: &str, prompt: &str) -> AppResult<String> {
         let posted = self.client.post(&format!("/api/conversations/{cid}/messages"), &json!({ "content": prompt, "attachment_ids": [], "mode": self.mode })).await?;
         let (user_id, assistant_id) = posted_ids(&posted);

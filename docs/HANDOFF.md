@@ -470,8 +470,9 @@ sends the question plus notes to the cloud, and re-sends the card's sources afte
 with no cloud call. Tutor hints are checked with `solve_linear`/`states_value`. **Done in v0.7.2:** tested the card flows on Gemma 3, Llama 3.2 and DeepSeek-R1 (not just Qwen) and fixed what
 broke (`chat::plain_body` fallback, reasoning room, `Quirks`); `serde_json` `preserve_order`; cards in Cloud mode
 with no local model (`cloud/json.rs`); `docs/CLUSTER-REQUESTS.md`. **Done in v0.7.3:** `quality.rs` (card checkers + one repair,
-small models only) and `looker.rs` (photo helper). Not done: the "a better model fits" hint (planned, small).
-**Next:** v0.7.4 writing studio.
+small models only) and `looker.rs` (photo helper). **Done in v0.7.4:** `writing.rs` + `WritingPanel` (writing studio), the "a better model fits" hint
+(`models::better_model`). **Next:** v0.7.5 translate, then the job tracker and custom assistants. Way of working
+(owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
    poetry / lyrics / speeches with meter and rhyme controls.

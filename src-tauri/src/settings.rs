@@ -150,6 +150,9 @@ pub struct Settings {
     /// Photo helper: a small vision model describes photos for models that can't see them.
     #[serde(default = "yes")]
     pub photo_helper: bool,
+    /// The writing studio (✍️): rewrite, expand, shorten, tone, grammar.
+    #[serde(default = "yes")]
+    pub writing_enabled: bool,
     /// Reuse the answer to a question asked (almost exactly) in the last week
     /// (needs the search-by-meaning model; see answer_cache.rs).
     pub answer_cache: bool,
@@ -211,6 +214,7 @@ impl Default for Settings {
             best_of_three: true,
             study_enabled: true,
             photo_helper: true,
+            writing_enabled: true,
             answer_cache: true,
             loaded_alongside: Vec::new(),
             better_model_hint_for: Vec::new(),

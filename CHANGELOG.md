@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.7.4 — The writing studio
 
+- **Writing studio** (✍️ in the top bar, or the pen on any answer): rewrite, shorten, expand, change the tone of,
+  or fix the grammar of any text. The new version appears beside yours with the changes highlighted; select a part
+  to change only that part. Works with the model on your Mac, or your BYTE cloud.
 - When you use a small model and your Mac can run a clearly better one, BYTE says so once (Settings → Models).
 
 ## 0.7.3 — Better cards from small models, and a photo helper

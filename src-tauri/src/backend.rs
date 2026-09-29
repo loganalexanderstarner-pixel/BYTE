@@ -412,7 +412,7 @@ async fn describe_photos(state: &AppState, request: &ChatRequest, on_event: &Cha
 
 /// With no model on this Mac: an endpoint whose structured replies (the cards' JSON)
 /// come from the BYTE cloud (`cloud::json`).
-async fn cloud_cards(state: &AppState) -> Option<crate::engine::Endpoint> {
+pub(crate) async fn cloud_cards(state: &AppState) -> Option<crate::engine::Endpoint> {
     let modes = {
         let s = state.settings.lock().await;
         if !s.cloud_connected {

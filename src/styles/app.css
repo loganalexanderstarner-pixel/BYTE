@@ -4292,3 +4292,77 @@ kbd {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ---------- writing studio ---------- */
+.writing-panel {
+  width: min(1100px, 96vw);
+  height: min(760px, 90vh);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  overflow: hidden;
+}
+.writing-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+.writing-tools .spacer {
+  flex: 1;
+}
+.writing-tone {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.writing-tone select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  padding: 4px 6px;
+}
+.writing-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+.writing-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+}
+.writing-col textarea,
+.writing-result {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  resize: none;
+}
+.writing-result mark {
+  background: var(--accent-soft);
+  color: inherit;
+  border-radius: 3px;
+}
+@media (max-width: 760px) {
+  .writing-body {
+    grid-template-columns: 1fr;
+  }
+}

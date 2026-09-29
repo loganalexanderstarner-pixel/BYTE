@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.7.3** | Phase 7 improvements | Card checks and one repair for small models; a photo helper so models that can't see can still answer about photos | Small Macs, small models |
+| **v0.7.4** | Phase 7 · Writing studio | Rewrite, shorten, expand, tone and grammar, with the changes highlighted; a hint when your Mac could run a better model | Emails, essays, posts |
+| v0.7.3 | Phase 7 improvements | Card checks and one repair for small models; a photo helper so models that can't see can still answer about photos | Small Macs, small models |
 | v0.7.2 | Phase 7 improvements | Works well with more kinds of models (Gemma, Llama, DeepSeek-R1), cards in Cloud mode even with no model on your Mac, steadier flashcards | Any model, any mode |
 | v0.7.1 | Phase 7 improvements | The cards (recipes, compare, trips, reviews, prices, study…) in Cloud mode, made on your Mac; a tutor that never gives the answer away | Cloud users get everything |
 | v0.7.0 | Phase 7 · Study tools | Flashcards with spaced repetition (Study panel, Anki export), self-scoring quizzes, tutor mode | Learning anything |
@@ -54,7 +55,7 @@ which download is which. Their files and notes are unchanged.
 
 | Version | Phase |
 |---|---|
-| v0.7.4 | Writing studio (rewrite, expand, shorten, tone, grammar) |
+| v0.7.5 | Translate (text, documents, pages) |
 | v0.8.0 | Speed |
 | v0.9.0 | Mac control |
 | v0.10.0 | Upkeep & automation |

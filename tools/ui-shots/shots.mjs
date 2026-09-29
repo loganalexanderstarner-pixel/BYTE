@@ -278,6 +278,13 @@ function initScript({ data }) {
           return true;
         case "doc_save":
           return null;
+        case "writing_run": {
+          const send = (e) => args.onEvent.onmessage(e);
+          send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q4_K_M" });
+          send({ kind: "content", delta: "Hi team, Tuesday afternoon's meeting has moved to Thursday at 10 a.m., same room, because several of you couldn't make Tuesday. Let me know if Thursday doesn't work for you." });
+          send({ kind: "done", finishReason: "stop" });
+          return null;
+        }
         case "looker_status":
           return { model: null, downloads: ["qwen3.5-0.8b:Q4_K_M", "qwen3.5-0.8b:vision"], downloadBytes: 737504352 };
         case "kb_status":
@@ -852,6 +859,20 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".field", { hasText: "Photo helper" }).scrollIntoViewIfNeeded();
   await p.waitForTimeout(150);
   await shot(p, "07i-settings-photo-helper");
+  await p.getByRole("button", { name: "Close settings" }).click();
+  await p.waitForTimeout(200);
+  await p.getByTitle("Writing studio: rewrite, shorten, expand, tone, grammar").click();
+  await p.locator("#writing-text").fill(
+    "Hi everyone, I am writing to let you know that the meeting that we had planned for Tuesday afternoon has been moved, because several people on the team said that they would not be able to attend at that time, so the new time for the meeting is now Thursday morning at ten o'clock in the same room as before, and please let me know if that does not work for you.",
+  );
+  await p.getByRole("button", { name: "Shorten", exact: true }).click();
+  await p.waitForTimeout(400);
+  await shot(p, "23-writing-studio");
+  await p.getByRole("button", { name: "Close", exact: true }).click();
+  await p.waitForTimeout(200);
+  await p.getByTitle("Settings (⌘,)").click();
+  await p.getByRole("button", { name: "About", exact: true }).click();
+  await p.waitForTimeout(200);
   await p.getByRole("button", { name: "Appearance", exact: true }).click();
   await p.waitForTimeout(200);
   await shot(p, "08-settings-appearance");

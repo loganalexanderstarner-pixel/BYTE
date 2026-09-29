@@ -711,6 +711,13 @@ function AboutTab() {
         <PhotoHelperRow />
         <label className="field">
           <span>
+            Writing studio
+            <small>The ✍️ button (and a pen on every answer): rewrite, shorten, expand, change the tone or fix the grammar of any text.</small>
+          </span>
+          <input type="checkbox" checked={settings?.writingEnabled ?? true} onChange={(e) => void update({ writingEnabled: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
             Study tools
             <small>Flashcards with spaced repetition (the 🎓 Study panel, Anki export), self-scoring quizzes, and the Tutor button.</small>
           </span>

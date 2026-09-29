@@ -45,6 +45,8 @@ export interface Settings {
   studyEnabled?: boolean;
   /** Photo helper: a small vision model describes photos for models that can't see them. */
   photoHelper?: boolean;
+  /** The writing studio (✍️). */
+  writingEnabled?: boolean;
   /** Reuse the answer to a question asked (almost exactly) in the last week. */
   answerCache: boolean;
   /** Models reloaded alongside the main one at launch. */
