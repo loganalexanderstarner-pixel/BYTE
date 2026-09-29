@@ -18,6 +18,7 @@ on:
       - "src-tauri/src/files.rs"
       - "src-tauri/src/embed.rs"
       - "src-tauri/src/kb.rs"
+      - "src-tauri/src/study.rs"
       # The web agent saves pages with WKWebView (web_agent/capture_mac.rs).
       - "src-tauri/src/web_agent/**"
       - "src-tauri/Cargo.toml"

@@ -303,6 +303,96 @@ fn tutor_schema() -> Value {
 }
 
 /// A tutor turn as text: feedback on the learner's last answer, the next small step, and a question.
+/// Solves a one-variable linear equation in the text ("solve 2x + 6 = 14" →
+/// ('x', 4.0)), so the tutor can check its hints don't give the answer away.
+pub fn solve_linear(text: &str) -> Option<(char, f64)> {
+    let (left, right) = text.split_once('=')?;
+    if right.contains('=') {
+        return None;
+    }
+    // A term: "+", "-", "6", "2x", "-3.5y", "x".
+    fn is_term(t: &str) -> bool {
+        let t = t.trim_matches(['?', '.', ',']);
+        if t == "+" || t == "-" {
+            return true;
+        }
+        let body = t.trim_start_matches(['+', '-']);
+        let digits = body.trim_end_matches(|c: char| c.is_ascii_alphabetic());
+        let var = &body[digits.len()..];
+        !body.is_empty() && (digits.is_empty() || digits.parse::<f64>().is_ok()) && var.len() <= 1 && (!digits.is_empty() || var.len() == 1)
+    }
+    let lt: Vec<&str> = left.split_whitespace().rev().take_while(|t| is_term(t)).collect::<Vec<_>>().into_iter().rev().collect();
+    let rt: Vec<&str> = right.split_whitespace().take_while(|t| is_term(t)).collect();
+    // Sum of (coefficient of the variable, constant) on one side.
+    let mut var: Option<char> = None;
+    let mut side = |toks: &[&str]| -> Option<(f64, f64)> {
+        let (mut a, mut b, mut sign) = (0.0, 0.0, 1.0);
+        let mut any = false;
+        for t in toks {
+            let t = t.trim_matches(['?', '.', ',']);
+            match t {
+                "+" => sign = 1.0,
+                "-" => sign = -1.0,
+                _ => {
+                    let neg = t.starts_with('-');
+                    let body = t.trim_start_matches(['+', '-']);
+                    let s = if neg { -sign } else { sign };
+                    let digits = body.trim_end_matches(|c: char| c.is_ascii_alphabetic());
+                    let v = &body[digits.len()..];
+                    if let Some(ch) = v.chars().next() {
+                        if var.is_some_and(|x| x != ch) {
+                            return None;
+                        }
+                        var = Some(ch);
+                        a += s * if digits.is_empty() { 1.0 } else { digits.parse::<f64>().ok()? };
+                    } else {
+                        b += s * digits.parse::<f64>().ok()?;
+                    }
+                    sign = 1.0;
+                    any = true;
+                }
+            }
+        }
+        any.then_some((a, b))
+    };
+    let (a1, b1) = side(&lt)?;
+    let (a2, b2) = side(&rt)?;
+    let v = var?;
+    if (a1 - a2).abs() < 1e-9 {
+        return None;
+    }
+    Some((v, (b2 - b1) / (a1 - a2)))
+}
+
+fn number_text(x: f64) -> String {
+    if (x - x.round()).abs() < 1e-9 {
+        format!("{}", x.round() as i64)
+    } else {
+        format!("{}", (x * 1000.0).round() / 1000.0)
+    }
+}
+
+/// A safe first question when the model's reply can't be used.
+pub fn tutor_opener(question: &str) -> String {
+    match solve_linear(question) {
+        Some((v, _)) => format!("Let's work it out together, one step at a time.\n\n**Your turn:** What could you do to both sides so the {v} term is on its own?"),
+        None => "Let's work it out together, one step at a time.\n\n**Your turn:** What do you already know about this, and what do you think the first step is?".into(),
+    }
+}
+
+/// Whether `text` states a value for `var` ("x = 4", "x=-2"; not "2x = 8").
+pub fn states_value(text: &str, var: char) -> bool {
+    // Spaces go only around "=", so word boundaries ("so x", "2x") still count.
+    let mut flat = text.to_lowercase().replace(['*', '$'], "");
+    while flat.contains(" =") || flat.contains("= ") {
+        flat = flat.replace(" =", "=").replace("= ", "=");
+    }
+    let t: Vec<char> = flat.chars().collect();
+    t.windows(3).enumerate().any(|(i, w)| {
+        w[0] == var && w[1] == '=' && (w[2].is_ascii_digit() || w[2] == '-') && (i == 0 || !t[i - 1].is_alphanumeric())
+    })
+}
+
 pub fn parse_tutor(reply: &str, final_answers: &[String], first_turn: bool) -> Option<String> {
     let v = research::lenient_json(reply);
     let text = |k: &str| v[k].as_str().unwrap_or("").trim().to_string();
@@ -312,9 +402,16 @@ pub fn parse_tutor(reply: &str, final_answers: &[String], first_turn: bool) -> O
     if step.is_empty() && question.is_empty() {
         return None;
     }
-    // Small models sometimes slip the final answer into the step: then it isn't a hint.
-    let squash = |s: &str| s.to_lowercase().replace(' ', "");
-    if final_answers.iter().any(|a| !a.is_empty() && squash(&step).contains(&squash(a))) {
+    // Small models sometimes slip the final answer into the step, or echo the
+    // conversation as the question: then it isn't a hint.
+    let squash = |s: &str| s.to_lowercase().replace([' ', '*', '$'], "");
+    let both = format!("{step} {question}");
+    if final_answers.iter().any(|a| !a.is_empty() && squash(&both).contains(&squash(a))) {
+        return None;
+    }
+    let lq = question.to_lowercase();
+    // It must actually ask the learner something.
+    if lq.contains("learner:") || lq.contains("tutor:") || !question.contains('?') {
         return None;
     }
     let mut out = String::new();
@@ -350,11 +447,28 @@ attempt at an answer, say kindly whether it's right and why; if their last messa
 answer or finish the problem. question: one short question that asks the learner to do that step themselves.",
         calc.map(|c| format!("(Calculator, for checking only, don't reveal it: {c})\n")).unwrap_or_default()
     );
-    let reply = chat::complete_json(http, ep, system, &user, tutor_schema(), 500).await?;
-    // The final result (from the calculator) must not appear in a hint.
-    let finals: Vec<String> = calc.and_then(|c| c.rsplit('=').next()).map(|r| vec![r.trim().to_string()]).unwrap_or_default();
+    // The final answer (the calculator's result, or the solved equation) must not appear in a hint,
+    // and with an equation, no value for its variable at all (right or wrong).
+    let learner = history.iter().rev().find(|m| m.role == "user").map(|m| chat::question_text(&m.content).to_string()).unwrap_or_default();
+    let problem = history.iter().filter(|m| m.role == "user").find_map(|m| solve_linear(chat::question_text(&m.content)));
+    let mut finals: Vec<String> = calc.and_then(|c| c.rsplit('=').next()).map(|r| vec![r.trim().to_string()]).unwrap_or_default();
+    if let Some((v, x)) = problem {
+        finals.push(format!("{v}={}", number_text(x)));
+        finals.push(format!("{v}is{}", number_text(x)));
+    }
     let first_turn = !history.iter().any(|m| m.role == "assistant");
-    Ok(parse_tutor(&reply, &finals, first_turn))
+    // The learner's own message echoed back isn't a question for them.
+    let echo = |t: &str| learner.len() > 12 && t.to_lowercase().contains(&learner.to_lowercase());
+    for attempt in 0..2 {
+        let ask = if attempt == 0 { user.clone() } else { format!("{user}\nImportant: your last reply gave the answer away. Give only a hint for the next step.") };
+        let reply = chat::complete_json(http, ep, system, &ask, tutor_schema(), 500).await?;
+        let solves = |t: &str| problem.is_some_and(|(v, _)| states_value(t, v));
+        if let Some(t) = parse_tutor(&reply, &finals, first_turn).filter(|t| !echo(t) && !solves(t)) {
+            return Ok(Some(t));
+        }
+    }
+    // Both replies gave it away: a safe opening question instead.
+    Ok(Some(tutor_opener(&learner)))
 }
 
 /// Rules for tutor mode (the composer's Tutor button).
@@ -700,7 +814,7 @@ mod tests {
             assert!(card.is_some(), "no {want} for {q}");
             if task == Some(Task::Tutor) {
                 assert!(answer.contains('?'), "the tutor should ask something back: {answer}");
-                assert!(!answer.replace(' ', "").contains("x=4"), "the tutor gave the answer away: {answer}");
+                assert!(!states_value(&answer, 'x'), "the tutor solved it instead of teaching: {answer}");
             }
         }
     }
@@ -713,6 +827,23 @@ mod tests {
         assert!(parse_tutor("{}", &[], false).is_none());
         let first = parse_tutor(r#"{"feedback":"That's right!","step":"Look at the +6.","question":"What undoes adding 6?"}"#, &[], true).unwrap();
         assert!(!first.contains("right!"));
+        // The exact reply the 0.6B model gave on the Mac runner: rejected.
+        let leaked = r#"{"step":"You can solve this equation by first subtracting 6 from both sides. This will give you 2x = 8. Then, divide both sides by 2 to get x = 4.","question":"Learner: How do I solve 2x + 6 = 14?"}"#;
+        assert!(parse_tutor(leaked, &["x=4".into(), "xis4".into()], true).is_none());
+        assert!(parse_tutor(r#"{"step":"Look at the +6 first.","question":"Learner: how do I solve it?"}"#, &[], true).is_none());
+        assert!(parse_tutor(r#"{"step":"Subtract 6 first.","question":"Please simplify the equation step by step."}"#, &[], true).is_none());
+        assert!(states_value("Divide by 2 to solve for x. x = 8.", 'x'));
+        assert!(states_value("so **x=-3**", 'x'));
+        assert!(!states_value("2x = 14 - 6", 'x'));
+        assert!(!states_value("What is x?", 'x'));
+        assert_eq!(solve_linear("How do I solve 2x + 6 = 14?"), Some(('x', 4.0)));
+        assert_eq!(solve_linear("solve 3x - 2 = 10"), Some(('x', 4.0)));
+        assert_eq!(solve_linear("5 + 2y = 11"), Some(('y', 3.0)));
+        assert_eq!(solve_linear("4x = 2x + 10"), Some(('x', 5.0)));
+        assert_eq!(solve_linear("what is 2 + 2 = ?"), None);
+        assert_eq!(solve_linear("no equation here"), None);
+        let o = tutor_opener("How do I solve 2x + 6 = 14?");
+        assert!(o.contains("x term") && !o.contains('4'));
         assert!(wants_solution("ok just tell me the answer"));
         assert!(!wants_solution("how do I solve 2x + 6 = 14?"));
     }

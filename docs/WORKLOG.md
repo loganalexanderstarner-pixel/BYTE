@@ -17,6 +17,18 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — tutor mode never solves the problem for you (fix for the red Mac engine test on 2d45eca)
+- **Why:** the Mac engine CI job failed `study::tests::e2e_study`: with Qwen3-0.6B, tutor mode's step said "… x = 4"
+  and its question echoed "Learner: How do I solve…". The leak guard only knew the calculator's result, and an
+  equation has none.
+- **What:** `study.rs`: `solve_linear` (one-variable linear equations: 2x + 6 = 14 → x = 4), `states_value` (a hint that
+  says "x = <number>", right or wrong, isn't a hint), `parse_tutor` also rejects echoed transcript lines and "questions"
+  without a question mark; `tutor_reply` tries twice, then uses a safe built-in opener (`tutor_opener`) instead of a
+  free answer. `mac-engine.yml` watches `study.rs`.
+- **Verify:** `cargo test study` (the runner's exact reply is a test case); `e2e_study` with Qwen3-0.6B (safe opener)
+  and Qwen3.5-2B (a hint and a question); `scripts/check-all.sh`.
+- **Undo:** revert.
+
 ### (this commit) — v0.7.0: study tools (flashcards with spaced repetition, quizzes, tutor mode)
 - **Why:** Phase 7 item 3 (owner: "Lets do it" for Phase 7).
 - **What:** `src-tauri/src/study.rs` (new): SM-2 `review` (Again/Hard/Good/Easy = 1/3/4/5), `study_ask` routing
