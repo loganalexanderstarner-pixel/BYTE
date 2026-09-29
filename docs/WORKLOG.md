@@ -17,6 +17,19 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — v0.6.8: recipes in US cups and spoons, with a US / Metric switch
+- **Why:** the owner saw recipes in mL and wants teaspoons, tablespoons, cups and other American measures, or a switch.
+- **What:** `src-tauri/src/units.rs` (new): `ingredient_to_us` (mL → tsp/tbsp/cup by size; g → cups via baking
+  densities, butter → tbsp, else oz/lb; the metric original kept in the note), `ingredient_to_metric` (uses the
+  metric amount already in the note when there is one), `temps` (°C ↔ °F in text, ovens to 25 °F / 10 °C),
+  `convert_recipe`, `prompt_rule`. `kitchen::chef(metric)` puts the units rule in the chef prompt; recipes are
+  converted after parsing. `settings.measureUnits` ("us" default) → `Turn.metric`. UI: `lib/units.ts` (+ tests), a US /
+  Metric toggle on `RecipeCard` (converts from the original each time, so no drift), Settings → Features → Recipe
+  measures. Screenshot `19f-recipe-metric`.
+- **Verify:** `scripts/check-all.sh`; `cargo test units`; `npx vitest run src/lib/units.test.ts`. Real engine
+  (Qwen3.5-2B): `cargo test e2e_kitchen -- --ignored`: ideas, a flat white recipe (oz, fl oz, tbsp) and a meal plan.
+- **Undo:** revert. Metric users: Settings → Recipe measures → Metric.
+
 ### (this commit) — v0.6.7: reviews, price compare, game hints, self-check, best of 3 (Phase 6 finished)
 - **Why:** the owner chose to finish Phase 6 before Phase 7: HANDOFF §8 Phase 6 items 2 (self-check, best-of-3),
   4 (review summarizer, price compare) and 8 (game guides with spoiler-free hints).

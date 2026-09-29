@@ -2,12 +2,14 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { documentDir, join } from "@tauri-apps/api/path";
 import { BookmarkCheck, BookmarkPlus, ChefHat, Clock, Copy, Check, FileDown, Minus, Plus, Timer, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { api } from "../../lib/api";
 import { DOC_THEMES, fileName } from "../../lib/docs/spec";
 import { ingredientLine, minutesText, recipeDocSpec, recipeEmoji, recipeText, totalMinutes } from "../../lib/recipe";
 import type { Recipe } from "../../lib/types";
+import { convertRecipe } from "../../lib/units";
+import { useStore } from "../../state/store";
 
 /** A countdown for one step; announces when done. */
 function StepTimer({ minutes }: { minutes: number }) {
@@ -37,7 +39,11 @@ function StepTimer({ minutes }: { minutes: number }) {
  * ingredients to tick off (what you have is marked), steps with timers and
  * doneness cues, tips, swaps. Save to the recipe box, copy, or save as a PDF.
  */
-export function RecipeCard({ recipe, savedId, onDelete }: { recipe: Recipe; savedId?: number; onDelete?: () => void }) {
+export function RecipeCard({ recipe: original, savedId, onDelete }: { recipe: Recipe; savedId?: number; onDelete?: () => void }) {
+  // US cups and spoons (°F) or metric (g, mL, °C): the Settings choice, switchable here.
+  const preferMetric = useStore((s) => s.settings?.measureUnits === "metric");
+  const [metric, setMetric] = useState(preferMetric);
+  const recipe = useMemo(() => convertRecipe(original, metric), [original, metric]);
   const [servings, setServings] = useState(recipe.servings);
   const [got, setGot] = useState<Set<number>>(() => new Set(recipe.ingredients.flatMap((i, k) => (i.have ? [k] : []))));
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
@@ -55,7 +61,7 @@ export function RecipeCard({ recipe, savedId, onDelete }: { recipe: Recipe; save
 
   const save = async () => {
     try {
-      setSaved(await api.recipeSave(recipe));
+      setSaved(await api.recipeSave(original));
       setStatus("Saved to your recipe box");
     } catch (e) {
       setStatus(e instanceof Error ? e.message : String(e));
@@ -111,6 +117,14 @@ export function RecipeCard({ recipe, savedId, onDelete }: { recipe: Recipe; save
               {servings}
               <button className="icon-btn" onClick={() => setServings(Math.min(48, servings + 1))} aria-label="More servings">
                 <Plus size={12} />
+              </button>
+            </span>
+            <span className="segmented units" role="group" aria-label="Measures">
+              <button aria-pressed={!metric} onClick={() => setMetric(false)} title="Cups, spoons, ounces, °F">
+                US
+              </button>
+              <button aria-pressed={metric} onClick={() => setMetric(true)} title="Grams, millilitres, °C">
+                Metric
               </button>
             </span>
           </div>

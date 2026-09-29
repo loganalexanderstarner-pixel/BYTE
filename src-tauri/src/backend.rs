@@ -191,9 +191,9 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
     let catalog = state.catalog.get();
     let profile = catalog.resolve(&ep.model).map(|(m, _)| crate::modelcfg::profile(m)).unwrap_or_default();
     let plan = router::plan_turn(request.mode, request.thinking, last_user).for_model(profile);
-    let (web, user_name, memory, about_me, home, depth, web_always, kitchen, web_agent, modules) = {
+    let (web, user_name, memory, about_me, home, depth, web_always, kitchen, metric, web_agent, modules) = {
         let s = state.settings.lock().await;
-        (s.web_search, s.user_name.clone(), s.memory_enabled && !request.private, s.about_me.clone(), s.home_place.clone(), s.research_depth, s.web_mode == "always", s.kitchen_enabled, s.web_agent_enabled, agent::Modules {
+        (s.web_search, s.user_name.clone(), s.memory_enabled && !request.private, s.about_me.clone(), s.home_place.clone(), s.research_depth, s.web_mode == "always", s.kitchen_enabled, s.measure_units == "metric", s.web_agent_enabled, agent::Modules {
             reviews: s.reviews_enabled,
             prices: s.prices_enabled,
             game_hints: s.game_hints_enabled,
@@ -239,6 +239,7 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
         depth: depth.min(2),
         web_always,
         kitchen,
+        metric,
         agent: web_agent,
         modules,
     };

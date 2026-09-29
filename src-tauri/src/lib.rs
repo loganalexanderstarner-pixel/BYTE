@@ -40,6 +40,7 @@ mod trip;
 mod web_agent;
 mod youtube;
 mod tune;
+mod units;
 
 use tauri::{Manager, RunEvent};
 

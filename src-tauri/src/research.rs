@@ -772,7 +772,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Deep, true, None);
         let plan = crate::router::plan_turn(Mode::Deep, crate::settings::ThinkingPref::Off, &q);
         let (ch, seen) = crate::chat::e2e_support::collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Deep, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false, modules: Default::default() };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Deep, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, metric: false, agent: false, modules: Default::default() };
         let t = std::time::Instant::now();
         crate::agent::run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();

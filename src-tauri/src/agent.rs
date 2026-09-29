@@ -81,6 +81,8 @@ pub struct Turn<'a> {
     pub web_always: bool,
     /// The kitchen module is on (recipes, meal plans).
     pub kitchen: bool,
+    /// Recipes in metric (g, mL, °C) instead of US cups and spoons (°F).
+    pub metric: bool,
     /// The web agent module is on (BYTE may use a browser for the user).
     pub agent: bool,
     /// Which of the smaller research modules are on.
@@ -811,7 +813,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, false, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false, modules: Default::default() };
+        let turn = Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: false, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, metric: false, agent: false, modules: Default::default() };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let calls: Vec<_> = ev.iter().filter(|e| e["kind"] == "toolCall").collect();
@@ -883,7 +885,7 @@ mod tests {
                             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                         }
                     });
-                    let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: Some(&handle), task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: true, modules: Default::default() };
+                    let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: Some(&handle), task: None, home: None, depth: 0, web_always: false, kitchen: false, metric: false, agent: true, modules: Default::default() };
                     run(turn, CancellationToken::new(), &ch).await.unwrap();
                     stop.store(true, std::sync::atomic::Ordering::Relaxed);
                     let _ = denier.await;
@@ -943,7 +945,7 @@ mod tests {
             let system = crate::prompt::system_prompt(chrono::Local::now(), mode, true, None);
             let plan = crate::router::plan_turn(mode, ThinkingPref::Off, q);
             let (ch, seen) = collecting_channel();
-            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false, modules };
+            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, metric: false, agent: false, modules };
             let t = std::time::Instant::now();
             run(turn, CancellationToken::new(), &ch).await.unwrap();
             let ev = seen.lock().unwrap().clone();
@@ -980,7 +982,7 @@ mod tests {
         let system = crate::prompt::system_prompt(chrono::Local::now(), Mode::Auto, true, None);
         let plan = crate::router::plan_turn(Mode::Auto, ThinkingPref::Off, &history[0].content);
         let (ch, seen) = collecting_channel();
-        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false, modules: Default::default() };
+        let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: Mode::Auto, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, metric: false, agent: false, modules: Default::default() };
         run(turn, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let mut counts = std::collections::BTreeMap::new();
@@ -1027,7 +1029,7 @@ mod tests {
             let system = crate::prompt::system_prompt(chrono::Local::now(), mode, true, None);
             let plan = crate::router::plan_turn(mode, ThinkingPref::Auto, &q);
             let (ch, seen) = collecting_channel();
-            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, agent: false, modules: Default::default() };
+            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode, web: true, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, metric: false, agent: false, modules: Default::default() };
             let t = std::time::Instant::now();
             let r = run(turn, CancellationToken::new(), &ch).await;
             let ev = seen.lock().unwrap().clone();

@@ -123,6 +123,9 @@ pub struct Settings {
     /// Kitchen module: recipes, meal plans and the recipe box.
     #[serde(default = "yes")]
     pub kitchen_enabled: bool,
+    /// Recipe measures: "us" (cups, spoons, °F; the default) or "metric" (g, mL, °C).
+    #[serde(default = "default_units")]
+    pub measure_units: String,
     /// Web agent module: BYTE may use a hidden browser for the user (open, click, fill forms with approval).
     #[serde(default = "yes")]
     pub web_agent_enabled: bool,
@@ -190,6 +193,7 @@ impl Default for Settings {
             memory_enabled: true,
             kb_enabled: true,
             kitchen_enabled: true,
+            measure_units: default_units(),
             web_agent_enabled: true,
             reviews_enabled: true,
             prices_enabled: true,
@@ -251,6 +255,10 @@ impl Settings {
 
 fn yes() -> bool {
     true
+}
+
+fn default_units() -> String {
+    "us".into()
 }
 
 fn default_web_mode() -> String {

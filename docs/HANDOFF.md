@@ -434,7 +434,9 @@ Agent pill, Settings toggle. Tested for real under Xvfb (`browser::e2e`, `agent:
 (`is_reasoning`, `final_answer`, `pick` majority, `reconcile_prompt`; Deep/Extended, research skipped for such
 questions). Shared: `fetch::{json_ld, ld_is, meta_content}`, `research::read_html_pages`. `Turn.modules`
 (`agent::Modules`) from five settings (all on). UI `ShopCards.tsx`, `lib/cards.ts`. Video-to-slides moved to
-Phase 11. **Next:** Phase 7 (writing & learning) as v0.7.0.
+Phase 11. **v0.6.8 (owner request):** recipe measures (`settings.measureUnits` us|metric, `units.rs` +
+`lib/units.ts`: mL/g → tsp/tbsp/cup/oz/lb with baking densities, °C ↔ °F in step text, metric amount from the note;
+`kitchen::chef(metric)`; US/Metric toggle on `RecipeCard`). **Next:** Phase 7 (writing & learning) as v0.7.0.
 1. **Deep / Extended pipelines** (`research.rs`): plan 3–6 sub-questions → parallel searches → fetch up to
    15 (Deep) / 30 (Extended) pages, 6 at a time → embedding-rank passages → cited report; Extended adds a gap
    review, follow-up searches and a rewrite into a sectioned report. Progress steps shown live; cancel anytime.

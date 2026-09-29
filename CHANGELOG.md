@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.8 — Phase 6 improvements: recipes in cups and spoons
+
+- **Recipes use US measures by default**: teaspoons, tablespoons, cups, fluid ounces, ounces, pounds and °F. Web
+  recipes written in grams and millilitres are converted (flour, sugar, butter and other baking staples by their
+  real weight per cup; butter in tablespoons), with the original metric amount kept in the note for anyone who
+  weighs. Oven temperatures in the steps are converted too ("180°C" → "350°F").
+- **Switch any recipe card between US and Metric** with the new toggle next to the servings, and pick the default in
+  Settings → About → Features → Recipe measures.
+
 ## 0.6.7 — Phase 6 finished: reviews, prices, game hints, self-check, best of 3
 
 - **Reviews** ("reviews of the Sony WH-1000XM6", "is the Kindle Colorsoft worth it", "… pros and cons"): BYTE reads

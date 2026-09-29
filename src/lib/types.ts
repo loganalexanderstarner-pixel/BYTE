@@ -30,6 +30,8 @@ export interface Settings {
   kbEnabled: boolean;
   /** Kitchen module: recipes, meal plans, the recipe box. */
   kitchenEnabled?: boolean;
+  /** Recipe measures: "us" (cups, spoons, °F; default) or "metric". */
+  measureUnits?: "us" | "metric";
   /** Web agent module: BYTE may use a browser for the user (asks before submitting). */
   webAgentEnabled?: boolean;
   reviewsEnabled?: boolean;

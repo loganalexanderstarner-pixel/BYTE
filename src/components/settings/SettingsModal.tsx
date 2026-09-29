@@ -684,6 +684,20 @@ function AboutTab() {
           </span>
           <input type="checkbox" checked={settings?.kitchenEnabled ?? true} onChange={(e) => void update({ kitchenEnabled: e.target.checked })} />
         </label>
+        <div className="field">
+          <span>
+            Recipe measures
+            <small>US: teaspoons, tablespoons, cups, ounces, pounds, °F. Metric: grams, millilitres, °C. Each recipe card can switch too.</small>
+          </span>
+          <span className="segmented" role="group" aria-label="Recipe measures">
+            <button aria-pressed={(settings?.measureUnits ?? "us") === "us"} onClick={() => void update({ measureUnits: "us" })}>
+              US
+            </button>
+            <button aria-pressed={settings?.measureUnits === "metric"} onClick={() => void update({ measureUnits: "metric" })}>
+              Metric
+            </button>
+          </span>
+        </div>
         <label className="field">
           <span>
             Web agent
