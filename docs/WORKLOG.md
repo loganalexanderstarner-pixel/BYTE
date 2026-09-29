@@ -17,6 +17,26 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — Cards and tools on Gemma, Llama and reasoning models
+- **Why:** the owner asked whether all features work with all models. The card e2e tests had only run on Qwen. With
+  Llama 3.2 1B, Gemma 3 1B and DeepSeek-R1-Distill 1.5B:
+  - Gemma's chat template rejects tool messages ("roles must alternate"), so every forced tool turn failed with a
+    400 (the calculator test; also the kitchen test).
+  - Llama wrote a tool call the engine couldn't parse ("does not match the expected peg-native format").
+  - R1 ignores `enable_thinking: false` and used up `max_tokens` on reasoning, so `complete_json` (recipe ideas,
+    document sections) and the chat title came back empty.
+- **What:** `chat.rs`:
+  - `stream_round` retries once with `plain_body` (no tools; tool calls and results become plain text; same-speaker
+    turns merged) when the engine reports a template or tool-call parse error. It remembers the model (`Quirks.plain`).
+  - A tool-call parse error after the answer has started keeps the answer.
+  - `complete_json` gives models that reason first 3,072 more tokens (retry once, then `Quirks.reasons`).
+  - `summarize.rs` now goes through `complete_json` with a schema.
+- **Verify:**
+  - `cargo test plain_body_turns_tool_calls_into_text`;
+  - the card e2e tests with each of the four GGUFs (`BYTE_TEST_MODEL=...`): study, kitchen, compare, fact_check,
+    trip, summarizes, calculator, web, reviews, prepare_for_cloud, docs.
+- **Undo:** revert (models with those templates then fail again).
+
 ### (this commit) — Flashcards from small models: schemas in written order, one retry, cut-off replies kept
 - **Why:** the Mac engine test on `c9bb9c0` failed in `study::tests::e2e_study`, and it reproduced here about 1 in 20
   runs with Qwen3-0.6B. The model gave all 6 cards the same front ("Photosynthesis"), so only one card survived

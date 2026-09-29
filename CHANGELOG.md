@@ -5,6 +5,9 @@
 - Flashcards and quizzes are more reliable with small models: BYTE now sends its answer formats to the model in the
   intended order (question before answer), retries once when a set comes back unusable, and keeps the finished
   cards when a reply is cut off. Repeated quiz questions are dropped.
+- More models work with every feature: Gemma models (whose chat format has no tool messages), models whose tool calls
+  the engine can't read (BYTE answers without tools instead of failing), and models that always reason first like
+  DeepSeek-R1 (they get room to think before filling in a card or a chat title).
 
 ## 0.7.1 — Cards in Cloud mode, and a steadier tutor
 

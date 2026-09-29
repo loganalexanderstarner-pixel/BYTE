@@ -2,7 +2,6 @@
 //! model after the first answer. One short non-streaming request with thinking
 //! off; the output is forced to JSON by llama-server's grammar support.
 
-use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -67,29 +66,13 @@ pub fn parse(reply: &str) -> Option<ChatSummary> {
 }
 
 pub async fn summarize(http: &reqwest::Client, ep: &Endpoint, transcript: &str) -> AppResult<ChatSummary> {
-    let body = json!({
-        "messages": [
-            { "role": "system", "content": INSTRUCTIONS },
-            { "role": "user", "content": format!("Conversation:\n\n{transcript}\nLabel it.") },
-        ],
-        "max_tokens": 160,
-        "temperature": 0.2,
-        "stream": false,
-        "response_format": { "type": "json_object" },
-        "chat_template_kwargs": { "enable_thinking": false },
+    let schema = json!({
+        "type": "object",
+        "properties": { "title": { "type": "string" }, "summary": { "type": "string" }, "tags": { "type": "array", "maxItems": 3, "items": { "type": "string" } } },
+        "required": ["title", "summary", "tags"]
     });
-    let resp = http
-        .post(format!("{}/v1/chat/completions", ep.base_url))
-        .bearer_auth(&ep.api_key)
-        .timeout(Duration::from_secs(90))
-        .json(&body)
-        .send()
-        .await?;
-    if !resp.status().is_success() {
-        return Err(AppError::msg(format!("engine returned {}", resp.status())));
-    }
-    let v: Value = resp.json().await?;
-    let text = v["choices"][0]["message"]["content"].as_str().unwrap_or("");
+    let text = crate::chat::complete_json(http, ep, INSTRUCTIONS, &format!("Conversation:\n\n{transcript}\nLabel it."), schema, 160).await?;
+    let text = text.as_str();
     let mut s = parse(text).ok_or_else(|| AppError::msg("the model didn't return a usable title"))?;
     let lower = transcript.to_lowercase();
     s.tags.retain(|t| !EXAMPLE_TAGS.contains(&t.as_str()) || lower.contains(t.as_str()));

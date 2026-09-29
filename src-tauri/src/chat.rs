@@ -160,20 +160,119 @@ pub struct Stats {
 /// `response_format`), thinking off. Returns the raw text; callers parse it
 /// leniently because small models still cut replies short.
 pub async fn complete_json(http: &reqwest::Client, ep: &Endpoint, system: &str, user: &str, schema: serde_json::Value, max_tokens: u32) -> AppResult<String> {
-    let body = serde_json::json!({
-        "messages": [ { "role": "system", "content": system }, { "role": "user", "content": user } ],
-        "max_tokens": max_tokens,
-        "temperature": 0.5,
-        "stream": false,
-        "response_format": { "type": "json_schema", "json_schema": { "name": "reply", "schema": schema } },
-        "chat_template_kwargs": { "enable_thinking": false },
-    });
-    let r = http.post(format!("{}/v1/chat/completions", ep.base_url)).bearer_auth(&ep.api_key).timeout(std::time::Duration::from_secs(600)).json(&body).send().await?;
-    if !r.status().is_success() {
-        return Err(AppError::msg(format!("the engine returned {}", r.status())));
+    // Models that always reason (DeepSeek-R1 and the like) ignore `enable_thinking: false`;
+    // the JSON only starts after the reasoning, so they need room for both.
+    let key = model_key(ep);
+    let mut thinks = quirks().lock().await.reasons.contains(&key);
+    for _ in 0..2 {
+        let body = serde_json::json!({
+            "messages": [ { "role": "system", "content": system }, { "role": "user", "content": user } ],
+            "max_tokens": max_tokens + if thinks { REASONING_ROOM } else { 0 },
+            "temperature": 0.5,
+            "stream": false,
+            "response_format": { "type": "json_schema", "json_schema": { "name": "reply", "schema": schema } },
+            "chat_template_kwargs": { "enable_thinking": false },
+        });
+        let r = http.post(format!("{}/v1/chat/completions", ep.base_url)).bearer_auth(&ep.api_key).timeout(std::time::Duration::from_secs(600)).json(&body).send().await?;
+        if !r.status().is_success() {
+            return Err(AppError::msg(format!("the engine returned {}", r.status())));
+        }
+        let v: serde_json::Value = r.json().await?;
+        let msg = &v["choices"][0]["message"];
+        let content = msg["content"].as_str().unwrap_or("").to_string();
+        let reasoned = msg["reasoning_content"].as_str().is_some_and(|r| !r.trim().is_empty());
+        if content.trim().is_empty() && reasoned && !thinks {
+            log::info!("{} reasons before JSON; giving it room", ep.model);
+            quirks().lock().await.reasons.insert(key.clone());
+            thinks = true;
+            continue;
+        }
+        return Ok(content);
     }
-    let v: serde_json::Value = r.json().await?;
-    Ok(v["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string())
+    Ok(String::new())
+}
+
+/// Extra tokens for a model that reasons before its JSON.
+const REASONING_ROOM: u32 = 3072;
+
+/// What BYTE learned about the running model's quirks (per engine and model).
+#[derive(Default)]
+struct Quirks {
+    /// Reasons before answering even when asked not to.
+    reasons: std::collections::HashSet<String>,
+    /// Its chat template can't take tool calls/results (Gemma 3), or its tool calls can't be parsed.
+    plain: std::collections::HashSet<String>,
+}
+
+fn quirks() -> &'static Mutex<Quirks> {
+    static Q: std::sync::OnceLock<Mutex<Quirks>> = std::sync::OnceLock::new();
+    Q.get_or_init(Default::default)
+}
+
+fn model_key(ep: &Endpoint) -> String {
+    format!("{}|{}", ep.base_url, ep.model)
+}
+
+/// An engine error that means "this model can't do tool calling this way".
+fn needs_plain(msg: &str) -> bool {
+    ["Jinja Exception", "raise_exception", "Unable to generate parser", "roles must alternate", "does not match the expected", "Failed to parse tool call", "Failed to parse input"]
+        .iter()
+        .any(|k| msg.contains(k))
+}
+
+/// The same request without tool calling: tool calls and results become plain text in the
+/// conversation (so templates that only know user/assistant turns accept it), and turns by
+/// the same speaker are merged.
+pub fn plain_body(body: &serde_json::Value) -> serde_json::Value {
+    let mut out = body.clone();
+    if let Some(o) = out.as_object_mut() {
+        o.remove("tools");
+        o.remove("tool_choice");
+        o.remove("parallel_tool_calls");
+    }
+    let mut names: HashMap<String, String> = HashMap::new();
+    let mut msgs: Vec<serde_json::Value> = Vec::new();
+    for m in body["messages"].as_array().into_iter().flatten() {
+        let role = m["role"].as_str().unwrap_or("user");
+        let (role, content) = match role {
+            "tool" => {
+                let name = m["tool_call_id"].as_str().and_then(|id| names.get(id)).cloned().unwrap_or_else(|| "a tool".into());
+                ("user", serde_json::Value::String(format!("[Result of {name}]\n{}", m["content"].as_str().unwrap_or(""))))
+            }
+            "assistant" => {
+                for c in m["tool_calls"].as_array().into_iter().flatten() {
+                    if let (Some(id), Some(n)) = (c["id"].as_str(), c["function"]["name"].as_str()) {
+                        names.insert(id.to_string(), n.to_string());
+                    }
+                }
+                let text = m["content"].as_str().unwrap_or("").trim().to_string();
+                if text.is_empty() {
+                    continue;
+                }
+                ("assistant", serde_json::Value::String(text))
+            }
+            r => (r, m["content"].clone()),
+        };
+        let text_of = |c: &serde_json::Value| c.as_str().map(str::to_string);
+        if let Some(last) = msgs.last_mut().filter(|l| l["role"] == role) {
+            match (text_of(&last["content"]), text_of(&content)) {
+                (Some(a), Some(b)) => last["content"] = format!("{a}\n\n{b}").into(),
+                (_, b) => {
+                    // Photos (content parts): keep the parts, add the text.
+                    let mut parts = last["content"].as_array().cloned().unwrap_or_else(|| vec![serde_json::json!({ "type": "text", "text": last["content"].as_str().unwrap_or("") })]);
+                    match b {
+                        Some(t) => parts.push(serde_json::json!({ "type": "text", "text": t })),
+                        None => parts.extend(content.as_array().cloned().unwrap_or_default()),
+                    }
+                    last["content"] = parts.into();
+                }
+            }
+            continue;
+        }
+        msgs.push(serde_json::json!({ "role": role, "content": content }));
+    }
+    out["messages"] = msgs.into();
+    out
 }
 
 /// Registry of running generations so the UI can stop them.
@@ -408,7 +507,29 @@ pub struct Round {
 
 /// Sends one request and streams reasoning/content deltas to `on_event`.
 /// Tool calls and stats are returned, not emitted, so the caller decides.
+/// A model whose template or tool calls the engine can't handle gets the
+/// same request again without tool calling (`plain_body`), and from then on.
 pub async fn stream_round(
+    http: &reqwest::Client,
+    ep: &Endpoint,
+    body: &serde_json::Value,
+    cancel: &CancellationToken,
+    on_event: &mut (dyn FnMut(ChatEvent) -> AppResult<()> + Send),
+) -> AppResult<Round> {
+    let key = model_key(ep);
+    if !quirks().lock().await.plain.contains(&key) {
+        match stream_round_once(http, ep, body, cancel, on_event).await {
+            Err(AppError::Msg(m)) if needs_plain(&m) => {
+                log::warn!("{}: no tool calling for this model ({m})", ep.model);
+                quirks().lock().await.plain.insert(key);
+            }
+            other => return other,
+        }
+    }
+    stream_round_once(http, ep, &plain_body(body), cancel, on_event).await
+}
+
+async fn stream_round_once(
     http: &reqwest::Client,
     ep: &Endpoint,
     body: &serde_json::Value,
@@ -482,6 +603,10 @@ pub async fn stream_round(
                     }
                     Delta::Finish(f) => round.finish = f,
                     Delta::Timings(s) => round.stats = Some(s),
+                    // The answer was already streaming when the engine failed to read a tool call: keep it.
+                    Delta::Error(m) if needs_plain(&m) && !round.content.trim().is_empty() => {
+                        log::warn!("engine error after the answer started: {m}");
+                    }
                     Delta::Error(m) => return Err(AppError::msg(m)),
                     Delta::End => {}
                 }
@@ -522,6 +647,29 @@ mod tests {
 
     fn attached(name: &str, kind: crate::files::FileKind, text: &str, image: Option<&str>) -> crate::files::Ingested {
         crate::files::Ingested { name: name.into(), kind, pages: None, text: text.into(), truncated: false, image: image.map(Into::into), ocr: false }
+    }
+
+    #[test]
+    fn plain_body_turns_tool_calls_into_text() {
+        let body = serde_json::json!({
+            "tools": [{"type": "function"}], "tool_choice": "auto", "parallel_tool_calls": true, "stream": true,
+            "messages": [
+                {"role": "system", "content": "You are BYTE."},
+                {"role": "user", "content": "What is 12*3?"},
+                {"role": "assistant", "content": "", "tool_calls": [{"id": "c1", "type": "function", "function": {"name": "calculate", "arguments": "{}"}}]},
+                {"role": "tool", "tool_call_id": "c1", "content": "12*3 = 36"},
+            ]
+        });
+        let p = plain_body(&body);
+        assert!(p.get("tools").is_none() && p.get("tool_choice").is_none() && p.get("parallel_tool_calls").is_none());
+        assert_eq!(p["stream"], true);
+        let m = p["messages"].as_array().unwrap();
+        assert_eq!(m.len(), 2, "{m:?}");
+        assert_eq!(m[1]["role"], "user");
+        assert_eq!(m[1]["content"], "What is 12*3?\n\n[Result of calculate]\n12*3 = 36");
+        assert!(needs_plain("Jinja Exception: Conversation roles must alternate user/assistant"));
+        assert!(needs_plain("The model produced output that does not match the expected peg-native format"));
+        assert!(!needs_plain("the context is full"));
     }
 
     #[test]
