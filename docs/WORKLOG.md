@@ -17,6 +17,22 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — Cards in Cloud mode with no model on this Mac
+- **Why:** the owner said yes to cards in Cloud mode even with no model loaded here, accepting that the helper
+  requests may show in the cloud's chat list. Until now, `prepare_for_cloud` needed a local engine.
+- **What:**
+  - `cloud/json.rs` (new): `JsonHelper::complete` opens a "BYTE card helper" conversation, posts the task plus
+    "reply with only JSON matching this schema", follows the answer quietly, then deletes the conversation (if the
+    server allows). `pick_mode` prefers Auto, then Fast.
+  - `engine::Endpoint.cloud`: when set, `chat::complete_json` asks the cloud. Every card flow uses only
+    `complete_json`, so none of them changed.
+  - `backend::cloud_cards` builds that endpoint; `prepare_for_cloud` uses it when no engine is loaded.
+  - `summarize::short_title`: titles are at most 8 words and don't end on "a"/"for"… (Llama wrote 9-word titles).
+- **Verify:** `cargo test cloud::` (`cards_come_from_the_cloud_when_no_model_is_loaded_here`: helper conversation
+  created, schema in the prompt, fenced JSON parsed into a flashcards card, the conversation deleted, no JSON shown).
+  With a real cloud: owner, in Cloud mode with no model loaded, "Make 5 flashcards about tides".
+- **Undo:** revert; Cloud mode without a local model then answers with text only again.
+
 ### (this commit) — Cards and tools on Gemma, Llama and reasoning models
 - **Why:** the owner asked whether all features work with all models. The card e2e tests had only run on Qwen. With
   Llama 3.2 1B, Gemma 3 1B and DeepSeek-R1-Distill 1.5B:

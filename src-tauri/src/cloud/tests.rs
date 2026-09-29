@@ -453,3 +453,58 @@ async fn a_stream_closed_after_every_piece_keeps_going_without_waiting() {
     assert_eq!(end.text, "One two three four five six seven eight.");
     assert!(t.elapsed() < Duration::from_secs(2), "no growing pauses between pieces: {:?}", t.elapsed());
 }
+
+/// Cards in Cloud mode with no model on this Mac: the card's JSON comes from the
+/// cloud in a helper conversation that's deleted afterwards.
+#[tokio::test]
+async fn cards_come_from_the_cloud_when_no_model_is_loaded_here() {
+    use wiremock::matchers::body_string_contains;
+    let server = MockServer::start().await;
+    Mock::given(method("POST")).and(path("/api/conversations")).and(body_string_contains(json::HELPER_TITLE)).respond_with(ResponseTemplate::new(200).set_body_json(json!({ "id": "h1" }))).expect(1).mount(&server).await;
+    Mock::given(method("POST"))
+        .and(path("/api/conversations/h1/messages"))
+        .and(body_string_contains("JSON Schema"))
+        .and(body_string_contains("\\\"front\\\""))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "user_message": { "id": 1, "role": "user" }, "assistant_message": { "id": 2, "role": "assistant" } })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let cards = r#"```json
+{"title":"Tides","cards":[{"front":"What mainly causes tides?","back":"The Moon's gravity."},{"front":"What is a spring tide?","back":"An extra-high tide at new and full moon."},{"front":"How many high tides a day?","back":"Usually two."}]}
+```"#;
+    Mock::given(method("GET"))
+        .and(path("/api/conversations/h1/stream"))
+        .respond_with(sse(&[("delta", json!({ "id": 2, "append": cards, "status": "streaming" })), ("status", json!({ "id": 2, "status": "done" }))]))
+        .mount(&server)
+        .await;
+    Mock::given(method("DELETE")).and(path("/api/conversations/h1")).respond_with(ResponseTemplate::new(204)).expect(1).mount(&server).await;
+
+    let helper = json::JsonHelper::new(CloudClient::new(&server.uri(), FAKE_KEY), "auto".into());
+    let ep = crate::engine::Endpoint { base_url: "byte-cloud".into(), api_key: String::new(), model: "BYTE Cloud".into(), context: 32_768, vision: false, cloud: Some(std::sync::Arc::new(helper)) };
+    let dir = tempfile::tempdir().unwrap();
+    let log = crate::tools::ActionLog::new(dir.path().join("a.jsonl"));
+    let http = crate::chat::local_client();
+    let q = "Make 3 flashcards about tides";
+    let history = vec![crate::chat::ChatMessage::new("user", q)];
+    let system = crate::prompt::system_prompt(chrono::Local::now(), crate::settings::Mode::Auto, false, None);
+    let plan = crate::router::plan_turn(crate::settings::Mode::Auto, crate::settings::ThinkingPref::Off, q);
+    let modules = crate::agent::Modules { study: true, ..Default::default() };
+    let turn = crate::agent::Turn { http: &http, cloud: None, net: &http, ep: &ep, system: &system, history: &history, plan, mode: crate::settings::Mode::Auto, web: false, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, metric: false, agent: false, modules };
+    let (ch, seen) = collecting_channel();
+    let p = crate::agent::prepare(turn, CancellationToken::new(), &ch).await.unwrap().expect("a card");
+    assert_eq!(p.kind, "study");
+    let events = seen.lock().unwrap().clone();
+    let card = events.iter().find(|e| e["kind"] == "flashcards").expect("flashcards card");
+    assert_eq!(card["cards"].as_array().unwrap().len(), 3);
+    assert_eq!(card["cards"][0]["front"], "What mainly causes tides?");
+    assert!(!events.iter().any(|e| e["kind"] == "content"), "the JSON itself is never shown");
+}
+
+#[test]
+fn card_requests_use_a_sensible_cloud_mode() {
+    let m = |ids: &[&str]| ids.iter().map(|i| CloudMode { id: (*i).into(), label: String::new() }).collect::<Vec<_>>();
+    assert_eq!(json::pick_mode(&m(&["fast", "auto", "extended"])).as_deref(), Some("auto"));
+    assert_eq!(json::pick_mode(&m(&["extended", "fast"])).as_deref(), Some("fast"));
+    assert_eq!(json::pick_mode(&m(&["extended_plus"])).as_deref(), Some("extended_plus"));
+    assert_eq!(json::pick_mode(&[]), None);
+}

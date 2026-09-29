@@ -53,7 +53,7 @@ pub fn parse(reply: &str) -> Option<ChatSummary> {
     let start = reply.find('{')?;
     let end = reply.rfind('}')?;
     let mut s: ChatSummary = serde_json::from_str(reply.get(start..=end)?).ok()?;
-    s.title = s.title.trim().trim_matches(|c| c == '"' || c == '.').chars().take(60).collect::<String>().trim().to_string();
+    s.title = short_title(s.title.trim().trim_matches(|c| c == '"' || c == '.'));
     s.summary = s.summary.trim().chars().take(200).collect();
     s.tags = s
         .tags
@@ -63,6 +63,19 @@ pub fn parse(reply: &str) -> Option<ChatSummary> {
         .take(3)
         .collect();
     (!s.title.is_empty() && !s.summary.is_empty() && !s.title.eq_ignore_ascii_case(EXAMPLE_TITLE)).then_some(s)
+}
+
+/// At most 8 words and 60 characters, not ending on a small word ("… taxes as a").
+fn short_title(t: &str) -> String {
+    let mut words: Vec<&str> = t.split_whitespace().take(8).collect();
+    while words.len() > 2 && words.iter().map(|w| w.len() + 1).sum::<usize>() > 61 {
+        words.pop();
+    }
+    let small = ["a", "an", "the", "as", "to", "of", "for", "and", "or", "in", "on", "with", "at", "by", "from"];
+    while words.len() > 2 && words.last().is_some_and(|w| small.contains(&w.to_lowercase().as_str())) {
+        words.pop();
+    }
+    words.join(" ").trim_end_matches([',', ':', ';', '-']).to_string()
 }
 
 pub async fn summarize(http: &reqwest::Client, ep: &Endpoint, transcript: &str) -> AppResult<ChatSummary> {
@@ -87,6 +100,7 @@ mod tests {
     fn parses_and_tidies_replies() {
         let s = parse("Sure! {\"title\": \"\\\"Lisbon weekend plan.\\\"\", \"summary\": \" A 3-day Lisbon plan. \", \"tags\": [\"#Travel\", \"Portugal\", \"food\", \"extra\"]}").unwrap();
         assert_eq!(s.title, "Lisbon weekend plan");
+        assert_eq!(short_title("How to file quarterly estimated taxes as a freelancer"), "How to file quarterly estimated taxes");
         assert_eq!(s.summary, "A 3-day Lisbon plan.");
         assert_eq!(s.tags, vec!["travel", "portugal", "food"]);
         assert!(parse("no json here").is_none());

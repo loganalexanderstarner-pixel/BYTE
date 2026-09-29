@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Cards in Cloud mode even with no model on your Mac.** BYTE asks your cloud to fill in the card behind the scenes
+  (in a short "BYTE card helper" chat that it deletes afterwards), then shows the card and the cloud's answer.
+- Chat titles stay short (at most 8 words).
 - Flashcards and quizzes are more reliable with small models: BYTE now sends its answer formats to the model in the
   intended order (question before answer), retries once when a set comes back unusable, and keeps the finished
   cards when a reply is cut off. Repeated quiz questions are dropped.

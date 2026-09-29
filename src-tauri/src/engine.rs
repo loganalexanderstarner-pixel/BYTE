@@ -107,6 +107,9 @@ pub struct Endpoint {
     pub context: u32,
     /// Started with an image adapter (`--mmproj`): the model can see photos.
     pub vision: bool,
+    /// Structured replies come from the BYTE cloud instead (cards in Cloud mode
+    /// with no model loaded here); see `cloud::json`.
+    pub cloud: Option<std::sync::Arc<crate::cloud::json::JsonHelper>>,
 }
 
 /// What an engine is running and how much memory it was planned to use.
@@ -404,7 +407,7 @@ impl Engine {
         let base_url = format!("http://127.0.0.1:{port}");
         match self.wait_healthy(&base_url, generation).await {
             Ok(()) => {
-                let endpoint = Endpoint { base_url, api_key, model: launch.key.clone(), context, vision: launch.opts.mmproj.is_some() };
+                let endpoint = Endpoint { base_url, api_key, model: launch.key.clone(), context, vision: launch.opts.mmproj.is_some(), cloud: None };
                 if !launch.opts.embedding {
                     self.warm_up(&endpoint).await;
                 }

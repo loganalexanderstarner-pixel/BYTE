@@ -11,6 +11,7 @@
 //!   queue. An unreachable cluster makes BYTE answer locally instead.
 
 pub mod cmd;
+pub mod json;
 pub mod keychain;
 pub mod sse;
 

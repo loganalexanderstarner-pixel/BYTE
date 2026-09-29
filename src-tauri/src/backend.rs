@@ -94,8 +94,9 @@ pub async fn answer(state: &AppState, mut request: ChatRequest, on_event: &Chann
         local.mode = crate::cloud::cmd::local_mode(&turn.mode);
         local
     });
-    // Cards (recipes, compare tables, trips, reviews…) are made on this Mac when a
-    // model is loaded here; the cloud then writes the answer from BYTE's notes.
+    // Cards (recipes, compare tables, trips, reviews…) are made on this Mac, with the
+    // model loaded here or else by asking the cloud for each card's JSON; the cloud
+    // then writes the answer from BYTE's notes.
     // Not in Both (this Mac already answers beside the cloud, cards and all).
     let prepared = if turn.no_fallback {
         None
@@ -326,12 +327,40 @@ async fn prepare_for_cloud(state: &AppState, request: &ChatRequest, on_event: &C
     if request.private || state.tuning.load(std::sync::atomic::Ordering::SeqCst) {
         return Ok(None);
     }
-    let Some(ep) = state.engine.endpoint().await else { return Ok(None) };
+    let ep = match state.engine.endpoint().await {
+        Some(ep) => ep,
+        None => match cloud_cards(state).await {
+            Some(ep) => ep,
+            None => return Ok(None),
+        },
+    };
     let setup = Setup::new(state, request, ep).await?;
     let cancel = state.generations.register(&request.request_id).await;
     let r = agent::prepare(setup.turn(state, request), cancel, on_event).await;
     state.generations.finish(&request.request_id).await;
     r
+}
+
+/// With no model on this Mac: an endpoint whose structured replies (the cards' JSON)
+/// come from the BYTE cloud (`cloud::json`).
+async fn cloud_cards(state: &AppState) -> Option<crate::engine::Endpoint> {
+    let modes = {
+        let s = state.settings.lock().await;
+        if !s.cloud_connected {
+            return None;
+        }
+        s.cloud_account.as_ref().map(crate::cloud::parse_me).map(|me| me.modes).unwrap_or_default()
+    };
+    let mode = crate::cloud::json::pick_mode(&modes).unwrap_or_else(|| "auto".into());
+    let client = state.cloud_client().await.ok()?;
+    Some(crate::engine::Endpoint {
+        base_url: "byte-cloud".into(),
+        api_key: String::new(),
+        model: "BYTE Cloud".into(),
+        context: 32_768,
+        vision: false,
+        cloud: Some(std::sync::Arc::new(crate::cloud::json::JsonHelper::new(client, mode))),
+    })
 }
 
 #[cfg(test)]

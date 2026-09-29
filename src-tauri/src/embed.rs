@@ -218,7 +218,7 @@ mod tests {
     use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
     fn ep(base: String) -> Endpoint {
-        Endpoint { base_url: base, api_key: "k".into(), model: "nomic-embed-v1.5:Q8_0".into(), context: CONTEXT, vision: false }
+        Endpoint { base_url: base, api_key: "k".into(), model: "nomic-embed-v1.5:Q8_0".into(), context: CONTEXT, vision: false, cloud: None }
     }
 
     #[tokio::test]

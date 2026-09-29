@@ -160,6 +160,9 @@ pub struct Stats {
 /// `response_format`), thinking off. Returns the raw text; callers parse it
 /// leniently because small models still cut replies short.
 pub async fn complete_json(http: &reqwest::Client, ep: &Endpoint, system: &str, user: &str, schema: serde_json::Value, max_tokens: u32) -> AppResult<String> {
+    if let Some(cloud) = &ep.cloud {
+        return cloud.complete(system, user, &schema).await;
+    }
     // Models that always reason (DeepSeek-R1 and the like) ignore `enable_thinking: false`;
     // the JSON only starts after the reasoning, so they need room for both.
     let key = model_key(ep);
@@ -853,7 +856,7 @@ pub mod e2e_support {
         for _ in 0..900 {
             if let Ok(r) = http.get(format!("{base}/health")).send().await {
                 if r.status().is_success() {
-                    return Some((server, Endpoint { base_url: base, api_key: key.into(), model: "test".into(), context: 4096, vision: false }));
+                    return Some((server, Endpoint { base_url: base, api_key: key.into(), model: "test".into(), context: 4096, vision: false, cloud: None }));
                 }
             }
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
