@@ -17,6 +17,13 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — Custom assistants in Cloud mode
+- **Why:** v0.7.6 said the cloud didn't get an assistant's instructions. Built while the helper wrote the Phase 8 UI.
+- **What:** `assistants::cloud_message` puts the instructions under the user's words (the cloud chat API has no
+  system prompt); `backend::answer`'s cloud branch uses it for chats with an assistant.
+- **Verify:** `cargo test assistants::` (`cloud_messages_carry_the_instructions`).
+- **Undo:** revert.
+
 ### (this commit) — Phase 8 backend: model lab, advanced tuning, battery saver, live meters
 - **Why:** these are Phase 8's remaining items. The owner asked for work in parallel: this is the Rust half plus the
   TS contract (`types.ts`/`api.ts`); a helper builds the UI panels at the same time in separate files (next commit).

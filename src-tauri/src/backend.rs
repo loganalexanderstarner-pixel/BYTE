@@ -124,6 +124,12 @@ pub async fn answer(state: &AppState, mut request: ChatRequest, on_event: &Chann
             last.content = agent::cloud_message(chat::question_text(&last.content), p);
         }
     }
+    // A custom assistant's instructions go to the cloud with the message (its API has no system prompt).
+    if let Some(a) = request.assistant_id.as_deref().filter(|a| !a.is_empty()).and_then(|a| crate::assistants::get(&state.db, a).ok().flatten()) {
+        if let Some(last) = request.messages.iter_mut().rev().find(|m| m.role == "user") {
+            last.content = crate::assistants::cloud_message(&last.content, &a);
+        }
+    }
     let result = with_fallback(state, &Cloud { turn: &turn }, &request, &LocalLlama, fallback.as_ref(), on_event).await;
     // The card's sources are the ones the answer cites ([n]).
     if let Some(p) = prepared.filter(|p| !p.sources.is_empty()) {

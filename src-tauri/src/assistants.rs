@@ -82,6 +82,16 @@ pub fn prompt_section(a: &Assistant) -> String {
     format!("\n\nIn this chat you are the user's \"{}\" assistant (you're still BYTE). Follow these instructions from the user:\n{i}", a.name)
 }
 
+/// The message sent to the BYTE cloud in an assistant's chat: the user's words, then
+/// the assistant's instructions (the cloud's chat API has no system prompt).
+pub fn cloud_message(content: &str, a: &Assistant) -> String {
+    let i = a.instructions.trim();
+    if i.is_empty() {
+        return content.to_string();
+    }
+    format!("{content}\n\n---\n(Answer as my \"{}\" assistant. Its instructions: {i})", a.name)
+}
+
 fn row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Assistant> {
     let starters: String = r.get(4)?;
     Ok(Assistant { id: r.get(0)?, name: r.get(1)?, emoji: r.get(2)?, instructions: r.get(3)?, starters: serde_json::from_str(&starters).unwrap_or_default(), mode: r.get(5)?, created: r.get(6)? })
@@ -178,6 +188,13 @@ mod tests {
         let a = Assistant { name: "Study coach".into(), instructions: "Be patient.".into(), ..Default::default() };
         let s = prompt_section(&a);
         assert!(s.contains("\"Study coach\" assistant (you're still BYTE)") && s.ends_with("Be patient."));
+    }
+
+    #[test]
+    fn cloud_messages_carry_the_instructions() {
+        let a = Assistant { name: "Email helper".into(), instructions: "Short paragraphs.".into(), ..Default::default() };
+        assert_eq!(cloud_message("Reply to Sam", &a), "Reply to Sam\n\n---\n(Answer as my \"Email helper\" assistant. Its instructions: Short paragraphs.)");
+        assert_eq!(cloud_message("Hi", &Assistant::default()), "Hi");
     }
 
     #[test]
