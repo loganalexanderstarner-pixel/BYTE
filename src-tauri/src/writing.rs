@@ -74,7 +74,18 @@ pub fn max_tokens(action: Action, text: &str) -> u32 {
 
 /// The request the model sees.
 pub fn user_message(action: Action, tone: Option<&str>, text: &str) -> String {
-    format!("{}\n\nText:\n<<<\n{}\n>>>", instructions(action, tone), text.trim())
+    format!("{}{}\n\nText:\n<<<\n{}\n>>>", instructions(action, tone), length_target(action, text), text.trim())
+}
+
+/// A word count to aim for: small models follow a number, not "about half"
+/// (asked for half, a 0.6B model cut only 15%).
+fn length_target(action: Action, text: &str) -> String {
+    let words = text.split_whitespace().count();
+    match action {
+        Action::Shorten if words >= 12 => format!(" The text has {words} words; your version must have at most {} words.", (words / 2).max(6)),
+        Action::Expand if words >= 5 => format!(" The text has {words} words; your version should have about {} words.", words * 2),
+        _ => String::new(),
+    }
 }
 
 /// The engine request for one studio action (what `writing_run` sends; for tests).
@@ -494,6 +505,15 @@ mod tests {
         assert!(short < same && same < long, "{short} {same} {long}");
         assert!((200..=205).contains(&max_tokens(Action::Grammar, "Hi.")), "short texts get the minimum room");
         assert_eq!(max_tokens(Action::Expand, &"x".repeat(MAX_CHARS)), 8000);
+    }
+
+    #[test]
+    fn shorten_and_expand_get_a_word_target() {
+        let text = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen";
+        assert!(user_message(Action::Shorten, None, text).contains("The text has 14 words; your version must have at most 7 words."));
+        assert!(user_message(Action::Expand, None, text).contains("about 28 words"));
+        assert!(!user_message(Action::Grammar, None, text).contains("words;"));
+        assert!(!user_message(Action::Shorten, None, "Too short to count.").contains("words;"));
     }
 
     /// Real engine: shorten makes it shorter, grammar fixes the typos and little else.
