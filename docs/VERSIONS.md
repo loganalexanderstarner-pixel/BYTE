@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.7.6** | Phase 7 · Custom assistants | BYTE set up for one job: your instructions, starters and mode, or a preset | Repeated jobs, your own helpers |
+| **v0.7.7** | Phase 7 · Long-form and your style | Essays, stories, reports, speeches and poems written from an editable plan; "Write like me" | Writing anything longer |
+| v0.7.6 | Phase 7 · Custom assistants | BYTE set up for one job: your instructions, starters and mode, or a preset | Repeated jobs, your own helpers |
 | v0.7.5 | Phase 7 · Translate and jobs | Translate texts, files and pages part by part; a job search tracker that reads postings from a link | Job hunting, other languages |
 | v0.7.4 | Phase 7 · Writing studio | Rewrite, shorten, expand, tone and grammar, with the changes highlighted; a hint when your Mac could run a better model | Emails, essays, posts |
 | v0.7.3 | Phase 7 improvements | Card checks and one repair for small models; a photo helper so models that can't see can still answer about photos | Small Macs, small models |
@@ -57,7 +58,6 @@ which download is which. Their files and notes are unchanged.
 
 | Version | Phase |
 |---|---|
-| v0.7.7 | Long-form writer, style cloning, poetry and speeches (the rest of Phase 7) |
 | v0.8.0 | Speed |
 | v0.9.0 | Mac control |
 | v0.10.0 | Upkeep & automation |

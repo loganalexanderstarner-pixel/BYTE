@@ -1,6 +1,6 @@
 [package]
 name = "byte"
-version = "0.7.6"
+version = "0.7.7"
 description = "BYTE — a local-first AI assistant for Apple Silicon Macs"
 authors = ["Logan Starner"]
 edition = "2021"

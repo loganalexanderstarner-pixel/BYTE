@@ -472,8 +472,8 @@ broke (`chat::plain_body` fallback, reasoning room, `Quirks`); `serde_json` `pre
 with no local model (`cloud/json.rs`); `docs/CLUSTER-REQUESTS.md`. **Done in v0.7.3:** `quality.rs` (card checkers + one repair,
 small models only) and `looker.rs` (photo helper). **Done in v0.7.4:** `writing.rs` + `WritingPanel` (writing studio), the "a better model fits" hint
 (`models::better_model`). **Done in v0.7.5:** `translate.rs` (chat + studio), `jobs.rs` (DB v8, JobsPanel). **Done in v0.7.6:** `assistants.rs` (DB v9) +
-AssistantsPanel. **Next:** v0.7.7 long-form writer, style cloning, poetry/speeches (the rest of Phase 7); then
-Phase 8. Assistants in Cloud mode are not wired yet. Way of working
+AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writing.rs`, `Longform.tsx`). **Phase 7 is complete.**
+**Next:** Phase 8 (Speed) as v0.8.0, planned when it starts. Assistants in Cloud mode are not wired yet. Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;

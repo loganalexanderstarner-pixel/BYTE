@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { applyResult, changedWords, changes, cleanResult, target } from "./writing";
+import { applyResult, changedWords, changes, cleanResult, fileName, target, toBase64 } from "./writing";
 
 describe("changes", () => {
   it("marks only the new words and joins back into the result", () => {
@@ -41,5 +41,13 @@ describe("selections", () => {
   it("puts the result where the selection was, keeping its spacing", () => {
     expect(applyResult("One. Two bad sentence. Three.", 4, 23, "Two good sentences.")).toBe("One. Two good sentences. Three.");
     expect(applyResult("all", 0, 3, "  ALL  ")).toBe("ALL");
+  });
+});
+
+describe("saving", () => {
+  it("makes safe file names and UTF-8 base64", () => {
+    expect(fileName("Why Sleep Matters: A Guide?")).toBe("Why Sleep Matters A Guide.md");
+    expect(fileName("  ")).toBe("Writing.md");
+    expect(atob(toBase64("café"))).toBe("caf\u00c3\u00a9");
   });
 });

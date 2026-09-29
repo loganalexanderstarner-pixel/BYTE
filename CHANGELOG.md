@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.7 — Long-form writing, "Write like me", poems and speeches (Phase 7 complete)
+
+- **Write something new** (writing studio): essays, stories, blog posts, reports, speeches and poems. BYTE plans
+  it, you adjust the plan, and it writes it part by part, keeping the voice consistent. Save it, copy it, or keep
+  editing it in the studio.
+- **Write like me**: paste a few things you wrote and BYTE learns your style (you can read and edit what it
+  learned). Rewrites, expansions and new pieces then sound like you.
+
 ## 0.7.6 — Custom assistants
 
 - **Assistants** (🤖): BYTE set up for one job, with your instructions, starter prompts and a default mode. Start

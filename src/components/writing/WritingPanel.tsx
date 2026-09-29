@@ -1,6 +1,8 @@
 import { Check, Copy, Loader2, PenLine, Square, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
+import { Longform, StyleSetup } from "./Longform";
+
 import { api, errorText } from "../../lib/api";
 import { type Action, LANGUAGES, TONES, type Tone, applyResult, changedWords, changes, cleanResult, target } from "../../lib/writing";
 import { useStore } from "../../state/store";
@@ -22,6 +24,9 @@ export function WritingPanel() {
   const [run, setRun] = useState<{ id: string; from: number; to: number; original: string; result: string; done: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [tab, setTab] = useState<"edit" | "new" | "style">(initial ? "edit" : "edit");
+  const hasStyle = useStore((s) => !!s.settings?.writingStyle?.trim());
+  const [likeMe, setLikeMe] = useState(true);
   const box = useRef<HTMLTextAreaElement>(null);
 
   const start = async (action: Action) => {
@@ -32,7 +37,7 @@ export function WritingPanel() {
     setError(null);
     setRun({ id, from, to, original, result: "", done: false });
     try {
-      await api.writingRun(id, original, action, action === "tone" ? tone : action === "translate" ? lang : null, (e) => {
+      await api.writingRun(id, original, action, action === "tone" ? tone : action === "translate" ? lang : null, hasStyle && likeMe, (e) => {
         if (e.kind === "content") setRun((r) => (r && r.id === id ? { ...r, result: r.result + e.delta } : r));
         if (e.kind === "done") setRun((r) => (r && r.id === id ? { ...r, done: true } : r));
       });
@@ -63,11 +68,46 @@ export function WritingPanel() {
         <div className="recipe-box-head">
           <PenLine size={18} />
           <h2>Writing studio</h2>
+          <div className="segmented" role="tablist" aria-label="Writing studio">
+            <button role="tab" aria-selected={tab === "edit"} onClick={() => setTab("edit")} disabled={busy}>
+              Edit your text
+            </button>
+            <button role="tab" aria-selected={tab === "new"} onClick={() => setTab("new")} disabled={busy}>
+              Write something new
+            </button>
+          </div>
           <span className="spacer" />
+          {hasStyle && (
+            <label className="row faint small" style={{ gap: 6 }} title="Write in your own style (learned from your samples)">
+              <input type="checkbox" checked={likeMe} onChange={(e) => setLikeMe(e.target.checked)} /> Write like me
+            </label>
+          )}
+          <button className="btn sm" onClick={() => setTab("style")} disabled={busy} title="Teach BYTE how you write">
+            {hasStyle ? "Your style" : "Teach BYTE your style"}
+          </button>
           <button className="icon-btn" onClick={close} aria-label="Close" disabled={busy}>
             <X size={18} />
           </button>
         </div>
+        {tab === "style" && (
+          <div className="writing-scroll">
+            <StyleSetup onDone={() => setTab("edit")} />
+          </div>
+        )}
+        {tab === "new" && (
+          <div className="writing-scroll">
+            <Longform
+              likeMe={hasStyle && likeMe}
+              onEdit={(t) => {
+                setText(t);
+                setRun(null);
+                setTab("edit");
+              }}
+            />
+          </div>
+        )}
+        {tab === "edit" && (
+          <>
         <div className="writing-tools">
           {ACTIONS.map((a) => (
             <button key={a.id} className="btn sm" title={a.hint} disabled={busy || !text.trim()} onClick={() => void start(a.id)}>
@@ -149,6 +189,8 @@ export function WritingPanel() {
             )}
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -47,6 +47,8 @@ export interface Settings {
   photoHelper?: boolean;
   /** The writing studio (✍️). */
   writingEnabled?: boolean;
+  /** The user's writing style for "Write like me". */
+  writingStyle?: string;
   /** "Translate … into …" in chat, part by part. */
   translateEnabled?: boolean;
   /** The job search tracker (💼). */

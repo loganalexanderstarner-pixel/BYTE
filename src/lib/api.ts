@@ -1,4 +1,6 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
+
+import type { LongAsk, Outline } from "./writing";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type { DocEvent, DocKind, DocOutline, DocSpec } from "./docs/spec";
@@ -187,11 +189,20 @@ export const api = {
     return invoke<void>("cloud_action", { request, onEvent: channel });
   },
   /** Writing studio: the new text streams as `content` events. */
-  writingRun: (requestId: string, text: string, action: string, tone: string | null, onEvent: (e: ChatEvent) => void) => {
+  writingRun: (requestId: string, text: string, action: string, tone: string | null, likeMe: boolean, onEvent: (e: ChatEvent) => void) => {
     const channel = new Channel<ChatEvent>();
     channel.onmessage = onEvent;
-    return invoke<void>("writing_run", { requestId, text, action, tone, onEvent: channel });
+    return invoke<void>("writing_run", { requestId, text, action, tone, likeMe, onEvent: channel });
   },
+  writingOutline: (ask: LongAsk) => invoke<Outline>("writing_outline", { ask }),
+  /** One part of a long piece (or the whole poem); streams `content`. */
+  writingSection: (requestId: string, ask: LongAsk, outline: Outline, index: number, before: string, onEvent: (e: ChatEvent) => void) => {
+    const channel = new Channel<ChatEvent>();
+    channel.onmessage = onEvent;
+    return invoke<void>("writing_section", { requestId, ask, outline, index, before, onEvent: channel });
+  },
+  /** Learns and saves a style profile from samples of the user's writing. */
+  styleLearn: (samples: string[]) => invoke<string>("style_learn", { samples }),
   cloudDeleteMessage: (messageId: string) => invoke<void>("cloud_delete_message", { messageId }),
   cloudConversations: () => invoke<unknown>("cloud_conversations"),
   cloudImport: (conversationId: string) => invoke<string>("cloud_import", { conversationId }),

@@ -17,6 +17,30 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — v0.7.7: long-form writer, "Write like me", poems and speeches (Phase 7 done)
+- **Why:** these are the last Phase 7 items; the owner said "Lets start back up".
+- **What:**
+  - `writing.rs`:
+    - `stream_text` is shared by all studio streams (local model, or a cloud helper conversation);
+    - `writing_outline` (`complete_json`: title + 2–10 sections sized to the length) and `writing_section`, which
+      streams one part with the plan, the last ~1,500 characters so far, and the part's points. BYTE writes the
+      `#` title and `##` headings itself, since Qwen 0.6B garbled them as "## # …";
+    - poems in one pass, with forms (haiku, sonnet, limerick, rhyming, free verse); speeches at 130 words a minute
+      with a call to action at the end;
+    - `style_learn` turns 1–3 samples into a short profile saved in `settings.writing_style`, drops lines that copy
+      6+ words of a sample (Qwen 0.6B did that), and retries once. `style_rules` adds it to the studio's Edit actions
+      (not Fix grammar) and to long pieces when "Write like me" is on.
+  - UI:
+    - `components/writing/Longform.tsx`: the kind / topic / length form → an editable plan (rename, reorder,
+      remove, add) → part-by-part writing → Save (.md) / Copy / Edit it.
+    - `StyleSetup` ("Teach BYTE your style", edit or forget it); tabs in `WritingPanel`; the "Write like me"
+      switch.
+- **Verify:**
+  - `cargo test writing::`; `npx vitest run src/lib/writing.test.ts`;
+  - real engine `e2e_longform_and_style` on Qwen3-0.6B and Gemma 3 1B;
+  - screenshots `23b-writing-new`, `23c-writing-outline`, `23d-writing-longform`.
+- **Undo:** revert.
+
 ### (this commit) — v0.7.6: custom assistants
 - **Why:** custom assistants are the next Phase 7 item. Built while the v0.7.5 release was building.
 - **What:**

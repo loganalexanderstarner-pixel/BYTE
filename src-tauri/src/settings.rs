@@ -153,6 +153,9 @@ pub struct Settings {
     /// The writing studio (✍️): rewrite, expand, shorten, tone, grammar.
     #[serde(default = "yes")]
     pub writing_enabled: bool,
+    /// The user's writing style for "Write like me" (learned from their samples; editable).
+    #[serde(default)]
+    pub writing_style: String,
     /// "Translate … into …" in chat: part by part, for long texts, files and pages.
     #[serde(default = "yes")]
     pub translate_enabled: bool,
@@ -224,6 +227,7 @@ impl Default for Settings {
             study_enabled: true,
             photo_helper: true,
             writing_enabled: true,
+            writing_style: String::new(),
             translate_enabled: true,
             jobs_enabled: true,
             assistants_enabled: true,

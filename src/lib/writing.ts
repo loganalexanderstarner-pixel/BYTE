@@ -88,3 +88,47 @@ export function applyResult(text: string, from: number, to: number, result: stri
   const trail = part.match(/\s*$/)?.[0] ?? "";
   return text.slice(0, from) + lead + result.trim() + trail + text.slice(to);
 }
+
+// ---------- the long-form writer ----------
+
+export type Kind = "essay" | "story" | "blog" | "report" | "speech" | "poem";
+export const KINDS: [Kind, string][] = [
+  ["essay", "Essay"],
+  ["story", "Story"],
+  ["blog", "Blog post"],
+  ["report", "Report"],
+  ["speech", "Speech"],
+  ["poem", "Poem"],
+];
+export const POEM_FORMS = ["free verse", "rhyming", "haiku", "sonnet", "limerick"];
+
+/** Rust `writing::LongAsk`. */
+export interface LongAsk {
+  kind: Kind;
+  topic: string;
+  words?: number;
+  minutes?: number;
+  form?: string;
+  notes: string;
+  likeMe: boolean;
+}
+
+/** Rust `writing::Outline`. */
+export interface Outline {
+  title: string;
+  sections: { heading: string; points: string[] }[];
+}
+
+/** A file name from a title: "Why Sleep Matters!" → "Why Sleep Matters.md". */
+export function fileName(title: string): string {
+  const t = title.replace(/[\\/:*?"<>|#]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+  return `${t || "Writing"}.md`;
+}
+
+/** UTF-8 text as base64 (what `doc_save` takes). */
+export function toBase64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}

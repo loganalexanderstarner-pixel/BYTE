@@ -278,6 +278,29 @@ function initScript({ data }) {
           return true;
         case "doc_save":
           return null;
+        case "writing_outline":
+          return {
+            title: "Why Sleep Is Your Secret Study Tool",
+            sections: [
+              { heading: "The all-nighter myth", points: ["why cramming feels productive", "what the research says"] },
+              { heading: "What your brain does at night", points: ["memory consolidation", "clearing waste"] },
+              { heading: "Small changes that work", points: ["a fixed wake time", "screens off 30 minutes before bed"] },
+            ],
+          };
+        case "writing_section": {
+          const send = (e) => args.onEvent.onmessage(e);
+          const part = [
+            "# Why Sleep Is Your Secret Study Tool\n\n## The all-nighter myth\n\nIt's 2 a.m., the coffee's gone cold, and you're rereading the same page for the third time. Pulling an all-nighter feels like the responsible choice, but the research says the opposite: a tired brain holds on to far less of what it reads.",
+            "## What your brain does at night\n\nWhile you sleep, your brain replays what you learned during the day and files it away for later. Skip that, and much of the day's studying never sticks.",
+            "## Small changes that work\n\nPick a wake time and keep it, even on weekends. Put your phone away half an hour before bed. Your grades will thank you.",
+          ][args.index] ?? "";
+          send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q4_K_M" });
+          send({ kind: "content", delta: part });
+          send({ kind: "done", finishReason: "stop" });
+          return null;
+        }
+        case "style_learn":
+          return "- Voice: warm, direct, a little funny\n- Sentences: short, often one line\n- Habits: opens with \"Hey\"; dashes over commas";
         case "writing_run": {
           const send = (e) => args.onEvent.onmessage(e);
           send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q4_K_M" });
@@ -890,6 +913,16 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.getByRole("button", { name: "Shorten", exact: true }).click();
   await p.waitForTimeout(400);
   await shot(p, "23-writing-studio");
+  await p.getByRole("tab", { name: "Write something new" }).click();
+  await p.locator(".longform textarea").first().fill("Why sleep matters more than cramming, for high school students");
+  await shot(p, "23b-writing-new");
+  await p.getByRole("button", { name: "Plan it" }).click();
+  await p.waitForTimeout(300);
+  await shot(p, "23c-writing-outline");
+  await p.getByRole("button", { name: "Write it" }).click();
+  await p.waitForTimeout(500);
+  await shot(p, "23d-writing-longform");
+  await p.getByRole("tab", { name: "Edit your text" }).click();
   await p.getByRole("button", { name: "Close", exact: true }).click();
   await p.waitForTimeout(200);
   await p.getByTitle("Job search: postings, deadlines, interview prep").click();

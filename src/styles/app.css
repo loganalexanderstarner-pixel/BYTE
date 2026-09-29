@@ -4441,3 +4441,59 @@ kbd {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ---------- writing studio: long-form + style ---------- */
+.writing-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+.longform,
+.style-setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 820px;
+}
+.longform label,
+.style-setup label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.longform input,
+.longform select,
+.longform textarea,
+.style-setup textarea {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  font: inherit;
+}
+.longform .writing-result {
+  min-height: 320px;
+}
+.kind-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.outline-list {
+  margin: 0;
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.outline-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  align-items: center;
+}
+.outline-list li .muted {
+  grid-column: 1 / -1;
+}
