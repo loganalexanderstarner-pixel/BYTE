@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.5 — Translate and a job search tracker
+
+- **Translate**: "translate this into Spanish", "translate the attached file to German", "translate <link> to
+  English", "translate 'good morning' to Japanese". Long texts are translated part by part as you watch. The writing
+  studio has Translate too.
+- **Job search** (💼): paste a posting's link and BYTE fills in the company, role, place, pay, deadline and
+  requirements; track each job from saved to offer with notes and deadline countdowns; "Prepare for the interview"
+  asks BYTE in the chat.
+
 ## 0.7.4 — The writing studio
 
 - **Writing studio** (✍️ in the top bar, or the pen on any answer): rewrite, shorten, expand, change the tone of,
