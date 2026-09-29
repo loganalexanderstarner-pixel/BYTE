@@ -188,7 +188,9 @@ pub async fn complete_json(http: &reqwest::Client, ep: &Endpoint, system: &str, 
         let msg = &v["choices"][0]["message"];
         let content = msg["content"].as_str().unwrap_or("").to_string();
         let reasoned = msg["reasoning_content"].as_str().is_some_and(|r| !r.trim().is_empty());
-        if content.trim().is_empty() && reasoned && !thinks {
+        // Reasoned first and ran out (nothing, or JSON cut off): learn it, and once more with room.
+        let cut = v["choices"][0]["finish_reason"] == "length";
+        if (content.trim().is_empty() || cut) && reasoned && !thinks {
             log::info!("{} reasons before JSON; giving it room", ep.model);
             quirks().lock().await.reasons.insert(key.clone());
             thinks = true;

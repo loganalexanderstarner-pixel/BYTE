@@ -17,6 +17,15 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — Retry JSON cut off by reasoning; four model families pass the card tests
+- **Why:** the third pass left 2 DeepSeek-R1 failures (recipe ideas, meal plan). It reasoned (~600 tokens) and then
+  its JSON was cut off at `max_tokens`. `complete_json` only retried when the reply was empty.
+- **What:** `chat::complete_json` also retries with room when the reply finished with `length` after reasoning.
+- **Verify:** the card e2e set (study, kitchen, compare, fact-check, trip, summarize, calculator, web, reviews/prices,
+  prepare_for_cloud, docs): Qwen3-0.6B 11/11, Gemma 3 1B 11/11, Llama 3.2 1B 11/11, and DeepSeek-R1-Distill 1.5B 9/11
+  before this fix, with the 2 failures (kitchen, prepare_for_cloud) passing after it.
+- **Undo:** revert.
+
 ### (this commit) — docs/CLUSTER-REQUESTS.md: what the app needs from the cluster
 - **Why:** the owner asked for a doc in the repo telling the cluster what the app needs from it as features start
   leaning on it (like card making). It also reminds the cluster that this repo is public, so it must be secure.
