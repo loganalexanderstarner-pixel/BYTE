@@ -718,6 +718,13 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
+            Translate
+            <small>“Translate this into Spanish”, “translate the attached file to German”, “translate &lt;link&gt; to English”: long texts are translated part by part.</small>
+          </span>
+          <input type="checkbox" checked={settings?.translateEnabled ?? true} onChange={(e) => void update({ translateEnabled: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
             Study tools
             <small>Flashcards with spaced repetition (the 🎓 Study panel, Anki export), self-scoring quizzes, and the Tutor button.</small>
           </span>

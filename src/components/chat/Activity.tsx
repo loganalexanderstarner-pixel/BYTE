@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Clapperboard, GraduationCap, Layers as LayersIcon, Gamepad2, ShieldCheck, Store, Star, Layers, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
+import { Clapperboard, GraduationCap, Layers as LayersIcon, Gamepad2, ShieldCheck, Store, Star, Layers, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert, Languages } from "lucide-react";
 import { Fragment, useState } from "react";
 
 import { CITE_STYLES, cite, citeAll, plainCitation, type CiteStyle } from "../../lib/citations";
@@ -79,6 +79,8 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: ArrowLeft, text: s.summary ?? "Going back" };
     case "download_file":
       return { icon: Download, text: s.summary ?? "Getting the download ready" };
+    case "translate":
+      return { icon: Languages, text: s.summary ?? `Translating ${arg("what") || "it"} into ${arg("language")}${Number(arg("parts")) > 1 ? ` (${arg("parts")} parts)` : ""}` };
     case "look_at_photo":
       return { icon: Eye, text: s.summary ?? `Looking at ${arg("name") || "the photo"}` };
     case "make_flashcards":
@@ -124,6 +126,7 @@ export function activitySummary(steps: Step[]): string {
   const browsed = steps.filter((s) => BROWSER_STEPS.includes(s.name)).length;
   if (browsed) parts.push(`Used the browser (${browsed} step${browsed === 1 ? "" : "s"})`);
   if (steps.some((s) => s.name === "look_at_photo" && s.status === "ok")) parts.push("Looked at the photo");
+  if (steps.some((s) => s.name === "translate")) parts.push("Translated");
   if (steps.some((s) => s.name === "make_flashcards")) parts.push("Made flashcards");
   if (steps.some((s) => s.name === "make_quiz")) parts.push("Wrote a quiz");
   if (steps.some((s) => s.name === "summarize_reviews")) parts.push("Read the reviews");

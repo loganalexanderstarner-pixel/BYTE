@@ -106,6 +106,8 @@ pub struct Modules {
     pub study: bool,
     /// The model is small (≤ 4B, or unknown): cards get checked and repaired (`quality`).
     pub small_model: bool,
+    /// "Translate … into …": part by part, streamed (translate.rs).
+    pub translate: bool,
 }
 
 /// BYTE searches before the model answers any question about the world
@@ -118,7 +120,7 @@ fn must_search_first(turn: &Turn<'_>, question: &str) -> bool {
 /// trying to call a tool in plain text.
 const ANSWER_NOW: &str = "Write your answer to my question now, using the search results and pages above. Cite them as [n]. If they don't answer it, say what you found and what's still unclear. Don't call any tools.";
 
-type Emit<'a> = &'a (dyn Fn(ChatEvent) -> AppResult<()> + Sync);
+pub(crate) type Emit<'a> = &'a (dyn Fn(ChatEvent) -> AppResult<()> + Sync);
 
 /// Reads the best unread results in parallel (skipping sites that can't be
 /// read), until `want` pages were read or the candidates run out, and adds
@@ -428,6 +430,13 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     // searches, reads many pages and hands the model ranked, numbered notes.
     // Fact-check first (asked for, or "is it true that…"), then compare &
     // decide ("X vs Y"), then research; each hands the model numbered notes.
+    // Translate: BYTE translates part by part and streams it (translate.rs).
+    if session.is_none() && turn.modules.translate && crate::translate::ask(&question).is_some() {
+        if crate::translate::run(&turn, &question, &cancel, &send).await?.is_some() {
+            send(ChatEvent::Done { finish_reason: "stop".into() })?;
+            return Ok(());
+        }
+    }
     let mut prepared: Option<(SourceBook, String, &str)> = None;
     if let Some(s) = session.as_mut() {
         // The first step: open the site named in the message.
@@ -1048,7 +1057,7 @@ mod tests {
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let http = chat::local_client();
         let net = tools::fetch::web_client();
-        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false };
+        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false };
         let cases = [
             ("Reviews of the Sony WH-1000XM5", Mode::Auto, "reviews"),
             ("What's the cheapest place to buy a Steam Deck OLED?", Mode::Auto, "prices"),

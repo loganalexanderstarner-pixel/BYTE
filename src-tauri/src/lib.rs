@@ -39,6 +39,7 @@ mod study;
 mod summarize;
 mod system;
 mod tools;
+mod translate;
 mod trip;
 mod web_agent;
 mod writing;

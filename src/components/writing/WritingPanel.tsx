@@ -2,7 +2,7 @@ import { Check, Copy, Loader2, PenLine, Square, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { api, errorText } from "../../lib/api";
-import { type Action, TONES, type Tone, applyResult, changedWords, changes, cleanResult, target } from "../../lib/writing";
+import { type Action, LANGUAGES, TONES, type Tone, applyResult, changedWords, changes, cleanResult, target } from "../../lib/writing";
 import { useStore } from "../../state/store";
 
 const ACTIONS: { id: Action; label: string; hint: string }[] = [
@@ -18,6 +18,7 @@ export function WritingPanel() {
   const close = useStore((s) => s.closeWriting);
   const [text, setText] = useState(initial);
   const [tone, setTone] = useState<Tone>("friendly");
+  const [lang, setLang] = useState<string>("Spanish");
   const [run, setRun] = useState<{ id: string; from: number; to: number; original: string; result: string; done: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -31,7 +32,7 @@ export function WritingPanel() {
     setError(null);
     setRun({ id, from, to, original, result: "", done: false });
     try {
-      await api.writingRun(id, original, action, action === "tone" ? tone : null, (e) => {
+      await api.writingRun(id, original, action, action === "tone" ? tone : action === "translate" ? lang : null, (e) => {
         if (e.kind === "content") setRun((r) => (r && r.id === id ? { ...r, result: r.result + e.delta } : r));
         if (e.kind === "done") setRun((r) => (r && r.id === id ? { ...r, done: true } : r));
       });
@@ -82,6 +83,16 @@ export function WritingPanel() {
                 <option key={t} value={t}>
                   {t[0].toUpperCase() + t.slice(1)}
                 </option>
+              ))}
+            </select>
+          </span>
+          <span className="writing-tone">
+            <button className="btn sm" title="Translate into the chosen language" disabled={busy || !text.trim()} onClick={() => void start("translate")}>
+              Translate:
+            </button>
+            <select value={lang} onChange={(e) => setLang(e.target.value)} aria-label="Language" disabled={busy}>
+              {LANGUAGES.map((l) => (
+                <option key={l}>{l}</option>
               ))}
             </select>
           </span>

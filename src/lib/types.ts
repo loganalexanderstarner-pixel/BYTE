@@ -47,6 +47,8 @@ export interface Settings {
   photoHelper?: boolean;
   /** The writing studio (✍️). */
   writingEnabled?: boolean;
+  /** "Translate … into …" in chat, part by part. */
+  translateEnabled?: boolean;
   /** Reuse the answer to a question asked (almost exactly) in the last week. */
   answerCache: boolean;
   /** Models reloaded alongside the main one at launch. */

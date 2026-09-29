@@ -17,6 +17,25 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — v0.7.5 (part): translate
+- **Why:** it's the next Phase 7 item. Built while the v0.7.4 release was building.
+- **What:**
+  - New `translate.rs`:
+    - `ask()` finds "translate … into/to/in <language>" (60+ languages, the last one named wins);
+    - the text comes from a quote or a colon in the message, a link (Web on), the attached file (`<file>` blocks), or
+      the answer above;
+    - `parts()` splits the text between paragraphs or sentences (1,800 characters);
+    - `run()` translates part by part with a strict translator prompt and streams each part.
+  - `agent::run` tries it before the card flows (`Modules::translate`, `settings.translate_enabled`) and ends the turn
+    itself.
+  - The writing studio gains Translate with a language list (`Action::Translate`).
+  - Activity label; Settings → Features toggle.
+- **Verify:**
+  - `cargo test translate::`;
+  - real engine `e2e_translate` ("Translate that into Spanish" after a two-paragraph answer): Gemma 3 1B is perfect;
+    Qwen3-0.6B works but its Spanish has mistakes (the test checks the flow, not a 0.6B model's grammar).
+- **Undo:** revert.
+
 ### (this commit) — v0.7.4: the writing studio
 - **Why:** it's the next Phase 7 item (VERSIONS). Built while the v0.7.3 release was building.
 - **What:**

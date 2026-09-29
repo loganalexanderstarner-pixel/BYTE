@@ -1,6 +1,8 @@
 /** Writing studio helpers: word-level changes, tidying the model's reply, selections. */
 
-export type Action = "rewrite" | "expand" | "shorten" | "tone" | "grammar";
+export type Action = "rewrite" | "expand" | "shorten" | "tone" | "grammar" | "translate";
+/** Languages offered in the studio (any language works in chat: "translate this into …"). */
+export const LANGUAGES = ["English", "Spanish", "French", "German", "Italian", "Portuguese", "Dutch", "Polish", "Russian", "Ukrainian", "Turkish", "Arabic", "Hebrew", "Hindi", "Chinese", "Japanese", "Korean", "Vietnamese", "Thai", "Indonesian", "Swedish", "Greek"] as const;
 export const TONES = ["friendly", "formal", "confident", "simple", "persuasive"] as const;
 export type Tone = (typeof TONES)[number];
 

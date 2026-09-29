@@ -279,6 +279,7 @@ impl Setup {
                 best_of_three: s.best_of_three,
                 study: s.study_enabled,
                 small_model,
+                translate: s.translate_enabled,
             }, s.kb_enabled, s.cloud_connected)
         };
         let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());

@@ -26,6 +26,8 @@ pub enum Action {
     Shorten,
     Tone,
     Grammar,
+    /// Into the language given as `tone`.
+    Translate,
 }
 
 /// What the model is asked to do.
@@ -47,6 +49,10 @@ Don't invent facts about real people, dates, prices or numbers."
             };
             format!("Rewrite this text so its tone is {how}. Keep the same meaning and roughly the same length.")
         }
+        Action::Translate => format!(
+            "Translate this text into {}. Translate everything, keep the meaning, tone, names, numbers and formatting.",
+            tone.filter(|t| !t.trim().is_empty()).unwrap_or("English")
+        ),
         Action::Grammar => "Fix spelling, grammar and punctuation only. Change nothing else: not the wording, the style or the meaning. \
 If it's already correct, return it exactly as it is."
             .into(),
@@ -59,6 +65,8 @@ pub fn max_tokens(action: Action, text: &str) -> u32 {
     let want = match action {
         Action::Expand => tokens * 2.6 + 300.0,
         Action::Shorten => tokens * 0.8 + 150.0,
+        // Other scripts can take more tokens than the original.
+        Action::Translate => tokens * 2.2 + 300.0,
         _ => tokens * 1.4 + 200.0,
     };
     want.clamp(200.0, 8000.0) as u32
@@ -135,6 +143,7 @@ mod tests {
         assert!(instructions(Action::Grammar, None).contains("Change nothing else"));
         assert!(instructions(Action::Tone, Some("Formal")).contains("formal and professional"));
         assert!(instructions(Action::Tone, Some("pirate")).contains("friendly"), "unknown tones fall back to friendly");
+        assert!(instructions(Action::Translate, Some("Japanese")).contains("into Japanese"));
         let m = user_message(Action::Rewrite, None, "  hello there  ");
         assert!(m.ends_with("<<<\nhello there\n>>>"));
     }
