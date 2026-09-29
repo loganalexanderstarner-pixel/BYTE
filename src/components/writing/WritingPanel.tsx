@@ -143,7 +143,7 @@ export function WritingPanel() {
             </button>
           )}
         </div>
-        {error && <div className="banner error">{error}</div>}
+        {error && <div className="banner danger">{error}</div>}
         <div className="writing-body">
           <div className="writing-col">
             <label className="faint small" htmlFor="writing-text">

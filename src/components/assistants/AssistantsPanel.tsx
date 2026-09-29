@@ -115,7 +115,7 @@ export function AssistantsPanel({ onClose }: { onClose: () => void }) {
             <X size={18} />
           </button>
         </div>
-        {error && <div className="banner error">{error}</div>}
+        {error && <div className="banner danger">{error}</div>}
         {editing ? (
           <Editor
             value={editing}

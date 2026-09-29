@@ -17,6 +17,20 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — Version 0.8.0 (Phase 8 complete)
+- **What:** `docs/releases/v0.8.0.md`, VERSIONS, CHANGELOG, HANDOFF, PROJECT_GUIDE; `node scripts/bump.mjs 0.8.0`.
+- **Verify:** `scripts/check-all.sh`; the `release.yml` run for `v0.8.0` attaches the .dmg.
+- **Undo:** revert (the release stays on GitHub until deleted).
+
+### (this commit) — Phase 8 UI review: real recommended values, error banners
+- **Why:** reviewing the helper's panels to the same bar as the rest (owner: "same quality work"). The sliders sat
+  at a fixed 0.7 / 0.8 while "Recommended"; four of my panels used a `banner error` class that doesn't exist.
+- **What:** `commands::LiveStats.recommended` (the loaded model's plain sampling from `modelcfg::profile`) →
+  `types.ts`; `TuningPanel` polls once (`useLive`) and shows "Recommended (0.60)" at that position; wider
+  `.tuning-value`; `banner danger` in Jobs/Assistants/Longform/WritingPanel; shots mock.
+- **Verify:** `npm run typecheck && npx vitest run`; screenshots `07j-model-lab`, `07k-tuning`; `cargo check`.
+- **Undo:** revert.
+
 ### (this commit) — Phase 8 UI, first pass (Model lab + Advanced tuning panels, in progress)
 - **Why:** a snapshot of the parallel UI work, so it's saved while it continues. Typecheck and vitest pass (138).
 - **What:** `components/settings/{ModelLab,TuningPanel}.tsx`, `lib/tuning.ts` (+ tests), Settings mounts, CSS,

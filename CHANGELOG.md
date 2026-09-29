@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0 — Model lab, advanced tuning and battery saver (Phase 8 complete)
+
+- **Model lab** (Settings → Models): add any GGUF model from a file on your Mac or a Hugging Face link. BYTE reads
+  its header first and shows the architecture, size, quantization, longest context and whether it fits this Mac.
+- **Advanced tuning** (Settings → Engine): temperature, top-p, thinking budget and extra instructions per model,
+  starting from each model's recommended values; live memory, GPU and battery meters.
+- **Battery saver**: below 20% and unplugged, Deep and Extended answer like Auto with short thinking.
+- Custom assistants work in Cloud mode.
+- Fixed: error messages in the writing studio, jobs and assistants panels now show in the error colour.
+
 ## 0.7.7 — Long-form writing, "Write like me", poems and speeches (Phase 7 complete)
 
 - **Write something new** (writing studio): essays, stories, blog posts, reports, speeches and poems. BYTE plans

@@ -62,6 +62,10 @@ export function TuningPanel() {
     update({ modelOverrides: withoutOverride(useStore.getState().settings?.modelOverrides, key) }).catch((e) => setError(errorText(e)));
   };
 
+  const live = useLive();
+  // While "Recommended", a slider sits at the model's real recommended value.
+  const rec = live?.recommended ?? null;
+
   if (!settings) return null;
 
   return (
@@ -70,7 +74,7 @@ export function TuningPanel() {
         <SlidersHorizontal size={13} /> Advanced tuning
       </h4>
       {error && <div className="banner danger">{error}</div>}
-      <LiveMeters />
+      <LiveMeters live={live} />
 
       <label className="row battery-saver" style={{ gap: 10, cursor: "pointer" }}>
         <input type="checkbox" checked={settings.batterySaver ?? true} onChange={(e) => void update({ batterySaver: e.target.checked })} />
@@ -105,7 +109,7 @@ export function TuningPanel() {
             min={0}
             max={2}
             step={0.05}
-            fallback={0.7}
+            fallback={rec?.temperature ?? 0.7}
             value={draft.temperature ?? null}
             onChange={(v) => change({ temperature: v })}
           />
@@ -116,7 +120,7 @@ export function TuningPanel() {
             min={0.05}
             max={1}
             step={0.05}
-            fallback={0.8}
+            fallback={rec?.topP ?? 0.8}
             value={draft.topP ?? null}
             onChange={(v) => change({ topP: v })}
           />
@@ -188,7 +192,7 @@ function SliderField(props: {
           onChange={(e) => onChange(Math.round(Number(e.target.value) * 100) / 100)}
         />
         <output htmlFor={id} className={value == null ? "tuning-value faint" : "tuning-value"}>
-          {value == null ? "Recommended" : value.toFixed(2)}
+          {value == null ? `Recommended (${fallback.toFixed(2)})` : value.toFixed(2)}
         </output>
         <button
           className="btn sm ghost icon-only"
@@ -204,9 +208,9 @@ function SliderField(props: {
   );
 }
 
-function LiveMeters() {
+/** Polls the meters every few seconds while the panel is open (stops if the call fails). */
+function useLive(): LiveStats | null {
   const [live, setLive] = useState<LiveStats | null>(null);
-
   useEffect(() => {
     let stopped = false;
     let id: ReturnType<typeof setInterval> | null = null;
@@ -225,7 +229,10 @@ function LiveMeters() {
       if (id) clearInterval(id);
     };
   }, []);
+  return live;
+}
 
+function LiveMeters({ live }: { live: LiveStats | null }) {
   if (!live) return null;
   const ram = meterPercent(live.ramUsedBytes, live.ramTotalBytes);
   const engineShare = meterPercent(live.engineRssBytes, live.ramTotalBytes);

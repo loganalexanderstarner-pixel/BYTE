@@ -4651,7 +4651,8 @@ kbd {
   opacity: 0.55;
 }
 .tuning-value {
-  width: 88px;
+  width: 128px;
+  white-space: nowrap;
   text-align: right;
   font-family: var(--font-mono);
   font-size: 0.88em;

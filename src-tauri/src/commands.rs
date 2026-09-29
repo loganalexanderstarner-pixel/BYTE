@@ -806,6 +806,15 @@ pub struct LiveStats {
     pub gpu_budget_bytes: u64,
     pub battery: Option<Battery>,
     pub battery_saving: bool,
+    /// The loaded model's recommended sampling (for the tuning panel's sliders).
+    pub recommended: Option<Recommended>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Recommended {
+    pub temperature: f32,
+    pub top_p: f32,
 }
 
 #[derive(Debug, Serialize)]
@@ -828,7 +837,13 @@ pub async fn engine_live(state: State<'_, AppState>) -> AppResult<LiveStats> {
     let settings = state.settings.lock().await.clone();
     let info = system::system_info(&state.paths.data).with_settings(&settings);
     let battery = system::battery();
+    let catalog = state.catalog.get();
+    let recommended = state.engine.loaded().await.and_then(|l| catalog.resolve(&l.key).ok().map(|(m, _)| crate::modelcfg::profile(m))).map(|p| Recommended {
+        temperature: (p.plain.temperature * 100.0).round() / 100.0,
+        top_p: (p.plain.top_p * 100.0).round() / 100.0,
+    });
     Ok(LiveStats {
+        recommended,
         ram_used_bytes: sys.used_memory(),
         ram_total_bytes: sys.total_memory(),
         engine_rss_bytes,

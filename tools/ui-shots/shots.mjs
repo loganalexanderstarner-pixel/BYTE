@@ -344,7 +344,7 @@ function initScript({ data }) {
         case "lab_remove":
           return null;
         case "engine_live":
-          return { ramUsedBytes: 11.8e9, ramTotalBytes: 17179869184, engineRssBytes: 6.9e9, gpuBudgetBytes: 11453246122, battery: { percent: 17, charging: false }, batterySaving: true };
+          return { ramUsedBytes: 11.8e9, ramTotalBytes: 17179869184, engineRssBytes: 6.9e9, gpuBudgetBytes: 11453246122, battery: { percent: 17, charging: false }, batterySaving: true, recommended: { temperature: 0.6, topP: 0.95 } };
         case "kb_add":
           return 3;
         case "kb_remove":

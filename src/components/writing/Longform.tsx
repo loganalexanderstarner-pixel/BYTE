@@ -41,7 +41,7 @@ export function StyleSetup({ onDone }: { onDone: () => void }) {
         </button>
         <span className="faint small">Needs about 30 words or more.</span>
       </div>
-      {error && <div className="banner error">{error}</div>}
+      {error && <div className="banner danger">{error}</div>}
       <label className="faint small">
         Your style (edit it if something's off)
         <textarea rows={6} value={profile} onChange={(e) => setProfile(e.target.value)} placeholder="Nothing learned yet." />
@@ -175,7 +175,7 @@ export function Longform({ likeMe, onEdit }: { likeMe: boolean; onEdit: (text: s
             Write it
           </button>
         </div>
-        {error && <div className="banner error">{error}</div>}
+        {error && <div className="banner danger">{error}</div>}
       </div>
     );
   }
@@ -210,7 +210,7 @@ export function Longform({ likeMe, onEdit }: { likeMe: boolean; onEdit: (text: s
             </>
           )}
         </div>
-        {error && <div className="banner error">{error}</div>}
+        {error && <div className="banner danger">{error}</div>}
       </div>
     );
   }
@@ -265,7 +265,7 @@ export function Longform({ likeMe, onEdit }: { likeMe: boolean; onEdit: (text: s
           {busy && <Loader2 size={14} className="spin" />} {ask.kind === "poem" ? "Write it" : "Plan it"}
         </button>
       </div>
-      {error && <div className="banner error">{error}</div>}
+      {error && <div className="banner danger">{error}</div>}
     </div>
   );
 }

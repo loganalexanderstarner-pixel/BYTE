@@ -763,6 +763,8 @@ export interface LiveStats {
   battery: { percent: number; charging: boolean } | null;
   /** Battery saver is on and in effect right now. */
   batterySaving: boolean;
+  /** The loaded model's recommended sampling (where the sliders sit while "Recommended"). */
+  recommended?: { temperature: number; topP: number } | null;
 }
 
 /** Rust `jobs::Job`: a job in the tracker. */

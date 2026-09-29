@@ -26,10 +26,11 @@ talks in a normal friendly tone; the *visuals* are neon/cyberpunk. No paid Apple
 | Area | State |
 |---|---|
 | Phases 1–3 (engine, models, chat, web search, agent, calculator, encrypted chats, memory, projects, profiles) | ✅ done |
-| Speed work (Phase 8 pulled forward): Speed boost with family drafters **and models' own MTP/EAGLE-3/DSpark heads**, repeated-text guessing (ngram), per-Mac auto-tuning (quick/thorough/tune-all), measured-speed recommendations with a quality floor, CPU offload for MoE (`--n-cpu-moe`) + stretch mode, optional bigger GPU share, accuracy-first thinking router | ✅ done (test.7–test.9) |
+| Speed work (Phase 8 pulled forward): Speed boost with family drafters **and models' own MTP/EAGLE-3/DSpark heads**, repeated-text guessing (ngram), per-Mac auto-tuning (quick/thorough/tune-all), measured-speed recommendations with a quality floor, CPU offload for MoE (`--n-cpu-moe`) + stretch mode, optional bigger GPU share, accuracy-first thinking router | ✅ done (test.7–test.9); model lab, tuning panel, battery saver in v0.8.0 |
 | Cloud mode (chat, streaming, actions, attachments + library, documents with outline approval + templates, account data, `/` prompts, fallback to local) | ✅ built (test.10) — **not yet verified against the real cluster** (see §6) |
 | Cloud redesign: This Mac · Cloud · Both workspaces, server chat list with new/delete, Both answers side by side with "Keep this one", budgets chip, 429 message, re-read after a dropped stream, invite-only onboarding path | ✅ built (for test.11) |
-| Phases 4–7, 9–12 (files & knowledge base, local documents, research+, writing/learning, Mac control, automation, voice/windows, privacy & polish) | ⏳ planned — every phase in detail in §8 |
+| Phases 4–7 (files & knowledge base, local documents, research+, writing/learning) | ✅ done (v0.5.0–v0.7.7) |
+| Phases 9–12 (Mac control, automation, voice/windows, privacy & polish) | ⏳ planned — every phase in detail in §8 |
 
 Builds are GitHub releases tagged by phase, **v0.<phase>.<n>** (latest: v0.5.0; older ones were `v1.0.0-test.1…14`, mapped in `docs/VERSIONS.md`). Each release's description comes from `docs/releases/<tag>.md`. The owner installs them on the M4 Air
 and reports back with screenshots; this environment can't run macOS.
@@ -473,7 +474,10 @@ with no local model (`cloud/json.rs`); `docs/CLUSTER-REQUESTS.md`. **Done in v0.
 small models only) and `looker.rs` (photo helper). **Done in v0.7.4:** `writing.rs` + `WritingPanel` (writing studio), the "a better model fits" hint
 (`models::better_model`). **Done in v0.7.5:** `translate.rs` (chat + studio), `jobs.rs` (DB v8, JobsPanel). **Done in v0.7.6:** `assistants.rs` (DB v9) +
 AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writing.rs`, `Longform.tsx`). **Phase 7 is complete.**
-**Next:** Phase 8 (Speed) as v0.8.0, planned when it starts. Assistants in Cloud mode are not wired yet. Way of working
+**Done in v0.8.0:** `gguf.rs` + `lab.rs` (model lab, `<data>/added_models.json`, `CatalogStore::set_added`), per-model
+`settings.model_overrides` (`ModelOverride::apply`) + `TuningPanel`, `battery_saver` (`system::battery`), `commands::engine_live`
+(with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
+**Next:** Phase 9 (Mac control) as v0.9.0, planned when it starts. Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
@@ -487,17 +491,18 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
    `/commands` (cloud ones already work), skill packs import/export, chained workflows.
 Verify: SM-2 unit tests, Anki export opens in Anki, editor interactions in screenshots.
 
-### Phase 8 — Speed ✅ mostly done (pulled forward)
+### Phase 8 — Speed ✅ done (v0.8.0)
 Done: Speed boost (family drafters and models' own MTP / EAGLE-3 / DSpark heads), repeated-text guessing,
 per-Mac auto-tuning (quick / thorough / tune all), speed preference (Faster / Balanced / Smarter),
 measured-speed recommendations with a quality floor and Mac-wide calibration, CPU offload for MoE models and
 stretch mode, optional bigger GPU share, accuracy-first thinking router, load several models at once and
-compare. Left:
+compare. Done in v0.8.0:
 1. **Model lab**: add any GGUF (file or Hugging Face URL) → read its header → RAM check → catalog entry with
    its own settings (context, thinking, temperature); side-by-side compare.
 2. **Advanced tuning panel**: temperature, context, thinking budget, system prompt editor, live tok/s and
    RAM/GPU meters.
-3. **Auto-switch**: low-battery mode (<20% → faster model, shorter thinking); optional small router model.
+3. **Auto-switch**: battery saver (<20% unplugged → Auto mode, short thinking). A small router model was not needed
+   (the rule-based router is accurate enough).
 4. Maybe later: Apple MLX engine (10–20% faster on some models; a big rebuild).
 
 ### Phase 9 — Mac control ⏳
