@@ -58,7 +58,7 @@ function mock(onboarded, theme) {
         { id: "m3", text: "Uses a MacBook Air M4 with 16 GB", source: "chat", createdAt: now - 1 * day },
       ]
     : [];
-  const settings = { autoTune: true, tuning: onboarded ? { "qwen3.5-9b:Q6_K": { boost: true, kvF16: false, ubatch: 1024, tokensPerSec: 21.4, promptPerSec: 412, chip: "Apple M4 10-core GPU", testedAt: Date.now(), flashAttn: true, draftNMax: 16, draftPMin: 0.75, thorough: true, helperKind: "draft", ngram: true } } : {}, speedBoost: true, speedPref: "balanced", memoryEnabled: true, kbEnabled: true, answerCache: true, aboutMe: "I'm Logan. I like clear, practical answers.", loadedAlongside: [], webSearch: true, userName: "Logan", onboardingComplete: onboarded, activeModel: onboarded ? "qwen3.5-9b:Q6_K" : null, contextSize: null, defaultMode: "auto", thinking: "auto", theme, accent: null, fontScale: 1, density: "comfortable", showStats: true };
+  const settings = { autoTune: true, tuning: onboarded ? { "qwen3.5-9b:Q6_K": { boost: true, kvF16: false, ubatch: 1024, tokensPerSec: 21.4, promptPerSec: 412, chip: "Apple M4 10-core GPU", testedAt: Date.now(), flashAttn: true, draftNMax: 16, draftPMin: 0.75, thorough: true, helperKind: "draft", ngram: true } } : {}, speedBoost: true, speedPref: "balanced", memoryEnabled: true, kbEnabled: true, answerCache: true, aboutMe: "I'm Logan. I like clear, practical answers.", loadedAlongside: [], webSearch: true, userName: "Logan", onboardingComplete: onboarded, activeModel: onboarded ? "qwen3.5-9b:Q6_K" : null, contextSize: null, defaultMode: "auto", thinking: "auto", theme, accent: null, fontScale: 1, density: "comfortable", showStats: true, batterySaver: true, modelOverrides: onboarded ? { "qwen3.5-9b:Q6_K": { temperature: 0.6, thinkingBudget: 1024, systemExtra: "Use metric units." } } : {} };
   const system = REAL.system;
   const loaded = onboarded
     ? [
@@ -334,6 +334,17 @@ function initScript({ data }) {
           return { model: null, downloads: ["qwen3.5-0.8b:Q4_K_M", "qwen3.5-0.8b:vision"], downloadBytes: 737504352 };
         case "kb_status":
           return data.kb ?? { sources: [], embedKey: "nomic-embed-v1.5:Q8_0", embedBytes: 146146432, embedInstalled: false, embedRunning: false };
+        case "lab_inspect":
+        case "lab_inspect_url":
+          return { id: "hf-mistral-nemo-12b", name: "Mistral Nemo Instruct 12B", source: args.url ? "huggingface" : "file", path: args.path ?? "", repo: "bartowski/Mistral-Nemo-Instruct-2407-GGUF", file: "Mistral-Nemo-Instruct-2407-Q4_K_M.gguf", sizeBytes: 7477208576, architecture: "llama", paramsB: 12.2, quant: "Q4_K_M", layers: 40, contextMax: 131072, thinking: false, fit: "tight", fitNote: "Fits with an 8k context (uses about 9.1 GB). Close other apps for the best speed.", context: 8192, added: false };
+        case "lab_add":
+          return `${args.model.id}:${args.model.quant}`;
+        case "lab_list":
+          return [{ id: "local-gemma-3-4b", name: "Gemma 3 4B Instruct", source: "file", path: "/Users/logan/Models/gemma-3-4b-it-Q4_K_M.gguf", repo: "", file: "", sizeBytes: 2489757696, architecture: "gemma3", paramsB: 3.9, quant: "Q4_K_M", layers: 34, contextMax: 131072, thinking: false, fit: "great", fitNote: "Fits comfortably with a 16k context (uses about 3.4 GB)", context: 16384, added: true }];
+        case "lab_remove":
+          return null;
+        case "engine_live":
+          return { ramUsedBytes: 11.8e9, ramTotalBytes: 17179869184, engineRssBytes: 6.9e9, gpuBudgetBytes: 11453246122, battery: { percent: 17, charging: false }, batterySaving: true };
         case "kb_add":
           return 3;
         case "kb_remove":
@@ -904,6 +915,19 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".field", { hasText: "Photo helper" }).scrollIntoViewIfNeeded();
   await p.waitForTimeout(150);
   await shot(p, "07i-settings-photo-helper");
+  await p.getByRole("button", { name: "Models", exact: true }).click();
+  await p.waitForTimeout(300);
+  await p.locator("#lab-url").fill("https://huggingface.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF/blob/main/Mistral-Nemo-Instruct-2407-Q4_K_M.gguf");
+  await p.getByRole("button", { name: "Check", exact: true }).click();
+  await p.waitForTimeout(300);
+  await p.locator(".model-lab h4").first().evaluate((el) => { el.scrollIntoView({ block: "start" }); el.closest(".modal-body").scrollTop -= 20; });
+  await p.waitForTimeout(150);
+  await shot(p, "07j-model-lab");
+  await p.getByRole("button", { name: "Engine", exact: true }).click();
+  await p.waitForTimeout(400);
+  await p.locator(".tuning h4").first().evaluate((el) => { el.scrollIntoView({ block: "start" }); el.closest(".modal-body").scrollTop -= 20; });
+  await p.waitForTimeout(150);
+  await shot(p, "07k-tuning");
   await p.getByRole("button", { name: "Close settings" }).click();
   await p.waitForTimeout(200);
   await p.getByTitle("Writing studio: rewrite, shorten, expand, tone, grammar").click();

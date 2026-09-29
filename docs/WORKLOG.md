@@ -17,6 +17,13 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — Phase 8 UI, first pass (Model lab + Advanced tuning panels, in progress)
+- **Why:** a snapshot of the parallel UI work, so it's saved while it continues. Typecheck and vitest pass (138).
+- **What:** `components/settings/{ModelLab,TuningPanel}.tsx`, `lib/tuning.ts` (+ tests), Settings mounts, CSS,
+  screenshot mocks. They're built on the contract in `types.ts`/`api.ts`.
+- **Verify:** `npm run typecheck && npx vitest run`. It's reviewed with screenshots in the next commit.
+- **Undo:** revert.
+
 ### (this commit) — Custom assistants in Cloud mode
 - **Why:** v0.7.6 said the cloud didn't get an assistant's instructions. Built while the helper wrote the Phase 8 UI.
 - **What:** `assistants::cloud_message` puts the instructions under the user's words (the cloud chat API has no

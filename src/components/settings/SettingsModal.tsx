@@ -12,6 +12,8 @@ import { useStore, type SettingsTab } from "../../state/store";
 import { CatalogBrowser } from "../models/CatalogBrowser";
 import { CloudTab } from "./CloudTab";
 import { KnowledgeTab } from "./KnowledgeTab";
+import { ModelLab } from "./ModelLab";
+import { TuningPanel } from "./TuningPanel";
 
 const TABS: { id: SettingsTab; label: string; icon: typeof Cpu }[] = [
   { id: "models", label: "Models", icon: HardDrive },
@@ -71,6 +73,7 @@ function ModelsTab() {
       </p>
       <SpeedPrefPicker />
       <CatalogBrowser />
+      <ModelLab />
     </>
   );
 }
@@ -624,6 +627,7 @@ function EngineTab() {
         </div>
         <pre className="log">{log.length ? log.slice(-200).join("\n") : "No output yet."}</pre>
       </div>
+      <TuningPanel />
     </>
   );
 }
