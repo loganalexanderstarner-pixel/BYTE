@@ -285,6 +285,16 @@ function initScript({ data }) {
           send({ kind: "done", finishReason: "stop" });
           return null;
         }
+        case "jobs_list": {
+          const soon = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+          const job = (id, company, role, status, extra = {}) => ({ id, company, role, location: "", pay: "", url: "https://jobs.example.com/" + id, status, deadline: "", applied: "", summary: "", requirements: [], notes: "", updated: 0, ...extra });
+          return [
+            job(1, "Brightline Analytics", "Junior Data Analyst", "saved", { location: "Pittsburgh, PA", pay: "$58k–$66k", deadline: soon }),
+            job(2, "Northwind", "Marketing Coordinator", "saved", { location: "Remote", deadline: "2026-12-01" }),
+            job(3, "Acme Robotics", "Operations Associate", "applied", { location: "Cleveland, OH", pay: "$52k" }),
+            job(4, "Keystone Health", "Patient Services Rep", "interview", { location: "Pittsburgh, PA" }),
+          ];
+        }
         case "looker_status":
           return { model: null, downloads: ["qwen3.5-0.8b:Q4_K_M", "qwen3.5-0.8b:vision"], downloadBytes: 737504352 };
         case "kb_status":
@@ -868,6 +878,11 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.getByRole("button", { name: "Shorten", exact: true }).click();
   await p.waitForTimeout(400);
   await shot(p, "23-writing-studio");
+  await p.getByRole("button", { name: "Close", exact: true }).click();
+  await p.waitForTimeout(200);
+  await p.getByTitle("Job search: postings, deadlines, interview prep").click();
+  await p.waitForTimeout(300);
+  await shot(p, "24-jobs");
   await p.getByRole("button", { name: "Close", exact: true }).click();
   await p.waitForTimeout(200);
   await p.getByTitle("Settings (⌘,)").click();

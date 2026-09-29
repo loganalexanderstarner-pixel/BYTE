@@ -17,6 +17,26 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — v0.7.5 (part): job search tracker
+- **Why:** the job tracker is the next Phase 7 item. Built while the v0.7.4 release was building.
+- **What:**
+  - `jobs.rs` + DB schema v8 (`jobs`): list sorted by the soonest deadline, save (moving past "saved" stamps the
+    applied date), delete.
+  - `job_from_url` reads a posting: `fetch_page`, then `read_posting` (`complete_json`, or the cloud with no local
+    model).
+  - `deadline_in` backstops a deadline the model missed ("Apply by…", "Applications close November 5, 2026",
+    "Deadline: 15 Nov 2026", 12/01/2026).
+  - `prep_prompt` gives the "Prepare for the interview" chat message.
+  - UI: `components/jobs/JobsPanel.tsx` (paste a link → a filled-in job to review; grouped by status; deadline
+    countdown; open / prep / delete), `lib/jobs.ts` (+ tests), a 💼 top-bar button, and Settings → Features
+    `jobsEnabled`.
+- **Verify:**
+  - `cargo test jobs::`; `npx vitest run src/lib/jobs.test.ts`;
+  - real engine `e2e_read_posting`: Qwen3-0.6B is fully right; Llama 3.2 1B missed the deadline until the
+    `deadline_in` backstop, and now passes;
+  - screenshot `24-jobs`.
+- **Undo:** revert (the v8 table stays, unused).
+
 ### (this commit) — v0.7.5 (part): translate
 - **Why:** it's the next Phase 7 item. Built while the v0.7.4 release was building.
 - **What:**

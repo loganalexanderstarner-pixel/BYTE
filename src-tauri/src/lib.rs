@@ -15,6 +15,7 @@ mod reviews;
 mod selfcheck;
 mod embed;
 mod kb;
+mod jobs;
 mod kitchen;
 mod looker;
 mod engine;
@@ -161,6 +162,11 @@ pub fn run() {
             commands::kb_status,
             commands::looker_status,
             writing::writing_run,
+            jobs::jobs_list,
+            jobs::job_save,
+            jobs::job_delete,
+            jobs::job_from_url,
+            jobs::job_prep_prompt,
             commands::kb_add,
             commands::kb_remove,
             commands::kb_reindex,

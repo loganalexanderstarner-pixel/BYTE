@@ -725,6 +725,13 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
+            Job search
+            <small>The 💼 tracker: paste a posting's link and BYTE fills it in; statuses, deadlines, notes and interview prep.</small>
+          </span>
+          <input type="checkbox" checked={settings?.jobsEnabled ?? true} onChange={(e) => void update({ jobsEnabled: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
             Study tools
             <small>Flashcards with spaced repetition (the 🎓 Study panel, Anki export), self-scoring quizzes, and the Tutor button.</small>
           </span>

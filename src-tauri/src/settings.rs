@@ -156,6 +156,9 @@ pub struct Settings {
     /// "Translate … into …" in chat: part by part, for long texts, files and pages.
     #[serde(default = "yes")]
     pub translate_enabled: bool,
+    /// The job search tracker (💼).
+    #[serde(default = "yes")]
+    pub jobs_enabled: bool,
     /// Reuse the answer to a question asked (almost exactly) in the last week
     /// (needs the search-by-meaning model; see answer_cache.rs).
     pub answer_cache: bool,
@@ -219,6 +222,7 @@ impl Default for Settings {
             photo_helper: true,
             writing_enabled: true,
             translate_enabled: true,
+            jobs_enabled: true,
             answer_cache: true,
             loaded_alongside: Vec::new(),
             better_model_hint_for: Vec::new(),

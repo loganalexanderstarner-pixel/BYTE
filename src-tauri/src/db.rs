@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 7;
+const SCHEMA_VERSION: i32 = 8;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -626,7 +626,30 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 7);
+    if version < 8 {
+        // Job search tracker (jobs.rs).
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE jobs (
+                 id INTEGER PRIMARY KEY,
+                 company TEXT NOT NULL DEFAULT '',
+                 role TEXT NOT NULL DEFAULT '',
+                 location TEXT NOT NULL DEFAULT '',
+                 pay TEXT NOT NULL DEFAULT '',
+                 url TEXT NOT NULL DEFAULT '',
+                 status TEXT NOT NULL DEFAULT 'saved',
+                 deadline TEXT NOT NULL DEFAULT '',
+                 applied TEXT NOT NULL DEFAULT '',
+                 summary TEXT NOT NULL DEFAULT '',
+                 requirements TEXT NOT NULL DEFAULT '[]',
+                 notes TEXT NOT NULL DEFAULT '',
+                 updated INTEGER NOT NULL
+             );
+             PRAGMA user_version = 8;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 8);
     Ok(())
 }
 

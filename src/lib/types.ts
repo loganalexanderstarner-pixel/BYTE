@@ -49,6 +49,8 @@ export interface Settings {
   writingEnabled?: boolean;
   /** "Translate … into …" in chat, part by part. */
   translateEnabled?: boolean;
+  /** The job search tracker (💼). */
+  jobsEnabled?: boolean;
   /** Reuse the answer to a question asked (almost exactly) in the last week. */
   answerCache: boolean;
   /** Models reloaded alongside the main one at launch. */
@@ -682,6 +684,25 @@ export interface KbSource {
   /** Passages searchable by meaning (have an embedding). */
   embedded: number;
   bytes: number;
+}
+
+/** Rust `jobs::Job`: a job in the tracker. */
+export interface Job {
+  id: number;
+  company: string;
+  role: string;
+  location: string;
+  pay: string;
+  url: string;
+  /** saved, applied, interview, offer, rejected */
+  status: string;
+  /** YYYY-MM-DD or empty. */
+  deadline: string;
+  applied: string;
+  summary: string;
+  requirements: string[];
+  notes: string;
+  updated: number;
 }
 
 /** Rust `commands::LookerStatus`: the photo helper. */
