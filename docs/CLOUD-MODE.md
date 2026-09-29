@@ -6,6 +6,9 @@ VPN, so the app works anywhere.
 
 **Target is parity with the byte-ai web app**, not just chat.
 
+What the app would like the cluster to add next (and the security rules for
+writing about it in this public repo) is in `docs/CLUSTER-REQUESTS.md`.
+
 Base URL: `https://byteai.bytebylogan.xyz`
 
 ---

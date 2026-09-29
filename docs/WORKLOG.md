@@ -17,6 +17,21 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — docs/CLUSTER-REQUESTS.md: what the app needs from the cluster
+- **Why:** the owner asked for a doc in the repo telling the cluster what the app needs from it as features start
+  leaning on it (like card making). It also reminds the cluster that this repo is public, so it must be secure.
+- **What:**
+  - New `docs/CLUSTER-REQUESTS.md`:
+    - the public-repo rules (no keys, internal addresses, topology, user data or admin endpoints; every new
+      endpoint needs auth, per-account scoping, rate and size limits, untrusted input, plain errors);
+    - six requests, each with why, a suggested shape and the app's fallback: `POST /api/complete`, hidden
+      conversations, confirming `DELETE /api/conversations/{id}`, a `card` stream event, a helper budget, and
+      `POST /api/vision/describe`;
+    - how the app behaves toward the cluster.
+  - Linked from `CLAUDE.md` and `docs/CLOUD-MODE.md`.
+- **Verify:** `scripts/check-secrets.sh`; read the file (no hostnames beyond the public base URL).
+- **Undo:** revert (docs only).
+
 ### (this commit) — Models that reason when told not to; no example in the title prompt
 - **Why:** the second pass of the per-family e2e tests.
   - DeepSeek-R1-Distill 1.5B still failed the calculator, recipe and document-section tests. Its extra

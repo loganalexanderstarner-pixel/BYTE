@@ -6,7 +6,8 @@ and runs everything on-device. Only web search/reading and model downloads use t
 
 **Start with `docs/HANDOFF.md`** (current state, next tasks, how to work here), then `docs/PROJECT_GUIDE.md` for the
 full feature catalog, architecture, decisions, and phase status, `docs/DESIGN-AND-PLATFORMS.md` (byte-ai's design
-tokens + logo, and the Windows/Linux plan) and `docs/CLOUD-MODE.md` (BYTE as a remote backend).
+tokens + logo, and the Windows/Linux plan), `docs/CLOUD-MODE.md` (BYTE as a remote backend) and
+`docs/CLUSTER-REQUESTS.md` (what the app still needs from the cluster; public repo, so no internals in it).
 
 ## Non-negotiable decisions (from the owner)
 
