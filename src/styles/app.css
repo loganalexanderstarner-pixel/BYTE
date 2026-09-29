@@ -4056,3 +4056,239 @@ kbd {
   background: color-mix(in srgb, var(--danger) 18%, transparent);
   color: var(--danger);
 }
+
+/* Study: flashcards and quizzes in chat, the Study panel. */
+.study-card {
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.flash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+.flash {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 96px;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.flash:hover {
+  border-color: var(--accent);
+}
+.flash.flipped {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+.flash-side {
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.study-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.quiz-list {
+  margin: var(--space-3) 0;
+  padding-left: 1.2em;
+}
+.quiz-list > li {
+  margin-bottom: var(--space-3);
+}
+.quiz-q {
+  margin: 0 0 var(--space-2);
+  font-weight: 600;
+}
+.quiz-choices {
+  display: grid;
+  gap: 6px;
+}
+.quiz-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.quiz-choice .letter {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 0.8em;
+  font-weight: 700;
+  flex: none;
+}
+.quiz-choice.chosen {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.quiz-choice.right {
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 14%, var(--surface-2));
+}
+.quiz-choice.wrong {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface-2));
+}
+.quiz-choice svg {
+  margin-left: auto;
+}
+.quiz-why {
+  margin: 6px 0 0;
+  font-size: 0.9em;
+}
+.quiz-score {
+  font-weight: 700;
+  color: var(--accent);
+}
+.study-panel {
+  width: min(760px, 94vw);
+  max-height: 88vh;
+  overflow: auto;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+.decks {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+.decks li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+}
+.deck-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.deck-info .due {
+  color: var(--accent);
+  font-weight: 600;
+}
+.session {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+.session-count {
+  align-self: flex-end;
+  font-size: 0.85em;
+}
+.session-card {
+  width: 100%;
+  min-height: 200px;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  text-align: center;
+}
+.session-front {
+  font-size: 1.2em;
+  font-weight: 600;
+}
+.session-back {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--border);
+  font-size: 1.05em;
+}
+.grade-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+  width: 100%;
+}
+.btn.grade {
+  flex-direction: column;
+  gap: 2px;
+  height: auto;
+  padding: 8px;
+}
+.btn.grade small {
+  color: var(--muted);
+}
+.btn.grade.g1 b {
+  color: var(--danger);
+}
+.btn.grade.g3 b {
+  color: var(--warn);
+}
+.btn.grade.g4 b {
+  color: var(--ok);
+}
+.btn.grade.g5 b {
+  color: var(--accent);
+}
+.session kbd,
+.btn.grade kbd {
+  font-size: 0.7em;
+  opacity: 0.6;
+}
+.study-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  text-align: center;
+}
+.study-done svg {
+  color: var(--accent);
+}
+.deck-cards {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+.deck-cards li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+}
+.deck-cards li > div {
+  flex: 1;
+}
+.deck-cards p {
+  margin: 2px 0 0;
+}
+@media (max-width: 640px) {
+  .grade-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

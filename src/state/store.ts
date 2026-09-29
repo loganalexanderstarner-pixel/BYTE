@@ -41,6 +41,8 @@ import type {
   Prices,
   GameHints,
   SelfCheck,
+  Flashcards,
+  Quiz,
 } from "../lib/types";
 
 /** One tool use shown in the answer's activity list. */
@@ -128,6 +130,9 @@ export interface Message {
   prices?: Prices;
   hints?: GameHints;
   selfCheck?: SelfCheck;
+  /** Study cards made in chat. */
+  flashcards?: Flashcards;
+  quiz?: Quiz;
   /** A job this (user) message asked for with a button, e.g. Fact-check. */
   task?: ChatTask;
   /** Thumbs up/down given on the cloud. */
@@ -255,6 +260,10 @@ interface State {
   refreshCloud(): Promise<void>;
   /** The reader side panel: a file's text with the cited passage highlighted. */
   reader: ReaderDoc | null;
+  /** The Study panel: closed (null), or open on a deck (or the deck list). */
+  study: { deck: number | null } | null;
+  openStudy(deck?: number | null): void;
+  closeStudy(): void;
   openReader(doc: ReaderDoc): void;
   closeReader(): void;
   /** Knowledge base folders and search-model state; `kbProgress` while indexing. */
@@ -639,6 +648,16 @@ export const useStore = create<State>((set, get) => {
           patchMessage(convId, reply.id, (m) => ({ ...m, hints }));
           break;
         }
+        case "flashcards": {
+          const { kind: _kind, ...flashcards } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, flashcards }));
+          break;
+        }
+        case "quiz": {
+          const { kind: _kind, ...quiz } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, quiz }));
+          break;
+        }
         case "selfCheck": {
           const { kind: _kind, ...selfCheck } = e;
           patchMessage(convId, reply.id, (m) => ({ ...m, selfCheck }));
@@ -763,6 +782,9 @@ export const useStore = create<State>((set, get) => {
     kb: null,
     kbProgress: null,
     reader: null,
+    study: null,
+    openStudy: (deck) => set({ study: { deck: deck ?? null } }),
+    closeStudy: () => set({ study: null }),
     openReader: (doc) => set({ reader: doc }),
     closeReader: () => set({ reader: null }),
     mode: "auto",

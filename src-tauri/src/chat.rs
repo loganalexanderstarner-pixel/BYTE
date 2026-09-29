@@ -135,6 +135,10 @@ pub enum ChatEvent {
     Hints(crate::games::Hints),
     /// Claims in the answer its sources don't clearly back (selfcheck.rs).
     SelfCheck(crate::selfcheck::SelfCheck),
+    /// Flashcards to flip, save as a deck and study (study.rs).
+    Flashcards(crate::study::Flashcards),
+    /// A multiple-choice quiz that scores itself (study.rs).
+    Quiz(crate::study::Quiz),
 }
 
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]

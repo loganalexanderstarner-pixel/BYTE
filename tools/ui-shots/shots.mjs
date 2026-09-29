@@ -263,6 +263,14 @@ function initScript({ data }) {
         }
         case "recipe_delete":
           return null;
+        case "decks_list":
+          return [{ id: 1, name: "The French Revolution", cards: 6, due: 2, new: 4, created: Date.now() }, { id: 2, name: "Spanish verbs", cards: 40, due: 0, new: 12, created: Date.now() - 86400000 }];
+        case "deck_save":
+          return 1;
+        case "study_queue":
+          return [{ id: 11, deckId: 1, front: "What was the Reign of Terror?", back: "1793–94: mass executions of suspected enemies of the Revolution, led by Robespierre's Committee of Public Safety.", ease: 2.5, interval: 6, reps: 2, lapses: 0, due: 0 }];
+        case "card_review":
+          return {};
         case "agent_approve":
           setTimeout(() => window.__agentContinue?.(), 50);
           return true;
@@ -324,6 +332,35 @@ function initScript({ data }) {
             if (args.request.cloud.mode === "keep-streaming") return null;
             send({ kind: "stats", promptTokens: 0, completionTokens: 60, tokensPerSecond: 41.2, promptMs: 0, totalMs: 3100, thinkingMs: 0, draftTokens: 0, draftAccepted: 0 });
             send({ kind: "remote", conversationId: "42", messageId: "421", userMessageId: null });
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
+          if (data.study) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            const q = args.request.messages[args.request.messages.length - 1].content.toLowerCase();
+            if (q.includes("quiz")) {
+              send({ kind: "toolCall", id: "q1", name: "make_quiz", args: { topic: "the periodic table", count: 4 } }); await wait(5);
+              send({ kind: "toolResult", id: "q1", ok: true, summary: "4 questions" });
+              send({ kind: "quiz", title: "The Periodic Table", questions: [
+                { question: "What is the chemical symbol for gold?", choices: ["Ag", "Au", "Gd", "Go"], answer: 1, explanation: "Au comes from the Latin aurum." },
+                { question: "Which group are the noble gases in?", choices: ["Group 1", "Group 2", "Group 17", "Group 18"], answer: 3, explanation: "Group 18 elements have full outer shells." },
+                { question: "What does the atomic number count?", choices: ["Neutrons", "Protons", "Electrons + neutrons", "Isotopes"], answer: 1, explanation: "Each element has a unique number of protons." },
+                { question: "Which element is a liquid at room temperature?", choices: ["Mercury", "Sodium", "Iron", "Carbon"], answer: 0, explanation: "Mercury (and bromine) are liquid at 20 °C." },
+              ] });
+              send({ kind: "content", delta: "Good luck! Answer all four, then press **Check my answers**; you can save any you miss as flashcards." });
+            } else {
+              send({ kind: "toolCall", id: "f1", name: "make_flashcards", args: { topic: "the French Revolution", count: 6 } }); await wait(5);
+              send({ kind: "toolResult", id: "f1", ok: true, summary: "6 cards" });
+              send({ kind: "flashcards", title: "The French Revolution", cards: [
+                { front: "When did the French Revolution begin?", back: "1789, with the Estates-General and the storming of the Bastille on 14 July." },
+                { front: "What was the Estates-General?", back: "An assembly of the three estates: clergy, nobility and commoners." },
+                { front: "What was the Reign of Terror?", back: "1793–94: mass executions of suspected enemies of the Revolution, led by Robespierre's Committee of Public Safety." },
+                { front: "Declaration of the Rights of Man", back: "1789 statement of rights: liberty, property, security and resistance to oppression." },
+                { front: "Who seized power in 1799?", back: "Napoleon Bonaparte, in the coup of 18 Brumaire." },
+                { front: "What happened to Louis XVI?", back: "He was tried for treason and executed by guillotine in January 1793." },
+              ] });
+              send({ kind: "content", delta: "Here's a set covering the causes, key events and outcome. Study a few minutes a day and BYTE will bring each card back right before you'd forget it." });
+            }
             send({ kind: "done", finishReason: "stop" });
             return null;
           }
@@ -1087,6 +1124,35 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".saved-files").scrollIntoViewIfNeeded();
   await shot(p, "21b-agent-done");
   console.log("agent errors:", errors);
+  await ctx.close();
+}
+// Study: flashcards, a quiz, a study session
+{
+  const { p, ctx, errors } = await page(true, "midnight", { study: true });
+  await p.getByLabel("Message BYTE").fill("Make flashcards about the French Revolution");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(600);
+  await p.locator(".flash").nth(2).click();
+  await p.locator(".study-card").scrollIntoViewIfNeeded();
+  await shot(p, "23-flashcards");
+  await p.getByLabel("Message BYTE").fill("Quiz me on the periodic table");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(600);
+  const qs = p.locator(".quiz-list > li");
+  for (const [i, c] of [[0, 1], [1, 2], [2, 1], [3, 0]]) await qs.nth(i).locator(".quiz-choice").nth(c).click();
+  await p.getByRole("button", { name: "Check my answers" }).click();
+  await p.waitForTimeout(200);
+  await p.locator(".quiz").scrollIntoViewIfNeeded();
+  await shot(p, "23b-quiz");
+  await p.getByTitle("Study: your flashcard decks").click();
+  await p.waitForTimeout(300);
+  await shot(p, "23c-study-decks");
+  await p.getByRole("button", { name: "Study", exact: true }).first().click();
+  await p.waitForTimeout(300);
+  await p.keyboard.press(" ");
+  await p.waitForTimeout(200);
+  await shot(p, "23d-study-session");
+  console.log("study errors:", errors);
   await ctx.close();
 }
 // Reviews, prices, game hints

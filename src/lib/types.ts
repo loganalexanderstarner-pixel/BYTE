@@ -41,6 +41,8 @@ export interface Settings {
   selfCheck?: boolean;
   /** Three drafts and a majority vote for hard questions (Deep, Extended). */
   bestOfThree?: boolean;
+  /** Flashcards, quizzes, tutor mode and the Study panel. */
+  studyEnabled?: boolean;
   /** Reuse the answer to a question asked (almost exactly) in the last week. */
   answerCache: boolean;
   /** Models reloaded alongside the main one at launch. */
@@ -381,7 +383,44 @@ export type ChatEvent =
   | ({ kind: "reviews" } & Reviews)
   | ({ kind: "prices" } & Prices)
   | ({ kind: "hints" } & GameHints)
-  | ({ kind: "selfCheck" } & SelfCheck);
+  | ({ kind: "selfCheck" } & SelfCheck)
+  | ({ kind: "flashcards" } & Flashcards)
+  | ({ kind: "quiz" } & Quiz);
+
+/** Flashcards made in chat (Rust `study::Flashcards`). */
+export interface Flashcards {
+  title: string;
+  cards: { front: string; back: string }[];
+}
+
+/** A multiple-choice quiz (Rust `study::Quiz`). */
+export interface Quiz {
+  title: string;
+  questions: { question: string; choices: string[]; answer: number; explanation: string }[];
+}
+
+/** A saved deck (Rust `study::DeckSummary`). */
+export interface DeckSummary {
+  id: number;
+  name: string;
+  cards: number;
+  due: number;
+  new: number;
+  created: number;
+}
+
+/** A card with its spaced-repetition schedule (Rust `study::StudyCard`). */
+export interface StudyCard {
+  id: number;
+  deckId: number;
+  front: string;
+  back: string;
+  ease: number;
+  interval: number;
+  reps: number;
+  lapses: number;
+  due: number;
+}
 
 /** What reviewers say (Rust `reviews::Reviews`). */
 export interface Reviews {
@@ -583,7 +622,7 @@ export interface TripItem {
 }
 
 /** A job asked for with a button (Rust `agent::Task`). */
-export type ChatTask = "factCheck" | "browse";
+export type ChatTask = "factCheck" | "browse" | "tutor";
 
 /** Compare & decide score table (Rust `decide::Decision`): `scores[option][criterion]`. */
 export interface Decision {

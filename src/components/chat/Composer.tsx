@@ -1,6 +1,6 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { AppWindow, ArrowUp, Brain, Cloud, FolderSearch, Images, Loader2, Paperclip, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap } from "lucide-react";
+import { AppWindow, ArrowUp, Brain, GraduationCap, Cloud, FolderSearch, Images, Loader2, Paperclip, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { api, inTauri } from "../../lib/api";
@@ -56,6 +56,9 @@ export function Composer() {
   const web = webMode !== "off";
   // Agent pill: this message uses the browser ("go to … and fill in …").
   const [browse, setBrowse] = useState(false);
+  // Tutor pill: teach step by step in this chat (stays on until turned off or the chat changes).
+  const [tutor, setTutor] = useState(false);
+  useEffect(() => setTutor(false), [currentId]);
   const toggleWeb = useStore((s) => s.toggleWeb);
   const toggleFiles = useStore((s) => s.toggleFiles);
   const hasFiles = useStore((s) => (s.kb?.sources ?? []).some((x) => x.chunks > 0));
@@ -80,6 +83,7 @@ export function Composer() {
   // Files are read on this Mac for local chats; photos only when the loaded model can see.
   const onLocal = !onCloud && !onBoth;
   const canBrowse = onLocal && web && settings?.webAgentEnabled !== false;
+  const canTutor = onLocal && settings?.studyEnabled !== false;
   const canSee = engine.state === "ready" && !!engine.vision;
   const cloudModes = cloudStatus?.account?.modes ?? [];
   const cloudMode = settings?.cloudMode ?? cloudModes[0]?.id;
@@ -153,7 +157,7 @@ export function Composer() {
 
   const submit = () => {
     if (!ready || generating || !text.trim() || attaching > 0) return;
-    void send(text, browse && canBrowse ? { task: "browse" } : undefined);
+    void send(text, browse && canBrowse ? { task: "browse" } : tutor && canTutor ? { task: "tutor" } : undefined);
     setBrowse(false);
     setText("");
   };
@@ -343,6 +347,18 @@ export function Composer() {
             >
               <Globe size={14} />
               {WEB_LABEL[webMode]}
+            </button>
+          )}
+          {canTutor && (
+            <button
+              className={`pill ${tutor ? "accent" : ""}`}
+              style={{ cursor: "pointer", height: 30 }}
+              onClick={() => setTutor(!tutor)}
+              aria-pressed={tutor}
+              title={tutor ? "Tutor is on: BYTE teaches step by step and asks you questions instead of just giving answers" : "Tutor: learn step by step (BYTE guides you with questions and hints)"}
+            >
+              <GraduationCap size={14} />
+              Tutor
             </button>
           )}
           {canBrowse && (

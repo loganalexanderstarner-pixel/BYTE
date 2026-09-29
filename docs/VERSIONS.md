@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.6.8** | Phase 6 improvements | Recipes in US cups, spoons and °F by default, with a US / Metric switch on every recipe card | Cooking the American way |
+| **v0.7.0** | Phase 7 · Study tools | Flashcards with spaced repetition (Study panel, Anki export), self-scoring quizzes, tutor mode | Learning anything |
+| v0.6.8 | Phase 6 improvements | Recipes in US cups, spoons and °F by default, with a US / Metric switch on every recipe card | Cooking the American way |
 | v0.6.7 | Phase 6 · Finished | Reviews (ratings, pros and cons), price compare from store pages, spoiler-free game hints, answers checked against their sources, best of 3 for hard questions | Shopping, gaming, trustworthy answers |
 | v0.6.6 | Phase 6 · Web agent | A private browser BYTE drives for you: opens sites, clicks, fills in forms (asks before submitting), downloads, saves pages as PDF | Getting things done on websites |
 | v0.6.5 | Phase 6 improvements | YouTube summaries (chapters, key points, timestamp links) and questions about a video | Watching less, learning more |
@@ -50,7 +51,7 @@ which download is which. Their files and notes are unchanged.
 
 | Version | Phase |
 |---|---|
-| v0.7.0 | Writing & learning |
+| v0.7.1 | Writing studio (rewrite, expand, shorten, tone, grammar) |
 | v0.8.0 | Speed |
 | v0.9.0 | Mac control |
 | v0.10.0 | Upkeep & automation |

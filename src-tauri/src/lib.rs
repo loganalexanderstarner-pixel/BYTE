@@ -33,6 +33,7 @@ mod router;
 mod settings;
 mod speed;
 mod state;
+mod study;
 mod summarize;
 mod system;
 mod tools;
@@ -163,6 +164,14 @@ pub fn run() {
             commands::doc_save,
             commands::calendar_open,
             commands::agent_approve,
+            commands::decks_list,
+            commands::deck_save,
+            commands::deck_cards,
+            commands::study_queue,
+            commands::card_review,
+            commands::deck_delete,
+            commands::card_delete,
+            commands::deck_export,
             commands::agent_show,
             commands::agent_file,
             commands::recipes_list,

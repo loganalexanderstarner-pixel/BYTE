@@ -144,6 +144,9 @@ pub struct Settings {
     /// Three drafts and a majority vote for hard questions (Deep, Extended).
     #[serde(default = "yes")]
     pub best_of_three: bool,
+    /// Study tools: flashcards, quizzes, tutor mode, the Study panel.
+    #[serde(default = "yes")]
+    pub study_enabled: bool,
     /// Reuse the answer to a question asked (almost exactly) in the last week
     /// (needs the search-by-meaning model; see answer_cache.rs).
     pub answer_cache: bool,
@@ -200,6 +203,7 @@ impl Default for Settings {
             game_hints_enabled: true,
             self_check: true,
             best_of_three: true,
+            study_enabled: true,
             answer_cache: true,
             loaded_alongside: Vec::new(),
             speed_boost: true,

@@ -20,6 +20,7 @@ import { RecipeCard } from "../kitchen/RecipeCard";
 import { VideoCard } from "./VideoCard";
 import { ApprovalCard, BrowsingBar, SavedFiles } from "./AgentCards";
 import { HintsCard, PricesCard, ReviewsCard, SelfCheckNote } from "./ShopCards";
+import { FlashcardsCard, QuizCard } from "../study/StudyCards";
 
 function openLinksExternally(e: MouseEvent<HTMLDivElement>) {
   const a = (e.target as HTMLElement).closest("a");
@@ -233,6 +234,8 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
       {message.reviews && <ReviewsCard reviews={message.reviews} />}
       {message.prices && <PricesCard prices={message.prices} />}
       {message.hints && <HintsCard hints={message.hints} />}
+      {message.flashcards && <FlashcardsCard set={message.flashcards} />}
+      {message.quiz && <QuizCard quiz={message.quiz} />}
       {generating && message.browsing && <BrowsingBar />}
       {message.approvals?.map((a) => <ApprovalCard key={a.id} card={a} />)}
       {message.saved && message.saved.length > 0 && <SavedFiles files={message.saved} />}

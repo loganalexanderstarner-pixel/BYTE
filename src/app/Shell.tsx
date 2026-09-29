@@ -1,4 +1,4 @@
-import { BookOpen, FileText, PanelLeft, Settings as SettingsIcon, SquarePen } from "lucide-react";
+import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ChatView } from "../components/chat/ChatView";
@@ -6,6 +6,7 @@ import { Composer } from "../components/chat/Composer";
 import { EngineBadge } from "../components/EngineBadge";
 import { DocumentsPanel } from "../components/documents/DocumentsPanel";
 import { RecipeBox } from "../components/kitchen/RecipeBox";
+import { StudyPanel } from "../components/study/StudyPanel";
 import { Reader } from "../components/reader/Reader";
 import { SettingsModal } from "../components/settings/SettingsModal";
 import { Sidebar } from "../components/Sidebar";
@@ -20,6 +21,9 @@ export function Shell() {
   const [docsOpen, setDocsOpen] = useState(false);
   const [recipesOpen, setRecipesOpen] = useState(false);
   const kitchenOn = useStore((s) => s.settings?.kitchenEnabled ?? true);
+  const studyOn = useStore((s) => s.settings?.studyEnabled !== false);
+  const studyOpen = useStore((s) => !!s.study);
+  const openStudy = useStore((s) => s.openStudy);
   const settingsTab = useStore((s) => s.settingsTab);
   const stop = useStore((s) => s.stop);
   const reading = useStore((s) => !!s.reader);
@@ -75,6 +79,11 @@ export function Shell() {
                 <BookOpen size={18} />
               </button>
             )}
+            {studyOn && (
+              <button className="icon-btn" onClick={() => openStudy()} title="Study: your flashcard decks">
+                <GraduationCap size={18} />
+              </button>
+            )}
             <button className="icon-btn" onClick={() => openSettings("models")} title="Settings (⌘,)">
               <SettingsIcon size={18} />
             </button>
@@ -87,6 +96,7 @@ export function Shell() {
       {settingsTab && <SettingsModal />}
       {docsOpen && <DocumentsPanel onClose={() => setDocsOpen(false)} />}
       {recipesOpen && <RecipeBox onClose={() => setRecipesOpen(false)} />}
+      {studyOpen && <StudyPanel />}
     </div>
   );
 }

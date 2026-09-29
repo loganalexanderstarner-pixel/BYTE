@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Clapperboard, Gamepad2, ShieldCheck, Store, Star, Layers, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
+import { Clapperboard, GraduationCap, Layers as LayersIcon, Gamepad2, ShieldCheck, Store, Star, Layers, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert } from "lucide-react";
 import { Fragment, useState } from "react";
 
 import { CITE_STYLES, cite, citeAll, plainCitation, type CiteStyle } from "../../lib/citations";
@@ -79,6 +79,12 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: ArrowLeft, text: s.summary ?? "Going back" };
     case "download_file":
       return { icon: Download, text: s.summary ?? "Getting the download ready" };
+    case "make_flashcards":
+      return { icon: LayersIcon, text: `Made flashcards on ${arg("topic") || "this"}` };
+    case "tutor_step":
+      return { icon: GraduationCap, text: "Tutor: one step at a time" };
+    case "make_quiz":
+      return { icon: GraduationCap, text: `Wrote a quiz on ${arg("topic") || "this"}` };
     case "find_prices":
       return { icon: Store, text: `Read the prices for ${arg("product")}` };
     case "summarize_reviews":
@@ -115,6 +121,8 @@ export function activitySummary(steps: Step[]): string {
   const cooked = steps.some((s) => ["write_recipe", "recipe_ideas", "meal_plan"].includes(s.name));
   const browsed = steps.filter((s) => BROWSER_STEPS.includes(s.name)).length;
   if (browsed) parts.push(`Used the browser (${browsed} step${browsed === 1 ? "" : "s"})`);
+  if (steps.some((s) => s.name === "make_flashcards")) parts.push("Made flashcards");
+  if (steps.some((s) => s.name === "make_quiz")) parts.push("Wrote a quiz");
   if (steps.some((s) => s.name === "summarize_reviews")) parts.push("Read the reviews");
   if (steps.some((s) => s.name === "find_prices")) parts.push("Compared prices");
   if (steps.some((s) => s.name === "write_hints")) parts.push("Found hints");

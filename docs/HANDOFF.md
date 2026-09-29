@@ -457,7 +457,12 @@ Phase 11. **v0.6.8 (owner request):** recipe measures (`settings.measureUnits` u
 Verify: pipeline unit tests with recorded pages, citation formatter tests, real-engine test of a Deep run with
 a small model, owner checks answer quality on real questions.
 
-### Phase 7 — Writing & learning ⏳
+### Phase 7 — Writing & learning ⏳ (v0.7.0: study tools done)
+**Done in v0.7.0:** item 3 without the step-by-step math solver: `study.rs` (SM-2 `review`, `study_ask` routing,
+flashcards/quiz JSON + `parse_cards`/`parse_quiz`, DB v7 `decks`/`cards`/`card_reviews`, `study_queue`, `card_review`,
+`anki_text` export, `TUTOR_RULES` + `TUTOR_NUDGE` + structured `tutor_reply` for `Task::Tutor`, `reply_for` canned replies);
+UI `components/study/{StudyCards,StudyPanel}.tsx`, `lib/study.ts`, 🎓 top-bar button, Tutor pill; `settings.studyEnabled`.
+Anki export is a tab-separated import file (Anki 2.1.55+ headers), not .apkg. **Next:** v0.7.1 writing studio.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
    poetry / lyrics / speeches with meter and rhyme controls.

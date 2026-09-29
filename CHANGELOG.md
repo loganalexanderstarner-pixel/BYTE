@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.7.0 — Phase 7: study tools (flashcards, quizzes, tutor)
+
+- **Flashcards**: "make flashcards about the French Revolution", "20 flashcards on photosynthesis", or attach your
+  notes and say "flashcards from this" (also "from this" for the answer above). Flip them in the chat, then
+  **Save deck** or **Study now**.
+- **The Study panel** (🎓 in the top bar): your decks with what's due and what's new. Study one card at a time,
+  Space to show the answer, 1–4 (Again / Hard / Good / Easy) to grade; each button shows when the card comes back.
+  Spaced repetition (SM-2) brings every card back right before you'd forget it. See or delete cards, delete decks,
+  and **export to Anki** (File → Import in Anki).
+- **Quizzes**: "quiz me on the periodic table", "give me a 10 question quiz about World War 2". Multiple choice that
+  scores itself and explains every answer; **save the ones you missed** as flashcards.
+- **Tutor mode**: the **Tutor** button in the chat box. BYTE teaches step by step: one small step or hint at a time
+  and a question for you, instead of the whole solution ("just tell me the answer" still works).
+- Settings → About → Features → Study tools turns it all off. Database schema v7 (decks, cards, reviews).
+
 ## 0.6.8 — Phase 6 improvements: recipes in cups and spoons
 
 - **Recipes use US measures by default**: teaspoons, tablespoons, cups, fluid ounces, ounces, pounds and °F. Web

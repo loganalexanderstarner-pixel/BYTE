@@ -199,6 +199,7 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
             game_hints: s.game_hints_enabled,
             self_check: s.self_check,
             best_of_three: s.best_of_three,
+            study: s.study_enabled,
         })
     };
     let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());

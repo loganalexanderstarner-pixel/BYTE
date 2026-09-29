@@ -34,8 +34,7 @@ import type {
   WireMessage,
   ChatTask,
   Recipe,
-  SavedRecipe,
-} from "./types";
+  SavedRecipe, DeckSummary, StudyCard } from "./types";
 
 /** True when running inside the Tauri shell (false in a plain browser tab). */
 export const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -140,6 +139,17 @@ export const api = {
   recipeDelete: (id: number) => invoke<void>("recipe_delete", { id }),
   /** Saves an .ics file and opens it in the calendar app. */
   calendarOpen: (path: string, data: string) => invoke<void>("calendar_open", { path, data }),
+
+  // Study decks (study.rs).
+  decksList: () => invoke<DeckSummary[]>("decks_list"),
+  deckSave: (name: string, cards: { front: string; back: string }[]) => invoke<number>("deck_save", { name, cards }),
+  deckCards: (id: number) => invoke<StudyCard[]>("deck_cards", { id }),
+  studyQueue: (id: number) => invoke<StudyCard[]>("study_queue", { id }),
+  cardReview: (id: number, grade: number) => invoke<StudyCard>("card_review", { id, grade }),
+  deckDelete: (id: number) => invoke<void>("deck_delete", { id }),
+  cardDelete: (id: number) => invoke<void>("card_delete", { id }),
+  /** The deck as an Anki import file (text). */
+  deckExport: (id: number) => invoke<string>("deck_export", { id }),
 
   // Web agent (web_agent/ in Rust).
   /** Answers an approval card; false when it's no longer waiting. */

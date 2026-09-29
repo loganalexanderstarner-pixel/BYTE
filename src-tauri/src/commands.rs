@@ -127,6 +127,49 @@ pub fn agent_file(app: tauri::AppHandle, path: String, open: bool) -> AppResult<
     }
 }
 
+// ---------- study decks (study.rs) ----------
+
+#[tauri::command]
+pub async fn decks_list(state: State<'_, AppState>) -> AppResult<Vec<crate::study::DeckSummary>> {
+    crate::study::decks_list(&state.db)
+}
+
+#[tauri::command]
+pub async fn deck_save(state: State<'_, AppState>, name: String, cards: Vec<crate::study::Card>) -> AppResult<i64> {
+    crate::study::deck_save(&state.db, &name, &cards)
+}
+
+#[tauri::command]
+pub async fn deck_cards(state: State<'_, AppState>, id: i64) -> AppResult<Vec<crate::study::StudyCard>> {
+    crate::study::deck_cards(&state.db, id)
+}
+
+#[tauri::command]
+pub async fn study_queue(state: State<'_, AppState>, id: i64) -> AppResult<Vec<crate::study::StudyCard>> {
+    crate::study::study_queue(&state.db, id, 20)
+}
+
+#[tauri::command]
+pub async fn card_review(state: State<'_, AppState>, id: i64, grade: u8) -> AppResult<crate::study::StudyCard> {
+    crate::study::card_review(&state.db, id, grade)
+}
+
+#[tauri::command]
+pub async fn deck_delete(state: State<'_, AppState>, id: i64) -> AppResult<()> {
+    crate::study::deck_delete(&state.db, id)
+}
+
+#[tauri::command]
+pub async fn card_delete(state: State<'_, AppState>, id: i64) -> AppResult<()> {
+    crate::study::card_delete(&state.db, id)
+}
+
+/// A deck as an Anki import file (text); the UI saves it.
+#[tauri::command]
+pub async fn deck_export(state: State<'_, AppState>, id: i64) -> AppResult<String> {
+    crate::study::deck_export(&state.db, id)
+}
+
 // ---------- recipe box (kitchen.rs) ----------
 
 #[tauri::command]

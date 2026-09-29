@@ -17,6 +17,25 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — v0.7.0: study tools (flashcards with spaced repetition, quizzes, tutor mode)
+- **Why:** Phase 7 item 3 (owner: "Lets do it" for Phase 7).
+- **What:** `src-tauri/src/study.rs` (new): SM-2 `review` (Again/Hard/Good/Easy = 1/3/4/5), `study_ask` routing
+  ("flashcards about…", "quiz me on…", counts), material from attached files / the answer above / the web (3 pages,
+  ranked) / the model; `parse_cards` (plain text, deduplicated), `parse_quiz` (answer as text, letter or index, matched
+  forgivingly); `ChatEvent::{Flashcards, Quiz}` with BYTE's own short reply (`reply_for`, so the model can't list cards
+  or give answers away); decks in DB v7 (`decks`, `cards`, `card_reviews`) with `deck_save`, `decks_list`, `study_queue`,
+  `card_review`, `deck_delete`, `card_delete`, `anki_text` (tab-separated Anki import). Tutor mode (`Task::Tutor`):
+  `TUTOR_RULES`, a per-message nudge, and `tutor_reply` (JSON feedback/step/question; a hint that contains the final
+  answer is rejected and BYTE falls back). `Modules.study` / `settings.studyEnabled`. Commands `decks_list`, `deck_save`,
+  `deck_cards`, `study_queue`, `card_review`, `deck_delete`, `card_delete`, `deck_export`.
+  UI: `components/study/StudyCards.tsx` (flip cards, Save deck / Study now; quiz that scores itself, Try again, save
+  missed as cards), `StudyPanel.tsx` (decks, sessions with Space and 1–4 keys and next-interval previews, card list,
+  Anki export), `lib/study.ts` + tests, 🎓 button, Tutor pill, Settings toggle, CSS; screenshots 23–23d.
+- **Verify:** `scripts/check-all.sh` (256 Rust incl. SM-2, routing, parsing, deck round trip, Anki export; 121 vitest).
+  Real engine (Qwen3.5-2B): `cargo test e2e_study -- --ignored`: 6 flashcards (no LaTeX), a 4-question quiz, and a tutor
+  turn that asks back without giving x = 4 away (the 2B model's arithmetic in hints is weak; bigger models are fine).
+- **Undo:** revert (DB v7 tables stay, unused). Or Settings → Study tools off.
+
 ### (this commit) — v0.6.8: recipes in US cups and spoons, with a US / Metric switch
 - **Why:** the owner saw recipes in mL and wants teaspoons, tablespoons, cups and other American measures, or a switch.
 - **What:** `src-tauri/src/units.rs` (new): `ingredient_to_us` (mL → tsp/tbsp/cup by size; g → cups via baking

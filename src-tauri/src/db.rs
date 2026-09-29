@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 6;
+const SCHEMA_VERSION: i32 = 7;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -595,7 +595,38 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 6);
+    if version < 7 {
+        // Study decks with spaced repetition (study.rs).
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE decks (
+                 id INTEGER PRIMARY KEY,
+                 name TEXT NOT NULL UNIQUE,
+                 created INTEGER NOT NULL
+             );
+             CREATE TABLE cards (
+                 id INTEGER PRIMARY KEY,
+                 deck_id INTEGER NOT NULL REFERENCES decks(id),
+                 front TEXT NOT NULL,
+                 back TEXT NOT NULL,
+                 ease REAL NOT NULL DEFAULT 2.5,
+                 interval INTEGER NOT NULL DEFAULT 0,
+                 reps INTEGER NOT NULL DEFAULT 0,
+                 lapses INTEGER NOT NULL DEFAULT 0,
+                 due INTEGER NOT NULL,
+                 created INTEGER NOT NULL
+             );
+             CREATE INDEX cards_by_deck_due ON cards(deck_id, due);
+             CREATE TABLE card_reviews (
+                 card_id INTEGER NOT NULL,
+                 at INTEGER NOT NULL,
+                 grade INTEGER NOT NULL
+             );
+             PRAGMA user_version = 7;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 7);
     Ok(())
 }
 

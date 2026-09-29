@@ -51,6 +51,8 @@ pub enum Task {
     FactCheck,
     /// Use the browser for this message (the composer's Agent pill).
     Browse,
+    /// Tutor mode: teach step by step instead of answering outright (the Tutor pill).
+    Tutor,
 }
 
 pub struct Turn<'a> {
@@ -100,6 +102,8 @@ pub struct Modules {
     pub self_check: bool,
     /// Three drafts and a majority vote for hard questions (Deep, Extended).
     pub best_of_three: bool,
+    /// Flashcards, quizzes and tutor mode.
+    pub study: bool,
 }
 
 /// BYTE searches before the model answers any question about the world
@@ -314,9 +318,21 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     };
     let tool_rounds = if session.is_some() { crate::web_agent::MAX_STEPS } else { lim.tool_rounds };
     let mut messages = chat::base_messages(turn.system, turn.history);
-    if session.is_some() {
+    let extra_rules = match (&session, turn.task) {
+        (Some(_), _) => Some(crate::web_agent::AGENT_RULES),
+        (None, Some(Task::Tutor)) if turn.modules.study => Some(crate::study::TUTOR_RULES),
+        _ => None,
+    };
+    if extra_rules == Some(crate::study::TUTOR_RULES) {
+        if let Some(last) = messages.iter_mut().rev().find(|m| m["role"] == "user") {
+            if let Some(text) = last["content"].as_str().map(str::to_string) {
+                last["content"] = json!(format!("{text}{}", crate::study::TUTOR_NUDGE));
+            }
+        }
+    }
+    if let Some(rules) = extra_rules {
         if let Some(sys) = messages.first_mut() {
-            let text = format!("{}{}", sys["content"].as_str().unwrap_or(""), crate::web_agent::AGENT_RULES);
+            let text = format!("{}{rules}", sys["content"].as_str().unwrap_or(""));
             sys["content"] = json!(text);
         }
     }
@@ -434,6 +450,10 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     } else if !weather_done && crate::factcheck::applies(turn.web, turn.task == Some(Task::FactCheck), &question) {
         let (b, notes) = crate::factcheck::run(&turn, &question, estimate(&messages), &cancel, &send).await?;
         prepared = Some((b, notes, "fact_check"));
+    } else if crate::study::applies(turn.modules.study, &question) {
+        if let Some((b, notes)) = crate::study::run(&turn, &question, estimate(&messages), &cancel, &send).await? {
+            prepared = Some((b, notes, "study"));
+        }
     } else if crate::kitchen::applies(turn.kitchen, &question) {
         if let Some((b, notes)) = crate::kitchen::run(&turn, &question, &cancel, &send).await? {
             prepared = Some((b, notes, "kitchen"));
@@ -460,6 +480,8 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         }
     }
     let prepared_name: Option<&str> = prepared.as_ref().map(|p| p.2);
+    // Flashcards and quizzes get BYTE's own short reply (no spoilers, no repeated lists).
+    let mut canned: Option<String> = prepared.as_ref().filter(|p| p.2 == "study").and_then(|p| crate::study::reply_for(&p.1));
     if let Some((found, notes, name)) = prepared {
         book = found;
         if !book.sources.is_empty() {
@@ -506,8 +528,21 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
 
     // Hard questions (maths, logic) in Deep/Extended: three drafts, and the
     // answer most of them reach. All different: one more pass weighs them.
-    let mut chosen: Option<String> = None;
-    if session.is_none() && crate::drafts::applies(turn.modules.best_of_three, turn.mode, used_tools, &question) {
+    let mut chosen: Option<String> = canned.take();
+    // Tutor mode: one step and a question back, not the whole solution.
+    if chosen.is_none() && extra_rules == Some(crate::study::TUTOR_RULES) && !crate::study::wants_solution(&question) {
+        let sys = messages.first().and_then(|m| m["content"].as_str()).unwrap_or(turn.system).to_string();
+        let calc = messages.iter().find(|m| m["tool_call_id"] == "byte_calc_0").and_then(|m| m["content"].as_str()).map(str::to_string);
+        send(ChatEvent::ToolCall { id: "byte_tutor".into(), name: "tutor_step".into(), args: json!({}) })?;
+        let r = tokio::select! {
+            r = crate::study::tutor_reply(turn.http, turn.ep, &sys, turn.history, calc.as_deref()) => r,
+            _ = cancel.cancelled() => return Err(AppError::Cancelled),
+        };
+        let ok = matches!(r, Ok(Some(_)));
+        send(ChatEvent::ToolResult { id: "byte_tutor".into(), ok, summary: if ok { "One step at a time".into() } else { "Answering normally".into() } })?;
+        chosen = r.ok().flatten();
+    }
+    if chosen.is_none() && session.is_none() && crate::drafts::applies(turn.modules.best_of_three, turn.mode, used_tools, &question) {
         send(ChatEvent::ToolCall { id: "byte_drafts".into(), name: "write_drafts".into(), args: json!({ "drafts": crate::drafts::DRAFTS }) })?;
         let drafts = crate::drafts::write(turn.http, turn.ep, &messages, turn.plan, &cancel).await?;
         match crate::drafts::pick(&drafts) {
@@ -933,7 +968,7 @@ mod tests {
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let http = chat::local_client();
         let net = tools::fetch::web_client();
-        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true };
+        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false };
         let cases = [
             ("Reviews of the Sony WH-1000XM5", Mode::Auto, "reviews"),
             ("What's the cheapest place to buy a Steam Deck OLED?", Mode::Auto, "prices"),

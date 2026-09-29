@@ -710,6 +710,13 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
+            Study tools
+            <small>Flashcards with spaced repetition (the 🎓 Study panel, Anki export), self-scoring quizzes, and the Tutor button.</small>
+          </span>
+          <input type="checkbox" checked={settings?.studyEnabled ?? true} onChange={(e) => void update({ studyEnabled: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
             Reviews
             <small>“Reviews of …”, “is … worth it”: ratings, pros and cons from review sites and owners.</small>
           </span>
