@@ -262,6 +262,8 @@ impl Setup {
             .unwrap_or("");
         let catalog = state.catalog.get();
         let profile = catalog.resolve(&ep.model).map(|(m, _)| crate::modelcfg::profile(m)).unwrap_or_default();
+        // Unknown models (added by hand) count as small: checking a good card costs nothing.
+        let small_model = ep.cloud.is_none() && catalog.resolve(&ep.model).ok().and_then(|(m, _)| m.params_b).is_none_or(|b| b <= crate::quality::SMALL_B);
         let plan = router::plan_turn(request.mode, request.thinking, last_user).for_model(profile);
         let (web, user_name, memory, about_me, home, depth, web_always, kitchen, metric, web_agent, modules, kb_on, cloud_on) = {
             let s = state.settings.lock().await;
@@ -272,6 +274,7 @@ impl Setup {
                 self_check: s.self_check,
                 best_of_three: s.best_of_three,
                 study: s.study_enabled,
+                small_model,
             }, s.kb_enabled, s.cloud_connected)
         };
         let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());

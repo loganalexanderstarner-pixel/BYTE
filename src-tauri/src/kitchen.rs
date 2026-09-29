@@ -680,6 +680,7 @@ pub async fn run(turn: &Turn<'_>, question: &str, cancel: &CancellationToken, se
             c.call("byte_kideas", "recipe_ideas", json!({ "have": have }))?;
             let user = format!("The user has: {}.\nMessage: {question}\n\nSuggest 3 or 4 different dishes they could make now, mostly from what they have (pantry staples are fine). For each: a title, a one-sentence mouth-watering description, total minutes, what they'd need that they didn't mention, and one food emoji.", have.join(", "));
             let reply = c.cancellable(chat::complete_json(turn.http, turn.ep, &chef(turn.metric), &user, ideas_schema(), 700)).await?.unwrap_or_default();
+            let reply = c.cancellable(crate::quality::improve(turn, &chef(turn.metric), &user, ideas_schema(), 700, reply, |r| parse_ideas(r, &have).map(|i| crate::quality::ideas(&i)))).await??;
             let Some(ideas) = parse_ideas(&reply, &have) else {
                 c.result("byte_kideas", false, "No ideas came back")?;
                 return Ok(None);
@@ -698,7 +699,9 @@ pub async fn run(turn: &Turn<'_>, question: &str, cancel: &CancellationToken, se
                 meals.join(", ").to_lowercase(),
                 if have.is_empty() { String::new() } else { format!(": {}", have.join(", ")) }
             );
-            let reply = c.cancellable(chat::complete_json(turn.http, turn.ep, &chef(turn.metric), &user, plan_schema(days, meals.len()), 400 + days * meals.len() as u32 * 110 + 500)).await?.unwrap_or_default();
+            let max = 400 + days * meals.len() as u32 * 110 + 500;
+            let reply = c.cancellable(chat::complete_json(turn.http, turn.ep, &chef(turn.metric), &user, plan_schema(days, meals.len()), max)).await?.unwrap_or_default();
+            let reply = c.cancellable(crate::quality::improve(turn, &chef(turn.metric), &user, plan_schema(days, meals.len()), max, reply, |r| parse_plan(r, days, &have).map(|p| crate::quality::meal_plan(&p, days as usize)))).await??;
             let Some(plan) = parse_plan(&reply, days, &have) else {
                 c.result("byte_kplan", false, "The plan couldn't be read")?;
                 return Ok(None);
@@ -793,6 +796,7 @@ and a doneness cue. Give 2 to 5 chef's tips and a few substitutions.",
         if images.is_empty() && notes.is_empty() { "" } else { "Base it on the most reliable source above (set basedOn to its number) and improve the method with your own expertise. " },
     );
     let reply = c.cancellable(chat::complete_json(turn.http, turn.ep, &chef(turn.metric), &user, recipe_schema(), 3000)).await?.unwrap_or_default();
+    let reply = c.cancellable(crate::quality::improve(turn, &chef(turn.metric), &user, recipe_schema(), 3000, reply, |r| parse_recipe(r, &have).map(|(r, _)| crate::quality::recipe(&r, dish)))).await??;
     let Some((mut recipe, based_on)) = parse_recipe(&reply, &have) else {
         c.result("byte_krecipe", false, "The recipe couldn't be read")?;
         return Ok(None);
@@ -1020,7 +1024,7 @@ mod tests {
             let system = crate::prompt::system_prompt(chrono::Local::now(), crate::settings::Mode::Auto, web, None);
             let plan = crate::router::plan_turn(crate::settings::Mode::Auto, crate::settings::ThinkingPref::Off, q);
             let (ch, seen) = crate::chat::e2e_support::collecting_channel();
-            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: crate::settings::Mode::Auto, web, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: true, metric: false, agent: false, modules: Default::default() };
+            let turn = Turn { http: &http, cloud: None, net: &net, ep: &ep, system: &system, history: &history, plan, mode: crate::settings::Mode::Auto, web, memory: false, log: &log, files: None, app: None, task: None, home: None, depth: 0, web_always: false, kitchen: true, metric: false, agent: false, modules: crate::agent::Modules { small_model: true, ..Default::default() } };
             let t = std::time::Instant::now();
             crate::agent::run(turn, CancellationToken::new(), &ch).await.unwrap();
             let ev = seen.lock().unwrap().clone();

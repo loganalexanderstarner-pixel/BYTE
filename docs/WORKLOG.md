@@ -17,6 +17,23 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — Card quality checks and one repair for small models (v0.7.3, part 1)
+- **Why:** the owner asked to "make all models do good". 1B models pass the card tests, but their cards can be poor
+  (six fronts saying "Photosynthesis", a "Flat White Lentil Soup").
+- **What:**
+  - New `quality.rs`:
+    - checkers for flashcards, quizzes, recipes (wrong dish, including a title that adds a dish kind like "soup"
+      that wasn't asked for; amounts; steps), recipe ideas, meal plans, compare scores and trips;
+    - `improve()` makes one repair call listing the problems and keeps the repair only if it has fewer.
+  - Wired after each card's JSON call in `study.rs`, `kitchen.rs`, `decide.rs` and `trip.rs`.
+  - Runs only for small models (`Modules::small_model`: ≤ 4B or not in the catalog; set in `backend::Setup`), never
+    for cloud JSON; a failed repair keeps the first card.
+- **Verify:**
+  - `cargo test quality::`;
+  - real engine `e2e_kitchen e2e_study` with `small_model` on: Qwen3-0.6B and Llama 3.2 1B both pass, with repairs
+    tried for a generic front and too-short backs.
+- **Undo:** revert (cards are then shown as the model wrote them).
+
 ### (this commit) — Retry JSON cut off by reasoning; four model families pass the card tests
 - **Why:** the third pass left 2 DeepSeek-R1 failures (recipe ideas, meal plan). It reasoned (~600 tokens) and then
   its JSON was cut off at `max_tokens`. `complete_json` only retried when the reply was empty.

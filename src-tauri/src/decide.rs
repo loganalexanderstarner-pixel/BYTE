@@ -347,8 +347,14 @@ support it (from the notes; an empty list if it's general knowledge). Be fair an
         notes.chars().take(budget.min(12_000)).collect::<String>()
     );
     let cells = options.len() * criteria.len();
-    let reply = c.cancellable(chat::complete_json(turn.http, turn.ep, "You score options fairly. Reply only with JSON.", &user, scores_schema(), (cells * 70 + 200) as u32)).await?.unwrap_or_default();
+    let sys = "You score options fairly. Reply only with JSON.";
+    let reply = c.cancellable(chat::complete_json(turn.http, turn.ep, sys, &user, scores_schema(), (cells * 70 + 200) as u32)).await?.unwrap_or_default();
     let valid: Vec<u32> = g.book.sources.iter().map(|s| s.n).collect();
+    let check = |r: &str| {
+        let scores = parse_scores(r, &options, &criteria, &valid);
+        scores.iter().flatten().any(|c| c.is_some()).then(|| crate::quality::decision(&Decision { scores, options: options.clone(), criteria: criteria.clone() }))
+    };
+    let reply = c.cancellable(crate::quality::improve(turn, sys, &user, scores_schema(), (cells * 70 + 200) as u32, reply, check)).await??;
     let decision = Decision { scores: parse_scores(&reply, &options, &criteria, &valid), options, criteria };
     let scored = decision.scores.iter().flatten().filter(|c| c.is_some()).count();
     c.result("byte_dscore", scored > 0, format!("{scored} of {cells} scores"))?;

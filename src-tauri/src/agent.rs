@@ -104,6 +104,8 @@ pub struct Modules {
     pub best_of_three: bool,
     /// Flashcards, quizzes and tutor mode.
     pub study: bool,
+    /// The model is small (≤ 4B, or unknown): cards get checked and repaired (`quality`).
+    pub small_model: bool,
 }
 
 /// BYTE searches before the model answers any question about the world
@@ -1046,7 +1048,7 @@ mod tests {
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let http = chat::local_client();
         let net = tools::fetch::web_client();
-        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false };
+        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false };
         let cases = [
             ("Reviews of the Sony WH-1000XM5", Mode::Auto, "reviews"),
             ("What's the cheapest place to buy a Steam Deck OLED?", Mode::Auto, "prices"),

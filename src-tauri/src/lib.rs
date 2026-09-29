@@ -28,6 +28,7 @@ mod models;
 mod paths;
 mod profiles;
 mod prompt;
+mod quality;
 mod research;
 mod router;
 mod settings;

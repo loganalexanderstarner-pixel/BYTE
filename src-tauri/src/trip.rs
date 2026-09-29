@@ -428,8 +428,12 @@ weather and activities, and up to 6 practical tips.",
         notes.chars().take(budget.min(10_000)).collect::<String>(),
         ask.currency
     );
-    let reply = c.cancellable(chat::complete_json(turn.http, turn.ep, "You are a careful travel planner. Reply only with JSON.", &user, plan_schema(ask.days), 700 + ask.days * 450)).await?.unwrap_or_default();
+    let sys = "You are a careful travel planner. Reply only with JSON.";
+    let reply = c.cancellable(chat::complete_json(turn.http, turn.ep, sys, &user, plan_schema(ask.days), 700 + ask.days * 450)).await?.unwrap_or_default();
     let valid: Vec<u32> = g.book.sources.iter().map(|s| s.n).collect();
+    let reply = c
+        .cancellable(crate::quality::improve(turn, sys, &user, plan_schema(ask.days), 700 + ask.days * 450, reply, |r| parse_plan(r, &ask, &weather_text, &valid).map(|p| crate::quality::trip(&p, ask.days as usize))))
+        .await??;
     let plan = parse_plan(&reply, &ask, &weather_text, &valid);
     c.result("byte_titinerary", plan.is_some(), match &plan { Some(p) => format!("{} days, {} stops", p.days.len(), p.days.iter().map(|d| d.items.len()).sum::<usize>()), None => "The plan couldn't be read".into() })?;
     if let Some(p) = &plan {

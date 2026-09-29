@@ -586,7 +586,8 @@ Mix easy and harder questions; test understanding, not trivia. Give the quiz a s
                 break;
             }
         }
-        reply
+        let quiz_sys = "You write clear, fair quizzes. Reply only with JSON.";
+        c.cancellable(crate::quality::improve(turn, quiz_sys, &user, quiz_schema(count), (count * 260 + 300) as u32, reply, |r| parse_quiz(r, count).map(|q| crate::quality::quiz(&q)))).await??
     } else {
         let user = format!(
             "{source}\n\nWrite {count} flashcards on this. Each has a short, specific question or term on the front and a clear, \
@@ -601,7 +602,8 @@ complete answer on the back (one idea per card, every front different, no yes/no
                 break;
             }
         }
-        reply
+        let cards_sys = "You write excellent study flashcards. Reply only with JSON.";
+        c.cancellable(crate::quality::improve(turn, cards_sys, &user, cards_schema(count), (count * 170 + 300) as u32, reply, |r| parse_cards(r, count).map(|f| crate::quality::flashcards(&f, &topic, count)))).await??
     };
     let fallback_title = |t: &str| if t.is_empty() { topic.chars().take(60).collect::<String>() } else { t.to_string() };
     if quiz {
@@ -862,7 +864,7 @@ mod tests {
         let log = crate::tools::ActionLog::new(dir.path().join("a.jsonl"));
         let http = chat::local_client();
         let net = crate::tools::fetch::web_client();
-        let modules = Modules { study: true, ..Default::default() };
+        let modules = Modules { study: true, small_model: true, ..Default::default() };
         for (q, task, want) in [
             ("Make 6 flashcards about photosynthesis", None, "flashcards"),
             ("Quiz me on the solar system, 4 questions", None, "quiz"),
