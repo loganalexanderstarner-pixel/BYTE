@@ -155,6 +155,9 @@ pub struct Settings {
     pub answer_cache: bool,
     /// Models loaded alongside the main one; reloaded at launch.
     pub loaded_alongside: Vec<String>,
+    /// Models BYTE already said "a better model fits your Mac" about (said once per model).
+    #[serde(default)]
+    pub better_model_hint_for: Vec<String>,
     /// Speculative decoding with a small same-family helper model.
     pub speed_boost: bool,
     pub speed_pref: SpeedPref,
@@ -210,6 +213,7 @@ impl Default for Settings {
             photo_helper: true,
             answer_cache: true,
             loaded_alongside: Vec::new(),
+            better_model_hint_for: Vec::new(),
             speed_boost: true,
             speed_pref: SpeedPref::Balanced,
             auto_tune: true,

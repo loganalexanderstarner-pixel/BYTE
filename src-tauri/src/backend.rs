@@ -218,6 +218,7 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
     if reuse_earlier_answer(state, request, &ep, on_event).await {
         return Ok(());
     }
+    better_model_hint(state, &ep, on_event).await;
     // A model that can't see gets the photos described by the photo helper.
     let described = if ep.vision { None } else { describe_photos(state, request, on_event).await };
     let request = described.as_ref().unwrap_or(request);
@@ -345,6 +346,27 @@ async fn prepare_for_cloud(state: &AppState, request: &ChatRequest, on_event: &C
     let r = agent::prepare(setup.turn(state, request), cancel, on_event).await;
     state.generations.finish(&request.request_id).await;
     r
+}
+
+/// Once per small model: "your Mac can run a clearly better model" (Settings → Models).
+async fn better_model_hint(state: &AppState, ep: &crate::engine::Endpoint, on_event: &Channel<ChatEvent>) {
+    let settings = state.settings.lock().await.clone();
+    if settings.better_model_hint_for.iter().any(|k| k == &ep.model) {
+        return;
+    }
+    let catalog = state.catalog.get();
+    let ctx = settings.context_size.unwrap_or(crate::engine::DEFAULT_CONTEXT);
+    let info = crate::models::calibrate(crate::system::system_info(&state.paths.data).with_settings(&settings), &catalog);
+    let Some(better) = crate::models::better_model(&catalog, &info, ctx, &ep.model) else { return };
+    let _ = on_event.send(ChatEvent::Notice {
+        text: format!("Your Mac can run {}, which gives noticeably better answers and cards than the small model in use. You can download it in Settings → Models.", better.name),
+    });
+    let mut s = state.settings.lock().await;
+    let mut next = s.clone();
+    next.better_model_hint_for.push(ep.model.clone());
+    if next.save(&state.paths.settings_file).is_ok() {
+        *s = next;
+    }
 }
 
 /// The request with its latest photos described in words by the photo helper

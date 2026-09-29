@@ -17,6 +17,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — "A better model fits your Mac" hint (once per small model)
+- **Why:** it was part of the owner's "make all models do good" request, and left out of v0.7.3. Built while the
+  v0.7.3 release was building (new way of working: code during waits).
+- **What:**
+  - `models::better_model`: the recommended model, if the one in use is ≤ 4B and the recommendation is at least
+    twice its size and fits comfortably.
+  - `backend::better_model_hint` sends one `ChatEvent::Notice` at the start of a local turn, remembered in
+    `settings.better_model_hint_for`.
+- **Verify:** `cargo test models::` (16 GB Mac: a hint for Qwen3-0.6B, none for the recommended model).
+- **Undo:** revert.
+
 ### (this commit) — v0.7.3: the photo helper for models that can't see
 - **Why:** the owner asked for every model to "do good". Until now, a photo sent to a model without vision got
   only its OCR text and a "can't see images" note.

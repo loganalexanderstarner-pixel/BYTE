@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- When you use a small model and your Mac can run a clearly better one, BYTE says so once (Settings → Models).
+
 ## 0.7.3 — Better cards from small models, and a photo helper
 
 - **Card checks for small models.** When a small model's card has an obvious problem (flashcard fronts that just

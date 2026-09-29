@@ -645,6 +645,16 @@ pub fn recommend<'a>(catalog: &'a Catalog, info: &SystemInfo, ctx: u32) -> Optio
         })
 }
 
+/// A clearly better model this Mac runs comfortably, when the one in use is small:
+/// the recommended model if it's at least twice the size (for the "a better model
+/// fits" hint). `None` for big models, unknown ones, or when nothing better fits.
+pub fn better_model<'a>(catalog: &'a Catalog, info: &SystemInfo, ctx: u32, current: &str) -> Option<&'a CatalogModel> {
+    let (m, _) = catalog.resolve(current).ok()?;
+    let now = m.params_b.filter(|b| *b <= crate::quality::SMALL_B)?;
+    let (best, v) = recommend(catalog, info, ctx)?;
+    (best.id != m.id && best.params_b.is_some_and(|b| b >= now * 2.0) && plan(best, v, info, ctx).fit == Fit::Great).then_some(best)
+}
+
 // ---------- status for the UI ----------
 
 #[derive(Debug, Clone, Serialize)]
@@ -1118,6 +1128,12 @@ mod tests {
     fn recommendations_scale_with_memory() {
         let c = Catalog::embedded();
         let pick = |gb| recommend(&c, &mac(gb), 16384).map(|(m, v)| format!("{}:{}", m.id, v.quant));
+        // A 16 GB Mac running a 0.6B model is told about a much better one; one running the recommended model isn't.
+        let small = c.models.iter().find(|m| m.id == "qwen3-0.6b").map(|m| key(m, &m.variants[0])).unwrap();
+        let better = better_model(&c, &mac(16), 16384, &small).expect("a better model fits 16 GB");
+        assert!(better.params_b.unwrap() >= 1.2);
+        let rec = recommend(&c, &mac(16), 16384).map(|(m, v)| key(m, v)).unwrap();
+        assert!(better_model(&c, &mac(16), 16384, &rec).is_none());
         let r8 = pick(8).unwrap();
         let r16 = pick(16).unwrap();
         let r32 = pick(32).unwrap();
