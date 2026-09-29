@@ -196,8 +196,56 @@ fn quiz_schema(n: usize) -> Value {
     })
 }
 
-pub fn parse_cards(reply: &str, max: usize) -> Option<Flashcards> {
+/// The reply as JSON; when a small model ran out of tokens mid-list, the complete
+/// objects of `list` that it did finish (so 5 good cards aren't lost to a cut-off 6th).
+fn reply_json(reply: &str, list: &str) -> Value {
     let v = research::lenient_json(reply);
+    if !v.is_null() {
+        return v;
+    }
+    let Some(start) = reply.find(&format!("\"{list}\"")).and_then(|i| reply[i..].find('[').map(|j| i + j + 1)) else { return Value::Null };
+    let (mut items, mut depth, mut from, mut in_str, mut esc) = (Vec::new(), 0usize, 0usize, false, false);
+    for (i, ch) in reply[start..].char_indices() {
+        if in_str {
+            match ch {
+                _ if esc => esc = false,
+                '\\' => esc = true,
+                '"' => in_str = false,
+                _ => {}
+            }
+            continue;
+        }
+        match ch {
+            '"' => in_str = true,
+            '{' => {
+                if depth == 0 {
+                    from = start + i;
+                }
+                depth += 1;
+            }
+            '}' if depth > 0 => {
+                depth -= 1;
+                if depth == 0 {
+                    if let Ok(o) = serde_json::from_str::<Value>(&reply[from..=start + i]) {
+                        items.push(o);
+                    }
+                }
+            }
+            ']' if depth == 0 => break,
+            _ => {}
+        }
+    }
+    let title = reply.find("\"title\"").and_then(|i| {
+        let rest = &reply[i + 7..];
+        let a = rest.find('"')? + 1;
+        let b = rest[a..].find('"')?;
+        Some(rest[a..a + b].to_string())
+    });
+    json!({ "title": title.unwrap_or_default(), list: items })
+}
+
+pub fn parse_cards(reply: &str, max: usize) -> Option<Flashcards> {
+    let v = reply_json(reply, "cards");
     let mut seen = std::collections::HashSet::new();
     let cards: Vec<Card> = v["cards"]
         .as_array()
@@ -214,7 +262,8 @@ pub fn parse_cards(reply: &str, max: usize) -> Option<Flashcards> {
 }
 
 pub fn parse_quiz(reply: &str, max: usize) -> Option<Quiz> {
-    let v = research::lenient_json(reply);
+    let v = reply_json(reply, "questions");
+    let mut seen = std::collections::HashSet::new();
     let questions: Vec<QuizQuestion> = v["questions"]
         .as_array()
         .into_iter()
@@ -253,7 +302,7 @@ pub fn parse_quiz(reply: &str, max: usize) -> Option<Quiz> {
                 _ => None,
             }?;
             let answer = if answer >= choices.len() && answer == choices.len() { answer - 1 } else { answer };
-            (!question.is_empty() && choices.len() >= 2 && answer < choices.len()).then(|| QuizQuestion { question, choices, answer, explanation: clean(&q["explanation"], 500) })
+            (!question.is_empty() && choices.len() >= 2 && answer < choices.len() && seen.insert(question.to_lowercase())).then(|| QuizQuestion { question, choices, answer, explanation: clean(&q["explanation"], 500) })
         })
         .take(max)
         .collect();
@@ -529,13 +578,30 @@ pub async fn run(turn: &Turn<'_>, question: &str, used_tokens: usize, cancel: &C
 answer (put the correct choice's exact text in \"answer\"), plausible wrong choices, and a one-sentence explanation of why the answer is right. \
 Mix easy and harder questions; test understanding, not trivia. Give the quiz a short title."
         );
-        c.cancellable(chat::complete_json(turn.http, turn.ep, "You write clear, fair quizzes. Reply only with JSON.", &user, quiz_schema(count), (count * 160 + 200) as u32)).await?.unwrap_or_default()
+        let mut reply = String::new();
+        for attempt in 0..2 {
+            let ask = if attempt == 0 { user.clone() } else { format!("{user}\nEvery question must be different. Keep each one short.") };
+            reply = c.cancellable(chat::complete_json(turn.http, turn.ep, "You write clear, fair quizzes. Reply only with JSON.", &ask, quiz_schema(count), (count * (160 + attempt * 100) + 300) as u32)).await?.unwrap_or_default();
+            if parse_quiz(&reply, count).is_some() {
+                break;
+            }
+        }
+        reply
     } else {
         let user = format!(
             "{source}\n\nWrite {count} flashcards on this. Each has a short, specific question or term on the front and a clear, \
-complete answer on the back (one idea per card, no yes/no questions). Plain text only: no Markdown, no LaTeX or $ signs (write CO2, x^2). Cover the most important ideas first. Give the set a short title."
+complete answer on the back (one idea per card, every front different, no yes/no questions). Plain text only: no Markdown, no LaTeX or $ signs (write CO2, x^2). Cover the most important ideas first. Give the set a short title."
         );
-        c.cancellable(chat::complete_json(turn.http, turn.ep, "You write excellent study flashcards. Reply only with JSON.", &user, cards_schema(count), (count * 90 + 200) as u32)).await?.unwrap_or_default()
+        // Small models sometimes run out of room or repeat a card; one more try with more room.
+        let mut reply = String::new();
+        for attempt in 0..2 {
+            let ask = if attempt == 0 { user.clone() } else { format!("{user}\nEvery card must have a different front. Keep each back to one or two sentences.") };
+            reply = c.cancellable(chat::complete_json(turn.http, turn.ep, "You write excellent study flashcards. Reply only with JSON.", &ask, cards_schema(count), (count * (90 + attempt * 80) + 300) as u32)).await?.unwrap_or_default();
+            if parse_cards(&reply, count).is_some() {
+                break;
+            }
+        }
+        reply
     };
     let fallback_title = |t: &str| if t.is_empty() { topic.chars().take(60).collect::<String>() } else { t.to_string() };
     if quiz {
@@ -818,6 +884,18 @@ mod tests {
                 assert!(!states_value(&answer, 'x'), "the tutor solved it instead of teaching: {answer}");
             }
         }
+    }
+
+    #[test]
+    fn cut_off_replies_keep_their_finished_cards() {
+        let cut = r#"{"title":"Cells","cards":[{"front":"What is a cell?","back":"The smallest unit of life."},{"front":"What holds DNA?","back":"The nucleus {in eukaryotes}."},{"front":"What makes ATP?","back":"The mito"#;
+        let f = parse_cards(cut, 10).unwrap();
+        assert_eq!(f.title, "Cells");
+        assert_eq!(f.cards.len(), 2);
+        assert_eq!(f.cards[1].back, "The nucleus {in eukaryotes}.");
+        assert!(parse_cards(r#"{"title":"x","cards":[{"front":"a","#, 10).is_none());
+        let dup = r#"{"title":"Q","questions":[{"question":"Closest planet?","choices":["Mercury","Venus"],"answer":"Mercury"},{"question":"Closest planet?","choices":["Mercury","Venus"],"answer":"Mercury"},{"question":"Largest planet?","choices":["Jupiter","Mars"],"answer":"Jupiter"}]}"#;
+        assert_eq!(parse_quiz(dup, 10).unwrap().questions.len(), 2);
     }
 
     #[test]

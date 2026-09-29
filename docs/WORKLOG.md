@@ -17,6 +17,26 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — Flashcards from small models: schemas in written order, one retry, cut-off replies kept
+- **Why:** the Mac engine test on `c9bb9c0` failed in `study::tests::e2e_study`, and it reproduced here about 1 in 20
+  runs with Qwen3-0.6B. The model gave all 6 cards the same front ("Photosynthesis"), so only one card survived
+  de-duplication. The root cause: `serde_json` (without `preserve_order`) sorted every JSON schema's keys
+  alphabetically, so the engine's grammar made models write `back` before `front`, a quiz's `answer` before its
+  `question`, and the tutor's `question` before its `step`. That affects every `complete_json` call.
+- **What:**
+  - `Cargo.toml`: `serde_json` with `preserve_order`, so schemas and all JSON keep the order they're written in.
+  - `study.rs`:
+    - `reply_json` keeps the finished cards or questions of a reply that ran out of tokens.
+    - Cards and quizzes get one retry with more room.
+    - Quiz questions are de-duplicated.
+    - The prompt asks for a different front on every card.
+- **Verify:**
+  - `scripts/check-all.sh`;
+  - `cargo test cut_off_replies_keep_their_finished_cards`;
+  - real engine: `e2e_study` 16/16 with 0.6B (0 retries needed), and the whole e2e suite with 0.6B passes (OCR
+    is macOS-only).
+- **Undo:** revert. Reverting only the `Cargo.toml` line brings back the alphabetical schemas.
+
 ### (this commit) — v0.7.1: the cards in Cloud mode (made on this Mac, written by the cloud)
 - **Why:** owner: "Does all these cool features like the recipe thing and the compare thing work on cloud mode too".
   They didn't: Cloud mode sent the message straight to the cluster, whose API is chat only (no structured replies to

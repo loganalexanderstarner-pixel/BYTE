@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Flashcards and quizzes are more reliable with small models: BYTE now sends its answer formats to the model in the
+  intended order (question before answer), retries once when a set comes back unusable, and keeps the finished
+  cards when a reply is cut off. Repeated quiz questions are dropped.
+
 ## 0.7.1 — Cards in Cloud mode, and a steadier tutor
 
 - **The cards now work in Cloud mode** when a model is loaded on your Mac: recipes and meal plans, compare tables,
