@@ -17,6 +17,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — Terminal helper: known-good commands; small models don't invent commands
+- **Why:** the Mac engine run on `22c49ef` failed `e2e_terminal_proposals`: Qwen3 0.6B on Metal answered "what's
+  using port 3000" with `ps aux | grep 3000`. Local runs showed worse (asked to count files, it printed every file).
+- **What:** `terminal::recipe` (ports, disk, folder sizes, biggest files, IP, battery, uptime, CPU/memory, macOS
+  version, hardware, listing a folder, date, running apps; only digits and fixed folder names reach the command);
+  small models (≤ 4B) run only recipes and otherwise explain the steps; bigger models' commands get a "Check" line
+  on the approval card; prompt no longer lists example commands (small models copied them).
+- **Verify:** `cargo test terminal::` (recipes, `small_models_only_run_known_commands`); the e2e now checks the
+  model path's plumbing on Qwen3 0.6B / Llama 3.2 1B / Qwen3.5 2B.
+- **Undo:** revert.
+
 ### (this commit) — v0.9.3: files and a terminal helper (Phase 9 complete)
 - **Why:** the rest of Phase 9 (HANDOFF §8), built while the v0.9.2 Mac test ran.
 - **What:** `filectl.rs` (+ `filectl_tests.rs`): find (mdfind), tidy by kind/month with preview + undo, convert/shrink

@@ -524,8 +524,8 @@ restored; `selection_paste` activates the app and ⌘V; event `selection://captu
 transient types and `looks_secret` skipped, BYTE's own writes ignored), writing `Reply` (own system prompt `HELPER`,
 written whole and checked with `echoes`, retried twice) and `Explain`. **Done in v0.9.3:** `filectl.rs` (Spotlight find via `mdfind`,
 `tidy_plan`/`apply_moves` with `Undo::Moves`, `sips` photo conversion with `Undo::Created`, Finder selection read +
-`files::ingest`), `terminal.rs` (`propose` via `complete_json` with macOS hints, `refused` hard block list,
-approval, `zsh -c`), `macctl::Undo` enum + `keep_undo`/`ask_ok`, `scripts_avoid_applescript_keywords_as_variables`.
+`files::ingest`), `terminal.rs` (`recipe` known-good commands for common asks — digits only from the message;
+`propose` via `complete_json` for bigger models only; `refused` hard block list; approval; `zsh -c`), `macctl::Undo` enum + `keep_undo`/`ask_ok`, `scripts_avoid_applescript_keywords_as_variables`.
 **Phase 9 is complete.** Moved: the `byte://` link and a Finder "Ask BYTE" Quick Action to Phase 11 (with Quick Ask);
 creating Shortcuts to Phase 10 (automations).
 Everything asks for permission once, shows what it will do, and can be undone where possible (activity list
