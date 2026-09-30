@@ -17,6 +17,20 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-30
 
+### (this commit) — v0.10.4: trackers
+- **Why:** Phase 10 item 5 (HANDOFF §8): packages and orders, bills and subscriptions, gifts and events, car and home
+  maintenance. Built while v0.10.3's Mac test ran (owner: "do stuff in parallel while we are waiting").
+- **What:** `trackers.rs` + `trackers_tests.rs` (records, dates, carriers, money, notifications, chat), DB v14 `trackers`,
+  `scheduler::tick` → `trackers::tick`, routing in `agent::specialist` after automations, canned `trackers_list` in
+  `agent.rs`/`backend.rs`, setting `trackersEnabled` / `Modules.trackers`, commands `trackers_list`, `tracker_save`,
+  `tracker_done`, `tracker_delete`, `tracker_date_parse`, `tracker_carrier`. UI `TrackersSection.tsx` in the ✅ panel,
+  `lib/trackers.ts` (+ tests), Settings toggle, Activity labels, screenshots `29-trackers`, `29b-trackers-maintenance`,
+  `29c-subscriptions`.
+- **Verify:** `cargo test trackers`; `npx vitest run src/lib/trackers.test.ts`; `scripts/check-all.sh`; in the app: "add
+  Netflix $15.49 a month on the 12th", "what subscriptions do I have?", "Sam's birthday is March 3", "change the furnace
+  filter every 3 months", then "I changed the furnace filter today".
+- **Undo:** `git revert` this commit (the `trackers` table stays and is unused).
+
 ### (this commit) — v0.10.3: automations, Shortcuts and opening at login
 - **Why:** Phase 10 item 4 (HANDOFF §8): multi-step runs and an automations builder, plus creating Shortcuts (moved
   here from Phase 9) and opening at login (schedules only ran while BYTE was open). Owner: "keep going with v0.10.3".

@@ -12,6 +12,7 @@ import type {
   Feed,
   Watcher,
   Automation,
+  Tracker,
   RunView,
   ShortcutMade,
   WatchEvent,
@@ -231,6 +232,15 @@ export const api = {
   onAutomationProgress: (cb: (v: RunView) => void): Promise<UnlistenFn> => listen<RunView>("automations://progress", (e) => cb(e.payload)),
   /** A byte://ask link: text for the message box (never sent by itself). */
   onDeepLinkAsk: (cb: (text: string) => void): Promise<UnlistenFn> => listen<string>("deeplink://ask", (e) => cb(e.payload)),
+  // Trackers (trackers.rs).
+  trackersList: () => invoke<Tracker[]>("trackers_list"),
+  trackerSave: (tracker: Tracker) => invoke<Tracker>("tracker_save", { tracker }),
+  trackerDone: (id: number) => invoke<Tracker>("tracker_done", { id }),
+  trackerDelete: (id: number) => invoke<void>("tracker_delete", { id }),
+  /** "March 3", "the 12th", "friday" → "YYYY-MM-DD", or null. */
+  trackerDateParse: (text: string) => invoke<string | null>("tracker_date_parse", { text }),
+  /** A tracking number → [carrier, tracking page], or null. */
+  trackerCarrier: (number: string) => invoke<[string, string] | null>("tracker_carrier", { number }),
   // Mac upkeep (upkeep.rs): ids from the card, never paths.
   upkeepTrash: (scanId: string, id: string) => invoke<Trashed>("upkeep_trash", { scanId, id }),
   upkeepReveal: (scanId: string, id: string) => invoke<void>("upkeep_reveal", { scanId, id }),

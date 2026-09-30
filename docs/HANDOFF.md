@@ -477,7 +477,7 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 **Done in v0.8.0:** `gguf.rs` + `lab.rs` (model lab, `<data>/added_models.json`, `CatalogStore::set_added`), per-model
 `settings.model_overrides` (`ModelOverride::apply`) + `TuningPanel`, `battery_saver` (`system::battery`), `commands::engine_live`
 (with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
-**Next:** Phase 10 continues (v0.10.0 Mac upkeep, v0.10.1 tasks and briefing, v0.10.2 feeds and watchers, v0.10.3 automations + Shortcuts + open at login are done; next is v0.10.4 trackers; see the Phase 10 section). Way of working
+**Next:** Phase 10 continues (v0.10.0 Mac upkeep, v0.10.1 tasks and briefing, v0.10.2 feeds and watchers, v0.10.3 automations + Shortcuts + open at login, v0.10.4 trackers are done; next is v0.10.5 connectors; see the Phase 10 section). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
@@ -588,6 +588,15 @@ link. `background.rs`: `tauri-plugin-deep-link` (`byte://run/<id>?key=` with a 6
 `visible: false` and shown in setup unless started that way), keep running (CloseRequested hides on macOS,
 `RunEvent::Reopen` shows). Settings `automationsEnabled`, `openAtLogin`, `keepRunning`. UI `AutomationsSection.tsx`
 (builder), `lib/automations.ts`. Screenshots `28-*`.
+**Done in v0.10.4:** DB v14 (`trackers`: kind, next date, done, the record as JSON). `trackers.rs` (+ `trackers_tests.rs`):
+one `Tracker` for four kinds (package, bill, event, upkeep); `date_in` (month names, 5/14, weekdays, "the 12th");
+`next_on_or_after` (month ends kept: the 31st lands on Feb 28, then back to the 31st); `carrier_of` (UPS 1Z, USPS
+91–95 / ..US, FedEx 12/15/96…, DHL 10 digits / JJD, Amazon TBA) with the carrier's tracking link, no status
+scraping; `money_in`/`money_text`/`per_month`; `take_due` from the scheduler tick sends one notification per date
+(bills 3 days, events 14, upkeep 7, packages on the day) and moves passed bills and yearly dates on; chat `ask` by
+rules, routed after automations; lists composed by BYTE (canned kind `trackers_list`); "gift ideas for X" gives the
+model what's saved. UI `TrackersSection.tsx` (tabs, add rows, totals), `lib/trackers.ts`. Setting `trackersEnabled`.
+Screenshots `29-*`.
 **Split of the rest:** v0.10.1 tasks & reminders + scheduler (`scheduler.rs`) + daily briefing;
 v0.10.2 news/RSS digest + page watchers (price alerts) ✅; v0.10.3 ✅ multi-step runs + automations builder + creating
 Shortcuts; v0.10.4 trackers; v0.10.5 connectors; v0.10.6 dashboards.

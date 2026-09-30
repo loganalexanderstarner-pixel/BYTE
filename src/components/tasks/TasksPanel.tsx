@@ -6,6 +6,7 @@ import { dueText, fromInput, sortTasks, toInput } from "../../lib/tasks";
 import type { Schedule, Task } from "../../lib/types";
 import { useStore } from "../../state/store";
 import { AutomationsSection } from "./AutomationsSection";
+import { TrackersSection } from "./TrackersSection";
 import { WatchSection } from "./WatchSection";
 
 const REPEATS: { value: Task["repeat"]; label: string }[] = [
@@ -36,6 +37,7 @@ export function TasksPanel({ onClose }: { onClose: () => void }) {
   const tasksOn = useStore((s) => s.settings?.tasksEnabled !== false);
   const watchOn = useStore((s) => s.settings?.watchEnabled !== false);
   const automationsOn = useStore((s) => s.settings?.automationsEnabled !== false);
+  const trackersOn = useStore((s) => s.settings?.trackersEnabled !== false);
 
   const load = useCallback(() => {
     api.tasksList().then(setTasks, (e) => setError(errorText(e)));
@@ -101,7 +103,7 @@ export function TasksPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="study-panel tasks-panel" role="dialog" aria-modal="true" aria-label="Tasks, schedules, automations, feeds and watched pages">
+      <div className="study-panel tasks-panel" role="dialog" aria-modal="true" aria-label="Tasks, schedules, trackers, automations, feeds and watched pages">
         <div className="recipe-box-head">
           <ListTodo size={18} />
           <h2>Tasks</h2>
@@ -235,6 +237,7 @@ export function TasksPanel({ onClose }: { onClose: () => void }) {
             </div>
           </>
         )}
+        {trackersOn && <TrackersSection />}
         {automationsOn && <AutomationsSection onClose={onClose} />}
         {watchOn && <WatchSection onClose={onClose} />}
       </div>

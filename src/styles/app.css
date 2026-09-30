@@ -5236,3 +5236,14 @@ kbd {
     animation: none;
   }
 }
+
+/* Trackers (✅ panel). */
+.tracker-tabs {
+  margin: var(--space-2) 0;
+}
+.tracker-total {
+  margin: var(--space-1) 0;
+}
+.tracker-add input.invalid {
+  border-color: color-mix(in srgb, var(--danger) 60%, var(--border));
+}

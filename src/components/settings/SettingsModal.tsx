@@ -790,6 +790,13 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
+            Trackers
+            <small>Packages (“track 1Z…”), bills and subscriptions (“add Netflix $15.49 a month on the 12th”, “what subscriptions do I have?”), birthdays with gift ideas (“Sam's birthday is March 3”) and car and home maintenance (“change the furnace filter every 3 months”), with notifications ahead of time. All kept on this Mac.</small>
+          </span>
+          <input type="checkbox" checked={settings?.trackersEnabled ?? true} onChange={(e) => void update({ trackersEnabled: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
             Mac upkeep
             <small>“What's taking up space?”, “find duplicate files”, “why is my Mac slow?”, “what's draining my battery?”, “check my Mac”, “uninstall Zoom”, “what opens at login?”. Anything removed goes to the Trash (Undo puts it back); BYTE never empties the Trash or touches macOS itself.</small>
           </span>

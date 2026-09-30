@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.4 — Trackers
+
+- **Bills and subscriptions** with exact monthly and yearly totals and a notification 3 days before each payment.
+- **Birthdays and yearly dates** with saved gift ideas (and suggestions), a notification 2 weeks ahead.
+- **Car and home maintenance** every N days, weeks, months or years; "I did it today" moves the next date on.
+- **Packages**: the carrier is recognized from the tracking number (UPS, USPS, FedEx, DHL, Amazon), with a link to
+  its tracking page (BYTE doesn't read the status itself).
+- Asked for in chat (read by rules; lists and totals are written by BYTE, not a model) or managed in the ✅ panel.
+
 ## 0.10.3 — Automations, Shortcuts and opening at login
 
 - **Automations**: a trigger (when you run it, on a schedule, or when BYTE opens) and up to 8 steps: ask BYTE,

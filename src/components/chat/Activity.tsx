@@ -109,6 +109,12 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: ListTodo, text: s.summary ?? "Read your to-do list" };
     case "schedule_add":
       return { icon: CalendarClock, text: arg("what") };
+    case "trackers_list":
+      return { icon: ListChecks, text: s.summary ?? "Read what BYTE tracks" };
+    case "tracker_add":
+      return { icon: ListChecks, text: `Now tracking “${arg("name")}”` };
+    case "tracker_done":
+      return { icon: ListChecks, text: `Updated “${arg("name")}”` };
     case "automation_plan":
       return { icon: Workflow, text: `Split your request into ${s.summary ?? "steps"}` };
     case "feed_follow":

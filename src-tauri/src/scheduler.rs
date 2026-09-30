@@ -555,6 +555,7 @@ pub async fn tick(app: &AppHandle) {
     }
     crate::watchers::tick(app).await;
     crate::automations::tick(app).await;
+    crate::trackers::tick(app);
 }
 
 /// Starts the loop (at launch).

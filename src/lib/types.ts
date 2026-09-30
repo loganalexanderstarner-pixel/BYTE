@@ -63,6 +63,8 @@ export interface Settings {
   watchEnabled?: boolean;
   /** Automations and multi-step runs (✅ panel). */
   automationsEnabled?: boolean;
+  /** Packages, bills and subscriptions, birthdays, maintenance (✅ panel). */
+  trackersEnabled?: boolean;
   /** Open BYTE in the background at login. */
   openAtLogin?: boolean;
   /** Closing the window keeps BYTE running (macOS); ⌘Q quits. */
@@ -536,6 +538,33 @@ export interface ShortcutMade {
   opened: boolean;
   link: string;
   message: string;
+}
+
+export type TrackerKind = "package" | "bill" | "event" | "upkeep";
+
+/** Something BYTE tracks (Rust `trackers::Tracker`). Dates are "YYYY-MM-DD". */
+export interface Tracker {
+  id: number;
+  kind: TrackerKind;
+  name: string;
+  next: string | null;
+  noticeDays: number | null;
+  notes: string;
+  done: boolean;
+  carrier: string;
+  number: string;
+  amount: number | null;
+  currency: string;
+  cycle: "" | "weekly" | "monthly" | "quarterly" | "yearly";
+  person: string;
+  occasion: string;
+  ideas: string[];
+  budget: number | null;
+  everyDays: number | null;
+  everyMonths: number | null;
+  lastDone: string | null;
+  link: string;
+  notifiedFor: string | null;
 }
 
 /** A watched page (Rust `watchers::Watcher`). */

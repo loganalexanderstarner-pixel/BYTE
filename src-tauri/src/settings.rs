@@ -183,6 +183,9 @@ pub struct Settings {
     /// Automations and multi-step runs (automations.rs).
     #[serde(default = "yes")]
     pub automations_enabled: bool,
+    /// Trackers: packages, bills and subscriptions, birthdays, maintenance (trackers.rs).
+    #[serde(default = "yes")]
+    pub trackers_enabled: bool,
     /// Open BYTE (in the background) when the user logs in.
     #[serde(default)]
     pub open_at_login: bool,
@@ -273,6 +276,7 @@ impl Default for Settings {
             briefing_topics: Vec::new(),
             watch_enabled: true,
             automations_enabled: true,
+            trackers_enabled: true,
             open_at_login: false,
             keep_running: true,
             selection_hotkey: true,

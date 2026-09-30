@@ -64,6 +64,7 @@ mod units;
 mod automations;
 mod shortcut_make;
 mod background;
+mod trackers;
 
 use tauri::{Manager, RunEvent};
 
@@ -367,6 +368,12 @@ pub fn run() {
             automations::automation_run_status,
             automations::automation_trigger_parse,
             shortcut_make::automation_shortcut,
+            trackers::trackers_list,
+            trackers::tracker_save,
+            trackers::tracker_done,
+            trackers::tracker_delete,
+            trackers::tracker_date_parse,
+            trackers::tracker_carrier,
             commands::chat_send,
             commands::chat_cancel,
         ])

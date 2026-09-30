@@ -315,6 +315,28 @@ function initScript({ data }) {
             w({ id: 3, url: "https://store.example.com/lamp", name: "store.example.com", kind: "price", enabled: false, lastError: "BYTE couldn't find a price on the page" }),
           ];
         }
+        case "trackers_list": {
+          const t = (o) => ({ id: 0, kind: "bill", name: "", next: null, noticeDays: null, notes: "", done: false, carrier: "", number: "", amount: null, currency: "USD", cycle: "", person: "", occasion: "", ideas: [], budget: null, everyDays: null, everyMonths: null, lastDone: null, link: "", notifiedFor: null, ...o });
+          const day = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+          return [
+            t({ id: 1, name: "Netflix", amount: 15.49, cycle: "monthly", next: day(12) }),
+            t({ id: 2, name: "Rent", amount: 1500, cycle: "monthly", next: day(1) }),
+            t({ id: 3, name: "Spotify", amount: 11.99, cycle: "monthly", next: day(5) }),
+            t({ id: 4, name: "Amazon Prime", amount: 139, cycle: "yearly", next: day(124) }),
+            t({ id: 5, name: "Car insurance", amount: 612, cycle: "quarterly", next: day(40) }),
+            t({ id: 6, kind: "package", name: "New running shoes", carrier: "UPS", number: "1Z999AA10123456784", next: day(2), link: "https://www.ups.com/track?tracknum=1Z999AA10123456784" }),
+            t({ id: 7, kind: "event", name: "Sam's birthday", person: "Sam", occasion: "birthday", next: day(9), ideas: ["AirPods", "a cooking class"], budget: 80 }),
+            t({ id: 8, kind: "upkeep", name: "Change the furnace filter", everyMonths: 3, next: day(-2), lastDone: day(-94) }),
+          ];
+        }
+        case "tracker_date_parse":
+          return /\d|mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(args?.text ?? "") ? "2026-10-12" : null;
+        case "tracker_carrier":
+          return (args?.number ?? "").startsWith("1Z") ? ["UPS", "https://www.ups.com/track"] : null;
+        case "tracker_save":
+        case "tracker_done":
+        case "tracker_delete":
+          return args?.tracker ?? null;
         case "automations_list": {
           const now = Date.now();
           const a = (o) => ({ id: 0, name: "", trigger: "manual", steps: [], enabled: true, lastRun: null, nextRun: null, when: "When you run it", lastOk: null, lastChat: null, linked: false, ...o });
@@ -585,6 +607,14 @@ function initScript({ data }) {
               { n: 4, title: "Steelers sign veteran linebacker before Sunday", url: "https://example.com/steelers", snippet: "", read: false },
             ] });
             send({ kind: "content", delta: "> **TL;DR:** Wednesday, September 30: 3 events (first at 9:30 AM); 3 to do (1 overdue); light rain; news on AI, Steelers.\n\n## Today\n- **9:30 AM** — Dentist\n- **12:00 PM** — Lunch with Sam\n- **2:00 PM** — Project review with Priya\n\n## To-dos\n- ⚠️ Pay rent *(overdue)*\n- Call the bank about the card\n- Call Mom (due today at 5 PM)\n\n1 more task with no date on your list (✅).\n\n## Weather\nPittsburgh, US: now 61°F (feels like 59°F), light rain. Today: light rain, high 64°F, low 52°F, 70% chance of rain [1]. Bring an umbrella.\n\n## News\n- **AI:** A lab released a small open model that runs on laptops [2]\n- **AI:** Chip makers race to add memory for local AI [3]\n- **Steelers:** Steelers sign veteran linebacker before Sunday [4]" });
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
+          if (data.trackers) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            send({ kind: "toolCall", id: "tr0", name: "trackers_list", args: { kind: "bill" } });
+            send({ kind: "toolResult", id: "tr0", ok: true, summary: "5 tracked" });
+            send({ kind: "content", delta: "**Bills and subscriptions (5)**\n\n> **TL;DR:** about **$1,742.25 a month**, $20,907 a year.\n\n| What | Amount | Next |\n|---|---|---|\n| Rent | $1500 a month | tomorrow |\n| Spotify | $11.99 a month | in 5 days |\n| Netflix | $15.49 a month | in 12 days |\n| Car insurance | $612 a quarter | on Nov 9 |\n| Amazon Prime | $139 a year | on Feb 1 |" });
             send({ kind: "done", finishReason: "stop" });
             return null;
           }
@@ -1578,7 +1608,7 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
 // Tasks panel, a briefing, and a schedule waiting for OK
 {
   const { p, ctx, errors } = await page(true, "midnight");
-  await p.getByTitle("Tasks: your to-do list, schedules, automations, news feeds and watched pages").click();
+  await p.getByTitle("Tasks: your to-do list, schedules, trackers, automations, news feeds and watched pages").click();
   await p.waitForTimeout(300);
   await p.getByLabel("When").fill("every day at 6pm");
   await p.waitForTimeout(400);
@@ -1588,7 +1618,7 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
 }
 {
   const { p, ctx, errors } = await page(true, "paper");
-  await p.getByTitle("Tasks: your to-do list, schedules, automations, news feeds and watched pages").click();
+  await p.getByTitle("Tasks: your to-do list, schedules, trackers, automations, news feeds and watched pages").click();
   await p.waitForTimeout(300);
   await p.getByRole("heading", { name: "News feeds" }).scrollIntoViewIfNeeded();
   await p.getByLabel("Watch for").selectOption("price");
@@ -1620,10 +1650,37 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   console.log("schedule errors:", errors);
   await ctx.close();
 }
+// Trackers: the panel's bills tab, and "what subscriptions do I have?"
+{
+  const { p, ctx, errors } = await page(true, "paper");
+  await p.getByTitle("Tasks: your to-do list, schedules, trackers, automations, news feeds and watched pages").click();
+  await p.waitForTimeout(300);
+  await p.getByRole("heading", { name: "Trackers" }).scrollIntoViewIfNeeded();
+  await p.getByLabel("Bill or subscription").fill("iCloud+");
+  await p.getByLabel("Amount").fill("$2.99");
+  await p.getByLabel("Next due").fill("the 12th");
+  await p.waitForTimeout(400);
+  await shot(p, "29-trackers");
+  await p.getByRole("tab", { name: /Maintenance/ }).click();
+  await p.waitForTimeout(200);
+  await p.getByRole("heading", { name: "Trackers" }).scrollIntoViewIfNeeded();
+  await shot(p, "29b-trackers-maintenance");
+  console.log("trackers errors:", errors);
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await page(true, "midnight", { trackers: true });
+  await p.getByLabel("Message BYTE").fill("What subscriptions do I have?");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(600);
+  await shot(p, "29c-subscriptions");
+  console.log("subscriptions errors:", errors);
+  await ctx.close();
+}
 // Automations: the panel with the builder, a request waiting for OK, a run in progress
 {
   const { p, ctx, errors } = await page(true, "midnight");
-  await p.getByTitle("Tasks: your to-do list, schedules, automations, news feeds and watched pages").click();
+  await p.getByTitle("Tasks: your to-do list, schedules, trackers, automations, news feeds and watched pages").click();
   await p.waitForTimeout(300);
   await p.getByRole("heading", { name: "Automations" }).scrollIntoViewIfNeeded();
   await p.getByRole("button", { name: "New", exact: true }).click();

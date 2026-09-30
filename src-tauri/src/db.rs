@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 13;
+const SCHEMA_VERSION: i32 = 14;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -804,7 +804,25 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 13);
+    if version < 14 {
+        // Trackers: packages, bills, yearly dates, maintenance (trackers.rs). The record is JSON;
+        // the columns are what lists sort by.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE trackers (
+                 id INTEGER PRIMARY KEY,
+                 kind TEXT NOT NULL,
+                 next TEXT,
+                 done INTEGER NOT NULL DEFAULT 0,
+                 data TEXT NOT NULL,
+                 created INTEGER NOT NULL
+             );
+             CREATE INDEX trackers_next ON trackers(done, next);
+             PRAGMA user_version = 14;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 14);
     Ok(())
 }
 
