@@ -987,15 +987,17 @@ mod e2e {
         assert!(stats["completionTokens"].as_u64().unwrap() > 0);
         assert!(ev.last().unwrap()["kind"] == "done");
 
-        // Thinking off: no reasoning at all.
-        let plan = plan_turn(Mode::Fast, ThinkingPref::Off, &hist[0].content);
+        // Thinking off: no reasoning at all. (A copying task, not sums: without thinking
+        // a 0.6B model once answered "15" here. In the app, sums go to the calculator.)
+        let copy = vec![ChatMessage::new("user", "Reply with exactly this one word and nothing else: pineapple")];
+        let plan = plan_turn(Mode::Fast, ThinkingPref::Off, &copy[0].content);
         let (ch, seen) = collecting_channel();
-        stream(&http, &ep, request_body(&sys, &hist, plan), plan, CancellationToken::new(), &ch).await.unwrap();
+        stream(&http, &ep, request_body(&sys, &copy, plan), plan, CancellationToken::new(), &ch).await.unwrap();
         let ev = seen.lock().unwrap().clone();
         let content = text_of(&ev, "content");
         eprintln!("THINKING OFF content={content:?} stats={:?}", ev.iter().find(|e| e["kind"] == "stats"));
         assert!(text_of(&ev, "reasoning").trim().is_empty());
-        assert!(content.contains("42"), "{content}");
+        assert!(content.to_lowercase().contains("pineapple"), "{content}");
 
         // Cancellation stops promptly.
         let long = vec![ChatMessage::new("user", "Write a 2000-word essay about the ocean.")];

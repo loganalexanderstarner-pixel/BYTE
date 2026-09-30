@@ -17,6 +17,20 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-30
 
+### (this commit) — Mac test fixes: split terminal commands, a steady thinking-off check
+- **Why:** the Mac engine run on v0.10.1 failed 2 of 35 tests, both on Qwen3 0.6B. (1) `terminal::e2e_terminal_proposals`:
+  the model put a line break before a pipe (`find … {} \n| grep -c 'file'`), and `parse` refuses any multi-line
+  command, so `propose` returned nothing (reproduced here about 1 run in 8). (2) `chat::e2e_streams_from_real_llama_server`:
+  with thinking off the model answered "12 + 30" with "15". That check is about streaming, and in the app sums go to
+  the calculator.
+- **What:** `terminal.rs`: `joined()` turns a command split only where the shell carries on (a line ending in `\`,
+  `|`, `&&`, `||`, or the next line starting with a pipe or `&&`/`||`) into one line; any other break is still refused
+  (it would be a second command). `propose` asks once more when a reply can't be read. Unit test
+  `line_breaks_only_where_the_shell_carries_on` (the real CI reply included). `chat.rs`: the thinking-off check copies
+  one word ("pineapple") instead of adding numbers.
+- **Verify:** `cargo test terminal`; real engine: terminal e2e 12/12, streaming e2e 5/5 on Qwen3 0.6B.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — v0.10.2: news feeds and page watchers
 - **Why:** Phase 10 item 3 (HANDOFF §8): news/RSS digest and page watchers with price alerts, built while the v0.10.0
   release and the v0.10.1 Mac run ran.

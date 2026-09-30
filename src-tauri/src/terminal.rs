@@ -82,9 +82,34 @@ pub fn changes(cmd: &str) -> bool {
 /// The command and its explanation, from the model.
 pub fn parse(reply: &str) -> Option<(String, String)> {
     let v = crate::research::lenient_json(reply);
-    let cmd = v.get("command").and_then(Value::as_str)?.trim().trim_start_matches('$').trim().trim_matches('`').trim().to_string();
+    let cmd = v.get("command").and_then(Value::as_str)?.trim().trim_start_matches('$').trim().trim_matches('`').trim();
+    let cmd = joined(cmd)?;
     let why = v.get("explanation").and_then(Value::as_str).unwrap_or("").trim().to_string();
     (!cmd.is_empty() && !cmd.contains('\n') && cmd.len() <= 400).then_some((cmd, why))
+}
+
+/// A command split over lines only where a shell would carry on anyway (a line
+/// ending in `\`, `|`, `&&` or `||`, or the next one starting with a pipe or `&&`/`||`)
+/// becomes one line; any other line break would start a second command, so it's refused.
+fn joined(cmd: &str) -> Option<String> {
+    let lines: Vec<&str> = cmd.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    let mut out = String::new();
+    for (i, line) in lines.iter().enumerate() {
+        if i > 0 {
+            let prev = lines[i - 1];
+            let carries = ["\\", "|", "&&", "||"].iter().any(|e| prev.ends_with(e)) || ["|", "&&", "||"].iter().any(|s| line.starts_with(s));
+            if !carries {
+                return None;
+            }
+            if out.ends_with('\\') {
+                out.pop();
+            }
+            out = out.trim_end().to_string();
+            out.push(' ');
+        }
+        out.push_str(line);
+    }
+    Some(out)
 }
 
 pub async fn run(turn: &Turn<'_>, question: &str, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
@@ -190,8 +215,15 @@ possible: prefer commands that only read or show things, never use sudo, never d
 of tools, not the Linux ones. The command must do exactly what they asked, nothing else. Then explain in one or two plain sentences what it does and what they'll see."
     );
     let schema = json!({"type":"object","properties":{"command":{"type":"string"},"explanation":{"type":"string"}},"required":["command","explanation"]});
-    let reply = chat::complete_json(turn.http, turn.ep, "You are a careful macOS terminal expert. Reply only with JSON.", &user, schema, 300).await.unwrap_or_default();
-    parse(&reply)
+    // Small models sometimes split the command over two lines (never run: a line
+    // break would start a second command), so they get one more try.
+    for _ in 0..2 {
+        let reply = chat::complete_json(turn.http, turn.ep, "You are a careful macOS terminal expert. Reply only with JSON.", &user, schema.clone(), 300).await.unwrap_or_default();
+        if let Some(p) = parse(&reply) {
+            return Some(p);
+        }
+    }
+    None
 }
 
 /// Checks, asks, runs and reports one command.
@@ -289,6 +321,18 @@ mod tests {
             eprintln!("{q} → {cmd} ({why}) refused: {:?}", refused(&cmd));
             assert!(!cmd.is_empty() && !cmd.contains('\n'), "{cmd}");
         }
+    }
+
+    #[test]
+    fn line_breaks_only_where_the_shell_carries_on() {
+        let p = |c: &str| parse(&serde_json::json!({"command": c, "explanation": "x"}).to_string()).map(|(c, _)| c);
+        // A 0.6B model's real reply, on the Mac CI.
+        assert_eq!(p("find ~/Downloads -type f -exec ls -l {} \n| grep -c 'file'").as_deref(), Some("find ~/Downloads -type f -exec ls -l {} | grep -c 'file'"));
+        assert_eq!(p("ls ~ |\n  wc -l").as_deref(), Some("ls ~ | wc -l"));
+        assert_eq!(p("ls ~ \\\n  -la").as_deref(), Some("ls ~ -la"));
+        assert_eq!(p("cd ~ &&\nls").as_deref(), Some("cd ~ && ls"));
+        assert_eq!(p("ls ~\nrm -rf ~"), None, "a second command");
+        assert_eq!(p("df -h").as_deref(), Some("df -h"));
     }
 
     #[test]
