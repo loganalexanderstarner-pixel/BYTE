@@ -320,6 +320,7 @@ impl Setup {
                 watch: s.watch_enabled,
                 automations: s.automations_enabled,
                 trackers: s.trackers_enabled,
+                connectors: s.connectors_enabled,
             }, s.kb_enabled, s.cloud_connected)
         };
         let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());

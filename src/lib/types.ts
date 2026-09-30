@@ -65,6 +65,10 @@ export interface Settings {
   automationsEnabled?: boolean;
   /** Packages, bills and subscriptions, birthdays, maintenance (✅ panel). */
   trackersEnabled?: boolean;
+  /** Obsidian, Notion, calendar links (each off until set up). */
+  connectorsEnabled?: boolean;
+  obsidianVault?: string | null;
+  notionParent?: string | null;
   /** Open BYTE in the background at login. */
   openAtLogin?: boolean;
   /** Closing the window keeps BYTE running (macOS); ⌘Q quits. */
@@ -538,6 +542,17 @@ export interface ShortcutMade {
   opened: boolean;
   link: string;
   message: string;
+}
+
+/** Connectors (Rust `connectors::Status`); secrets are never sent to the UI. */
+export interface ConnectorsStatus {
+  keychain: boolean;
+  vault: string | null;
+  vaultNotes: number;
+  notion: boolean;
+  notionParent: string | null;
+  /** [name, host]. */
+  calendars: [string, string][];
 }
 
 export type TrackerKind = "package" | "bill" | "event" | "upkeep";

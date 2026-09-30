@@ -36,6 +36,8 @@ on:
       - "src-tauri/src/shortcut_make.rs"
       - "src-tauri/src/background.rs"
       - "src-tauri/src/lib.rs"
+      # Connector secrets use the macOS Keychain (compiled only on macOS).
+      - "src-tauri/src/connectors/**"
       # The web agent saves pages with WKWebView (web_agent/capture_mac.rs).
       - "src-tauri/src/web_agent/**"
       - "src-tauri/Cargo.toml"

@@ -13,6 +13,7 @@ import type {
   Watcher,
   Automation,
   Tracker,
+  ConnectorsStatus,
   RunView,
   ShortcutMade,
   WatchEvent,
@@ -241,6 +242,14 @@ export const api = {
   trackerDateParse: (text: string) => invoke<string | null>("tracker_date_parse", { text }),
   /** A tracking number → [carrier, tracking page], or null. */
   trackerCarrier: (number: string) => invoke<[string, string] | null>("tracker_carrier", { number }),
+  // Connectors (connectors/): secrets go to the Keychain in Rust and never come back.
+  connectorsStatus: () => invoke<ConnectorsStatus>("connectors_status"),
+  obsidianSet: (path: string | null) => invoke<ConnectorsStatus>("obsidian_set", { path }),
+  notionConnect: (secret: string, parent: string | null) => invoke<ConnectorsStatus>("notion_connect", { secret, parent }),
+  notionDisconnect: () => invoke<ConnectorsStatus>("notion_disconnect"),
+  /** Adds a calendar link; [status, events read]. */
+  calendarLinkAdd: (name: string, url: string) => invoke<[ConnectorsStatus, number]>("calendar_link_add", { name, url }),
+  calendarLinkRemove: (index: number) => invoke<ConnectorsStatus>("calendar_link_remove", { index }),
   // Mac upkeep (upkeep.rs): ids from the card, never paths.
   upkeepTrash: (scanId: string, id: string) => invoke<Trashed>("upkeep_trash", { scanId, id }),
   upkeepReveal: (scanId: string, id: string) => invoke<void>("upkeep_reveal", { scanId, id }),

@@ -17,6 +17,19 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-30
 
+### (this commit) — v0.10.5: connectors (Obsidian, Notion, calendar links)
+- **Why:** Phase 10 item 6 (HANDOFF §8). Owner decision: the connectors that need no app registration with another
+  company come first; Google, Dropbox, OneDrive and Spotify wait for the owner to register BYTE with them.
+- **What:** `src-tauri/src/connectors/{mod,obsidian,notion,ics}.rs` (+ tests: vault search/write, Notion mocked with
+  wiremock, ICS fixtures with repeats/all-day/cancelled/EXDATE, request routing, secret store), settings
+  `connectorsEnabled`/`obsidianVault`/`notionParent`, `Modules.connectors`, routing in `agent::specialist`, commands
+  `connectors_status`, `obsidian_set`, `notion_connect`, `notion_disconnect`, `calendar_link_add`, `calendar_link_remove`,
+  `briefing::merge_events`. UI: `ConnectorsTab.tsx`, types/API, Activity labels, screenshot `30-connectors`.
+- **Verify:** `cargo test connectors briefing`; `scripts/check-all.sh`; on a Mac: Settings → Connectors → choose a vault
+  → "what do my Obsidian notes say about …"; paste a Notion secret; add a Google Calendar iCal address → "brief me".
+- **Undo:** `git revert` this commit (Keychain items under `com.loganstarner.byte.connectors` can be deleted in Keychain
+  Access).
+
 ### (this commit) — v0.10.4: trackers
 - **Why:** Phase 10 item 5 (HANDOFF §8): packages and orders, bills and subscriptions, gifts and events, car and home
   maintenance. Built while v0.10.3's Mac test ran (owner: "do stuff in parallel while we are waiting").

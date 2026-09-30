@@ -477,7 +477,7 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 **Done in v0.8.0:** `gguf.rs` + `lab.rs` (model lab, `<data>/added_models.json`, `CatalogStore::set_added`), per-model
 `settings.model_overrides` (`ModelOverride::apply`) + `TuningPanel`, `battery_saver` (`system::battery`), `commands::engine_live`
 (with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
-**Next:** Phase 10 continues (v0.10.0 Mac upkeep, v0.10.1 tasks and briefing, v0.10.2 feeds and watchers, v0.10.3 automations + Shortcuts + open at login, v0.10.4 trackers are done; next is v0.10.5 connectors; see the Phase 10 section). Way of working
+**Next:** Phase 10 continues (v0.10.0 Mac upkeep, v0.10.1 tasks and briefing, v0.10.2 feeds and watchers, v0.10.3 automations + Shortcuts + open at login, v0.10.4 trackers, v0.10.5 connectors (Obsidian, Notion, calendar links) are done; next is v0.10.6 dashboards; see the Phase 10 section). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
@@ -597,6 +597,16 @@ scraping; `money_in`/`money_text`/`per_month`; `take_due` from the scheduler tic
 rules, routed after automations; lists composed by BYTE (canned kind `trackers_list`); "gift ideas for X" gives the
 model what's saved. UI `TrackersSection.tsx` (tabs, add rows, totals), `lib/trackers.ts`. Setting `trackersEnabled`.
 Screenshots `29-*`.
+**Done in v0.10.5:** `connectors/` (owner decision: only connectors that need no app registration now; Google,
+Dropbox, OneDrive, Spotify later): `Secrets` (Keychain service `com.loganstarner.byte.connectors`, accounts `notion` and
+`calendars`; non-macOS refuses), settings `connectorsEnabled`, `obsidianVault`, `notionParent`. `obsidian.rs` (walks the
+vault skipping dot folders, term-scored search with snippets, `write` into `<vault>/BYTE/` never overwriting, Undo via
+`macctl::Undo::Created`, `obsidian://open` links). `notion.rs` (Notion-Version 2022-06-28; `me`, `search`, block text,
+`create` under the parent page; `page_id` from links; wiremock tests). `ics.rs` (unfolding, DTSTART with UTC/date/TZID
+read as local, RRULE DAILY/WEEKLY BYDAY/MONTHLY/YEARLY with INTERVAL/COUNT/UNTIL, EXDATE, cancelled skipped; 30-min
+cache; webcal→https). Chat routing in `agent::specialist` after automations (Obsidian/Notion by name; calendar links
+only when the Mac Calendar isn't used). `briefing::merge_events` adds link events. UI `ConnectorsTab.tsx`
+(Settings → Connectors), screenshot `30-connectors`.
 **Split of the rest:** v0.10.1 tasks & reminders + scheduler (`scheduler.rs`) + daily briefing;
 v0.10.2 news/RSS digest + page watchers (price alerts) ✅; v0.10.3 ✅ multi-step runs + automations builder + creating
 Shortcuts; v0.10.4 trackers; v0.10.5 connectors; v0.10.6 dashboards.

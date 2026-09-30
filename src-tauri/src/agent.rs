@@ -120,6 +120,8 @@ pub struct Modules {
     pub automations: bool,
     /// Packages, bills, yearly dates, maintenance (trackers.rs).
     pub trackers: bool,
+    /// Obsidian, Notion, calendar links (connectors/).
+    pub connectors: bool,
 }
 
 /// BYTE searches before the model answers any question about the world
@@ -755,6 +757,8 @@ async fn specialist(
     let trackers_db = turn.app.filter(|_| turn.modules.trackers).map(|a| &tauri::Manager::state::<crate::state::AppState>(a).inner().db);
     Ok(if turn.modules.automations && turn.app.is_some() && crate::automations::applies(q) {
         crate::automations::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "automation"))
+    } else if turn.modules.connectors && turn.app.is_some_and(|a| crate::connectors::applies(a, q)) {
+        crate::connectors::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "connectors"))
     } else if let Some(db) = trackers_db.filter(|_| crate::trackers::applies(q)) {
         crate::trackers::run(turn, db, q, send).await?
     } else if turn.modules.tasks && turn.app.is_some() && crate::briefing::applies(q) {
@@ -1096,7 +1100,7 @@ mod tests {
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let http = chat::local_client();
         let net = tools::fetch::web_client();
-        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false, mac: false, upkeep: false, tasks: false, watch: false, automations: false, trackers: false };
+        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false, mac: false, upkeep: false, tasks: false, watch: false, automations: false, trackers: false, connectors: false };
         let cases = [
             ("Reviews of the Sony WH-1000XM5", Mode::Auto, "reviews"),
             ("What's the cheapest place to buy a Steam Deck OLED?", Mode::Auto, "prices"),

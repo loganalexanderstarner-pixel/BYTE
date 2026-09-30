@@ -109,6 +109,12 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: ListTodo, text: s.summary ?? "Read your to-do list" };
     case "schedule_add":
       return { icon: CalendarClock, text: arg("what") };
+    case "obsidian_search":
+      return { icon: Search, text: `Searched your Obsidian vault for “${arg("query")}”` };
+    case "notion_search":
+      return { icon: Search, text: `Searched Notion for “${arg("query")}”` };
+    case "calendar_links":
+      return { icon: CalendarDays, text: s.summary ? `Read your calendar links (${s.summary})` : "Read your calendar links" };
     case "trackers_list":
       return { icon: ListChecks, text: s.summary ?? "Read what BYTE tracks" };
     case "tracker_add":

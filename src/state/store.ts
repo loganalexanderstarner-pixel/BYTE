@@ -191,7 +191,7 @@ export interface DownloadState {
   error?: string;
 }
 
-export type SettingsTab = "models" | "memory" | "knowledge" | "appearance" | "engine" | "cloud" | "about";
+export type SettingsTab = "models" | "memory" | "knowledge" | "connectors" | "appearance" | "engine" | "cloud" | "about";
 
 interface State {
   ready: boolean;

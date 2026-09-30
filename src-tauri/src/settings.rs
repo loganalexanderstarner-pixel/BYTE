@@ -186,6 +186,15 @@ pub struct Settings {
     /// Trackers: packages, bills and subscriptions, birthdays, maintenance (trackers.rs).
     #[serde(default = "yes")]
     pub trackers_enabled: bool,
+    /// Connectors (connectors/): each is also off until set up.
+    #[serde(default = "yes")]
+    pub connectors_enabled: bool,
+    /// The Obsidian vault folder (connectors/obsidian.rs).
+    #[serde(default)]
+    pub obsidian_vault: Option<String>,
+    /// The Notion page new pages go under (its id; the secret is in the Keychain).
+    #[serde(default)]
+    pub notion_parent: Option<String>,
     /// Open BYTE (in the background) when the user logs in.
     #[serde(default)]
     pub open_at_login: bool,
@@ -277,6 +286,9 @@ impl Default for Settings {
             watch_enabled: true,
             automations_enabled: true,
             trackers_enabled: true,
+            connectors_enabled: true,
+            obsidian_vault: None,
+            notion_parent: None,
             open_at_login: false,
             keep_running: true,
             selection_hotkey: true,

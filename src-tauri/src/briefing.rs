@@ -125,6 +125,21 @@ pub fn events_from(notes: &str) -> Vec<(String, String)> {
     v
 }
 
+/// Adds events from calendar links to the Mac Calendar's (or stands in for it).
+pub fn merge_events(p: &mut Parts, extra: Vec<(String, String)>) {
+    let mut all = match p.events.take() {
+        Some(Ok(v)) => v,
+        _ => vec![],
+    };
+    for e in extra {
+        if !all.contains(&e) {
+            all.push(e);
+        }
+    }
+    all.sort_by_key(|(t, _)| if t == "All day" { 0 } else { minutes(t) + 1 });
+    p.events = Some(Ok(all));
+}
+
 /// Weather text (tools/weather) → the parts the briefing shows.
 pub fn weather_from(n: u32, place: &str, text: &str) -> Option<Weather> {
     let imperial = text.contains("°F");
@@ -276,10 +291,16 @@ pub async fn run(turn: &Turn<'_>, cancel: &CancellationToken, send: Emit<'_>) ->
     let tasks = crate::tasks::list(&state.db, false)?;
     let setup = Setup { net: turn.net, cloud: turn.cloud, web: turn.web, home: turn.home, mac: turn.modules.mac, topics: &topics, tasks: &tasks };
     let mut steps = Vec::new();
-    let (book, parts) = tokio::select! {
+    let (book, mut parts) = tokio::select! {
         r = gather(&setup, &macctl::MacRunner, chrono::Local::now(), |name, summary, ok| steps.push((name.to_string(), summary.to_string(), ok))) => r,
         _ = cancel.cancelled() => return Err(crate::error::AppError::Cancelled),
     };
+    if state.settings.lock().await.connectors_enabled {
+        if let Some(evs) = crate::connectors::events_today(turn.net, &crate::connectors::Secrets).await {
+            steps.push(("calendar_links".into(), "Read your calendar links".into(), true));
+            merge_events(&mut parts, evs);
+        }
+    }
     for (i, (name, summary, ok)) in steps.into_iter().enumerate() {
         let id = format!("byte_brief_{i}");
         send(ChatEvent::ToolCall { id: id.clone(), name: name.clone(), args: json!({ "query": summary, "what": summary, "app": "BYTE" }) })?;
@@ -296,7 +317,12 @@ pub async fn write(state: &AppState) -> Answer {
     };
     let tasks = crate::tasks::list(&state.db, false).unwrap_or_default();
     let setup = Setup { net: &state.net, cloud: None, web, home: home.as_deref(), mac, topics: &topics, tasks: &tasks };
-    let (book, parts) = gather(&setup, &macctl::MacRunner, chrono::Local::now(), |_, _, _| {}).await;
+    let (book, mut parts) = gather(&setup, &macctl::MacRunner, chrono::Local::now(), |_, _, _| {}).await;
+    if state.settings.lock().await.connectors_enabled {
+        if let Some(evs) = crate::connectors::events_today(&state.net, &crate::connectors::Secrets).await {
+            merge_events(&mut parts, evs);
+        }
+    }
     Answer { content: compose(&parts, !topics.is_empty()), sources: serde_json::to_value(&book.sources).unwrap_or(json!([])), error: None }
 }
 
@@ -304,6 +330,16 @@ pub async fn write(state: &AppState) -> Answer {
 mod tests {
     use super::*;
     use crate::macctl::{Command, RunError};
+
+    #[test]
+    fn calendar_links_join_the_mac_calendar() {
+        let mut p = Parts { events: Some(Ok(vec![("9:30 AM".into(), "Dentist".into())])), ..Default::default() };
+        merge_events(&mut p, vec![("8:00 AM".into(), "Standup".into()), ("All day".into(), "Mom's birthday".into()), ("9:30 AM".into(), "Dentist".into())]);
+        assert_eq!(p.events, Some(Ok(vec![("All day".into(), "Mom's birthday".into()), ("8:00 AM".into(), "Standup".into()), ("9:30 AM".into(), "Dentist".into())])));
+        let mut none = Parts { events: Some(Err("Calendar isn't allowed".into())), ..Default::default() };
+        merge_events(&mut none, vec![("1:00 PM".into(), "Lunch".into())]);
+        assert_eq!(none.events, Some(Ok(vec![("1:00 PM".into(), "Lunch".into())])));
+    }
 
     #[test]
     fn briefing_requests_are_recognized() {

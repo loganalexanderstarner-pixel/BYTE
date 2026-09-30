@@ -65,6 +65,7 @@ mod automations;
 mod shortcut_make;
 mod background;
 mod trackers;
+mod connectors;
 
 use tauri::{Manager, RunEvent};
 
@@ -374,6 +375,12 @@ pub fn run() {
             trackers::tracker_delete,
             trackers::tracker_date_parse,
             trackers::tracker_carrier,
+            connectors::connectors_status,
+            connectors::obsidian_set,
+            connectors::notion_connect,
+            connectors::notion_disconnect,
+            connectors::calendar_link_add,
+            connectors::calendar_link_remove,
             commands::chat_send,
             commands::chat_cancel,
         ])

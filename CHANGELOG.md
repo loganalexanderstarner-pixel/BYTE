@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.5 — Connectors: Obsidian, Notion and calendar links
+
+- **Settings → Connectors**, each connector off until set up; secrets only in the macOS Keychain.
+- **Obsidian**: search the vault (cited, opens in Obsidian); add notes to its BYTE folder after an OK, with Undo.
+- **Notion** (your own integration secret): search and read shared pages as sources; add pages after an OK.
+- **Calendar links** (iCal addresses): events in the daily briefing, and in "what's on my calendar" when Mac control
+  is off; repeats, all-day and cancelled events handled.
+
 ## 0.10.4 — Trackers
 
 - **Bills and subscriptions** with exact monthly and yearly totals and a notification 3 days before each payment.

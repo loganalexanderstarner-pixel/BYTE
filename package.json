@@ -1,6 +1,6 @@
 {
   "name": "byte",
-  "version": "0.10.4",
+  "version": "0.10.5",
   "private": true,
   "type": "module",
   "description": "BYTE — a local-first AI assistant for Apple Silicon Macs",

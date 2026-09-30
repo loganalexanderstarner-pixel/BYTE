@@ -5247,3 +5247,14 @@ kbd {
 .tracker-add input.invalid {
   border-color: color-mix(in srgb, var(--danger) 60%, var(--border));
 }
+
+/* Settings → Connectors. */
+.section.connector h4 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.connector-steps {
+  margin: 0 0 var(--space-2);
+  padding-left: 1.2em;
+}

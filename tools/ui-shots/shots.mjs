@@ -315,6 +315,8 @@ function initScript({ data }) {
             w({ id: 3, url: "https://store.example.com/lamp", name: "store.example.com", kind: "price", enabled: false, lastError: "BYTE couldn't find a price on the page" }),
           ];
         }
+        case "connectors_status":
+          return { keychain: true, vault: "/Users/sam/Documents/Obsidian/Main", vaultNotes: 412, notion: false, notionParent: null, calendars: [["Work", "calendar.google.com"], ["Family", "p58-caldav.icloud.com"]] };
         case "trackers_list": {
           const t = (o) => ({ id: 0, kind: "bill", name: "", next: null, noticeDays: null, notes: "", done: false, carrier: "", number: "", amount: null, currency: "USD", cycle: "", person: "", occasion: "", ideas: [], budget: null, everyDays: null, everyMonths: null, lastDone: null, link: "", notifiedFor: null, ...o });
           const day = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
@@ -1648,6 +1650,16 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".approval").scrollIntoViewIfNeeded();
   await shot(p, "26c-schedule-approval");
   console.log("schedule errors:", errors);
+  await ctx.close();
+}
+// Settings → Connectors
+{
+  const { p, ctx, errors } = await page(true, "midnight");
+  await p.keyboard.press("Meta+Comma");
+  await p.getByRole("button", { name: "Connectors", exact: true }).click();
+  await p.waitForTimeout(300);
+  await shot(p, "30-connectors");
+  console.log("connectors errors:", errors);
   await ctx.close();
 }
 // Trackers: the panel's bills tab, and "what subscriptions do I have?"
