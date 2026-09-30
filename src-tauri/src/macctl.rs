@@ -1636,6 +1636,12 @@ pub struct MacDone {
     pub undo: Option<String>,
 }
 
+/// Runs a read-only action (calendar, reminders) and returns its notes, for the daily briefing.
+pub(crate) async fn read_notes(runner: &dyn Runner, action: &Action) -> Result<String, RunError> {
+    let out = runner.run(&action.command()).await?;
+    Ok(read_out(action, &out).1)
+}
+
 /// What the script printed, as short text for the card and notes for the model.
 fn read_out(action: &Action, out: &str) -> (String, String) {
     use Action::*;

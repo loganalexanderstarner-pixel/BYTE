@@ -552,7 +552,15 @@ first MB → full SHA-256), old installers, developer caches; Trash via Finder (
 the Tauri commands take ids from the latest scan, never paths. Health (`df`, `memory_pressure`, `top`, `pmset`,
 `system_profiler`, `sysctl`, `tmutil`, `fdesetup`, `socketfilterfw`), Quit for listed apps only; uninstaller
 (bundle id, Library leftovers, refuses com.apple.* and BYTE); login items (System Events, Undo re-adds).
-Setting `macUpkeep`. **Split of the rest:** v0.10.1 tasks & reminders + scheduler (`scheduler.rs`) + daily briefing;
+Setting `macUpkeep`.
+**Done in v0.10.1:** DB v11 (`tasks`, `schedules`, `runs`); `scheduler.rs` (specs "weekdays 07:30" etc., `next_after`
+with DST handling, `spec_in` for words, a 30 s loop from `lib.rs`, unattended runs through `backend::answer` with a
+collecting Channel, saved as chats, notifications via `tauri-plugin-notification`, `schedules://ran`); `tasks.rs`
+(to-dos, reminders, repeats, chat routing, scheduled questions after an approval card; "remind me" goes to Apple
+Reminders when Mac control is on); `briefing.rs` (composed by BYTE, not a model: Gemma 1B invented to-dos and news
+when a model wrote it; sent as BYTE's own reply like flashcards). UI `TasksPanel.tsx`, `lib/tasks.ts`; settings
+`tasksEnabled`, `briefingTopics`. Schedules only run while BYTE is open (start at login comes with v0.10.3).
+**Split of the rest:** v0.10.1 tasks & reminders + scheduler (`scheduler.rs`) + daily briefing;
 v0.10.2 news/RSS digest + page watchers (price alerts); v0.10.3 multi-step runs + automations builder + creating
 Shortcuts; v0.10.4 trackers; v0.10.5 connectors; v0.10.6 dashboards.
 1. **Mac upkeep**: storage analyzer (treemap, duplicates, big/old files, safe-to-delete explanations),

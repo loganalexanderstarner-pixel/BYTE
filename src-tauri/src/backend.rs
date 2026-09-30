@@ -115,7 +115,12 @@ pub async fn answer(state: &AppState, mut request: ChatRequest, on_event: &Chann
     };
     if let Some(p) = &prepared {
         // Flashcards and quizzes need no written answer: BYTE's own short reply.
-        if let Some(reply) = (p.kind == "study").then(|| crate::study::reply_for(&p.notes)).flatten() {
+        let own = match p.kind {
+            "study" => crate::study::reply_for(&p.notes),
+            "briefing" => Some(p.notes.clone()),
+            _ => None,
+        };
+        if let Some(reply) = own {
             let _ = on_event.send(ChatEvent::Content { delta: reply });
             let _ = on_event.send(ChatEvent::Done { finish_reason: "stop".into() });
             return Ok(());
@@ -311,6 +316,7 @@ impl Setup {
                 translate: s.translate_enabled,
                 mac: s.mac_control,
                 upkeep: s.mac_upkeep,
+                tasks: s.tasks_enabled,
             }, s.kb_enabled, s.cloud_connected)
         };
         let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());

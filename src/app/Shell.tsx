@@ -1,4 +1,4 @@
-import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot, ClipboardList } from "lucide-react";
+import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot, ClipboardList, ListTodo } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ChatView } from "../components/chat/ChatView";
@@ -10,6 +10,7 @@ import { StudyPanel } from "../components/study/StudyPanel";
 import { WritingPanel } from "../components/writing/WritingPanel";
 import { JobsPanel } from "../components/jobs/JobsPanel";
 import { ClipboardPanel } from "../components/clipboard/ClipboardPanel";
+import { TasksPanel } from "../components/tasks/TasksPanel";
 import { api } from "../lib/api";
 import { AssistantsPanel } from "../components/assistants/AssistantsPanel";
 import { Reader } from "../components/reader/Reader";
@@ -38,6 +39,15 @@ export function Shell() {
   const [assistantsOpen, setAssistantsOpen] = useState(false);
   const clipsOn = useStore((s) => s.settings?.macControl !== false && s.settings?.clipboardHistory === true);
   const [clipsOpen, setClipsOpen] = useState(false);
+  const tasksOn = useStore((s) => s.settings?.tasksEnabled !== false);
+  const [tasksOpen, setTasksOpen] = useState(false);
+  const reloadChats = useStore((s) => s.reloadChats);
+
+  // A scheduled run (briefing, scheduled question) saved a new chat: show it in the list.
+  useEffect(() => {
+    const off = api.onScheduleRan(() => void reloadChats());
+    return () => void off.then((f) => f());
+  }, [reloadChats]);
   const writingKey = useStore((s) => s.writing?.seq ?? 0);
   const settingsTab = useStore((s) => s.settingsTab);
   const stop = useStore((s) => s.stop);
@@ -108,6 +118,11 @@ export function Shell() {
                 <Bot size={18} />
               </button>
             )}
+            {tasksOn && (
+              <button className="icon-btn" onClick={() => setTasksOpen(true)} title="Tasks: your to-do list and what BYTE does on a schedule">
+                <ListTodo size={18} />
+              </button>
+            )}
             {clipsOn && (
               <button className="icon-btn" onClick={() => setClipsOpen(true)} title="Clipboard history: what you copied lately">
                 <ClipboardList size={18} />
@@ -143,6 +158,7 @@ export function Shell() {
       {studyOpen && <StudyPanel />}
       {writingOpen && <WritingPanel key={writingKey} />}
       {clipsOpen && <ClipboardPanel onClose={() => setClipsOpen(false)} />}
+      {tasksOpen && <TasksPanel onClose={() => setTasksOpen(false)} />}
       {jobsOpen && <JobsPanel onClose={() => setJobsOpen(false)} />}
       {assistantsOpen && <AssistantsPanel onClose={() => setAssistantsOpen(false)} />}
     </div>

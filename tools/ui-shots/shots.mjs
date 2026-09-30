@@ -278,6 +278,34 @@ function initScript({ data }) {
         case "clip_delete":
         case "clip_clear":
           return null;
+        case "tasks_list": {
+          const now = Date.now();
+          const at = (d, h, m = 0) => { const t = new Date(now); t.setDate(t.getDate() + d); t.setHours(h, m, 0, 0); return t.getTime(); };
+          return [
+            { id: 1, title: "Pay rent", notes: "", due: at(-1, 9), remindAt: null, repeat: "monthly", doneAt: null, created: 1 },
+            { id: 2, title: "Call the bank about the card", notes: "", due: at(0, 17), remindAt: at(0, 17), repeat: "", doneAt: null, created: 2 },
+            { id: 3, title: "Renew passport", notes: "", due: at(2, 9), remindAt: at(2, 9), repeat: "", doneAt: null, created: 3 },
+            { id: 4, title: "Take vitamins", notes: "", due: at(1, 8), remindAt: at(1, 8), repeat: "daily", doneAt: null, created: 4 },
+            { id: 5, title: "Buy a birthday gift for Sam", notes: "", due: null, remindAt: null, repeat: "", doneAt: null, created: 5 },
+            { id: 6, title: "Book dentist", notes: "", due: null, remindAt: null, repeat: "", doneAt: now - 3600000, created: 0 },
+          ];
+        }
+        case "schedules_list": {
+          const now = Date.now();
+          return [
+            { id: 1, kind: "briefing", name: "Morning briefing", spec: "weekdays 07:30", prompt: "", enabled: true, lastRun: now - 30000000, nextRun: now + 50000000, when: "Every weekday at 7:30 AM", lastChat: "c1", lastOk: true },
+            { id: 2, kind: "prompt", name: "Summarize the latest AI news", spec: "weekdays 08:00", prompt: "Summarize the latest AI news in 5 bullets with sources", enabled: true, lastRun: null, nextRun: now + 52000000, when: "Every weekday at 8:00 AM", lastChat: null, lastOk: null },
+            { id: 3, kind: "prompt", name: "Plan my week from my", spec: "weekly sun 18:00", prompt: "Plan my week from my calendar and to-do list", enabled: false, lastRun: null, nextRun: null, when: "Every Sunday at 6:00 PM", lastChat: null, lastOk: null },
+          ];
+        }
+        case "schedule_parse":
+          return /every/i.test(args?.text ?? "") ? ["daily 18:00", "Every day at 6:00 PM"] : null;
+        case "task_save":
+        case "task_done":
+        case "task_delete":
+        case "schedule_save":
+        case "schedule_delete":
+          return args?.task ?? args?.schedule ?? null;
         case "upkeep_trash":
           return { moved: 3, bytes: 4_210_000_000, undo: "tok9", error: null };
         case "upkeep_reveal":
@@ -495,6 +523,29 @@ function initScript({ data }) {
             }
             send({ kind: "done", finishReason: "stop" });
             return null;
+          }
+          if (data.briefing) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            [["mac_events_list", "Read today's calendar"], ["mac_reminders_list", "Read your reminders"], ["get_weather", "Weather for Pittsburgh, US"], ["web_search", "AI news"], ["web_search", "Steelers news"]].forEach(([name, what], i) => {
+              send({ kind: "toolCall", id: `b${i}`, name, args: { query: what, what, app: "BYTE" } });
+              send({ kind: "toolResult", id: `b${i}`, ok: true, summary: what });
+            });
+            send({ kind: "sources", sources: [
+              { n: 1, title: "Weather for Pittsburgh, US", url: "https://open-meteo.com/", snippet: "", read: false },
+              { n: 2, title: "A lab released a small open model that runs on laptops", url: "https://example.com/ai-model", snippet: "", read: false },
+              { n: 3, title: "Chip makers race to add memory for local AI", url: "https://example.com/ai-chips", snippet: "", read: false },
+              { n: 4, title: "Steelers sign veteran linebacker before Sunday", url: "https://example.com/steelers", snippet: "", read: false },
+            ] });
+            send({ kind: "content", delta: "> **TL;DR:** Wednesday, September 30: 3 events (first at 9:30 AM); 3 to do (1 overdue); light rain; news on AI, Steelers.\n\n## Today\n- **9:30 AM** — Dentist\n- **12:00 PM** — Lunch with Sam\n- **2:00 PM** — Project review with Priya\n\n## To-dos\n- ⚠️ Pay rent *(overdue)*\n- Call the bank about the card\n- Call Mom (due today at 5 PM)\n\n1 more task with no date on your list (✅).\n\n## Weather\nPittsburgh, US: now 61°F (feels like 59°F), light rain. Today: light rain, high 64°F, low 52°F, 70% chance of rain [1]. Bring an umbrella.\n\n## News\n- **AI:** A lab released a small open model that runs on laptops [2]\n- **AI:** Chip makers race to add memory for local AI [3]\n- **Steelers:** Steelers sign veteran linebacker before Sunday [4]" });
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
+          if (data.schedule) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            send({ kind: "toolCall", id: "sc0", name: "schedule_add", args: { what: "Every weekday at 8:00 AM: \"summarize the latest AI news\"" } });
+            send({ kind: "approval", id: "sch1", action: "mac", title: "Add this schedule?", site: "BYTE", url: "", target: "BYTE",
+              fields: [{ label: "When", value: "Every weekday at 8:00 AM" }, { label: "BYTE will ask", value: "summarize the latest AI news" }, { label: "Note", value: "It runs while BYTE is open (a missed run happens when you next open it). Each answer is saved as a chat and you get a notification. Change or stop it in the ✅ panel." }] });
+            return new Promise(() => {});
           }
           if (data.storage) {
             send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
@@ -1455,6 +1506,38 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".upkeep-card").scrollIntoViewIfNeeded();
   await shot(p, "24c-health");
   console.log("health errors:", errors);
+  await ctx.close();
+}
+// Tasks panel, a briefing, and a schedule waiting for OK
+{
+  const { p, ctx, errors } = await page(true, "midnight");
+  await p.getByTitle("Tasks: your to-do list and what BYTE does on a schedule").click();
+  await p.waitForTimeout(300);
+  await p.getByLabel("When").fill("every day at 6pm");
+  await p.waitForTimeout(400);
+  await shot(p, "26-tasks");
+  console.log("tasks errors:", errors);
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await page(true, "midnight", { briefing: true });
+  await p.getByLabel("Message BYTE").fill("Brief me");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(700);
+  await p.setViewportSize({ width: 1240, height: 1300 });
+  await p.waitForTimeout(300);
+  await shot(p, "26b-briefing");
+  console.log("briefing errors:", errors);
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await page(true, "paper", { schedule: true });
+  await p.getByLabel("Message BYTE").fill("Every weekday at 8am, summarize the latest AI news");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(600);
+  await p.locator(".approval").scrollIntoViewIfNeeded();
+  await shot(p, "26c-schedule-approval");
+  console.log("schedule errors:", errors);
   await ctx.close();
 }
 // Clipboard history

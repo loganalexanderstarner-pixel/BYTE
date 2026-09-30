@@ -7,6 +7,8 @@ import type { DocEvent, DocKind, DocOutline, DocSpec } from "./docs/spec";
 
 import type {
   Trashed,
+  Task,
+  Schedule,
   BoostInfo,
   Captured,
   Clip,
@@ -187,6 +189,19 @@ export const api = {
   /** Answers an approval card; false when it's no longer waiting. */
   agentApprove: (id: string, ok: boolean) => invoke<boolean>("agent_approve", { id, ok }),
   macUndo: (token: string) => invoke<boolean>("mac_undo", { token }),
+  // To-dos and schedules (tasks.rs, scheduler.rs).
+  tasksList: () => invoke<Task[]>("tasks_list", { includeDone: true }),
+  taskSave: (task: Task) => invoke<Task>("task_save", { task }),
+  taskDone: (id: number, done: boolean) => invoke<Task>("task_done", { id, done }),
+  taskDelete: (id: number) => invoke<void>("task_delete", { id }),
+  schedulesList: () => invoke<Schedule[]>("schedules_list"),
+  scheduleSave: (schedule: Schedule) => invoke<Schedule>("schedule_save", { schedule }),
+  scheduleDelete: (id: number) => invoke<void>("schedule_delete", { id }),
+  /** Runs it now; the new chat's id (null: it couldn't run, a notification says why). */
+  scheduleRun: (id: number) => invoke<string | null>("schedule_run", { id }),
+  /** "every weekday at 8am" → [spec, description], or null. */
+  scheduleParse: (text: string) => invoke<[string, string] | null>("schedule_parse", { text }),
+  onScheduleRan: (cb: (chatId: string) => void): Promise<UnlistenFn> => listen<string>("schedules://ran", (e) => cb(e.payload)),
   // Mac upkeep (upkeep.rs): ids from the card, never paths.
   upkeepTrash: (scanId: string, id: string) => invoke<Trashed>("upkeep_trash", { scanId, id }),
   upkeepReveal: (scanId: string, id: string) => invoke<void>("upkeep_reveal", { scanId, id }),

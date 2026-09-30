@@ -17,6 +17,21 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-30
 
+### (this commit) — v0.10.1: tasks, schedules and a daily briefing
+- **Why:** Phase 10 item 2 (HANDOFF §8): tasks & reminders, a scheduler, the daily briefing. Built while the v0.10.0
+  Mac run and release ran.
+- **What:** `db.rs` v11; `scheduler.rs` (specs, `next_after`, `spec_in`, schedules/runs, unattended runs, notifications,
+  loop); `tasks.rs` (to-dos, reminders, repeats, chat routing, scheduled questions after approval); `briefing.rs`
+  (gathers calendar/reminders via `macctl::read_notes`, to-dos, weather, followed news; composes the Markdown itself;
+  `agent`/`backend` send it as BYTE's own reply). `tauri-plugin-notification`. Settings `tasksEnabled`,
+  `briefingTopics`; `Modules.tasks`. UI: `TasksPanel.tsx` (✅), `lib/tasks.ts` (+ tests), Activity labels, Settings,
+  screenshots `26-tasks`, `26b-briefing`, `26c-schedule-approval`. Docs and version 0.10.1.
+- **Verify:** `cargo test scheduler:: tasks:: briefing::`; `npx vitest run src/lib/tasks.test.ts`. A model-written
+  briefing was tried first on Qwen3 0.6B, Gemma 3 1B and Llama 3.2 1B; Gemma invented a to-do and news, so BYTE now
+  composes it. Owner: "brief me"; "add pay rent by Friday to my to-do list"; "every weekday at 8am, summarize the
+  latest AI news" → Do it → ✅ → Run now.
+- **Undo:** revert; Settings → To-do list and schedules off disables it (the DB tables stay, unused).
+
 ### (this commit) — Translation: low temperature, so small models keep the right words
 - **Why:** the Mac engine run on `7eb336b` (v0.10.0) passed every new upkeep test (all scripts compile, the health
   check runs on a real Mac) but failed `translate::e2e_translate`: Qwen3 0.6B wrote "Libro abrige…" ("book") for

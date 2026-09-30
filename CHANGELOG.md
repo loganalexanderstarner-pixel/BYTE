@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.1 — Tasks, schedules and a daily briefing
+
+- **✅ Tasks**: to-dos with due dates, reminders (Mac notifications) and repeats; add, list and check off in chat.
+- **Daily briefing** ("brief me"): calendar, reminders, to-dos, weather and followed news, put together by BYTE from
+  what it read (nothing invented; no model needed).
+- **Schedules**: "every weekday at 8am, …" runs on its own while BYTE is open, saves the answer as a chat and
+  notifies you; managed in the ✅ panel.
+- Translation uses a low temperature, so small models keep the right words.
+
 ## 0.10.0 — Mac upkeep (Phase 10 starts)
 
 - **Storage**: a chart of your biggest folders and what could safely go (old installers, exact duplicates,

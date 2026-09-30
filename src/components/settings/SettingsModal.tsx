@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { THEMES } from "../../design/themes";
 import { Logo } from "../../design/Logo";
 import { api, errorText } from "../../lib/api";
+import { topicList } from "../../lib/tasks";
 import { bytes, contextLabel, ramSize } from "../../lib/format";
 import { displayName } from "../../lib/models";
 import type { BoostInfo, GpuShare, LookerStatus, Memory, Profiles, Settings } from "../../lib/types";
@@ -733,6 +734,28 @@ function AboutTab() {
             <small>“Remind me to call Mom tomorrow at 3pm”, “make a note: …”, “what's on my calendar today?”, “turn on dark mode”, “play some jazz”, “run my Morning shortcut”, “check my email”, “reply to Sam’s email saying I can make it”, “text Mom that I’m running late”, “find my tax return pdf”, “organize my Downloads”, “convert the selected photos to jpg”, “run a command to show my disk space”. BYTE asks before adding or changing anything, never sends email or texts itself (you press Send), and macOS asks once per app.</small>
           </span>
           <input type="checkbox" checked={settings?.macControl ?? true} onChange={(e) => void update({ macControl: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
+            To-do list and schedules
+            <small>The ✅ panel: to-dos with reminders (“add pay rent by Friday to my to-do list”), a daily briefing, and questions BYTE asks on a schedule (“every weekday at 8am, summarize the latest AI news”). They run while BYTE is open.</small>
+          </span>
+          <input type="checkbox" checked={settings?.tasksEnabled ?? true} onChange={(e) => void update({ tasksEnabled: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
+            Daily briefing topics
+            <small>News topics the briefing follows, separated by commas (up to 5; needs the web). Say “brief me” any time.</small>
+          </span>
+          <input
+            type="text"
+            className="topics-input"
+            disabled={settings?.tasksEnabled === false}
+            defaultValue={(settings?.briefingTopics ?? []).join(", ")}
+            placeholder="AI, Steelers, climate"
+            onBlur={(e) => void update({ briefingTopics: topicList(e.target.value) })}
+            aria-label="Daily briefing topics"
+          />
         </label>
         <label className="field">
           <span>

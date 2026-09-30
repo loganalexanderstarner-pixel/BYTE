@@ -58,6 +58,8 @@ export interface Settings {
   /** Mac control: notes, reminders, calendar, music, settings (macOS). */
   macControl?: boolean;
   macUpkeep?: boolean;
+  tasksEnabled?: boolean;
+  briefingTopics?: string[];
   /** ⌥⌘B opens selected text from any app in the writing studio. */
   selectionHotkey?: boolean;
   /** Keep a history of copied text (off by default; secrets are skipped). */
@@ -426,6 +428,35 @@ export type ChatEvent =
   | ({ kind: "quiz" } & Quiz)
   | ({ kind: "storage" } & Storage)
   | ({ kind: "health" } & Health);
+
+/** A to-do (Rust `tasks::Task`); times are ms since 1970. */
+export interface Task {
+  id: number;
+  title: string;
+  notes: string;
+  due: number | null;
+  remindAt: number | null;
+  repeat: "" | "daily" | "weekdays" | "weekly" | "monthly";
+  doneAt: number | null;
+  created: number;
+}
+
+/** Something BYTE does on its own on a schedule (Rust `scheduler::Schedule`). */
+export interface Schedule {
+  id: number;
+  kind: "briefing" | "prompt";
+  name: string;
+  /** "weekdays 07:30" */
+  spec: string;
+  prompt: string;
+  enabled: boolean;
+  lastRun: number | null;
+  nextRun: number | null;
+  /** "Every weekday at 7:30 AM" */
+  when: string;
+  lastChat: string | null;
+  lastOk: boolean | null;
+}
 
 /** What's using the disk (Rust `upkeep::Storage`). Ids go back to `upkeep_trash` / `upkeep_reveal`. */
 export interface Storage {

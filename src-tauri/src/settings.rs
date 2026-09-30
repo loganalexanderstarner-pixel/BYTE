@@ -171,6 +171,12 @@ pub struct Settings {
     /// Mac control: BYTE uses Notes, Reminders, Calendar, Music and settings when asked (macOS).
     #[serde(default = "yes")]
     pub mac_control: bool,
+    /// BYTE's to-do list, reminders and scheduled questions (tasks.rs, scheduler.rs).
+    #[serde(default = "yes")]
+    pub tasks_enabled: bool,
+    /// Topics the daily briefing follows (a few headlines each; needs the web).
+    #[serde(default)]
+    pub briefing_topics: Vec<String>,
     /// Mac upkeep: storage clean-up, health checks, uninstalling apps, login items (macOS).
     #[serde(default = "yes")]
     pub mac_upkeep: bool,
@@ -251,6 +257,8 @@ impl Default for Settings {
             translate_enabled: true,
             mac_control: true,
             mac_upkeep: true,
+            tasks_enabled: true,
+            briefing_topics: Vec::new(),
             selection_hotkey: true,
             clipboard_history: false,
             jobs_enabled: true,

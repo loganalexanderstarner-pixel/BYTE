@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 10;
+const SCHEMA_VERSION: i32 = 11;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -687,7 +687,46 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 10);
+    if version < 11 {
+        // Tasks, scheduled runs and their history (tasks.rs, scheduler.rs, briefing.rs).
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE tasks (
+                 id INTEGER PRIMARY KEY,
+                 title TEXT NOT NULL,
+                 notes TEXT NOT NULL DEFAULT '',
+                 due INTEGER,
+                 remind_at INTEGER,
+                 repeat TEXT NOT NULL DEFAULT '',
+                 done_at INTEGER,
+                 created INTEGER NOT NULL
+             );
+             CREATE INDEX tasks_remind ON tasks(remind_at);
+             CREATE TABLE schedules (
+                 id INTEGER PRIMARY KEY,
+                 kind TEXT NOT NULL,
+                 name TEXT NOT NULL,
+                 spec TEXT NOT NULL,
+                 prompt TEXT NOT NULL DEFAULT '',
+                 enabled INTEGER NOT NULL DEFAULT 1,
+                 last_run INTEGER,
+                 next_run INTEGER
+             );
+             CREATE TABLE runs (
+                 id INTEGER PRIMARY KEY,
+                 schedule_id INTEGER REFERENCES schedules(id) ON DELETE CASCADE,
+                 started INTEGER NOT NULL,
+                 finished INTEGER,
+                 ok INTEGER NOT NULL DEFAULT 0,
+                 summary TEXT NOT NULL DEFAULT '',
+                 conversation_id TEXT
+             );
+             CREATE INDEX runs_schedule ON runs(schedule_id, started);
+             PRAGMA user_version = 11;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 11);
     Ok(())
 }
 

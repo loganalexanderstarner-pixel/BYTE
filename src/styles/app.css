@@ -4995,3 +4995,109 @@ kbd {
   color: var(--warn);
   font-weight: 600;
 }
+
+/* Tasks panel (TasksPanel.tsx) */
+.task-add,
+.schedule-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin: var(--space-3) 0;
+}
+.task-add .grow,
+.schedule-add .grow {
+  flex: 1 1 220px;
+}
+.chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-2);
+}
+.task-list,
+.schedule-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.task-list li,
+.schedule-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+}
+.task-list .title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.task-list .due {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.task-list li.overdue .due {
+  color: var(--danger);
+}
+.task-list li.done .title {
+  text-decoration: line-through;
+  color: var(--text-3);
+}
+.task-list .check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--bg);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.task-list .check:hover {
+  border-color: var(--accent);
+}
+.task-list .check.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.schedules-head {
+  margin-top: var(--space-4);
+}
+.schedules-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.schedule-list li.off {
+  opacity: 0.6;
+}
+.schedule-list li > svg {
+  flex: none;
+  color: var(--accent);
+}
+.schedule-list .grow {
+  flex: 1;
+  min-width: 0;
+}
+.schedule-list .prompt {
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.schedule-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.topics-input {
+  min-width: 200px;
+}

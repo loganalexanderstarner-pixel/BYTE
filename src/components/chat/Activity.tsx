@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Clapperboard, GraduationCap, Layers as LayersIcon, Gamepad2, ShieldCheck, Store, Star, Layers, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert, Languages, Laptop } from "lucide-react";
+import { Clapperboard, GraduationCap, Layers as LayersIcon, Gamepad2, ShieldCheck, Store, Star, Layers, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert, Languages, Laptop, ListTodo, CalendarClock } from "lucide-react";
 import { Fragment, useState } from "react";
 
 import { CITE_STYLES, cite, citeAll, plainCitation, type CiteStyle } from "../../lib/citations";
@@ -101,6 +101,14 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: ShieldCheck, text: "Checked the answer against its sources" };
     case "save_page":
       return { icon: FileDown, text: s.summary ?? "Saving the page" };
+    case "task_add":
+      return { icon: ListTodo, text: `Added “${arg("title")}” to your to-do list` };
+    case "task_done":
+      return { icon: ListTodo, text: `Checked off “${arg("title")}”` };
+    case "task_list":
+      return { icon: ListTodo, text: s.summary ?? "Read your to-do list" };
+    case "schedule_add":
+      return { icon: CalendarClock, text: arg("what") };
     default:
       if (s.name.startsWith("mac_")) return { icon: Laptop, text: s.status === "running" ? arg("what") : `${arg("what")} (${arg("app")})` };
       return { icon: CircleCheck, text: s.name };

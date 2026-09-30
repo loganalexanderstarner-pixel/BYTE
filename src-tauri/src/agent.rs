@@ -112,6 +112,8 @@ pub struct Modules {
     pub mac: bool,
     /// Mac upkeep: storage, health, uninstalling, login items (upkeep.rs).
     pub upkeep: bool,
+    /// The to-do list, schedules and the daily briefing (tasks.rs, briefing.rs).
+    pub tasks: bool,
 }
 
 /// BYTE searches before the model answers any question about the world
@@ -460,8 +462,13 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         prepared = specialist(&turn, &question, estimate(&messages), weather_done, &cancel, &send).await?;
     }
     let prepared_name: Option<&str> = prepared.as_ref().map(|p| p.2);
-    // Flashcards and quizzes get BYTE's own short reply (no spoilers, no repeated lists).
-    let mut canned: Option<String> = prepared.as_ref().filter(|p| p.2 == "study").and_then(|p| crate::study::reply_for(&p.1));
+    // Flashcards and quizzes get BYTE's own short reply (no spoilers, no repeated lists);
+    // the daily briefing is put together by BYTE, so nothing in it can be invented.
+    let mut canned: Option<String> = prepared.as_ref().and_then(|p| match p.2 {
+        "study" => crate::study::reply_for(&p.1),
+        "briefing" => Some(p.1.clone()),
+        _ => None,
+    });
     if let Some((found, notes, name)) = prepared {
         book = found;
         if !book.sources.is_empty() {
@@ -736,7 +743,13 @@ async fn specialist(
     send: Emit<'_>,
 ) -> AppResult<Option<(SourceBook, String, &'static str)>> {
     let q = question;
-    Ok(if crate::macctl::applies(turn.modules.mac, q) {
+    let mac_reminders = cfg!(target_os = "macos") && turn.modules.mac;
+    let tasks_db = turn.app.filter(|_| turn.modules.tasks).map(|a| &tauri::Manager::state::<crate::state::AppState>(a).inner().db);
+    Ok(if turn.modules.tasks && turn.app.is_some() && crate::briefing::applies(q) {
+        crate::briefing::run(turn, cancel, send).await?.map(|(b, n)| (b, n, "briefing"))
+    } else if let Some(db) = tasks_db.filter(|_| crate::tasks::applies(q) || (!mac_reminders && crate::tasks::reminder_ask(q, chrono::Local::now().naive_local()).is_some())) {
+        crate::tasks::run(turn, db, q, mac_reminders, cancel, send).await?.map(|(b, n)| (b, n, "tasks"))
+    } else if crate::macctl::applies(turn.modules.mac, q) {
         crate::macctl::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
     } else if crate::filectl::applies(turn.modules.mac, q) {
         crate::filectl::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
@@ -1067,7 +1080,7 @@ mod tests {
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let http = chat::local_client();
         let net = tools::fetch::web_client();
-        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false, mac: false, upkeep: false };
+        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false, mac: false, upkeep: false, tasks: false };
         let cases = [
             ("Reviews of the Sony WH-1000XM5", Mode::Auto, "reviews"),
             ("What's the cheapest place to buy a Steam Deck OLED?", Mode::Auto, "prices"),

@@ -50,6 +50,9 @@ mod system;
 mod tools;
 mod translate;
 mod trip;
+mod briefing;
+mod scheduler;
+mod tasks;
 mod upkeep;
 mod web_agent;
 mod writing;
@@ -75,6 +78,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         // The selection hotkey (selection.rs): one shortcut, registered from Settings.
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -110,6 +114,8 @@ pub fn run() {
             // Mac control: the selection hotkey and clipboard history (each checks its setting).
             selection::apply(app.handle(), hotkey);
             clipboard::watch(app.handle().clone());
+            // Reminders, the daily briefing and scheduled questions.
+            scheduler::start(app.handle().clone());
 
             // Logout, shutdown and `kill` send signals rather than quitting
             // through the menu; stop the engine so it can't outlive BYTE.
@@ -200,6 +206,15 @@ pub fn run() {
             upkeep::upkeep_quit,
             upkeep::upkeep_reveal,
             upkeep::upkeep_open_settings,
+            tasks::tasks_list,
+            tasks::task_save,
+            tasks::task_done,
+            tasks::task_delete,
+            scheduler::schedules_list,
+            scheduler::schedule_save,
+            scheduler::schedule_delete,
+            scheduler::schedule_run,
+            scheduler::schedule_parse,
             selection::selection_paste,
             clipboard::clip_list,
             clipboard::clip_copy,
