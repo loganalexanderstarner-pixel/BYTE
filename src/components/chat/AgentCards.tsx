@@ -32,7 +32,7 @@ export function ApprovalCard({ card }: { card: Card }) {
           {card.fields.map((f, i) => (
             <div key={i}>
               <dt>{f.label}</dt>
-              <dd>{f.value || <span className="muted">(empty)</span>}</dd>
+              <dd className={f.label === "Command" ? "mono" : undefined}>{f.value || <span className="muted">(empty)</span>}</dd>
             </div>
           ))}
         </dl>

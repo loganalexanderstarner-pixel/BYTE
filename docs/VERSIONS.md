@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.9.2** | Phase 9 · Selected text and clipboard | ⌥⌘B on text in any app: rewrite, fix, translate, reply or explain, then paste back; optional clipboard history | Working in other apps |
+| **v0.9.3** | Phase 9 · Files and Terminal (Phase 9 complete) | Find and tidy files with undo, convert selected photos, ask about Finder selections, a terminal helper that runs commands after your OK | Everyday Mac chores |
+| v0.9.2 | Phase 9 · Selected text and clipboard | ⌥⌘B on text in any app: rewrite, fix, translate, reply or explain, then paste back; optional clipboard history | Working in other apps |
 | v0.9.1 | Phase 9 · Mail and Messages | Check and summarize email, reply and new emails opened in Mail for you to send, texts ready in Messages | Email and texts |
 | v0.9.0 | Phase 9 · Mac control, part 1 | Reminders, calendar, notes, music, Shortcuts, Safari and system settings by asking; asks first, with Undo | Getting things done on your Mac |
 | v0.8.0 | Phase 8 · Model lab and tuning | Try any GGUF model (file or Hugging Face link) with a fit check; per-model tuning with live meters; battery saver | Trying new models, fine control |
@@ -62,7 +63,6 @@ which download is which. Their files and notes are unchanged.
 
 | Version | Phase |
 |---|---|
-| v0.9.x | Mac control: files, Finder action, terminal |
 | v0.10.0 | Upkeep & automation |
 | v0.11.0 | Input & windows (voice, vision, quick ask) |
 | v0.12.0 | Privacy & polish |

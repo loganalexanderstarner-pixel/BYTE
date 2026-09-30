@@ -1479,6 +1479,10 @@ impl Runner for MacRunner {
                         "pmset" => "/usr/bin/pmset",
                         "networksetup" => "/usr/sbin/networksetup",
                         "shortcuts" => "/usr/bin/shortcuts",
+                        "mdfind" => "/usr/bin/mdfind",
+                        "sips" => "/usr/bin/sips",
+                        // The terminal helper; the user approved this exact command line.
+                        "zsh" => "/bin/zsh",
                         other => other,
                     };
                     let mut c = tokio::process::Command::new(path);
@@ -1516,8 +1520,40 @@ async fn execute(runner: &dyn Runner, action: &Action) -> Result<String, RunErro
 
 // --------------------------------------------------------------------- undo
 
-/// Undo commands for what BYTE added, by token (this session only).
-static UNDO: Lazy<Mutex<HashMap<String, Command>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+/// How to take something back.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Undo {
+    /// Run a fixed script (delete the note, reminder, event or draft).
+    Cmd(Command),
+    /// Move files back where they were (organizing), newest move first.
+    Moves(Vec<(std::path::PathBuf, std::path::PathBuf)>),
+    /// Remove files BYTE made (converted copies).
+    Created(Vec<std::path::PathBuf>),
+}
+
+/// Undo steps for what BYTE did, by token (this session only).
+static UNDO: Lazy<Mutex<HashMap<String, Undo>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+
+/// Keeps an undo step; returns the token for the card's Undo button.
+pub(crate) fn keep_undo(u: Undo) -> String {
+    let token = uuid::Uuid::new_v4().simple().to_string();
+    if let Ok(mut m) = UNDO.lock() {
+        m.insert(token.clone(), u);
+    }
+    token
+}
+
+/// Moves files back (`moves` are (from, to) as done); never overwrites.
+/// Returns how many went back.
+pub(crate) fn move_back(moves: &[(std::path::PathBuf, std::path::PathBuf)]) -> usize {
+    let mut n = 0;
+    for (from, to) in moves.iter().rev() {
+        if to.exists() && !from.exists() && std::fs::rename(to, from).is_ok() {
+            n += 1;
+        }
+    }
+    n
+}
 
 /// How to take back what `action` added, from the script's output.
 fn undo_for(action: &Action, out: &str) -> Option<Command> {
@@ -1540,9 +1576,38 @@ fn undo_for(action: &Action, out: &str) -> Option<Command> {
 /// Takes back something BYTE added (the card's Undo). False when it can't any
 /// more (BYTE restarted, or it was already undone).
 pub async fn undo(token: &str) -> AppResult<bool> {
-    let cmd = UNDO.lock().ok().and_then(|mut m| m.remove(token));
-    let Some(cmd) = cmd else { return Ok(false) };
-    MacRunner.run(&cmd).await.map(|_| true).map_err(|e| AppError::msg(e.text("the app")))
+    let step = UNDO.lock().ok().and_then(|mut m| m.remove(token));
+    match step {
+        None => Ok(false),
+        Some(Undo::Cmd(cmd)) => MacRunner.run(&cmd).await.map(|_| true).map_err(|e| AppError::msg(e.text("the app"))),
+        Some(Undo::Moves(moves)) => {
+            let back = move_back(&moves);
+            if back < moves.len() {
+                return Err(AppError::msg(format!("Moved {back} of {} files back; the others were moved or renamed since.", moves.len())));
+            }
+            Ok(true)
+        }
+        Some(Undo::Created(files)) => {
+            for f in &files {
+                let _ = std::fs::remove_file(f);
+            }
+            Ok(true)
+        }
+    }
+}
+
+/// Shows an approval card for a Mac action and waits for the answer.
+pub(crate) async fn ask_ok(title: &str, app: &str, fields: Vec<(String, String)>, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<bool> {
+    let ask = crate::web_agent::ApprovalAsk {
+        id: format!("mac_{}", uuid::Uuid::new_v4().simple()),
+        action: "mac".into(),
+        title: title.into(),
+        site: app.into(),
+        url: String::new(),
+        target: app.into(),
+        fields: fields.into_iter().map(|(label, value)| crate::web_agent::Field { label, value }).collect(),
+    };
+    crate::web_agent::ask(ask, APPROVAL_WAIT, cancel, send).await
 }
 
 // -------------------------------------------------------------------- cards
@@ -1683,7 +1748,7 @@ fn read_out(action: &Action, out: &str) -> (String, String) {
     }
 }
 
-const TELL: &str = "Tell the user what happened in one or two short sentences, in plain words. Don't show code or commands. \
+pub(crate) const TELL: &str = "Tell the user what happened in one or two short sentences, in plain words. Don't show code or commands. \
 Don't claim anything that isn't in these notes.";
 
 // ---------------------------------------------------------------------- run
@@ -1725,16 +1790,7 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, now: NaiveDateTime
     send(ChatEvent::ToolCall { id: id.clone(), name: action.tool().into(), args: args.clone() })?;
 
     if action.needs_ok() {
-        let ask = crate::web_agent::ApprovalAsk {
-            id: format!("mac_{}", uuid::Uuid::new_v4().simple()),
-            action: "mac".into(),
-            title: action.describe(),
-            site: app.into(),
-            url: String::new(),
-            target: app.into(),
-            fields: action.fields().into_iter().map(|(label, value)| crate::web_agent::Field { label, value }).collect(),
-        };
-        let ok = crate::web_agent::ask(ask, APPROVAL_WAIT, cancel, send).await?;
+        let ok = ask_ok(&action.describe(), app, action.fields(), cancel, send).await?;
         if !ok {
             send(ChatEvent::ToolResult { id, ok: false, summary: "You said no".into() })?;
             turn.log.record(action.tool(), &args, false, "declined");
@@ -1749,13 +1805,7 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, now: NaiveDateTime
     match out {
         Ok(out) => {
             let (detail, notes) = read_out(&action, &out);
-            let undo = undo_for(&action, &out).map(|cmd| {
-                let token = uuid::Uuid::new_v4().simple().to_string();
-                if let Ok(mut m) = UNDO.lock() {
-                    m.insert(token.clone(), cmd);
-                }
-                token
-            });
+            let undo = undo_for(&action, &out).map(|cmd| keep_undo(Undo::Cmd(cmd)));
             send(ChatEvent::ToolResult { id, ok: true, summary: detail.clone() })?;
             turn.log.record(action.tool(), &args, true, &detail);
             send(ChatEvent::MacDone(MacDone { app: app.into(), title: action.describe(), detail, ok: true, undo }))?;
@@ -1771,7 +1821,7 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, now: NaiveDateTime
     }
 }
 
-fn lower_first(s: &str) -> String {
+pub(crate) fn lower_first(s: &str) -> String {
     let mut c = s.chars();
     match c.next() {
         Some(f) => f.to_lowercase().collect::<String>() + c.as_str(),

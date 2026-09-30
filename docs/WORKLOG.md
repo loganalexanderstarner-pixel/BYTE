@@ -17,6 +17,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — v0.9.3: files and a terminal helper (Phase 9 complete)
+- **Why:** the rest of Phase 9 (HANDOFF §8), built while the v0.9.2 Mac test ran.
+- **What:** `filectl.rs` (+ `filectl_tests.rs`): find (mdfind), tidy by kind/month with preview + undo, convert/shrink
+  the Finder selection with sips (originals kept, undo removes copies), read the Finder selection. `terminal.rs`:
+  one proposed command, hard refusals, approval, run with zsh, output explained. `macctl.rs`: `Undo` enum,
+  `keep_undo`, `move_back`, `ask_ok`; `MacRunner` knows mdfind/sips/zsh. Routed in `agent::specialist` after
+  macctl. UI: monospace Command field; Settings text; screenshot `23h-terminal`. Mac CI covers the new files.
+- **Verify:** `cargo test ctl terminal::`; real models (Qwen3 0.6B, Gemma 3 1B, Llama 3.2 1B) propose `df -h` and
+  `lsof -i :3000` (`e2e_terminal_proposals`); owner: "organize my Downloads" → Do it → Undo.
+- **Undo:** revert; Settings → Mac control off disables all of it.
+
 ### (this commit) — Mail check: a variable named after an AppleScript word
 - **Why:** the Mac engine run on `e450631` failed `e2e_scripts_compile_and_run`: `MAIL_LIST` used a variable named
   `since`, which AppleScript reads as a parameter name, so "check my email" would fail on every Mac. Caught before

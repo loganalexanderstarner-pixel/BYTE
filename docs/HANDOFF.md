@@ -477,7 +477,7 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 **Done in v0.8.0:** `gguf.rs` + `lab.rs` (model lab, `<data>/added_models.json`, `CatalogStore::set_added`), per-model
 `settings.model_overrides` (`ModelOverride::apply`) + `TuningPanel`, `battery_saver` (`system::battery`), `commands::engine_live`
 (with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
-**Next:** the rest of Phase 9 as v0.9.x (Mail and Messages first). Way of working
+**Next:** Phase 10 (upkeep & automation) as v0.10.0, planned when it starts. Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
@@ -505,7 +505,7 @@ compare. Done in v0.8.0:
    (the rule-based router is accurate enough).
 4. Maybe later: Apple MLX engine (10–20% faster on some models; a big rebuild).
 
-### Phase 9 — Mac control 🔄 part 1 done (v0.9.0)
+### Phase 9 — Mac control ✅ done (v0.9.0–v0.9.3)
 **Done in v0.9.0:** `macctl.rs`: fixed AppleScripts that take the user's words only as `argv` (never pasted into
 code), rules first (`plan`, `when_in` times, `reminder_title`) and `complete_json` for details (only the title for
 notes; list/calendar names only when said next to the noun); approval card (`web_agent::ask`, action "mac") for
@@ -522,8 +522,12 @@ asks "Which Sam?"), `without_placeholders` for model drafts.
 restored; `selection_paste` activates the app and ⌘V; event `selection://captured` opens the studio with `app`),
 `clipboard.rs` (NSPasteboard via objc2-app-kit; opt-in history in DB v10 `clip_history`, 200 items, concealed /
 transient types and `looks_secret` skipped, BYTE's own writes ignored), writing `Reply` (own system prompt `HELPER`,
-written whole and checked with `echoes`, retried twice) and `Explain`. **Left** (v0.9.x): creating shortcuts,
-files, Finder Quick Action + `byte://`, terminal helper.
+written whole and checked with `echoes`, retried twice) and `Explain`. **Done in v0.9.3:** `filectl.rs` (Spotlight find via `mdfind`,
+`tidy_plan`/`apply_moves` with `Undo::Moves`, `sips` photo conversion with `Undo::Created`, Finder selection read +
+`files::ingest`), `terminal.rs` (`propose` via `complete_json` with macOS hints, `refused` hard block list,
+approval, `zsh -c`), `macctl::Undo` enum + `keep_undo`/`ask_ok`, `scripts_avoid_applescript_keywords_as_variables`.
+**Phase 9 is complete.** Moved: the `byte://` link and a Finder "Ask BYTE" Quick Action to Phase 11 (with Quick Ask);
+creating Shortcuts to Phase 10 (automations).
 Everything asks for permission once, shows what it will do, and can be undone where possible (activity list
 with undo; dry-run mode).
 1. **AppleScript/JXA library** (`mac/applescript.rs`, vetted scripts only — the model never writes raw

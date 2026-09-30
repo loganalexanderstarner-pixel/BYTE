@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.3 — Files and a terminal helper (Phase 9 complete)
+
+- **Files**: find them with Spotlight, tidy a folder by kind or month (preview first, Undo puts it back), convert or
+  shrink the photos selected in Finder (originals kept), and ask about the files selected in Finder.
+- **Terminal helper**: BYTE proposes one command, explains it, and runs it after your OK; dangerous commands are
+  refused outright.
+- Fixed before release: the Mail check script didn't compile on macOS (a reserved word as a variable).
+
 ## 0.9.2 — Selected text anywhere, clipboard history
 
 - **⌥⌘B**: select text in any app and it opens in the writing studio; new **Reply** and **Explain** actions;

@@ -736,6 +736,10 @@ async fn specialist(
     let q = question;
     Ok(if crate::macctl::applies(turn.modules.mac, q) {
         crate::macctl::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
+    } else if crate::filectl::applies(turn.modules.mac, q) {
+        crate::filectl::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
+    } else if crate::terminal::applies(turn.modules.mac, q) {
+        crate::terminal::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
     } else if crate::youtube::applies(turn.web, q, turn.history) {
         crate::youtube::run(turn, q, used_tokens, cancel, send).await?.map(|(b, n)| (b, n, "youtube"))
     } else if !weather_done && crate::factcheck::applies(turn.web, turn.task == Some(Task::FactCheck), q) {

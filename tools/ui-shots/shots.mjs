@@ -489,6 +489,13 @@ function initScript({ data }) {
             send({ kind: "done", finishReason: "stop" });
             return null;
           }
+          if (data.terminal) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            send({ kind: "toolCall", id: "t0", name: "mac_terminal", args: { app: "Terminal", what: "Run `lsof -i :3000`" } });
+            send({ kind: "approval", id: "term1", action: "mac", title: "Run this command in Terminal?", site: "Terminal", url: "", target: "Terminal",
+              fields: [{ label: "Command", value: "lsof -i :3000" }, { label: "What it does", value: "Lists the programs using port 3000, with their process IDs." }, { label: "Note", value: "It only reads or shows information." }] });
+            return new Promise(() => {});
+          }
           if (data.mail) {
             send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
             send({ kind: "toolCall", id: "m0", name: "mac_mail_draft", args: { app: "Mail", what: "Open an email to Sam Lee in Mail, ready to send" } });
@@ -1344,6 +1351,17 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(400);
   await shot(p, "23f-selection-reply");
   console.log("selection errors:", errors);
+  await ctx.close();
+}
+// Terminal helper: the command waits for OK
+{
+  const { p, ctx, errors } = await page(true, "midnight", { terminal: true });
+  await p.getByLabel("Message BYTE").fill("Use the terminal to see what's using port 3000");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(600);
+  await p.locator(".approval").scrollIntoViewIfNeeded();
+  await shot(p, "23h-terminal");
+  console.log("terminal errors:", errors);
   await ctx.close();
 }
 // Clipboard history

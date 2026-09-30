@@ -140,6 +140,7 @@ fn scripts_avoid_applescript_keywords_as_variables() {
     const RESERVED: &[&str] = &["since", "given", "result", "from", "thru", "through", "returning", "into", "onto", "against", "instead", "beside", "until", "while", "error", "space", "tab", "return", "it", "me", "my", "version", "date", "time", "text", "list", "record", "number", "string", "character", "word", "paragraph", "item", "id", "name", "class", "contents", "reference", "every", "some", "count"];
     let mut scripts: Vec<&str> = ALL_SCRIPTS.to_vec();
     scripts.extend(crate::selection::SCRIPTS);
+    scripts.extend(crate::filectl::SCRIPTS);
     for s in scripts {
         for line in s.lines() {
             let l = line.trim();
@@ -282,7 +283,7 @@ async fn a_reminder_asks_first_then_can_be_undone() {
     let done = ev.iter().find_map(|e| if let ChatEvent::MacDone(d) = e { Some(d.clone()) } else { None }).unwrap();
     assert!(done.ok && done.app == "Reminders");
     let token = done.undo.expect("undo token");
-    assert_eq!(UNDO.lock().unwrap().get(&token), Some(&Command::Osa { script: REMINDER_DELETE, args: vec!["x-apple-reminder://ABC".into()] }));
+    assert_eq!(UNDO.lock().unwrap().get(&token), Some(&Undo::Cmd(Command::Osa { script: REMINDER_DELETE, args: vec!["x-apple-reminder://ABC".into()] })));
     let notes = out.unwrap().1;
     assert!(notes.contains("added the reminder \"Call Mom\", due Wed, Sep 30 at 3 PM"), "{notes}");
 }
