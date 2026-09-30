@@ -5258,3 +5258,99 @@ kbd {
   margin: 0 0 var(--space-2);
   padding-left: 1.2em;
 }
+
+/* The command-deck home: live tiles above the suggestions. */
+.deck {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--space-3);
+  width: 100%;
+  margin: var(--space-4) 0;
+}
+.deck-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.deck-tile:hover:not(:disabled) {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.deck-tile:disabled {
+  cursor: default;
+}
+.deck-tile b {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.deck-tile b svg {
+  color: var(--accent);
+}
+.deck-tile .small {
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.deck-tile.warn {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+.deck-tile.warn b svg {
+  color: var(--danger);
+}
+.link-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  .deck-tile {
+    transition: none;
+  }
+  .deck-tile:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Settings → About → Your usage. */
+.usage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-3);
+}
+.usage-grid > div {
+  display: flex;
+  flex-direction: column;
+}
+.usage-grid b {
+  font-size: 1.4em;
+  color: var(--accent);
+}
+.usage-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 56px;
+  margin-top: var(--space-3);
+}
+.usage-bars span {
+  flex: 1;
+  border-radius: 3px 3px 0 0;
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+}

@@ -17,6 +17,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-30
 
+### (this commit) — v0.10.6: dashboards (Phase 10 complete)
+- **Why:** Phase 10 item 7 (HANDOFF §8): command-deck home, local usage stats, research library (the hardware panel
+  already exists in Settings → Engine).
+- **What:** `src-tauri/src/dashboard.rs` (+ tests on a temp DB) with commands `dashboard_summary`, `dashboard_today`,
+  `dashboard_usage`, `research_library`; UI `components/chat/Deck.tsx` (tiles + research library) mounted in
+  `EmptyState.tsx`, `lib/dashboard.ts` (+ tests), Settings → About "Your usage", CSS, screenshots `31-home-deck`,
+  `31b-research-library`, `31c-usage`.
+- **Verify:** `cargo test dashboard`; `npx vitest run src/lib/dashboard.test.ts`; `scripts/check-all.sh`; in the app: a new
+  chat shows the tiles once there are to-dos, trackers, feeds or researched chats.
+- **Undo:** `git revert` this commit (read-only feature; no data changes).
+
 ### (this commit) — v0.10.5: connectors (Obsidian, Notion, calendar links)
 - **Why:** Phase 10 item 6 (HANDOFF §8). Owner decision: the connectors that need no app registration with another
   company come first; Google, Dropbox, OneDrive and Spotify wait for the owner to register BYTE with them.

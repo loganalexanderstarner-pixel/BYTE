@@ -544,6 +544,43 @@ export interface ShortcutMade {
   message: string;
 }
 
+/** The command-deck home's tiles (Rust `dashboard::Summary`). */
+export interface DashboardSummary {
+  todosDue: number;
+  todosOverdue: number;
+  todosOpen: number;
+  todos: string[];
+  coming: { name: string; when: string; kind: string; overdue: boolean }[];
+  /** [name, ms]. */
+  nextAutomation: [string, number] | null;
+  /** [name, what changed]. */
+  changes: [string, string][];
+  unread: number;
+  research: number;
+}
+
+/** Local usage stats (Rust `dashboard::Usage`). */
+export interface Usage {
+  chats: number;
+  chatsWeek: number;
+  questionsWeek: number;
+  questionsMonth: number;
+  citedAnswers: number;
+  avgSpeed: number | null;
+  modes: [string, number][];
+  /** Questions per day, the last 14 days, oldest first. */
+  perDay: number[];
+}
+
+/** A chat in the research library. */
+export interface Researched {
+  id: string;
+  title: string;
+  updatedAt: number;
+  sources: number;
+  examples: string[];
+}
+
 /** Connectors (Rust `connectors::Status`); secrets are never sent to the UI. */
 export interface ConnectorsStatus {
   keychain: boolean;

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.6 — Dashboards (Phase 10 complete)
+
+- **Command-deck home**: live tiles on a new chat (today's events, to-dos, coming up, watched pages and news, next
+  automation, research library), each hidden when empty; a click asks BYTE about it.
+- **Research library**: chats with cited sources, newest first, searchable.
+- **Your usage** (Settings → About): local counts, average speed, most-used modes, a 14-day chart.
+
 ## 0.10.5 — Connectors: Obsidian, Notion and calendar links
 
 - **Settings → Connectors**, each connector off until set up; secrets only in the macOS Keychain.

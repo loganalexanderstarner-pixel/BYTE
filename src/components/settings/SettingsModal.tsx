@@ -8,7 +8,8 @@ import { api, errorText } from "../../lib/api";
 import { topicList } from "../../lib/tasks";
 import { bytes, contextLabel, ramSize } from "../../lib/format";
 import { displayName } from "../../lib/models";
-import type { BoostInfo, GpuShare, LookerStatus, Memory, Profiles, Settings } from "../../lib/types";
+import type { BoostInfo, GpuShare, LookerStatus, Memory, Profiles, Settings, Usage } from "../../lib/types";
+import { bars } from "../../lib/dashboard";
 import { useStore, type SettingsTab } from "../../state/store";
 import { CatalogBrowser } from "../models/CatalogBrowser";
 import { CloudTab } from "./CloudTab";
@@ -636,6 +637,50 @@ function EngineTab() {
   );
 }
 
+/** Local usage stats (Rust `dashboard::usage`): counted from chats on this Mac, never sent anywhere. */
+function UsageSection() {
+  const [u, setU] = useState<Usage | null>(null);
+  useEffect(() => {
+    api.dashboardUsage().then(setU, () => setU(null));
+  }, []);
+  if (!u || u.chats === 0) return null;
+  const heights = bars(u.perDay);
+  return (
+    <div className="section">
+      <h4>Your usage</h4>
+      <p className="muted small" style={{ marginTop: 0 }}>
+        Counted from the chats on this Mac; nothing is sent anywhere.
+      </p>
+      <div className="usage-grid">
+        <div>
+          <b>{u.questionsWeek}</b>
+          <span className="muted small">questions this week</span>
+        </div>
+        <div>
+          <b>{u.chats}</b>
+          <span className="muted small">chats ({u.chatsWeek} this week)</span>
+        </div>
+        <div>
+          <b>{u.citedAnswers}</b>
+          <span className="muted small">answers with sources</span>
+        </div>
+        {u.avgSpeed != null && (
+          <div>
+            <b>{u.avgSpeed}</b>
+            <span className="muted small">tokens per second on average (30 days)</span>
+          </div>
+        )}
+      </div>
+      <div className="usage-bars" role="img" aria-label={`Questions per day, last 14 days: ${u.perDay.join(", ")}`}>
+        {heights.map((h, i) => (
+          <span key={i} style={{ height: `${Math.max(4, Math.round(h * 100))}%` }} title={`${u.perDay[i]} questions`} />
+        ))}
+      </div>
+      <p className="muted small">Questions per day, last 14 days{u.modes.length > 0 && ` · most used: ${u.modes.map(([m, n]) => `${m} (${n})`).join(", ")}`}</p>
+    </div>
+  );
+}
+
 function AboutTab() {
   const system = useStore((s) => s.system);
   const settings = useStore((s) => s.settings);
@@ -683,6 +728,7 @@ function AboutTab() {
           />
         </div>
       </div>
+      <UsageSection />
       <div className="section">
         <h4>In the background</h4>
         <label className="field">

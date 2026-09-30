@@ -14,6 +14,9 @@ import type {
   Automation,
   Tracker,
   ConnectorsStatus,
+  DashboardSummary,
+  Usage,
+  Researched,
   RunView,
   ShortcutMade,
   WatchEvent,
@@ -250,6 +253,12 @@ export const api = {
   /** Adds a calendar link; [status, events read]. */
   calendarLinkAdd: (name: string, url: string) => invoke<[ConnectorsStatus, number]>("calendar_link_add", { name, url }),
   calendarLinkRemove: (index: number) => invoke<ConnectorsStatus>("calendar_link_remove", { index }),
+  // Dashboards (dashboard.rs).
+  dashboardSummary: () => invoke<DashboardSummary>("dashboard_summary"),
+  /** Today's events: [time, title]. */
+  dashboardToday: () => invoke<[string, string][]>("dashboard_today"),
+  dashboardUsage: () => invoke<Usage>("dashboard_usage"),
+  researchLibrary: (query?: string) => invoke<Researched[]>("research_library", { query: query ?? null }),
   // Mac upkeep (upkeep.rs): ids from the card, never paths.
   upkeepTrash: (scanId: string, id: string) => invoke<Trashed>("upkeep_trash", { scanId, id }),
   upkeepReveal: (scanId: string, id: string) => invoke<void>("upkeep_reveal", { scanId, id }),

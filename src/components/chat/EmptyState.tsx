@@ -5,6 +5,7 @@ import { api } from "../../lib/api";
 import type { Assistant } from "../../lib/types";
 
 import { Logo } from "../../design/Logo";
+import { Deck } from "./Deck";
 import { spaceOf, useStore, workspaceOf } from "../../state/store";
 
 const SUGGESTIONS = [
@@ -68,6 +69,7 @@ export function EmptyState() {
       <Logo size={64} />
       <h1>{greeting(userName)}</h1>
       <p className="muted">What can I help you with? {where}</p>
+      {space !== "cloud" && <Deck />}
       <div className="suggestions">
         {SUGGESTIONS.map(({ icon: Icon, title, prompt, hint }) => (
           <button key={title} className="suggestion" disabled={!ready} onClick={() => void send(prompt)} title={prompt}>

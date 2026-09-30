@@ -66,6 +66,7 @@ mod shortcut_make;
 mod background;
 mod trackers;
 mod connectors;
+mod dashboard;
 
 use tauri::{Manager, RunEvent};
 
@@ -381,6 +382,10 @@ pub fn run() {
             connectors::notion_disconnect,
             connectors::calendar_link_add,
             connectors::calendar_link_remove,
+            dashboard::dashboard_summary,
+            dashboard::dashboard_today,
+            dashboard::dashboard_usage,
+            dashboard::research_library,
             commands::chat_send,
             commands::chat_cancel,
         ])

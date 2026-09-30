@@ -315,6 +315,17 @@ function initScript({ data }) {
             w({ id: 3, url: "https://store.example.com/lamp", name: "store.example.com", kind: "price", enabled: false, lastError: "BYTE couldn't find a price on the page" }),
           ];
         }
+        case "dashboard_summary":
+          return data.dashboard ? { todosDue: 3, todosOverdue: 1, todosOpen: 6, todos: ["Pay rent", "Call the bank about the card", "Renew passport"], coming: [{ name: "Rent", when: "tomorrow", kind: "bill", overdue: false }, { name: "Change the furnace filter", when: "2 days ago", kind: "upkeep", overdue: true }, { name: "Sam's birthday", when: "in 9 days", kind: "event", overdue: false }], nextAutomation: ["Morning AI news", Date.now() + 15 * 3600000], changes: [["55-inch OLED TV", "Dropped to $1,149 (was $1,299)"]], unread: 8, research: 14 } : null;
+        case "dashboard_today":
+          return data.dashboard ? [["All day", "Mom's birthday"], ["9:30 AM", "Dentist"], ["12:00 PM", "Lunch with Sam"], ["2:00 PM", "Project review"]] : [];
+        case "dashboard_usage":
+          return { chats: 128, chatsWeek: 17, questionsWeek: 64, questionsMonth: 231, citedAnswers: 88, avgSpeed: 31.4, modes: [["auto", 140], ["deep", 52], ["fast", 30]], perDay: [3, 8, 5, 0, 11, 9, 6, 12, 4, 7, 10, 14, 6, 9] };
+        case "research_library":
+          return [
+            { id: "r1", title: "M5 MacBook Air: worth upgrading?", updatedAt: Date.now() - 3600000, sources: 12, examples: ["Apple M5 announcement", "MacBook Air M5 review"] },
+            { id: "r2", title: "Rust vs Go for a CLI", updatedAt: Date.now() - 5 * 86400000, sources: 9, examples: ["The Rust book", "Go blog"] },
+          ];
         case "connectors_status":
           return { keychain: true, vault: "/Users/sam/Documents/Obsidian/Main", vaultNotes: 412, notion: false, notionParent: null, calendars: [["Work", "calendar.google.com"], ["Family", "p58-caldav.icloud.com"]] };
         case "trackers_list": {
@@ -1650,6 +1661,25 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".approval").scrollIntoViewIfNeeded();
   await shot(p, "26c-schedule-approval");
   console.log("schedule errors:", errors);
+  await ctx.close();
+}
+// The command-deck home, the research library and usage stats
+{
+  const { p, ctx, errors } = await page(true, "midnight", { dashboard: true });
+  await p.getByRole("button", { name: /New chat/ }).first().click().catch(() => {});
+  await p.waitForTimeout(500);
+  await shot(p, "31-home-deck");
+  await p.getByRole("button", { name: /Research library/ }).click();
+  await p.waitForTimeout(300);
+  await shot(p, "31b-research-library");
+  await p.keyboard.press("Escape");
+  await p.getByRole("button", { name: "Close" }).first().click().catch(() => {});
+  await p.keyboard.press("Meta+Comma");
+  await p.getByRole("button", { name: "About", exact: true }).click();
+  await p.waitForTimeout(300);
+  await p.getByRole("heading", { name: "Your usage" }).scrollIntoViewIfNeeded();
+  await shot(p, "31c-usage");
+  console.log("dashboard errors:", errors);
   await ctx.close();
 }
 // Settings → Connectors
