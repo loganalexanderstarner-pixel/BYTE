@@ -39,7 +39,7 @@ export function Shell() {
   const [assistantsOpen, setAssistantsOpen] = useState(false);
   const clipsOn = useStore((s) => s.settings?.macControl !== false && s.settings?.clipboardHistory === true);
   const [clipsOpen, setClipsOpen] = useState(false);
-  const tasksOn = useStore((s) => s.settings?.tasksEnabled !== false || s.settings?.watchEnabled !== false);
+  const tasksOn = useStore((s) => s.settings?.tasksEnabled !== false || s.settings?.watchEnabled !== false || s.settings?.automationsEnabled !== false);
   const [tasksOpen, setTasksOpen] = useState(false);
   const reloadChats = useStore((s) => s.reloadChats);
 
@@ -119,7 +119,7 @@ export function Shell() {
               </button>
             )}
             {tasksOn && (
-              <button className="icon-btn" onClick={() => setTasksOpen(true)} title="Tasks: your to-do list, schedules, news feeds and watched pages">
+              <button className="icon-btn" onClick={() => setTasksOpen(true)} title="Tasks: your to-do list, schedules, automations, news feeds and watched pages">
                 <ListTodo size={18} />
               </button>
             )}

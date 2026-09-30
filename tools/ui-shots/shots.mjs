@@ -315,6 +315,29 @@ function initScript({ data }) {
             w({ id: 3, url: "https://store.example.com/lamp", name: "store.example.com", kind: "price", enabled: false, lastError: "BYTE couldn't find a price on the page" }),
           ];
         }
+        case "automations_list": {
+          const now = Date.now();
+          const a = (o) => ({ id: 0, name: "", trigger: "manual", steps: [], enabled: true, lastRun: null, nextRun: null, when: "When you run it", lastOk: null, lastChat: null, linked: false, ...o });
+          return [
+            a({ id: 1, name: "Morning AI news", trigger: "weekdays 08:00", when: "Every weekday at 8:00 AM", nextRun: now + 52000000, lastRun: now - 30000000, lastOk: true, lastChat: "c1", linked: true,
+              steps: [{ type: "ask", prompt: "find the latest AI news" }, { type: "ask", prompt: "summarize it in five bullets" }, { type: "saveFile", name: "AI news" }] }),
+            a({ id: 2, name: "Start of day", trigger: "launch", when: "When BYTE opens",
+              steps: [{ type: "briefing" }, { type: "notify", title: "Start of day", body: "{previous}" }] }),
+            a({ id: 3, name: "Log my reading", lastOk: false,
+              steps: [{ type: "ask", prompt: "summarize the article I'm reading in Safari" }, { type: "shortcut", name: "Append to Reading Log" }] }),
+          ];
+        }
+        case "automation_trigger_parse":
+          return /every/i.test(args?.text ?? "") ? ["weekdays 08:00", "Every weekday at 8:00 AM"] : null;
+        case "automation_run_status":
+          return null;
+        case "automation_save":
+        case "automation_delete":
+          return args?.automation ?? null;
+        case "automation_run":
+          return 5;
+        case "automation_shortcut":
+          return { opened: false, link: "byte://run/1?key=3f9c…", message: "macOS couldn't sign the shortcut (signing needs you to be signed in to iCloud). You can make it in two steps instead." };
         case "feed_follow":
         case "feed_delete":
         case "watcher_save":
@@ -563,6 +586,25 @@ function initScript({ data }) {
             ] });
             send({ kind: "content", delta: "> **TL;DR:** Wednesday, September 30: 3 events (first at 9:30 AM); 3 to do (1 overdue); light rain; news on AI, Steelers.\n\n## Today\n- **9:30 AM** — Dentist\n- **12:00 PM** — Lunch with Sam\n- **2:00 PM** — Project review with Priya\n\n## To-dos\n- ⚠️ Pay rent *(overdue)*\n- Call the bank about the card\n- Call Mom (due today at 5 PM)\n\n1 more task with no date on your list (✅).\n\n## Weather\nPittsburgh, US: now 61°F (feels like 59°F), light rain. Today: light rain, high 64°F, low 52°F, 70% chance of rain [1]. Bring an umbrella.\n\n## News\n- **AI:** A lab released a small open model that runs on laptops [2]\n- **AI:** Chip makers race to add memory for local AI [3]\n- **Steelers:** Steelers sign veteran linebacker before Sunday [4]" });
             send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
+          if (data.automation) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            send({ kind: "toolCall", id: "au0", name: "automation_plan", args: { steps: 3 } });
+            send({ kind: "toolResult", id: "au0", ok: true, summary: "3 steps" });
+            if (data.automation === "ask") {
+              send({ kind: "approval", id: "au1", action: "mac", title: "Do these steps?", site: "BYTE", url: "", target: "BYTE",
+                fields: [{ label: "When", value: "Now (and whenever you run it again from the ✅ panel)" }, { label: "Step 1", value: "Ask BYTE: research the best budget espresso machines" }, { label: "Step 2", value: "Ask BYTE: write a short buying guide from it" }, { label: "Step 3", value: "Save it to Documents → BYTE → Automations as \"Research the best budget espresso\"" }, { label: "Note", value: "BYTE does the steps one after another in the background and shows each one here. The result is saved as a chat, and you get a notification. If a step fails, BYTE stops there and you can run it again from that step." }] });
+              return new Promise(() => {});
+            }
+            send({ kind: "approval", id: "au1", action: "mac", title: "Do these steps?", site: "BYTE", url: "", target: "BYTE", fields: [] });
+            send({ kind: "approvalDone", id: "au1", ok: true });
+            send({ kind: "automationRun", runId: 5, automationId: 4, name: "Research the best budget espresso", when: "When you run it",
+              steps: [{ label: "Ask BYTE: research the best budget espresso machines", status: "waiting", detail: "" }, { label: "Ask BYTE: write a short buying guide from it", status: "waiting", detail: "" }, { label: "Save it to Documents → BYTE → Automations as \"Research the best budget espresso\"", status: "waiting", detail: "" }] });
+            send({ kind: "content", delta: "On it: BYTE is doing the three steps in the background (the card above shows each one). The guide will be saved to Documents → BYTE → Automations, and you'll get a notification when it's done." });
+            send({ kind: "done", finishReason: "stop" });
+            setTimeout(() => window.__emit("automations://progress", { runId: 5, automationId: 4, name: "Research the best budget espresso", finished: false, ok: false, chat: null,
+              steps: [{ label: "Ask BYTE: research the best budget espresso machines", status: "done", detail: "612 words" }, { label: "Ask BYTE: write a short buying guide from it", status: "running", detail: "" }, { label: "Save it to Documents → BYTE → Automations as \"Research the best budget espresso\"", status: "waiting", detail: "" }] }), 200);
             return null;
           }
           if (data.schedule) {
@@ -1536,7 +1578,7 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
 // Tasks panel, a briefing, and a schedule waiting for OK
 {
   const { p, ctx, errors } = await page(true, "midnight");
-  await p.getByTitle("Tasks: your to-do list, schedules, news feeds and watched pages").click();
+  await p.getByTitle("Tasks: your to-do list, schedules, automations, news feeds and watched pages").click();
   await p.waitForTimeout(300);
   await p.getByLabel("When").fill("every day at 6pm");
   await p.waitForTimeout(400);
@@ -1546,7 +1588,7 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
 }
 {
   const { p, ctx, errors } = await page(true, "paper");
-  await p.getByTitle("Tasks: your to-do list, schedules, news feeds and watched pages").click();
+  await p.getByTitle("Tasks: your to-do list, schedules, automations, news feeds and watched pages").click();
   await p.waitForTimeout(300);
   await p.getByRole("heading", { name: "News feeds" }).scrollIntoViewIfNeeded();
   await p.getByLabel("Watch for").selectOption("price");
@@ -1576,6 +1618,45 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".approval").scrollIntoViewIfNeeded();
   await shot(p, "26c-schedule-approval");
   console.log("schedule errors:", errors);
+  await ctx.close();
+}
+// Automations: the panel with the builder, a request waiting for OK, a run in progress
+{
+  const { p, ctx, errors } = await page(true, "midnight");
+  await p.getByTitle("Tasks: your to-do list, schedules, automations, news feeds and watched pages").click();
+  await p.waitForTimeout(300);
+  await p.getByRole("heading", { name: "Automations" }).scrollIntoViewIfNeeded();
+  await p.getByRole("button", { name: "New", exact: true }).click();
+  await p.getByLabel("Automation name").fill("Weekly reading list");
+  await p.getByLabel("When it runs").selectOption("schedule");
+  await p.getByLabel("When", { exact: true }).last().fill("every friday at 5pm");
+  await p.getByLabel("What to ask BYTE").fill("find 3 good long reads about AI this week");
+  await p.getByRole("button", { name: "Add a step" }).click();
+  await p.getByLabel("Step 2 kind").selectOption("addTask");
+  await p.getByRole("button", { name: "Make a Shortcut for Morning AI news" }).click();
+  await p.waitForTimeout(400);
+  await p.getByRole("heading", { name: "Automations" }).scrollIntoViewIfNeeded();
+  await shot(p, "28-automations");
+  console.log("automations errors:", errors);
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await page(true, "paper", { automation: "ask" });
+  await p.getByLabel("Message BYTE").fill("Research the best budget espresso machines, then write a short buying guide from it and save it to a file");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(600);
+  await p.locator(".approval").scrollIntoViewIfNeeded();
+  await shot(p, "28b-automation-approval");
+  console.log("automation approval errors:", errors);
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await page(true, "midnight", { automation: "run" });
+  await p.getByLabel("Message BYTE").fill("Research the best budget espresso machines, then write a short buying guide from it and save it to a file");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(900);
+  await shot(p, "28c-automation-run");
+  console.log("automation run errors:", errors);
   await ctx.close();
 }
 // Clipboard history

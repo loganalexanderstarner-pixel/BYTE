@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Clapperboard, GraduationCap, Layers as LayersIcon, Gamepad2, ShieldCheck, Store, Star, Layers, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert, Languages, Laptop, ListTodo, Newspaper, Rss, CalendarClock } from "lucide-react";
+import { Clapperboard, GraduationCap, Layers as LayersIcon, Gamepad2, ShieldCheck, Store, Star, Layers, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert, Languages, Laptop, ListTodo, Newspaper, Rss, CalendarClock, Workflow } from "lucide-react";
 import { Fragment, useState } from "react";
 
 import { CITE_STYLES, cite, citeAll, plainCitation, type CiteStyle } from "../../lib/citations";
@@ -109,6 +109,8 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: ListTodo, text: s.summary ?? "Read your to-do list" };
     case "schedule_add":
       return { icon: CalendarClock, text: arg("what") };
+    case "automation_plan":
+      return { icon: Workflow, text: `Split your request into ${s.summary ?? "steps"}` };
     case "feed_follow":
       return { icon: Rss, text: `Followed ${arg("url")}` };
     case "feed_unfollow":

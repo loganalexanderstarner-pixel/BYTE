@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 12;
+const SCHEMA_VERSION: i32 = 13;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -782,7 +782,29 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 12);
+    if version < 13 {
+        // Automations: a trigger and steps (automations.rs); runs gain their steps.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE automations (
+                 id INTEGER PRIMARY KEY,
+                 name TEXT NOT NULL,
+                 trigger TEXT NOT NULL,
+                 steps TEXT NOT NULL,
+                 enabled INTEGER NOT NULL DEFAULT 1,
+                 created INTEGER NOT NULL,
+                 last_run INTEGER,
+                 next_run INTEGER,
+                 link_key TEXT NOT NULL DEFAULT ''
+             );
+             ALTER TABLE runs ADD COLUMN automation_id INTEGER REFERENCES automations(id) ON DELETE CASCADE;
+             ALTER TABLE runs ADD COLUMN steps TEXT NOT NULL DEFAULT '[]';
+             CREATE INDEX runs_automation ON runs(automation_id, started);
+             PRAGMA user_version = 13;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 13);
     Ok(())
 }
 

@@ -38,6 +38,7 @@ import type {
   ApprovalCard,
   SavedFile,
   MacDone,
+  RunCard,
   Storage,
   Health,
   Reviews,
@@ -129,6 +130,8 @@ export interface Message {
   saved?: SavedFile[];
   /** What BYTE did in Mac apps (Mac control), with Undo tokens. */
   mac?: MacDone[];
+  /** An automation started from this answer (its card follows the run). */
+  automationRun?: RunCard;
   browsing?: boolean;
   /** Reviews, prices and game-hint cards; the self-check note under the answer. */
   reviews?: Reviews;
@@ -643,6 +646,11 @@ export const useStore = create<State>((set, get) => {
         case "saved": {
           const { kind: _kind, ...file } = e;
           patchMessage(convId, reply.id, (m) => ({ ...m, saved: [...(m.saved ?? []), file] }));
+          break;
+        }
+        case "automationRun": {
+          const { kind: _kind, ...card } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, automationRun: card }));
           break;
         }
         case "macDone": {

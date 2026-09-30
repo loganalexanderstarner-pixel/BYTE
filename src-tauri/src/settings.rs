@@ -180,6 +180,15 @@ pub struct Settings {
     /// News feeds and page watchers (feeds.rs, watchers.rs; needs the web).
     #[serde(default = "yes")]
     pub watch_enabled: bool,
+    /// Automations and multi-step runs (automations.rs).
+    #[serde(default = "yes")]
+    pub automations_enabled: bool,
+    /// Open BYTE (in the background) when the user logs in.
+    #[serde(default)]
+    pub open_at_login: bool,
+    /// Closing the window keeps BYTE running (schedules and watchers go on); ⌘Q quits.
+    #[serde(default = "yes")]
+    pub keep_running: bool,
     /// Mac upkeep: storage clean-up, health checks, uninstalling apps, login items (macOS).
     #[serde(default = "yes")]
     pub mac_upkeep: bool,
@@ -263,6 +272,9 @@ impl Default for Settings {
             tasks_enabled: true,
             briefing_topics: Vec::new(),
             watch_enabled: true,
+            automations_enabled: true,
+            open_at_login: false,
+            keep_running: true,
             selection_hotkey: true,
             clipboard_history: false,
             jobs_enabled: true,

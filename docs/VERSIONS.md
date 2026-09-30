@@ -18,8 +18,9 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.10.1** | Phase 10 · Tasks and a daily briefing | A to-do list with reminders, a daily briefing (calendar, to-dos, weather, news), questions BYTE asks on a schedule | Staying on top of your day |
-| **v0.10.2** | Phase 10 · News feeds and page watchers | Follows sites' feeds with a digest of what's new, watches pages for changes and price drops, with notifications | Keeping up without checking |
+| **v0.10.3** | Phase 10 · Automations and Shortcuts | Steps BYTE does one after another (on a schedule, when it opens, or when you run them), multi-step requests in chat, Shortcuts that start them (menu bar, Siri), opening at login | Letting BYTE do routines for you |
+| v0.10.1 | Phase 10 · Tasks and a daily briefing | A to-do list with reminders, a daily briefing (calendar, to-dos, weather, news), questions BYTE asks on a schedule | Staying on top of your day |
+| v0.10.2 | Phase 10 · News feeds and page watchers | Follows sites' feeds with a digest of what's new, watches pages for changes and price drops, with notifications | Keeping up without checking |
 | v0.10.0 | Phase 10 · Mac upkeep | See what fills your disk and clear the safe parts (with Undo), why the Mac is slow or the battery drains, a health check, uninstall apps with their leftovers, login items | Keeping a Mac fast and tidy |
 | v0.9.3 | Phase 9 · Files and Terminal (Phase 9 complete) | Find and tidy files with undo, convert selected photos, ask about Finder selections, a terminal helper that runs commands after your OK | Everyday Mac chores |
 | v0.9.2 | Phase 9 · Selected text and clipboard | ⌥⌘B on text in any app: rewrite, fix, translate, reply or explain, then paste back; optional clipboard history | Working in other apps |
@@ -66,8 +67,9 @@ which download is which. Their files and notes are unchanged.
 
 | Version | Phase |
 |---|---|
-| v0.10.2 | News digests and page watchers |
-| v0.10.3 | Automations and making Shortcuts |
+| v0.10.4 | Trackers (packages, bills and subscriptions, gifts, car and home) |
+| v0.10.5 | Connectors (Google, Notion, Obsidian and more; off until you sign in) |
+| v0.10.6 | Dashboards (command-deck home, usage, hardware, research library) |
 | v0.11.0 | Input & windows (voice, vision, quick ask) |
 | v0.12.0 | Privacy & polish |
 | v1.0.0 | The finished BYTE |

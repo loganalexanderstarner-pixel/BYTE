@@ -681,6 +681,23 @@ function AboutTab() {
         </div>
       </div>
       <div className="section">
+        <h4>In the background</h4>
+        <label className="field">
+          <span>
+            Open BYTE at login
+            <small>BYTE starts quietly (no window) when you log in, so schedules, watched pages and automations run all day. Click BYTE in the Dock to open it.</small>
+          </span>
+          <input type="checkbox" checked={settings?.openAtLogin ?? false} onChange={(e) => void update({ openAtLogin: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
+            Keep running when the window is closed
+            <small>Closing the window hides BYTE instead of quitting, so it keeps working. Quit with ⌘Q.</small>
+          </span>
+          <input type="checkbox" checked={settings?.keepRunning ?? true} onChange={(e) => void update({ keepRunning: e.target.checked })} />
+        </label>
+      </div>
+      <div className="section">
         <h4>Features</h4>
         <label className="field">
           <span>
@@ -763,6 +780,13 @@ function AboutTab() {
             <small>Follow sites (“follow theverge.com”, then “what's new in my feeds?”) and watch pages for changes or price drops (“tell me when &lt;link&gt; drops below $200”). BYTE checks while it's open and sends a notification. Needs web access.</small>
           </span>
           <input type="checkbox" checked={settings?.watchEnabled ?? true} onChange={(e) => void update({ watchEnabled: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
+            Automations
+            <small>Steps BYTE does one after another (“every weekday at 8am, find AI news, then summarize it, then save it to a file”), when you run them, on a schedule or when BYTE opens. Build them in the ✅ panel; add one to Shortcuts to run it from the menu bar or with Siri.</small>
+          </span>
+          <input type="checkbox" checked={settings?.automationsEnabled ?? true} onChange={(e) => void update({ automationsEnabled: e.target.checked })} />
         </label>
         <label className="field">
           <span>

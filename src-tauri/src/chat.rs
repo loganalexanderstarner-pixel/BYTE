@@ -132,6 +132,8 @@ pub enum ChatEvent {
     Saved(crate::web_agent::SavedFile),
     /// BYTE did something in a Mac app (macctl.rs), with Undo when it added something.
     MacDone(crate::macctl::MacDone),
+    /// An automation started from chat: its steps, updated live by `automations://progress`.
+    AutomationRun(crate::automations::RunCard),
     /// The web agent's browser opened (true) or closed (false).
     Browsing { active: bool },
     /// What reviewers say: ratings, pros and cons (reviews.rs).

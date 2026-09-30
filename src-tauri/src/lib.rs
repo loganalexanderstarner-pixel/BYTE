@@ -61,6 +61,9 @@ mod writing;
 mod youtube;
 mod tune;
 mod units;
+mod automations;
+mod shortcut_make;
+mod background;
 
 use tauri::{Manager, RunEvent};
 
@@ -81,6 +84,21 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        // byte:// links (Shortcuts start automations) and opening at login (background.rs).
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_autostart::Builder::new().args(["--background"]).build())
+        // Keep running (macOS): closing the window hides it; ⌘Q quits.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let keep = cfg!(target_os = "macos")
+                    && window.label() == "main"
+                    && window.app_handle().try_state::<AppState>().is_some_and(|s| s.settings.try_lock().map(|s| s.keep_running).unwrap_or(true));
+                if keep {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         // The selection hotkey (selection.rs): one shortcut, registered from Settings.
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -118,6 +136,23 @@ pub fn run() {
             clipboard::watch(app.handle().clone());
             // Reminders, the daily briefing and scheduled questions.
             scheduler::start(app.handle().clone());
+            // The window stays hidden when the login item started BYTE.
+            if !background::launched_in_background() {
+                background::show_main(app.handle());
+            }
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let handle = app.handle().clone();
+                app.deep_link().on_open_url(move |e| background::open_links(&handle, e.urls()));
+                if let Ok(Some(urls)) = app.deep_link().get_current() {
+                    background::open_links(app.handle(), urls);
+                }
+                // The login item follows the setting (it may have been removed in System Settings).
+                let login = app.state::<AppState>().settings.blocking_lock().open_at_login;
+                if let Err(e) = background::apply_login(app.handle(), login) {
+                    log::warn!("{e}");
+                }
+            }
 
             // Logout, shutdown and `kill` send signals rather than quitting
             // through the menu; stop the engine so it can't outlive BYTE.
@@ -325,6 +360,13 @@ pub fn run() {
             commands::engine_status,
             commands::engine_restart,
             commands::engine_log,
+            automations::automations_list,
+            automations::automation_save,
+            automations::automation_delete,
+            automations::automation_run,
+            automations::automation_run_status,
+            automations::automation_trigger_parse,
+            shortcut_make::automation_shortcut,
             commands::chat_send,
             commands::chat_cancel,
         ])
@@ -332,6 +374,11 @@ pub fn run() {
         .expect("error while building BYTE");
 
     app.run(|handle, event| {
+        // Clicking BYTE in the Dock shows the window again (it may be hidden).
+        #[cfg(target_os = "macos")]
+        if let RunEvent::Reopen { .. } = event {
+            background::show_main(handle);
+        }
         if let RunEvent::Exit = event {
             if let Some(state) = handle.try_state::<AppState>() {
                 state.engine.kill_now();

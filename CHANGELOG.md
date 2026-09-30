@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.10.3 — Automations, Shortcuts and opening at login
+
+- **Automations**: a trigger (when you run it, on a schedule, or when BYTE opens) and up to 8 steps: ask BYTE,
+  the daily briefing, a notification, a to-do, save to a file (Documents → BYTE → Automations), or run one of your
+  Shortcuts. Each step gets the text from the one before. Built in the ✅ panel or asked for in chat ("every
+  weekday at 8am, find AI news, then summarize it, then save it to a file"), after an approval card.
+- **Multi-step requests** ("research X, then write a guide from it and save it to a file") run in the background
+  with a live card: each step as it goes, the result saved as a chat, a notification. A failed step stops the run;
+  "Run again from step N" keeps what worked.
+- **Add to Shortcuts**: makes a real Shortcut that starts the automation (menu bar, Dock, Siri), through a
+  `byte://` link with its own secret key. `byte://ask?q=…` puts a question in BYTE's message box (never sends it).
+- **Open at login** (starts quietly, no window) and **keep running when the window is closed** (⌘Q quits), so
+  schedules and watchers work all day.
+- Anything that needs your OK is declined at once when nobody is watching (a schedule or automation), instead of
+  waiting.
+- Tests: a terminal command split before a pipe is joined; the streaming test no longer relies on a tiny model's
+  sums.
+
 ## 0.10.2 — News feeds and page watchers
 
 - **News feeds**: follow a site or feed address (RSS, Atom; a site's page is enough) and ask "what's new in my

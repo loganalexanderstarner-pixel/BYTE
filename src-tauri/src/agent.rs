@@ -116,6 +116,8 @@ pub struct Modules {
     pub tasks: bool,
     /// News feeds and page watchers.
     pub watch: bool,
+    /// Automations and multi-step runs (automations.rs).
+    pub automations: bool,
 }
 
 /// BYTE searches before the model answers any question about the world
@@ -748,7 +750,9 @@ async fn specialist(
     let mac_reminders = cfg!(target_os = "macos") && turn.modules.mac;
     let tasks_db = turn.app.filter(|_| turn.modules.tasks).map(|a| &tauri::Manager::state::<crate::state::AppState>(a).inner().db);
     let watch_db = turn.app.filter(|_| turn.modules.watch).map(|a| &tauri::Manager::state::<crate::state::AppState>(a).inner().db);
-    Ok(if turn.modules.tasks && turn.app.is_some() && crate::briefing::applies(q) {
+    Ok(if turn.modules.automations && turn.app.is_some() && crate::automations::applies(q) {
+        crate::automations::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "automation"))
+    } else if turn.modules.tasks && turn.app.is_some() && crate::briefing::applies(q) {
         crate::briefing::run(turn, cancel, send).await?.map(|(b, n)| (b, n, "briefing"))
     } else if let Some(db) = tasks_db.filter(|_| crate::tasks::applies(q) || (!mac_reminders && crate::tasks::reminder_ask(q, chrono::Local::now().naive_local()).is_some())) {
         crate::tasks::run(turn, db, q, mac_reminders, cancel, send).await?.map(|(b, n)| (b, n, "tasks"))
@@ -1087,7 +1091,7 @@ mod tests {
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let http = chat::local_client();
         let net = tools::fetch::web_client();
-        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false, mac: false, upkeep: false, tasks: false, watch: false };
+        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false, mac: false, upkeep: false, tasks: false, watch: false, automations: false };
         let cases = [
             ("Reviews of the Sony WH-1000XM5", Mode::Auto, "reviews"),
             ("What's the cheapest place to buy a Steam Deck OLED?", Mode::Auto, "prices"),

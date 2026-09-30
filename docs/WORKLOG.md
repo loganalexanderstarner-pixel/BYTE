@@ -17,6 +17,26 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-30
 
+### (this commit) — v0.10.3: automations, Shortcuts and opening at login
+- **Why:** Phase 10 item 4 (HANDOFF §8): multi-step runs and an automations builder, plus creating Shortcuts (moved
+  here from Phase 9) and opening at login (schedules only ran while BYTE was open). Owner: "keep going with v0.10.3".
+- **What:** `automations.rs` (+ `automations_tests.rs`): steps, triggers, rule-based `plan` from chat, `execute` with
+  resume, background runs with `automations://progress`, one chat per run, chat routing first in `agent::specialist`
+  with an approval card. DB v13 (`automations`, `runs.automation_id`, `runs.steps`). `shortcut_make.rs` (binary plist
+  via the `plist` crate, `shortcuts sign`, `open`). `background.rs` (`tauri-plugin-deep-link` `byte://run|ask`,
+  `tauri-plugin-autostart` with `--background`, keep running on window close, Dock reopen). `web_agent::UNATTENDED`
+  declines approvals at once in unattended runs (`scheduler::ask_unattended`). `tauri.conf.json`: main window starts
+  hidden (shown in setup unless `--background`), deep-link scheme `byte`. Settings `automationsEnabled`,
+  `openAtLogin`, `keepRunning`. UI: `AutomationsSection.tsx` in the ✅ panel, `RunCard.tsx`, `lib/automations.ts`
+  (+ tests), Settings → About "In the background" and Features toggle, composer fills from `deeplink://ask`,
+  Activity label. `mac-engine.yml` runs on the new files (plutil + `shortcuts sign` check, the macOS-only Reopen code).
+  Screenshots `28-automations`, `28b-automation-approval`, `28c-automation-run`.
+- **Verify:** `cargo test automations background shortcut_make`; `npx vitest run src/lib/automations.test.ts`;
+  `scripts/check-all.sh`; on a Mac: ask "research X, then write a short guide from it and save it to a file" → Do it →
+  the card fills in, a notification, the file in Documents/BYTE/Automations; ✅ → Automations → link button → Add
+  Shortcut → run it from Shortcuts; Settings → About → Open BYTE at login, log out and in.
+- **Undo:** `git revert` this commit (DB v13 stays; older builds ignore the new table and columns).
+
 ### (this commit) — Mac test fixes: split terminal commands, a steady thinking-off check
 - **Why:** the Mac engine run on v0.10.1 failed 2 of 35 tests, both on Qwen3 0.6B. (1) `terminal::e2e_terminal_proposals`:
   the model put a line break before a pipe (`find … {} \n| grep -c 'file'`), and `parse` refuses any multi-line

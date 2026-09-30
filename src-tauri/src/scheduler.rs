@@ -451,7 +451,8 @@ pub async fn ask_unattended(state: &AppState, question: &str) -> Answer {
         task: None,
     };
     let (ch, seen) = collector();
-    let result = crate::backend::answer(state, request, &ch).await;
+    // Nobody can answer an approval card here: those steps are declined at once.
+    let result = crate::web_agent::UNATTENDED.scope(true, crate::backend::answer(state, request, &ch)).await;
     let events = seen.lock().unwrap_or_else(|p| p.into_inner()).clone();
     let mut a = answer_from(&events);
     if let Err(e) = result {
@@ -553,6 +554,7 @@ pub async fn tick(app: &AppHandle) {
         }
     }
     crate::watchers::tick(app).await;
+    crate::automations::tick(app).await;
 }
 
 /// Starts the loop (at launch).
@@ -560,6 +562,7 @@ pub fn start(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         // Let the engine start first, so a missed briefing has a model to write it.
         tokio::time::sleep(Duration::from_secs(45)).await;
+        crate::automations::run_launch(&app);
         loop {
             tick(&app).await;
             tokio::time::sleep(TICK).await;

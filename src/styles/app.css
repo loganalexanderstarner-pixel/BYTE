@@ -5120,3 +5120,119 @@ kbd {
 .topics-input {
   min-width: 200px;
 }
+
+/* Automations (✅ panel) and a run's card in chat. */
+.run-card {
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+}
+.run-card.done {
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--border));
+  background: color-mix(in srgb, var(--ok) 5%, var(--surface));
+}
+.run-card.failed {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  background: color-mix(in srgb, var(--danger) 5%, var(--surface));
+}
+.run-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.run-head > svg {
+  color: var(--accent);
+}
+.run-head .muted {
+  margin-left: auto;
+}
+.run-steps {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+}
+.run-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 3px 0;
+}
+.run-steps li > svg {
+  flex: none;
+  margin-top: 3px;
+}
+.run-steps li.waiting {
+  color: var(--text-2);
+}
+.run-steps .ok {
+  color: var(--ok);
+}
+.run-steps .bad {
+  color: var(--danger);
+}
+.run-steps .grow {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.run-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.auto-builder {
+  margin: var(--space-2) 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.auto-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+.auto-row .grow,
+.auto-steps .grow {
+  flex: 1;
+  min-width: 10rem;
+}
+.auto-row .spacer {
+  flex: 1;
+}
+.auto-steps {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+}
+.auto-steps li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 0;
+}
+.auto-steps .step-no {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+.auto-manual code {
+  display: block;
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  .run-steps .spin {
+    animation: none;
+  }
+}

@@ -31,6 +31,11 @@ on:
       - "src-tauri/src/briefing.rs"
       - "src-tauri/src/scheduler.rs"
       - "src-tauri/src/tasks.rs"
+      # Automations, Shortcuts made by BYTE (plutil + shortcuts sign), the Dock reopen handler.
+      - "src-tauri/src/automations.rs"
+      - "src-tauri/src/shortcut_make.rs"
+      - "src-tauri/src/background.rs"
+      - "src-tauri/src/lib.rs"
       # The web agent saves pages with WKWebView (web_agent/capture_mac.rs).
       - "src-tauri/src/web_agent/**"
       - "src-tauri/Cargo.toml"

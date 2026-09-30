@@ -301,6 +301,9 @@ pub async fn settings_get(state: State<'_, AppState>) -> AppResult<Settings> {
 pub async fn settings_update(app: AppHandle, state: State<'_, AppState>, patch: serde_json::Value) -> AppResult<Settings> {
     let mut s = state.settings.lock().await;
     let next = s.merged(patch)?;
+    if next.open_at_login != s.open_at_login {
+        crate::background::apply_login(&app, next.open_at_login).map_err(AppError::msg)?;
+    }
     next.save(&state.paths.settings_file)?;
     *s = next.clone();
     crate::selection::apply(&app, next.selection_hotkey && next.mac_control);

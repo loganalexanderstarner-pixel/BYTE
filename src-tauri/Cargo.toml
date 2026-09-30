@@ -1,6 +1,6 @@
 [package]
 name = "byte"
-version = "0.10.2"
+version = "0.10.3"
 description = "BYTE — a local-first AI assistant for Apple Silicon Macs"
 authors = ["Logan Starner"]
 edition = "2021"
@@ -24,6 +24,9 @@ tauri-plugin-opener = "2.6"
 tauri-plugin-global-shortcut = "2"
 # Reminders, finished briefings and scheduled runs (scheduler.rs).
 tauri-plugin-notification = "2"
+tauri-plugin-deep-link = "2"
+tauri-plugin-autostart = "2"
+plist = "1"
 
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }

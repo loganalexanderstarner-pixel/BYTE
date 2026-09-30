@@ -477,7 +477,7 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 **Done in v0.8.0:** `gguf.rs` + `lab.rs` (model lab, `<data>/added_models.json`, `CatalogStore::set_added`), per-model
 `settings.model_overrides` (`ModelOverride::apply`) + `TuningPanel`, `battery_saver` (`system::battery`), `commands::engine_live`
 (with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
-**Next:** Phase 10 continues (v0.10.0 Mac upkeep, v0.10.1 tasks and briefing, v0.10.2 feeds and watchers are done; next is v0.10.3 multi-step runs + automations; see the Phase 10 section). Way of working
+**Next:** Phase 10 continues (v0.10.0 Mac upkeep, v0.10.1 tasks and briefing, v0.10.2 feeds and watchers, v0.10.3 automations + Shortcuts + open at login are done; next is v0.10.4 trackers; see the Phase 10 section). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
@@ -559,7 +559,7 @@ collecting Channel, saved as chats, notifications via `tauri-plugin-notification
 (to-dos, reminders, repeats, chat routing, scheduled questions after an approval card; "remind me" goes to Apple
 Reminders when Mac control is on); `briefing.rs` (composed by BYTE, not a model: Gemma 1B invented to-dos and news
 when a model wrote it; sent as BYTE's own reply like flashcards). UI `TasksPanel.tsx`, `lib/tasks.ts`; settings
-`tasksEnabled`, `briefingTopics`. Schedules only run while BYTE is open (start at login comes with v0.10.3).
+`tasksEnabled`, `briefingTopics`. Schedules only run while BYTE is open (open at login came in v0.10.3).
 **Done in v0.10.2:** DB v12 (`feeds`, `feed_items`, `watchers`, `watch_events`). `feeds.rs`: RSS 2.0/RSS 1.0/Atom via
 `quick-xml` (no new crate), feed discovery from a page's `<link rel=alternate>` then common paths, items stored once
 (`UNIQUE(feed_id, guid)`, 300 kept per feed, only the newest 5 count as new when a feed is first followed), a digest
@@ -573,8 +573,23 @@ card. `tools::fetch::fetch_raw` (feeds; also accepts XML). Setting `watchEnabled
 `WatchSection.tsx` in the ✅ panel, `lib/watch.ts`. Live-checked with `cargo test e2e_real -- --ignored` (HN, Rust
 blog, The Verge via discovery, BBC, GitHub blog). Fixed: `briefing::write` used `web_mode != "off"` (never true)
 instead of `web_search`.
+**Done in v0.10.3:** DB v13 (`automations`; `runs` gains `automation_id` + `steps` JSON). `automations.rs`: trigger
+("manual", "launch" or a scheduler spec) + up to 8 `Step`s (Ask through `scheduler::ask_unattended`, Briefing, Notify,
+AddTask, SaveFile into ~/Documents/BYTE/Automations with `file_stem`, Shortcut via `shortcuts run -i/-o`); `execute`
+hands each step's text on (`ask_prompt` adds it only when the step says "it/that/…" or `{previous}`), stops at the
+first failure and resumes "from step N" with the saved results; runs in the background, `automations://progress`,
+one chat per run, notification. Requests are read by rules (`plan`: trigger via `spec_in` / "when BYTE opens", split
+on then/;/"and save|send|add|run…", every Ask part must start with an instruction verb), routed first in
+`agent::specialist`, approval card before saving/running; `ChatEvent::AutomationRun` + `RunCard.tsx`.
+`web_agent::UNATTENDED` (task-local set by `ask_unattended`) declines approval cards at once. `shortcut_make.rs`:
+binary plist (URL + Open URLs actions, `plist` crate) → `shortcuts sign --mode anyone` → `open`; fallback shows the
+link. `background.rs`: `tauri-plugin-deep-link` (`byte://run/<id>?key=` with a 64-hex per-automation key,
+`byte://ask?q=` fills the composer only), `tauri-plugin-autostart` LaunchAgent with `--background` (main window is
+`visible: false` and shown in setup unless started that way), keep running (CloseRequested hides on macOS,
+`RunEvent::Reopen` shows). Settings `automationsEnabled`, `openAtLogin`, `keepRunning`. UI `AutomationsSection.tsx`
+(builder), `lib/automations.ts`. Screenshots `28-*`.
 **Split of the rest:** v0.10.1 tasks & reminders + scheduler (`scheduler.rs`) + daily briefing;
-v0.10.2 news/RSS digest + page watchers (price alerts) ✅; v0.10.3 multi-step runs + automations builder + creating
+v0.10.2 news/RSS digest + page watchers (price alerts) ✅; v0.10.3 ✅ multi-step runs + automations builder + creating
 Shortcuts; v0.10.4 trackers; v0.10.5 connectors; v0.10.6 dashboards.
 1. **Mac upkeep**: storage analyzer (treemap, duplicates, big/old files, safe-to-delete explanations),
    battery & performance coach, Mac Q&A with open-the-setting buttons, app uninstaller (bundle + leftovers),

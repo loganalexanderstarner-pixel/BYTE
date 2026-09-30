@@ -61,6 +61,12 @@ export interface Settings {
   tasksEnabled?: boolean;
   briefingTopics?: string[];
   watchEnabled?: boolean;
+  /** Automations and multi-step runs (✅ panel). */
+  automationsEnabled?: boolean;
+  /** Open BYTE in the background at login. */
+  openAtLogin?: boolean;
+  /** Closing the window keeps BYTE running (macOS); ⌘Q quits. */
+  keepRunning?: boolean;
   /** ⌥⌘B opens selected text from any app in the writing studio. */
   selectionHotkey?: boolean;
   /** Keep a history of copied text (off by default; secrets are skipped). */
@@ -421,6 +427,7 @@ export type ChatEvent =
   | ({ kind: "saved" } & SavedFile)
   | { kind: "browsing"; active: boolean }
   | ({ kind: "macDone" } & MacDone)
+  | ({ kind: "automationRun" } & RunCard)
   | ({ kind: "reviews" } & Reviews)
   | ({ kind: "prices" } & Prices)
   | ({ kind: "hints" } & GameHints)
@@ -470,6 +477,65 @@ export interface Feed {
   lastError: string;
   /** New items not yet in a digest. */
   unseen: number;
+}
+
+/** One step of an automation (Rust `automations::Step`). `{previous}` is the text from the step before. */
+export type AutoStep =
+  | { type: "ask"; prompt: string }
+  | { type: "briefing" }
+  | { type: "notify"; title: string; body: string }
+  | { type: "addTask"; title: string }
+  | { type: "saveFile"; name: string }
+  | { type: "shortcut"; name: string };
+
+/** An automation (Rust `automations::Automation`). `trigger`: "manual", "launch" or a schedule spec. */
+export interface Automation {
+  id: number;
+  name: string;
+  trigger: string;
+  steps: AutoStep[];
+  enabled: boolean;
+  lastRun: number | null;
+  nextRun: number | null;
+  when: string;
+  lastOk: boolean | null;
+  lastChat: string | null;
+  /** A Shortcut can start it. */
+  linked: boolean;
+}
+
+/** How a step of a run went. */
+export interface StepRun {
+  label: string;
+  status: "waiting" | "running" | "done" | "failed";
+  detail: string;
+}
+
+/** A run's state (`automations://progress`). */
+export interface RunView {
+  runId: number;
+  automationId: number;
+  name: string;
+  steps: StepRun[];
+  finished: boolean;
+  ok: boolean;
+  chat: string | null;
+}
+
+/** The chat card for a run started from chat. */
+export interface RunCard {
+  runId: number;
+  automationId: number;
+  name: string;
+  when: string;
+  steps: StepRun[];
+}
+
+/** Making a Shortcut for an automation. */
+export interface ShortcutMade {
+  opened: boolean;
+  link: string;
+  message: string;
 }
 
 /** A watched page (Rust `watchers::Watcher`). */

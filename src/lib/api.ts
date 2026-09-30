@@ -11,6 +11,9 @@ import type {
   Schedule,
   Feed,
   Watcher,
+  Automation,
+  RunView,
+  ShortcutMade,
   WatchEvent,
   BoostInfo,
   Captured,
@@ -215,6 +218,19 @@ export const api = {
   watcherEvents: (id: number) => invoke<WatchEvent[]>("watcher_events", { id }),
   watcherCheck: (id: number) => invoke<Watcher>("watcher_check", { id }),
   onWatcherChanged: (cb: (id: number) => void): Promise<UnlistenFn> => listen<number>("watchers://changed", (e) => cb(e.payload)),
+  // Automations (automations.rs, shortcut_make.rs).
+  automationsList: () => invoke<Automation[]>("automations_list"),
+  automationSave: (automation: Automation) => invoke<Automation>("automation_save", { automation }),
+  automationDelete: (id: number) => invoke<void>("automation_delete", { id }),
+  /** Runs it now (from step `from`, 0-based); the run's id. */
+  automationRun: (id: number, from?: number) => invoke<number>("automation_run", { id, from: from ?? null }),
+  automationRunStatus: (runId: number) => invoke<RunView | null>("automation_run_status", { runId }),
+  /** "every weekday at 8am" / "when BYTE opens" → [trigger, description], or null. */
+  automationTriggerParse: (text: string) => invoke<[string, string] | null>("automation_trigger_parse", { text }),
+  automationShortcut: (id: number) => invoke<ShortcutMade>("automation_shortcut", { id }),
+  onAutomationProgress: (cb: (v: RunView) => void): Promise<UnlistenFn> => listen<RunView>("automations://progress", (e) => cb(e.payload)),
+  /** A byte://ask link: text for the message box (never sent by itself). */
+  onDeepLinkAsk: (cb: (text: string) => void): Promise<UnlistenFn> => listen<string>("deeplink://ask", (e) => cb(e.payload)),
   // Mac upkeep (upkeep.rs): ids from the card, never paths.
   upkeepTrash: (scanId: string, id: string) => invoke<Trashed>("upkeep_trash", { scanId, id }),
   upkeepReveal: (scanId: string, id: string) => invoke<void>("upkeep_reveal", { scanId, id }),

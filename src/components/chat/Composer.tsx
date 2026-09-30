@@ -58,6 +58,17 @@ export function Composer() {
   const [browse, setBrowse] = useState(false);
   // Tutor pill: teach step by step in this chat (stays on until turned off or the chat changes).
   const [tutor, setTutor] = useState(false);
+  // A byte://ask link (from a Shortcut): the question waits in a new chat's box; it's never sent by itself.
+  const newChat = useStore((s) => s.newChat);
+  useEffect(() => {
+    if (!inTauri) return;
+    const off = api.onDeepLinkAsk((t) => {
+      newChat();
+      setText(t);
+      setTimeout(() => ref.current?.focus(), 0);
+    });
+    return () => void off.then((f) => f());
+  }, [newChat]);
   useEffect(() => setTutor(false), [currentId]);
   const toggleWeb = useStore((s) => s.toggleWeb);
   const toggleFiles = useStore((s) => s.toggleFiles);

@@ -206,8 +206,18 @@ pub fn answer(id: &str, ok: bool) -> bool {
     tx.map(|tx| tx.send(ok).is_ok()).unwrap_or(false)
 }
 
+tokio::task_local! {
+    /// Set while BYTE works with nobody watching (schedules, automations):
+    /// anything that needs an approval is declined at once instead of waiting.
+    pub static UNATTENDED: bool;
+}
+
 /// Shows an approval card and waits for the answer (Deny on timeout).
 pub(crate) async fn ask(ask: ApprovalAsk, wait: Duration, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<bool> {
+    if UNATTENDED.try_with(|u| *u).unwrap_or(false) {
+        log::info!("\"{}\" needs an approval; nobody is watching, so it wasn't done", ask.title);
+        return Ok(false);
+    }
     let id = ask.id.clone();
     let rx = wait_for(&id);
     send(ChatEvent::Approval(ask))?;
