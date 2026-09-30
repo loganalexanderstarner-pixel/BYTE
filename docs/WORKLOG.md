@@ -17,6 +17,15 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-30
 
+### (this commit) — Translation: low temperature, so small models keep the right words
+- **Why:** the Mac engine run on `7eb336b` (v0.10.0) passed every new upkeep test (all scripts compile, the health
+  check runs on a real Mac) but failed `translate::e2e_translate`: Qwen3 0.6B wrote "Libro abrige…" ("book") for
+  "The library opens…". Translation used the model's chat sampling (temperature 0.7 for Qwen3).
+- **What:** `translate.rs`: `TEMPERATURE = 0.2` for every translated part (like the writing studio's grammar fix at
+  0.1); a unit test pins it low. `mac-engine.yml` now also runs on `translate.rs` changes.
+- **Verify:** `e2e_translate` on Qwen3 0.6B locally 4/4 with "biblioteca" (before: failed on the Mac runner).
+- **Undo:** revert.
+
 ### (this commit) — v0.10.0: Mac upkeep (Phase 10 starts)
 - **Why:** Phase 10 item 1 (HANDOFF §8): storage analyzer, battery & performance coach, self-diagnostics, app
   uninstaller, login items. Built while the v0.9.3 release built (v0.9.3 is published with its .dmg).

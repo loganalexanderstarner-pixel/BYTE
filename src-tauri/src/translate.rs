@@ -17,6 +17,8 @@ use crate::error::{AppError, AppResult};
 const PART: usize = 1800;
 /// Longest text translated at once (about 20 pages).
 pub const MAX_CHARS: usize = 60_000;
+/// Sampling temperature for translating (low: the same words every time, not creative ones).
+const TEMPERATURE: f64 = 0.2;
 
 const LANGUAGES: &[&str] = &[
     "English", "Spanish", "French", "German", "Italian", "Portuguese", "Brazilian Portuguese", "Dutch", "Russian", "Ukrainian",
@@ -208,7 +210,10 @@ pub async fn run(turn: &Turn<'_>, question: &str, cancel: &CancellationToken, se
     let mut out = String::new();
     for (i, piece) in pieces.iter().enumerate() {
         plan.max_tokens = ((piece.chars().count() as f64 / 2.0) as u32 + 200).min(4000);
-        let body = chat::build_body(chat::base_messages(&system, &[ChatMessage::new("user", piece.clone())]), plan, None);
+        let mut body = chat::build_body(chat::base_messages(&system, &[ChatMessage::new("user", piece.clone())]), plan, None);
+        // Faithful, not creative: the chat sampling let small models swap words
+        // ("biblioteca" became "libro").
+        body["temperature"] = json!(TEMPERATURE);
         if i > 0 {
             send(ChatEvent::Content { delta: "\n\n".into() })?;
             out.push_str("\n\n");
@@ -259,6 +264,11 @@ mod tests {
         let content = "Translate this into French\n\n<file name=\"a.txt\">\nHello there.\nSecond line.\n</file>\n\n<file name=\"b.txt\">\nMore.\n</file>";
         assert_eq!(attached_text(content).unwrap(), "Hello there.\nSecond line.\n\nMore.");
         assert!(attached_text("no files").is_none());
+    }
+
+    #[test]
+    fn translation_is_sampled_for_accuracy() {
+        assert!(TEMPERATURE <= 0.3);
     }
 
     /// Real engine: the answer above, into Spanish, streamed with nothing added.
