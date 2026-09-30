@@ -18,6 +18,19 @@ const WRITER: &str = "You are BYTE's writing editor. You change the user's text 
 new text: no preface like \"Here is\", no quotes around it, no notes after it, no code fences. Keep the author's meaning, \
 facts, names and numbers, the language they wrote in, their paragraph breaks and any Markdown formatting.";
 
+/// For Reply and Explain: the text is a message to answer or understand, not one to edit.
+const HELPER: &str = "You help the user with messages they received. You never repeat the message back. Reply with only what \
+you're asked to write: no preface like \"Here is\", no quotes around it, no notes after it.";
+
+/// The system prompt for an action.
+fn system_for(action: Action) -> &'static str {
+    if matches!(action, Action::Reply | Action::Explain) {
+        HELPER
+    } else {
+        WRITER
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Action {
@@ -28,6 +41,10 @@ pub enum Action {
     Grammar,
     /// Into the language given as `tone`.
     Translate,
+    /// The user's reply to a message someone sent them (selection hotkey).
+    Reply,
+    /// What the text means, in plain words (not a new version of it).
+    Explain,
 }
 
 /// What the model is asked to do.
@@ -53,6 +70,13 @@ Don't invent facts about real people, dates, prices or numbers."
             "Translate this text into {}. Translate everything, keep the meaning, tone, names, numbers and formatting.",
             tone.filter(|t| !t.trim().is_empty()).unwrap_or("English")
         ),
+        Action::Reply => "Below is a message someone sent the user. Write the user's answer to that person: two to four friendly, natural \
+sentences that respond to what they asked or said, starting with a greeting. Don't copy their message. Don't invent facts, dates or \
+plans; for anything the user would have to decide, say they'll confirm. No placeholders like [Name]."
+            .into(),
+        Action::Explain => "Explain this text in plain words for the user: what it means, and anything they should know or do because of it. \
+A few short sentences or bullets, not a rewrite of it."
+            .into(),
         Action::Grammar => "Fix spelling, grammar and punctuation only. Change nothing else: not the wording, the style or the meaning. \
 If it's already correct, return it exactly as it is."
             .into(),
@@ -67,6 +91,7 @@ pub fn max_tokens(action: Action, text: &str) -> u32 {
         Action::Shorten => tokens * 0.8 + 150.0,
         // Other scripts can take more tokens than the original.
         Action::Translate => tokens * 2.2 + 300.0,
+        Action::Reply | Action::Explain => tokens * 0.8 + 300.0,
         _ => tokens * 1.4 + 200.0,
     };
     want.clamp(200.0, 8000.0) as u32
@@ -74,6 +99,9 @@ pub fn max_tokens(action: Action, text: &str) -> u32 {
 
 /// The request the model sees.
 pub fn user_message(action: Action, tone: Option<&str>, text: &str) -> String {
+    if action == Action::Reply {
+        return format!("{}\n\nTheir message:\n<<<\n{}\n>>>\n\nThe user's reply:", instructions(action, tone), text.trim());
+    }
     format!("{}{}\n\nText:\n<<<\n{}\n>>>", instructions(action, tone), length_target(action, text), text.trim())
 }
 
@@ -92,7 +120,7 @@ fn length_target(action: Action, text: &str) -> String {
 #[cfg(test)]
 pub fn request_body(action: Action, tone: Option<&str>, text: &str, profile: crate::modelcfg::ModelProfile) -> serde_json::Value {
     let temperature = if action == Action::Grammar { Some(0.1) } else { None };
-    text_body(WRITER, &user_message(action, tone, text), max_tokens(action, text), temperature, profile)
+    text_body(system_for(action), &user_message(action, tone, text), max_tokens(action, text), temperature, profile)
 }
 
 /// Runs one studio action; the new text streams as `Content`, then `Done`.
@@ -107,9 +135,89 @@ pub async fn writing_run(state: State<'_, AppState>, request_id: String, text: S
     }
     // Grammar fixes keep the author's own style by definition.
     let style = if like_me.unwrap_or(false) && action != Action::Grammar { style_of(&state).await } else { String::new() };
-    let system = format!("{WRITER}{}", style_rules(&style));
+    let system = format!("{}{}", system_for(action), style_rules(&style));
     let temperature = if action == Action::Grammar { Some(0.1) } else { None };
+    if action == Action::Reply {
+        if let Some(ep) = state.engine.endpoint().await {
+            return reply_local(&state, &ep, &request_id, &system, &text, &on_event).await;
+        }
+    }
     stream_text(&state, &request_id, &system, &user_message(action, tone.as_deref(), &text), max_tokens(action, &text), temperature, &on_event).await
+}
+
+/// The reply only repeats the message (small models do): its first words, or all
+/// of it if shorter, appear in the message in the same order.
+pub fn echoes(reply: &str, message: &str) -> bool {
+    let norm = |s: &str| s.to_lowercase().split(|c: char| !c.is_alphanumeric() && c != '\'').filter(|w| !w.is_empty()).map(String::from).collect::<Vec<_>>();
+    let r = norm(reply);
+    let m = norm(message).join(" ");
+    // A greeting on its own proves nothing: skip "hi"/"hey"/"hello" and a name.
+    let start = r.iter().position(|w| !matches!(w.as_str(), "hi" | "hey" | "hello" | "dear")).unwrap_or(0);
+    let take: Vec<&String> = r.iter().skip(start).take(6).collect();
+    take.len() >= 3 && m.contains(&take.iter().map(|w| w.as_str()).collect::<Vec<_>>().join(" "))
+}
+
+/// Writes a reply, asking again (warmer, more explicit) when the model only repeated
+/// the message; `generate(attempt)` returns one full reply.
+pub(crate) async fn reply_text<F, Fut>(message: &str, mut generate: F) -> AppResult<String>
+where
+    F: FnMut(u32) -> Fut,
+    Fut: std::future::Future<Output = AppResult<String>>,
+{
+    for attempt in 0..3 {
+        let out = generate(attempt).await?;
+        let out = out.trim().trim_matches('"').trim().to_string();
+        if !out.is_empty() && !echoes(&out, message) {
+            return Ok(out);
+        }
+    }
+    Err(AppError::msg("This model keeps repeating the message instead of answering it. Try again, or use a bigger model (Settings → Models)."))
+}
+
+/// The request for one reply attempt: later attempts are warmer and say plainly not to repeat.
+fn reply_request(system: &str, message: &str, attempt: u32, profile: crate::modelcfg::ModelProfile) -> serde_json::Value {
+    let mut user = user_message(Action::Reply, None, message);
+    if attempt > 0 {
+        user = user.replace("\n\nThe user's reply:", "\n\nDon't repeat their words back: answer them, as the user.\n\nThe user's reply:");
+    }
+    text_body(system, &user, max_tokens(Action::Reply, message), Some(if attempt == 0 { 0.7 } else { 0.95 }), profile)
+}
+
+/// Reply on this Mac: written whole (it's short), checked, then shown.
+async fn reply_local(state: &AppState, ep: &crate::engine::Endpoint, request_id: &str, system: &str, message: &str, on_event: &Channel<ChatEvent>) -> AppResult<()> {
+    let catalog = state.catalog.get();
+    let profile = catalog.resolve(&ep.model).map(|(m, _)| crate::modelcfg::profile(m)).unwrap_or_default();
+    let cancel = state.generations.register(request_id).await;
+    let _ = on_event.send(ChatEvent::Started { thinking: false, model: ep.model.clone() });
+    let r = reply_text(message, |attempt| {
+        let body = reply_request(system, message, attempt, profile.clone());
+        let cancel = cancel.clone();
+        async move {
+            let mut out = String::new();
+            let mut collect = |e: ChatEvent| -> AppResult<()> {
+                if let ChatEvent::Content { delta } = e {
+                    out.push_str(&delta);
+                }
+                Ok(())
+            };
+            chat::stream_round(&state.local_http, ep, &body, &cancel, &mut collect).await?;
+            Ok(out)
+        }
+    })
+    .await;
+    state.generations.finish(request_id).await;
+    match r {
+        Ok(text) => {
+            let _ = on_event.send(ChatEvent::Content { delta: text });
+            let _ = on_event.send(ChatEvent::Done { finish_reason: "stop".into() });
+            Ok(())
+        }
+        Err(AppError::Cancelled) => {
+            let _ = on_event.send(ChatEvent::Done { finish_reason: "cancelled".into() });
+            Ok(())
+        }
+        Err(e) => Err(e),
+    }
 }
 
 /// Streams one request's text (thinking off) from the model on this Mac, or the BYTE
@@ -508,6 +616,43 @@ mod tests {
     }
 
     #[test]
+    fn echoed_replies_are_caught() {
+        let msg = "Hi! Could you move our review to Thursday at 10? Thanks, Priya";
+        assert!(echoes("Hi! Could you move our review to Thursday at 10?", msg));
+        assert!(echoes("could you move our review to thursday", msg));
+        assert!(!echoes("Hi Priya, Thursday at 10 works for me.", msg));
+        assert!(!echoes("Hey Priya, sounds good to me.", msg));
+        assert!(!echoes("Sure!", msg), "too short to tell");
+    }
+
+    #[tokio::test]
+    async fn a_repeated_message_is_asked_again() {
+        let msg = "Could you move our review to Thursday at 10?";
+        let mut tries = vec!["Could you move our review to Thursday at 10?".to_string(), "Sure, Thursday at 10 works for me!".to_string()].into_iter();
+        let out = reply_text(msg, |_| {
+            let next = tries.next().unwrap();
+            async move { Ok(next) }
+        })
+        .await
+        .unwrap();
+        assert_eq!(out, "Sure, Thursday at 10 works for me!");
+        let r = reply_text(msg, |_| async { Ok("Could you move our review to Thursday at 10?".to_string()) }).await;
+        assert!(r.unwrap_err().to_string().contains("keeps repeating"));
+        let b = reply_request(HELPER, msg, 1, Default::default());
+        assert!(b.to_string().contains("Don't repeat their words back"));
+    }
+
+    #[test]
+    fn reply_and_explain_are_asked_plainly() {
+        let r = user_message(Action::Reply, None, "Can you make it Friday at 7?");
+        assert!(r.contains("Write the user's answer") && r.contains("No placeholders") && r.ends_with("Can you make it Friday at 7?\n>>>\n\nThe user's reply:"));
+        assert_eq!(system_for(Action::Reply), HELPER);
+        assert_eq!(system_for(Action::Grammar), WRITER);
+        assert!(user_message(Action::Explain, None, "x").contains("not a rewrite"));
+        assert!(max_tokens(Action::Reply, "Hi") >= 300);
+    }
+
+    #[test]
     fn shorten_and_expand_get_a_word_target() {
         let text = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen";
         assert!(user_message(Action::Shorten, None, text).contains("The text has 14 words; your version must have at most 7 words."));
@@ -547,6 +692,26 @@ is now Thursday morning at ten o'clock in the same room as before, and please le
         eprintln!("grammar: {fixed}");
         let f = fixed.to_lowercase();
         assert!(f.contains("library") && f.contains("tomorrow") && !f.contains("libary"), "{fixed}");
+        let msg = "Hi! Could you move our review to Thursday at 10? Thanks, Priya";
+        let reply = reply_text(msg, |attempt| {
+            let (http, ep) = (http.clone(), ep.clone());
+            async move {
+                let body = reply_request(HELPER, msg, attempt, Default::default());
+                let mut out = String::new();
+                let mut f = |e: ChatEvent| {
+                    if let ChatEvent::Content { delta } = e {
+                        out.push_str(&delta);
+                    }
+                    Ok(())
+                };
+                chat::stream_round(&http, &ep, &body, &tokio_util::sync::CancellationToken::new(), &mut f).await?;
+                eprintln!("reply attempt {attempt}: {out}");
+                Ok(out)
+            }
+        })
+        .await
+        .unwrap();
+        assert!(!reply.contains('[') && reply.len() < 600 && !echoes(&reply, msg), "{reply}");
     }
 
     fn ask(kind: Kind) -> LongAsk {

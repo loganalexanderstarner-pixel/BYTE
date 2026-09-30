@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.2 — Selected text anywhere, clipboard history
+
+- **⌥⌘B**: select text in any app and it opens in the writing studio; new **Reply** and **Explain** actions;
+  **Paste into <app>** puts the result back. Your clipboard is left as it was.
+- **Clipboard history** (opt-in): the last 200 copies, searchable, encrypted; password-manager items and
+  password-like text are never kept.
+- Replies are checked: if a small model only repeats the message, BYTE asks it again.
+
 ## 0.9.1 — Mail and Messages
 
 - "Any new emails?", "summarize my inbox", "did Sam email me?": BYTE reads Mail and says what needs a reply first.

@@ -854,6 +854,9 @@ a {
 .banner.danger {
   border-color: color-mix(in srgb, var(--danger) 45%, transparent);
 }
+.banner.warn {
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+}
 .banner .grow {
   flex: 1;
 }
@@ -3758,6 +3761,53 @@ kbd {
 }
 
 /* Web agent: approval cards, saved files, the browsing bar. */
+/* Clipboard history */
+.clips-search {
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+.clips-search input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+}
+.clips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+}
+.clips li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.clips .clip-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.clips .clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
 /* Mac control: what BYTE did in an app, with Undo */
 .mac-card {
   display: flex;

@@ -17,6 +17,8 @@ on:
       - "src-tauri/src/ocr.rs"
       - "src-tauri/src/macctl.rs"
       - "src-tauri/src/macctl_tests.rs"
+      - "src-tauri/src/selection.rs"
+      - "src-tauri/src/clipboard.rs"
       - "src-tauri/src/files.rs"
       - "src-tauri/src/embed.rs"
       - "src-tauri/src/kb.rs"

@@ -4,6 +4,7 @@ mod answer_cache;
 mod backend;
 mod chat;
 mod chip;
+mod clipboard;
 mod cloud;
 mod commands;
 mod db;
@@ -37,6 +38,7 @@ mod prompt;
 mod quality;
 mod research;
 mod router;
+mod selection;
 mod settings;
 mod speed;
 mod state;
@@ -70,6 +72,16 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
+        // The selection hotkey (selection.rs): one shortcut, registered from Settings.
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        selection::pressed(app);
+                    }
+                })
+                .build(),
+        )
         .setup(|app| {
             let paths = paths::Paths::resolve(app.handle())?;
             let state = AppState::new(paths);
@@ -85,9 +97,16 @@ pub fn run() {
             // Models the user added (model lab) join the catalog.
             state.catalog.set_added(crate::lab::load(&state.paths.data.join("added_models.json")).iter().map(crate::lab::LabModel::to_catalog).collect());
             let _ = state.app.set(app.handle().clone());
+            let hotkey = {
+                let s = state.settings.blocking_lock();
+                s.selection_hotkey && s.mac_control
+            };
             let catalog = state.catalog.get();
             let models_dir = state.paths.models.clone();
             app.manage(state);
+            // Mac control: the selection hotkey and clipboard history (each checks its setting).
+            selection::apply(app.handle(), hotkey);
+            clipboard::watch(app.handle().clone());
 
             // Logout, shutdown and `kill` send signals rather than quitting
             // through the menu; stop the engine so it can't outlive BYTE.
@@ -174,6 +193,11 @@ pub fn run() {
             lab::lab_list,
             lab::lab_remove,
             macctl::mac_undo,
+            selection::selection_paste,
+            clipboard::clip_list,
+            clipboard::clip_copy,
+            clipboard::clip_delete,
+            clipboard::clip_clear,
             writing::writing_run,
             writing::writing_outline,
             writing::writing_section,

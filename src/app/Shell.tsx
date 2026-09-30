@@ -1,4 +1,4 @@
-import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot } from "lucide-react";
+import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot, ClipboardList } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ChatView } from "../components/chat/ChatView";
@@ -9,6 +9,8 @@ import { RecipeBox } from "../components/kitchen/RecipeBox";
 import { StudyPanel } from "../components/study/StudyPanel";
 import { WritingPanel } from "../components/writing/WritingPanel";
 import { JobsPanel } from "../components/jobs/JobsPanel";
+import { ClipboardPanel } from "../components/clipboard/ClipboardPanel";
+import { api } from "../lib/api";
 import { AssistantsPanel } from "../components/assistants/AssistantsPanel";
 import { Reader } from "../components/reader/Reader";
 import { SettingsModal } from "../components/settings/SettingsModal";
@@ -34,9 +36,21 @@ export function Shell() {
   const [jobsOpen, setJobsOpen] = useState(false);
   const assistantsOn = useStore((s) => s.settings?.assistantsEnabled !== false);
   const [assistantsOpen, setAssistantsOpen] = useState(false);
+  const clipsOn = useStore((s) => s.settings?.macControl !== false && s.settings?.clipboardHistory === true);
+  const [clipsOpen, setClipsOpen] = useState(false);
+  const writingKey = useStore((s) => s.writing?.seq ?? 0);
   const settingsTab = useStore((s) => s.settingsTab);
   const stop = useStore((s) => s.stop);
   const reading = useStore((s) => !!s.reader);
+
+  // ⌥⌘B in another app: its selected text opens in the writing studio.
+  useEffect(() => {
+    const offs = [
+      api.onSelection((c) => openWriting(c.text, c.app || undefined)),
+      api.onSelectionError((m) => openWriting("", undefined, m)),
+    ];
+    return () => offs.forEach((p) => void p.then((off) => off()));
+  }, [openWriting]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -94,6 +108,11 @@ export function Shell() {
                 <Bot size={18} />
               </button>
             )}
+            {clipsOn && (
+              <button className="icon-btn" onClick={() => setClipsOpen(true)} title="Clipboard history: what you copied lately">
+                <ClipboardList size={18} />
+              </button>
+            )}
             {jobsOn && (
               <button className="icon-btn" onClick={() => setJobsOpen(true)} title="Job search: postings, deadlines, interview prep">
                 <Briefcase size={18} />
@@ -122,7 +141,8 @@ export function Shell() {
       {docsOpen && <DocumentsPanel onClose={() => setDocsOpen(false)} />}
       {recipesOpen && <RecipeBox onClose={() => setRecipesOpen(false)} />}
       {studyOpen && <StudyPanel />}
-      {writingOpen && <WritingPanel />}
+      {writingOpen && <WritingPanel key={writingKey} />}
+      {clipsOpen && <ClipboardPanel onClose={() => setClipsOpen(false)} />}
       {jobsOpen && <JobsPanel onClose={() => setJobsOpen(false)} />}
       {assistantsOpen && <AssistantsPanel onClose={() => setAssistantsOpen(false)} />}
     </div>

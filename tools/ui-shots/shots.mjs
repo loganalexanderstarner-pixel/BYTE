@@ -119,7 +119,7 @@ function initScript({ data }) {
         case "plugin:event|unlisten":
           return null;
         case "settings_get":
-          return { ...data.settings };
+          return { ...data.settings, ...(data.settingsPatch ?? {}) };
         case "settings_update":
           data.settings = { ...data.settings, ...args.patch };
           return { ...data.settings };
@@ -273,6 +273,23 @@ function initScript({ data }) {
           return {};
         case "mac_undo":
           return true;
+        case "selection_paste":
+        case "clip_copy":
+        case "clip_delete":
+        case "clip_clear":
+          return null;
+        case "clip_list": {
+          const now = Date.now();
+          const all = [
+            { id: 5, text: "Meeting moved to Thursday at 10 a.m., same room.", at: now - 40_000 },
+            { id: 4, text: "https://www.carnegielibrary.org/apply/", at: now - 12 * 60_000 },
+            { id: 3, text: "1 cup flour, 2 eggs, 3/4 cup milk, 1 tbsp sugar, a pinch of salt", at: now - 3 * 3_600_000 },
+            { id: 2, text: "sam@example.com", at: now - 26 * 3_600_000 },
+            { id: 1, text: "fn main() {\n    println!(\"Hello, BYTE\");\n}", at: now - 4 * 86_400_000 },
+          ];
+          const q = (args.query ?? "").toLowerCase();
+          return all.filter((c) => c.text.toLowerCase().includes(q));
+        }
         case "agent_approve":
           setTimeout(() => window.__agentContinue?.(), 50);
           return true;
@@ -306,6 +323,11 @@ function initScript({ data }) {
         case "writing_run": {
           const send = (e) => args.onEvent.onmessage(e);
           send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q4_K_M" });
+          if (args.action === "reply") {
+            send({ kind: "content", delta: "Hi Priya, thanks for checking! Thursday at 10 works for me, and I'll bring the slides. See you then." });
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
           send({ kind: "content", delta: "Hi team, Tuesday afternoon's meeting has moved to Thursday at 10 a.m., same room, because several of you couldn't make Tuesday. Let me know if Thursday doesn't work for you." });
           send({ kind: "done", finishReason: "stop" });
           return null;
@@ -1311,6 +1333,26 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".mac-card").scrollIntoViewIfNeeded();
   await shot(p, "23e-mail-opened");
   console.log("mail errors:", errors);
+  await ctx.close();
+}
+// ⌥⌘B: text selected in Mail opens in the studio; Reply, then "Paste into Mail"
+{
+  const { p, ctx, errors } = await page(true, "midnight");
+  await p.evaluate(() => window.__emit("selection://captured", { text: "Hi! Could you move our review to Thursday at 10? And could you bring the slides from last week?\n\nThanks,\nPriya", app: "Mail" }));
+  await p.waitForTimeout(400);
+  await p.getByRole("button", { name: "Reply", exact: true }).click();
+  await p.waitForTimeout(400);
+  await shot(p, "23f-selection-reply");
+  console.log("selection errors:", errors);
+  await ctx.close();
+}
+// Clipboard history
+{
+  const { p, ctx, errors } = await page(true, "midnight", { settingsPatch: { clipboardHistory: true } });
+  await p.getByTitle("Clipboard history: what you copied lately").click();
+  await p.waitForTimeout(400);
+  await shot(p, "23g-clipboard");
+  console.log("clipboard errors:", errors);
   await ctx.close();
 }
 // Study: flashcards, a quiz, a study session

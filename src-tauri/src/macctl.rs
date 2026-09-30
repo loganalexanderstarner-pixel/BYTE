@@ -1435,7 +1435,7 @@ pub enum RunError {
 
 impl RunError {
     fn from_stderr(err: &str) -> RunError {
-        if err.contains("-1743") || err.contains("Not authorized to send Apple events") || err.contains("not allowed assistive access") {
+        if err.contains("-1743") || err.contains("Not authorized to send Apple events") || err.contains("not allowed assistive access") || err.contains("not allowed to send keystrokes") || err.contains("(1002)") {
             RunError::NotAllowed
         } else if err.contains("-2740") || err.contains("-10814") || err.contains("Unable to find application") {
             RunError::Missing

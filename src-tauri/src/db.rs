@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 9;
+const SCHEMA_VERSION: i32 = 10;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -673,7 +673,21 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 9);
+    if version < 10 {
+        // Clipboard history (clipboard.rs), off until the user switches it on.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE clip_history (
+                 id INTEGER PRIMARY KEY,
+                 text TEXT NOT NULL,
+                 at INTEGER NOT NULL
+             );
+             CREATE INDEX clip_history_at ON clip_history(at);
+             PRAGMA user_version = 10;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 10);
     Ok(())
 }
 

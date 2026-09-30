@@ -17,6 +17,18 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — v0.9.2: selected text anywhere (⌥⌘B) and clipboard history
+- **Why:** Phase 9's selection tools and clipboard history (HANDOFF §8), built during the v0.9.1 Mac CI wait.
+- **What:** `selection.rs`, `clipboard.rs` (+ DB v10), writing `Reply`/`Explain` (`HELPER`, `echoes`, `reply_text`),
+  settings `selection_hotkey` (on) / `clipboard_history` (off), `settings_update` re-applies the hotkey; deps
+  `tauri-plugin-global-shortcut`, objc2-app-kit `NSPasteboard`. UI: `ClipboardPanel.tsx`, `lib/clips.ts` (+ test),
+  studio Reply/Explain + "Paste into <app>", Shell listens for `selection://*`, Settings toggles; screenshots `23f`,
+  `23g`. Mac CI covers `selection.rs`/`clipboard.rs` (`e2e_selection_scripts_and_clipboard`).
+- **Verify:** `cargo test clipboard selection writing::`; real models: reply e2e on Qwen3 0.6B (echo caught, retried),
+  Llama 3.2 1B, Qwen3.5 2B (good); Gemma 3 1B still under-shortens (known, small model). Owner: select text in Mail,
+  ⌥⌘B, Reply, Paste into Mail.
+- **Undo:** revert; both features can be switched off in Settings.
+
 ### (this commit) — v0.9.1: Mail and Messages
 - **Why:** next Phase 9 slice (plan: Mail + Messages drafts), same safety rules: fixed scripts, words as argv,
   approval, never send.

@@ -57,6 +57,10 @@ export interface Settings {
   translateEnabled?: boolean;
   /** Mac control: notes, reminders, calendar, music, settings (macOS). */
   macControl?: boolean;
+  /** ⌥⌘B opens selected text from any app in the writing studio. */
+  selectionHotkey?: boolean;
+  /** Keep a history of copied text (off by default; secrets are skipped). */
+  clipboardHistory?: boolean;
   /** The job search tracker (💼). */
   jobsEnabled?: boolean;
   /** Custom assistants (🤖). */
@@ -502,6 +506,20 @@ export interface GameHints {
 export interface SelfCheck {
   checked: number;
   issues: { claim: string; sources: number[]; verdict: "partly" | "no"; note: string }[];
+}
+
+/** One copied text in the clipboard history (Rust `clipboard::Clip`). */
+export interface Clip {
+  id: number;
+  text: string;
+  /** When it was copied (ms since 1970). */
+  at: number;
+}
+
+/** Text the ⌥⌘B hotkey read from another app (Rust `selection::Captured`). */
+export interface Captured {
+  text: string;
+  app: string;
 }
 
 /** BYTE did something in a Mac app (Rust `macctl::MacDone`). `undo` is a token for `mac_undo`. */

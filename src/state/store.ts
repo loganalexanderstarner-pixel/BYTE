@@ -269,9 +269,9 @@ interface State {
   study: { deck: number | null } | null;
   openStudy(deck?: number | null): void;
   closeStudy(): void;
-  /** The writing studio, with the text it opened with. */
-  writing: { text: string } | null;
-  openWriting(text?: string): void;
+  /** The writing studio, with the text it opened with (and the app it came from: the ⌥⌘B hotkey). */
+  writing: { text: string; app?: string; notice?: string; seq: number } | null;
+  openWriting(text?: string, app?: string, notice?: string): void;
   closeWriting(): void;
   openReader(doc: ReaderDoc): void;
   closeReader(): void;
@@ -801,7 +801,7 @@ export const useStore = create<State>((set, get) => {
     openStudy: (deck) => set({ study: { deck: deck ?? null } }),
     closeStudy: () => set({ study: null }),
     writing: null,
-    openWriting: (text) => set({ writing: { text: text ?? "" } }),
+    openWriting: (text, app, notice) => set((s) => ({ writing: { text: text ?? "", app, notice, seq: (s.writing?.seq ?? 0) + 1 } })),
     closeWriting: () => set({ writing: null }),
     openReader: (doc) => set({ reader: doc }),
     closeReader: () => set({ reader: null }),

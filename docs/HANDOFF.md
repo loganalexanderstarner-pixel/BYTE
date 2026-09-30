@@ -517,8 +517,13 @@ Tests: unit + fake runner flow; real models (Qwen3 0.6B, Gemma 3 1B, Llama 3.2 1
 **Done in v0.9.1:** Mail (`MAIL_LIST` read/summarize, `MAIL_DRAFT` opens a filled-in compose window, never sends;
 Undo deletes it; replies take the address, "Re:" subject and text from the sender's latest email), Messages
 (`MESSAGE_DRAFT`: clipboard + `sms:` link, the user presses Send), Contacts lookup (`find_person`: exact name wins,
-asks "Which Sam?"), `without_placeholders` for model drafts. **Left** (v0.9.x): creating shortcuts, selection
-hotkey, files, Finder Quick Action + `byte://`, clipboard history, terminal helper.
+asks "Which Sam?"), `without_placeholders` for model drafts.
+**Done in v0.9.2:** `selection.rs` (⌥⌘B via tauri-plugin-global-shortcut; front app + System Events ⌘C, clipboard
+restored; `selection_paste` activates the app and ⌘V; event `selection://captured` opens the studio with `app`),
+`clipboard.rs` (NSPasteboard via objc2-app-kit; opt-in history in DB v10 `clip_history`, 200 items, concealed /
+transient types and `looks_secret` skipped, BYTE's own writes ignored), writing `Reply` (own system prompt `HELPER`,
+written whole and checked with `echoes`, retried twice) and `Explain`. **Left** (v0.9.x): creating shortcuts,
+files, Finder Quick Action + `byte://`, terminal helper.
 Everything asks for permission once, shows what it will do, and can be undone where possible (activity list
 with undo; dry-run mode).
 1. **AppleScript/JXA library** (`mac/applescript.rs`, vetted scripts only — the model never writes raw

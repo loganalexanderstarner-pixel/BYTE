@@ -298,11 +298,12 @@ pub async fn settings_get(state: State<'_, AppState>) -> AppResult<Settings> {
 }
 
 #[tauri::command]
-pub async fn settings_update(state: State<'_, AppState>, patch: serde_json::Value) -> AppResult<Settings> {
+pub async fn settings_update(app: AppHandle, state: State<'_, AppState>, patch: serde_json::Value) -> AppResult<Settings> {
     let mut s = state.settings.lock().await;
     let next = s.merged(patch)?;
     next.save(&state.paths.settings_file)?;
     *s = next.clone();
+    crate::selection::apply(&app, next.selection_hotkey && next.mac_control);
     Ok(next)
 }
 

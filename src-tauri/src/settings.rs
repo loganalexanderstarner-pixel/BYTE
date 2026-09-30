@@ -162,6 +162,12 @@ pub struct Settings {
     /// Below 20% battery and unplugged: Deep/Extended answer like Auto, and thinking is short.
     #[serde(default = "yes")]
     pub battery_saver: bool,
+    /// ⌥⌘B: select text in any app and open it in the writing studio (Mac control).
+    #[serde(default = "yes")]
+    pub selection_hotkey: bool,
+    /// Keep a history of copied text (off until switched on; secrets skipped).
+    #[serde(default)]
+    pub clipboard_history: bool,
     /// Mac control: BYTE uses Notes, Reminders, Calendar, Music and settings when asked (macOS).
     #[serde(default = "yes")]
     pub mac_control: bool,
@@ -241,6 +247,8 @@ impl Default for Settings {
             battery_saver: true,
             translate_enabled: true,
             mac_control: true,
+            selection_hotkey: true,
+            clipboard_history: false,
             jobs_enabled: true,
             assistants_enabled: true,
             answer_cache: true,

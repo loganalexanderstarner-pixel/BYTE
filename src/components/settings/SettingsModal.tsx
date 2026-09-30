@@ -736,6 +736,20 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
+            Selected text hotkey (⌥⌘B)
+            <small>Select text in any app and press ⌥⌘B: it opens in the writing studio to rewrite, fix, translate, reply to or explain, then “Paste into” puts the result back. macOS asks once to allow BYTE in Accessibility.</small>
+          </span>
+          <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.selectionHotkey ?? true} onChange={(e) => void update({ selectionHotkey: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
+            Clipboard history
+            <small>Keeps the last 200 things you copy, searchable (📋 in the top bar). Off until you switch it on. Passwords from password managers and text that looks like a password or key are never kept; it's stored encrypted on this Mac.</small>
+          </span>
+          <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.clipboardHistory ?? false} onChange={(e) => void update({ clipboardHistory: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
             Job search
             <small>The 💼 tracker: paste a posting's link and BYTE fills it in; statuses, deadlines, notes and interview prep.</small>
           </span>

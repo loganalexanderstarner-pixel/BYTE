@@ -1,4 +1,4 @@
-import { Check, Copy, Loader2, PenLine, Square, X } from "lucide-react";
+import { ArrowRightToLine, Check, Copy, Loader2, PenLine, Square, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { Longform, StyleSetup } from "./Longform";
@@ -12,16 +12,24 @@ const ACTIONS: { id: Action; label: string; hint: string }[] = [
   { id: "shorten", label: "Shorten", hint: "About half as long, every key point kept" },
   { id: "expand", label: "Expand", hint: "About twice as long, more detail and examples" },
   { id: "grammar", label: "Fix grammar", hint: "Spelling, grammar and punctuation only" },
+  { id: "reply", label: "Reply", hint: "Write your reply to this message" },
+  { id: "explain", label: "Explain", hint: "What it means, in plain words" },
 ];
+
+/** Actions whose result is new text beside yours, not a changed version of it. */
+const ANSWERS: Action[] = ["reply", "explain"];
 
 /** The writing studio (✍️): rewrite, shorten, expand, change the tone of, or fix a text. */
 export function WritingPanel() {
   const initial = useStore((s) => s.writing?.text ?? "");
+  const fromApp = useStore((s) => s.writing?.app);
+  const notice = useStore((s) => s.writing?.notice);
+  const [pasted, setPasted] = useState(false);
   const close = useStore((s) => s.closeWriting);
   const [text, setText] = useState(initial);
   const [tone, setTone] = useState<Tone>("friendly");
   const [lang, setLang] = useState<string>("Spanish");
-  const [run, setRun] = useState<{ id: string; from: number; to: number; original: string; result: string; done: boolean } | null>(null);
+  const [run, setRun] = useState<{ id: string; action: Action; from: number; to: number; original: string; result: string; done: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState<"edit" | "new" | "style">(initial ? "edit" : "edit");
@@ -35,7 +43,8 @@ export function WritingPanel() {
     const original = text.slice(from, to);
     const id = crypto.randomUUID();
     setError(null);
-    setRun({ id, from, to, original, result: "", done: false });
+    setPasted(false);
+    setRun({ id, action, from, to, original, result: "", done: false });
     try {
       await api.writingRun(id, original, action, action === "tone" ? tone : action === "translate" ? lang : null, hasStyle && likeMe, (e) => {
         if (e.kind === "content") setRun((r) => (r && r.id === id ? { ...r, result: r.result + e.delta } : r));
@@ -48,7 +57,18 @@ export function WritingPanel() {
   };
   const busy = !!run && !run.done;
   const result = run ? cleanResult(run.result) : "";
-  const pieces = useMemo(() => (run?.done ? changes(run.original, result) : []), [run?.done, run?.original, result]);
+  const answer = !!run && ANSWERS.includes(run.action);
+  const pieces = useMemo(() => (run?.done && !answer ? changes(run.original, result) : []), [run?.done, run?.original, result, answer]);
+  const pasteBack = async () => {
+    if (!fromApp || !result) return;
+    setError(null);
+    try {
+      await api.selectionPaste(fromApp, result);
+      setPasted(true);
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
   const accept = () => {
     if (!run || !result) return;
     setText((t) => applyResult(t, run.from, run.to, result));
@@ -144,10 +164,12 @@ export function WritingPanel() {
           )}
         </div>
         {error && <div className="banner danger">{error}</div>}
+        {notice && !text && <div className="banner warn">{notice}</div>}
         <div className="writing-body">
           <div className="writing-col">
             <label className="faint small" htmlFor="writing-text">
-              Your text · {words} words · select a part to change only that
+              {fromApp ? `From ${fromApp} · ` : "Your text · "}
+              {words} words · select a part to change only that
             </label>
             <textarea
               id="writing-text"
@@ -160,11 +182,13 @@ export function WritingPanel() {
           </div>
           <div className="writing-col">
             <span className="faint small">
-              {!run ? "The new version appears here" : busy ? "Writing…" : `${changedWords(pieces)} words changed (highlighted)`}
+              {!run ? "The new version appears here" : busy ? "Writing…" : answer ? (run.action === "reply" ? "Your reply" : "What it means") : `${changedWords(pieces)} words changed (highlighted)`}
             </span>
             <div className="writing-result" aria-live="polite">
               {!run ? (
                 <p className="muted">Pick what to do with your text. You'll see the new version here before anything changes.</p>
+              ) : run.done && answer ? (
+                result
               ) : run.done ? (
                 pieces.map((p, i) => (p.added ? <mark key={i}>{p.text}</mark> : <span key={i}>{p.text}</span>))
               ) : (
@@ -182,9 +206,16 @@ export function WritingPanel() {
                 <button className="btn sm" onClick={() => setRun(null)}>
                   Discard
                 </button>
-                <button className="btn sm primary" onClick={accept}>
-                  <Check size={14} /> Use this
-                </button>
+                {fromApp && run.action !== "explain" && (
+                  <button className={`btn sm ${answer ? "primary" : ""}`} onClick={() => void pasteBack()} title={`Put it into ${fromApp}, where the text came from`}>
+                    {pasted ? <Check size={14} /> : <ArrowRightToLine size={14} />} {pasted ? `Pasted into ${fromApp}` : `Paste into ${fromApp}`}
+                  </button>
+                )}
+                {!answer && (
+                  <button className="btn sm primary" onClick={accept}>
+                    <Check size={14} /> Use this
+                  </button>
+                )}
               </div>
             )}
           </div>
