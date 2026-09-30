@@ -483,13 +483,13 @@ end run"#;
 /// subject contains the query; at most 15.
 const MAIL_LIST: &str = r#"on run argv
 	set q to item 1 of argv
-	set since to (current date) - ((item 2 of argv) as integer) * days
+	set cutoff to (current date) - ((item 2 of argv) as integer) * days
 	set out to ""
 	tell application "Mail"
 		if q is "" then
-			set msgs to (messages of inbox whose read status is false and date received > since)
+			set msgs to (messages of inbox whose read status is false and date received > cutoff)
 		else
-			set msgs to (messages of inbox whose date received > since and (sender contains q or subject contains q))
+			set msgs to (messages of inbox whose date received > cutoff and (sender contains q or subject contains q))
 		end if
 		set k to 0
 		repeat with m in msgs

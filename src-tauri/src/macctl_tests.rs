@@ -133,6 +133,25 @@ fn user_words_never_become_script_code() {
     assert!(REMINDER_ADD.contains("on mkdate(s)") && EVENT_ADD.contains("on mkdate(s)"));
 }
 
+/// AppleScript treats some words as parameter names ("since" broke the Mail check on
+/// macOS); no fixed script may use one as a variable. Runs everywhere, not just on a Mac.
+#[test]
+fn scripts_avoid_applescript_keywords_as_variables() {
+    const RESERVED: &[&str] = &["since", "given", "result", "from", "thru", "through", "returning", "into", "onto", "against", "instead", "beside", "until", "while", "error", "space", "tab", "return", "it", "me", "my", "version", "date", "time", "text", "list", "record", "number", "string", "character", "word", "paragraph", "item", "id", "name", "class", "contents", "reference", "every", "some", "count"];
+    let mut scripts: Vec<&str> = ALL_SCRIPTS.to_vec();
+    scripts.extend(crate::selection::SCRIPTS);
+    for s in scripts {
+        for line in s.lines() {
+            let l = line.trim();
+            let Some(rest) = l.strip_prefix("set ") else { continue };
+            let var = rest.split_whitespace().next().unwrap_or("");
+            if rest.split_whitespace().nth(1) == Some("to") {
+                assert!(!RESERVED.contains(&var), "variable `{var}` is an AppleScript word: {l}");
+            }
+        }
+    }
+}
+
 #[test]
 fn only_lasting_changes_ask_first() {
     assert!(Action::ReminderAdd { title: "a".into(), due: None, list: String::new() }.needs_ok());
@@ -490,10 +509,15 @@ async fn e2e_mail_reply_draft() {
 #[ignore]
 async fn e2e_scripts_compile_and_run() {
     let dir = tempfile::tempdir().unwrap();
+    // Compile them all before failing, so one bad script can't hide another.
+    let mut bad = Vec::new();
     for (i, s) in ALL_SCRIPTS.iter().enumerate() {
         let out = std::process::Command::new("/usr/bin/osacompile").arg("-o").arg(dir.path().join(format!("{i}.scpt"))).arg("-e").arg(s).output().unwrap();
-        assert!(out.status.success(), "script {i} doesn't compile: {}\n{s}", String::from_utf8_lossy(&out.stderr));
+        if !out.status.success() {
+            bad.push(format!("script {i}: {}\n{s}", String::from_utf8_lossy(&out.stderr)));
+        }
     }
+    assert!(bad.is_empty(), "{} scripts don't compile:\n{}", bad.len(), bad.join("\n\n"));
     let now = MacRunner.run(&Command::Osa { script: "on run argv\nreturn (output volume of (get volume settings)) as string\nend run", args: vec![] }).await.unwrap();
     let v: u8 = now.trim().parse().unwrap_or(50);
     let set = MacRunner.run(&Action::Volume(v).command()).await.unwrap();

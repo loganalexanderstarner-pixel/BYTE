@@ -17,6 +17,15 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — Mail check: a variable named after an AppleScript word
+- **Why:** the Mac engine run on `e450631` failed `e2e_scripts_compile_and_run`: `MAIL_LIST` used a variable named
+  `since`, which AppleScript reads as a parameter name, so "check my email" would fail on every Mac. Caught before
+  release.
+- **What:** `macctl.rs` `since` → `cutoff`; the macOS compile test now reports every failing script, not just the
+  first; `scripts_avoid_applescript_keywords_as_variables` checks all fixed scripts for reserved words on any OS.
+- **Verify:** `cargo test macctl`; Mac engine run on the new head (osacompile of all scripts).
+- **Undo:** revert.
+
 ### (this commit) — v0.9.2: selected text anywhere (⌥⌘B) and clipboard history
 - **Why:** Phase 9's selection tools and clipboard history (HANDOFF §8), built during the v0.9.1 Mac CI wait.
 - **What:** `selection.rs`, `clipboard.rs` (+ DB v10), writing `Reply`/`Explain` (`HELPER`, `echoes`, `reply_text`),
