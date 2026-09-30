@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0 — Mac upkeep (Phase 10 starts)
+
+- **Storage**: a chart of your biggest folders and what could safely go (old installers, exact duplicates,
+  developer caches), moved to the Trash through Finder from the card, with Undo.
+- **Slowness and battery**: memory, processor, sleep blockers, battery health and uptime, with Quit buttons for
+  busy apps. **Check my Mac** adds Time Machine, FileVault, firewall and macOS version, with settings buttons.
+- **Uninstall apps** with their Library files (asks first, Undo puts them back); **login items** listed and
+  removed with Undo.
+
 ## 0.9.3 — Files and a terminal helper (Phase 9 complete)
 
 - **Files**: find them with Spotlight, tidy a folder by kind or month (preview first, Undo puts it back), convert or

@@ -141,6 +141,7 @@ fn scripts_avoid_applescript_keywords_as_variables() {
     let mut scripts: Vec<&str> = ALL_SCRIPTS.to_vec();
     scripts.extend(crate::selection::SCRIPTS);
     scripts.extend(crate::filectl::SCRIPTS);
+    scripts.extend(crate::upkeep::SCRIPTS);
     for s in scripts {
         for line in s.lines() {
             let l = line.trim();
@@ -512,7 +513,11 @@ async fn e2e_scripts_compile_and_run() {
     let dir = tempfile::tempdir().unwrap();
     // Compile them all before failing, so one bad script can't hide another.
     let mut bad = Vec::new();
-    for (i, s) in ALL_SCRIPTS.iter().enumerate() {
+    let mut all: Vec<&str> = ALL_SCRIPTS.to_vec();
+    all.extend(crate::selection::SCRIPTS);
+    all.extend(crate::filectl::SCRIPTS);
+    all.extend(crate::upkeep::SCRIPTS);
+    for (i, s) in all.iter().enumerate() {
         let out = std::process::Command::new("/usr/bin/osacompile").arg("-o").arg(dir.path().join(format!("{i}.scpt"))).arg("-e").arg(s).output().unwrap();
         if !out.status.success() {
             bad.push(format!("script {i}: {}\n{s}", String::from_utf8_lossy(&out.stderr)));

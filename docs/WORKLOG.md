@@ -15,6 +15,24 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ---
 
+## 2026-09-30
+
+### (this commit) — v0.10.0: Mac upkeep (Phase 10 starts)
+- **Why:** Phase 10 item 1 (HANDOFF §8): storage analyzer, battery & performance coach, self-diagnostics, app
+  uninstaller, login items. Built while the v0.9.3 release built (v0.9.3 is published with its .dmg).
+- **What:** `upkeep.rs` + `upkeep_tests.rs` (routing, scan, duplicates, suggestions, Trash/Put Back via Finder with
+  Undo, health checks from read-only system tools, uninstaller with Library leftovers, login items); commands
+  `upkeep_trash/reveal/quit/open_settings` take ids from BYTE's own latest card, never paths. `ChatEvent::Storage`
+  and `Health`; routed in `agent::specialist` before the terminal helper; `Modules.upkeep` / setting `macUpkeep`.
+  `macctl.rs`: tool paths for the new read-only programs, `pane_label`/`settings_url` shared; the Mac compile test
+  now compiles every module's scripts (macctl, selection, files, upkeep). UI: `UpkeepCards.tsx` (treemap from
+  `lib/upkeep.ts`, confirm + Undo, health list, Quit), Settings toggle, screenshots `24-storage`–`24c-health`.
+  Docs: release notes, VERSIONS, CHANGELOG, HANDOFF, PROJECT_GUIDE. Version 0.10.0.
+- **Verify:** `cargo test upkeep` (20 tests), `npx vitest run src/lib/upkeep.test.ts`; Mac CI:
+  `e2e_scripts_compile_and_run` (osacompile of the new scripts) and `e2e_health_on_a_real_mac`. Owner: "what's
+  taking up space?" → Move to Trash → Undo; "why is my Mac slow?"; "uninstall <some app>" → Don't.
+- **Undo:** revert; Settings → Mac upkeep off disables it.
+
 ## 2026-09-29
 
 ### (this commit) — Terminal helper: known-good commands; small models don't invent commands

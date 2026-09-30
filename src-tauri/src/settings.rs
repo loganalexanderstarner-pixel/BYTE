@@ -171,6 +171,9 @@ pub struct Settings {
     /// Mac control: BYTE uses Notes, Reminders, Calendar, Music and settings when asked (macOS).
     #[serde(default = "yes")]
     pub mac_control: bool,
+    /// Mac upkeep: storage clean-up, health checks, uninstalling apps, login items (macOS).
+    #[serde(default = "yes")]
+    pub mac_upkeep: bool,
     /// "Translate … into …" in chat: part by part, for long texts, files and pages.
     #[serde(default = "yes")]
     pub translate_enabled: bool,
@@ -247,6 +250,7 @@ impl Default for Settings {
             battery_saver: true,
             translate_enabled: true,
             mac_control: true,
+            mac_upkeep: true,
             selection_hotkey: true,
             clipboard_history: false,
             jobs_enabled: true,

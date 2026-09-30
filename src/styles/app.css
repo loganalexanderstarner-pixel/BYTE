@@ -4839,3 +4839,159 @@ kbd {
     transition: none;
   }
 }
+
+/* Mac upkeep (UpkeepCards.tsx) */
+.upkeep-card .disk-bar {
+  height: 8px;
+  margin: var(--space-2) 0;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--text) 10%, var(--surface));
+  overflow: hidden;
+}
+.upkeep-card .disk-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+}
+.upkeep-card .disk-bar.warn span {
+  background: var(--warn);
+}
+.upkeep-card .disk-bar.bad span {
+  background: var(--danger);
+}
+.treemap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 100 / 44;
+  margin: var(--space-2) 0 var(--space-3);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.treemap .tile {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--surface);
+  overflow: hidden;
+  color: var(--text);
+  transition: filter 0.15s ease;
+}
+.treemap .tile:hover {
+  filter: brightness(1.12);
+}
+.treemap .tile span {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 6px;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.treemap .tile small {
+  opacity: 0.8;
+}
+.upkeep-list {
+  list-style: none;
+  margin: var(--space-2) 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.upkeep-list > li {
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+}
+.upkeep-list .row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.upkeep-list .row .size {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+.upkeep-list .row .name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+.upkeep-list .paths {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+}
+.upkeep-list .mono,
+.upkeep-card .mono {
+  overflow-wrap: anywhere;
+}
+.trash-confirm,
+.trash-done,
+.trash-idle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.big-files summary {
+  cursor: pointer;
+  margin-top: var(--space-2);
+}
+.health-list {
+  list-style: none;
+  margin: var(--space-2) 0;
+  padding: 0;
+}
+.health-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+}
+.health-list li > div {
+  flex: 1;
+  min-width: 0;
+}
+.health-list .level {
+  flex: none;
+  margin-top: 2px;
+}
+.health-list .bad .level {
+  color: var(--danger);
+}
+.health-list .warn .level {
+  color: var(--warn);
+}
+.health-list .ok .level {
+  color: var(--ok);
+}
+.health-list .info .level {
+  color: var(--text-2);
+}
+.health-list .value {
+  color: var(--text-2);
+}
+.upkeep-card .procs {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.upkeep-card .procs th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.upkeep-card .procs td,
+.upkeep-card .procs th {
+  padding: 3px var(--space-2) 3px 0;
+}
+.upkeep-card .procs .hot {
+  color: var(--warn);
+  font-weight: 600;
+}

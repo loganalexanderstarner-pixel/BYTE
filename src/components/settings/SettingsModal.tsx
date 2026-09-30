@@ -736,6 +736,13 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
+            Mac upkeep
+            <small>“What's taking up space?”, “find duplicate files”, “why is my Mac slow?”, “what's draining my battery?”, “check my Mac”, “uninstall Zoom”, “what opens at login?”. Anything removed goes to the Trash (Undo puts it back); BYTE never empties the Trash or touches macOS itself.</small>
+          </span>
+          <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.macUpkeep ?? true} onChange={(e) => void update({ macUpkeep: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
             Selected text hotkey (⌥⌘B)
             <small>Select text in any app and press ⌥⌘B: it opens in the writing studio to rewrite, fix, translate, reply to or explain, then “Paste into” puts the result back. macOS asks once to allow BYTE in Accessibility.</small>
           </span>

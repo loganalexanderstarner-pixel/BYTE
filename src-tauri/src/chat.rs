@@ -146,6 +146,10 @@ pub enum ChatEvent {
     Flashcards(crate::study::Flashcards),
     /// A multiple-choice quiz that scores itself (study.rs).
     Quiz(crate::study::Quiz),
+    /// What's using the disk and what could go (upkeep.rs).
+    Storage(crate::upkeep::Storage),
+    /// A Mac health check: slowness, battery, backups (upkeep.rs).
+    Health(crate::upkeep::Health),
 }
 
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]

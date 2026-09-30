@@ -57,6 +57,7 @@ export interface Settings {
   translateEnabled?: boolean;
   /** Mac control: notes, reminders, calendar, music, settings (macOS). */
   macControl?: boolean;
+  macUpkeep?: boolean;
   /** ⌥⌘B opens selected text from any app in the writing studio. */
   selectionHotkey?: boolean;
   /** Keep a history of copied text (off by default; secrets are skipped). */
@@ -422,7 +423,36 @@ export type ChatEvent =
   | ({ kind: "hints" } & GameHints)
   | ({ kind: "selfCheck" } & SelfCheck)
   | ({ kind: "flashcards" } & Flashcards)
-  | ({ kind: "quiz" } & Quiz);
+  | ({ kind: "quiz" } & Quiz)
+  | ({ kind: "storage" } & Storage)
+  | ({ kind: "health" } & Health);
+
+/** What's using the disk (Rust `upkeep::Storage`). Ids go back to `upkeep_trash` / `upkeep_reveal`. */
+export interface Storage {
+  scanId: string;
+  total: number;
+  free: number;
+  folders: { name: string; path: string; bytes: number }[];
+  suggestions: { id: string; title: string; why: string; bytes: number; items: string[]; count: number; canTrash: boolean }[];
+  big: { id: string; name: string; path: string; bytes: number; daysOld: number | null }[];
+  partial: boolean;
+}
+
+/** What moving to the Trash did (Rust `upkeep::Trashed`). */
+export interface Trashed {
+  moved: number;
+  bytes: number;
+  undo: string | null;
+  error: string | null;
+}
+
+/** A Mac health check (Rust `upkeep::Health`). */
+export interface Health {
+  id: string;
+  title: string;
+  checks: { label: string; value: string; level: "bad" | "warn" | "ok" | "info"; tip: string; settings: string | null; settingsLabel: string | null }[];
+  procs: { name: string; cpu: number; mem: string; app: string | null }[];
+}
 
 /** Flashcards made in chat (Rust `study::Flashcards`). */
 export interface Flashcards {

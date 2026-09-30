@@ -477,7 +477,7 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 **Done in v0.8.0:** `gguf.rs` + `lab.rs` (model lab, `<data>/added_models.json`, `CatalogStore::set_added`), per-model
 `settings.model_overrides` (`ModelOverride::apply`) + `TuningPanel`, `battery_saver` (`system::battery`), `commands::engine_live`
 (with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
-**Next:** Phase 10 (upkeep & automation) as v0.10.0, planned when it starts. Way of working
+**Next:** Phase 10 continues (v0.10.0 Mac upkeep is done; see the Phase 10 section). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
@@ -546,6 +546,15 @@ with undo; dry-run mode).
 Verify: unit tests for script templating/escaping and the permission gate; owner runs each action on the Mac.
 
 ### Phase 10 — Upkeep & automation ⏳
+**Done in v0.10.0:** `upkeep.rs` (+ `upkeep_tests.rs`, `UpkeepCards.tsx`, `lib/upkeep.ts`): storage scan (home
+folder, not ~/Library apart from caches; files inside packages/hidden folders never offered), duplicates (size →
+first MB → full SHA-256), old installers, developer caches; Trash via Finder (`TRASH`/`PUT_BACK` scripts, Undo);
+the Tauri commands take ids from the latest scan, never paths. Health (`df`, `memory_pressure`, `top`, `pmset`,
+`system_profiler`, `sysctl`, `tmutil`, `fdesetup`, `socketfilterfw`), Quit for listed apps only; uninstaller
+(bundle id, Library leftovers, refuses com.apple.* and BYTE); login items (System Events, Undo re-adds).
+Setting `macUpkeep`. **Split of the rest:** v0.10.1 tasks & reminders + scheduler (`scheduler.rs`) + daily briefing;
+v0.10.2 news/RSS digest + page watchers (price alerts); v0.10.3 multi-step runs + automations builder + creating
+Shortcuts; v0.10.4 trackers; v0.10.5 connectors; v0.10.6 dashboards.
 1. **Mac upkeep**: storage analyzer (treemap, duplicates, big/old files, safe-to-delete explanations),
    battery & performance coach, Mac Q&A with open-the-setting buttons, app uninstaller (bundle + leftovers),
    login-items manager, self-diagnostics with fix-it buttons.

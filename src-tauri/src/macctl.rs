@@ -691,11 +691,11 @@ fn pane_for(text: &str) -> Option<&'static (&'static str, &'static str, &'static
     best
 }
 
-fn pane_label(pane: &str) -> &'static str {
+pub(crate) fn pane_label(pane: &str) -> &'static str {
     pane_for(pane).map(|p| p.1).unwrap_or("System")
 }
 
-fn settings_url(pane: &str) -> String {
+pub(crate) fn settings_url(pane: &str) -> String {
     match pane_for(pane) {
         Some(p) => format!("x-apple.systempreferences:{}", p.2),
         None => "x-apple.systempreferences:".into(),
@@ -1481,6 +1481,17 @@ impl Runner for MacRunner {
                         "shortcuts" => "/usr/bin/shortcuts",
                         "mdfind" => "/usr/bin/mdfind",
                         "sips" => "/usr/bin/sips",
+                        // Mac upkeep (upkeep.rs): read-only system tools.
+                        "df" => "/bin/df",
+                        "top" => "/usr/bin/top",
+                        "memory_pressure" => "/usr/bin/memory_pressure",
+                        "system_profiler" => "/usr/sbin/system_profiler",
+                        "sysctl" => "/usr/sbin/sysctl",
+                        "sw_vers" => "/usr/bin/sw_vers",
+                        "tmutil" => "/usr/bin/tmutil",
+                        "fdesetup" => "/usr/bin/fdesetup",
+                        "socketfilterfw" => "/usr/libexec/ApplicationFirewall/socketfilterfw",
+                        "defaults" => "/usr/bin/defaults",
                         // The terminal helper; the user approved this exact command line.
                         "zsh" => "/bin/zsh",
                         other => other,

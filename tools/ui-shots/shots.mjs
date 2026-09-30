@@ -278,6 +278,13 @@ function initScript({ data }) {
         case "clip_delete":
         case "clip_clear":
           return null;
+        case "upkeep_trash":
+          return { moved: 3, bytes: 4_210_000_000, undo: "tok9", error: null };
+        case "upkeep_reveal":
+        case "upkeep_open_settings":
+          return null;
+        case "upkeep_quit":
+          return true;
         case "clip_list": {
           const now = Date.now();
           const all = [
@@ -486,6 +493,62 @@ function initScript({ data }) {
                 solution: "1. Go to the Triforce symbol on the middle floor of the central tower.\n2. Play Zelda's Lullaby to raise the water to middle level.\n3. …" });
               send({ kind: "content", delta: "Here's a gentle nudge: you've changed the water level once, so look for other places where you could do that again [1]. Stronger hints and the full solution are in the card above; tap them only if you want them." });
             }
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
+          if (data.storage) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            send({ kind: "toolCall", id: "s0", name: "mac_storage", args: { app: "Finder", what: "Look at what's using space on this Mac" } });
+            send({ kind: "toolResult", id: "s0", ok: true, summary: "11 folders sized · 23.4 GB could be freed" });
+            send({ kind: "storage", scanId: "scan1", total: 494_380_000_000, free: 31_200_000_000, partial: false,
+              folders: [
+                { name: "Library caches", path: "~/Library/Developer/Xcode/DerivedData", bytes: 0 },
+                { name: "Movies", path: "~/Movies", bytes: 118_000_000_000 },
+                { name: "Pictures", path: "~/Pictures", bytes: 86_400_000_000 },
+                { name: "Downloads", path: "~/Downloads", bytes: 41_700_000_000 },
+                { name: "Documents", path: "~/Documents", bytes: 38_900_000_000 },
+                { name: "Xcode build files", path: "~/Library/Developer/Xcode/DerivedData", bytes: 14_200_000_000 },
+                { name: "Hidden folders", path: "~", bytes: 12_800_000_000 },
+                { name: "App caches", path: "~/Library/Caches", bytes: 6_300_000_000 },
+                { name: "Desktop", path: "~/Desktop", bytes: 4_100_000_000 },
+                { name: "Music", path: "~/Music", bytes: 3_200_000_000 },
+                { name: "Developer", path: "~/Developer", bytes: 2_900_000_000 },
+              ].filter((f) => f.bytes > 0),
+              suggestions: [
+                { id: "cache-0", title: "Xcode build files", why: "Xcode rebuilds or downloads these again when needed (the first build or install after may be slower).", bytes: 14_200_000_000, items: ["~/Library/Developer/Xcode/DerivedData"], count: 38, canTrash: true },
+                { id: "duplicates", title: "Duplicate files", why: "Exact copies (the same contents, byte for byte). The oldest copy of each is kept.", bytes: 5_000_000_000, items: ["~/Downloads/Trip video (1).mov (keeps ~/Movies/Trip video.mov)", "~/Desktop/Scan 2.pdf (keeps ~/Documents/Taxes/Scan.pdf)"], count: 4, canTrash: true },
+                { id: "installers", title: "Old installers in Downloads", why: "Disk images and installers more than 30 days old. The apps they installed stay installed.", bytes: 4_210_000_000, items: ["~/Downloads/Xcode_26.xip.dmg", "~/Downloads/zoomusInstaller.pkg", "~/Downloads/Docker.dmg"], count: 3, canTrash: true },
+                { id: "old-big", title: "Big files not changed in a year", why: "Worth a look: move them to an external drive or cloud storage, or remove the ones you don't need. BYTE doesn't remove these as a group; use the buttons on the list below.", bytes: 22_400_000_000, items: ["~/Movies/Wedding raw.mov", "~/Documents/VMs/Windows 11.vmdk"], count: 2, canTrash: false },
+                { id: "app-caches", title: "App caches", why: "Apps keep these to load faster and refill them right away; macOS clears them itself when space runs low, so removing them by hand rarely helps.", bytes: 6_300_000_000, items: ["~/Library/Caches"], count: 1, canTrash: false },
+              ],
+              big: [
+                { id: "file-0", name: "Wedding raw.mov", path: "~/Movies/Wedding raw.mov", bytes: 14_900_000_000, daysOld: 842 },
+                { id: "file-1", name: "Windows 11.vmdk", path: "~/Documents/VMs/Windows 11.vmdk", bytes: 7_500_000_000, daysOld: 400 },
+                { id: "file-2", name: "Xcode_26.xip.dmg", path: "~/Downloads/Xcode_26.xip.dmg", bytes: 3_100_000_000, daysOld: 61 },
+              ] });
+            send({ kind: "content", delta: "## Where your space goes\n- **Movies (118 GB)** and **Pictures (86 GB)** take the most.\n- About **23 GB** can go safely: Xcode build files (14.2 GB), duplicate copies (5 GB) and old installers (4.2 GB).\n\n> **Tip:** start with the Xcode build files and old installers; use **Move to Trash** on the card. Undo puts anything back." });
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
+          if (data.health) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            send({ kind: "toolCall", id: "h0", name: "mac_health", args: { app: "System", what: "Check what's slowing the Mac or using the battery" } });
+            send({ kind: "toolResult", id: "h0", ok: true, summary: "3 things to look at" });
+            send({ kind: "health", id: "card1", title: "How your Mac is doing", checks: [
+              { label: "Memory", value: "8% free", level: "bad", tip: "Memory is nearly full, so the Mac swaps to disk and slows down. Quit apps you're not using (browser tabs count).", settings: null, settingsLabel: null },
+              { label: "Processor", value: "Busy: Google Chrome He (97%)", level: "warn", tip: "These are using a lot of processor time, which slows other apps, warms the Mac and drains the battery. Quit or restart them if you're not using them.", settings: null, settingsLabel: null },
+              { label: "Last restart", value: "23 days ago", level: "warn", tip: "A restart now and then clears out memory and finishes updates.", settings: null, settingsLabel: null },
+              { label: "Storage", value: "31.2 GB free of 494.4 GB (6%)", level: "ok", tip: "", settings: null, settingsLabel: null },
+              { label: "Battery health", value: "Normal, 91% of its original capacity, 212 charge cycles", level: "ok", tip: "", settings: null, settingsLabel: null },
+              { label: "Keeping the Mac awake", value: "zoom.us", level: "info", tip: "These stop the Mac from sleeping while they run (a video, a download, a call). That's normal while you use them; quit them when you're done.", settings: null, settingsLabel: null },
+              { label: "Battery", value: "64%, on battery, about 4:10 left", level: "info", tip: "", settings: null, settingsLabel: null },
+            ], procs: [
+              { name: "Google Chrome He", cpu: 97.3, mem: "2104M", app: "Google Chrome" },
+              { name: "WindowServer", cpu: 12.0, mem: "512M", app: null },
+              { name: "zoom.us", cpu: 8.4, mem: "630M", app: "zoom.us" },
+              { name: "kernel_task", cpu: 6.1, mem: "90M", app: null },
+            ] });
+            send({ kind: "content", delta: "## What's slowing your Mac\n1. **Memory is nearly full (8% free).** Chrome is using 2 GB; closing tabs or quitting it helps most.\n2. **Chrome is using 97% of the processor**; press **Quit** on the card if you're not using it.\n3. **It's been 23 days since a restart**; restarting clears memory and finishes updates.\n\nBattery and storage look fine." });
             send({ kind: "done", finishReason: "stop" });
             return null;
           }
@@ -1362,6 +1425,36 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".approval").scrollIntoViewIfNeeded();
   await shot(p, "23h-terminal");
   console.log("terminal errors:", errors);
+  await ctx.close();
+}
+// Mac upkeep: storage card, then Move to Trash with confirm and Undo
+{
+  const { p, ctx, errors } = await page(true, "midnight", { storage: true });
+  await p.getByLabel("Message BYTE").fill("What's taking up space on my Mac?");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(700);
+  await p.setViewportSize({ width: 1240, height: 1500 });
+  await p.waitForTimeout(300);
+  await p.locator(".upkeep-card").screenshot({ path: join(OUT, "24-storage.png") });
+  await p.setViewportSize({ width: 1240, height: 820 });
+  await p.getByRole("button", { name: "Move to Trash" }).nth(2).click();
+  await p.waitForTimeout(200);
+  await p.locator(".trash-confirm").scrollIntoViewIfNeeded();
+  await shot(p, "24a-storage-confirm");
+  await p.getByRole("button", { name: "Move", exact: true }).click();
+  await p.waitForTimeout(300);
+  await shot(p, "24b-storage-trashed");
+  console.log("storage errors:", errors);
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await page(true, "paper", { health: true });
+  await p.getByLabel("Message BYTE").fill("Why is my Mac so slow?");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(700);
+  await p.locator(".upkeep-card").scrollIntoViewIfNeeded();
+  await shot(p, "24c-health");
+  console.log("health errors:", errors);
   await ctx.close();
 }
 // Clipboard history

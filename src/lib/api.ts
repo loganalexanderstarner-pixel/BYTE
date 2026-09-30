@@ -6,6 +6,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { DocEvent, DocKind, DocOutline, DocSpec } from "./docs/spec";
 
 import type {
+  Trashed,
   BoostInfo,
   Captured,
   Clip,
@@ -186,6 +187,11 @@ export const api = {
   /** Answers an approval card; false when it's no longer waiting. */
   agentApprove: (id: string, ok: boolean) => invoke<boolean>("agent_approve", { id, ok }),
   macUndo: (token: string) => invoke<boolean>("mac_undo", { token }),
+  // Mac upkeep (upkeep.rs): ids from the card, never paths.
+  upkeepTrash: (scanId: string, id: string) => invoke<Trashed>("upkeep_trash", { scanId, id }),
+  upkeepReveal: (scanId: string, id: string) => invoke<void>("upkeep_reveal", { scanId, id }),
+  upkeepQuit: (card: string, app: string) => invoke<boolean>("upkeep_quit", { card, app }),
+  upkeepOpenSettings: (url: string) => invoke<void>("upkeep_open_settings", { url }),
   selectionPaste: (appName: string, text: string) => invoke<void>("selection_paste", { appName, text }),
   onSelection: (cb: (c: Captured) => void): Promise<UnlistenFn> => listen<Captured>("selection://captured", (e) => cb(e.payload)),
   onSelectionError: (cb: (message: string) => void): Promise<UnlistenFn> => listen<string>("selection://error", (e) => cb(e.payload)),

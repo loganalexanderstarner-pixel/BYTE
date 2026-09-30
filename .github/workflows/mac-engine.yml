@@ -21,6 +21,8 @@ on:
       - "src-tauri/src/clipboard.rs"
       - "src-tauri/src/filectl.rs"
       - "src-tauri/src/terminal.rs"
+      - "src-tauri/src/upkeep.rs"
+      - "src-tauri/src/upkeep_tests.rs"
       - "src-tauri/src/files.rs"
       - "src-tauri/src/embed.rs"
       - "src-tauri/src/kb.rs"

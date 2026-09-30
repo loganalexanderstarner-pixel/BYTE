@@ -110,6 +110,8 @@ pub struct Modules {
     pub translate: bool,
     /// Mac control: notes, reminders, calendar, music, settings (macctl.rs).
     pub mac: bool,
+    /// Mac upkeep: storage, health, uninstalling, login items (upkeep.rs).
+    pub upkeep: bool,
 }
 
 /// BYTE searches before the model answers any question about the world
@@ -738,6 +740,8 @@ async fn specialist(
         crate::macctl::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
     } else if crate::filectl::applies(turn.modules.mac, q) {
         crate::filectl::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
+    } else if crate::upkeep::applies(turn.modules.mac && turn.modules.upkeep, q) {
+        crate::upkeep::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
     } else if crate::terminal::applies(turn.modules.mac, q) {
         crate::terminal::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
     } else if crate::youtube::applies(turn.web, q, turn.history) {
@@ -1063,7 +1067,7 @@ mod tests {
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let http = chat::local_client();
         let net = tools::fetch::web_client();
-        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false, mac: false };
+        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false, mac: false, upkeep: false };
         let cases = [
             ("Reviews of the Sony WH-1000XM5", Mode::Auto, "reviews"),
             ("What's the cheapest place to buy a Steam Deck OLED?", Mode::Auto, "prices"),

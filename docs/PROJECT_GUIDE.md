@@ -18,7 +18,7 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 | 8 | Speed: Speed boost (drafters + MTP/EAGLE-3/DSpark heads), repeated-text guessing, per-Mac tuning, measured-speed recommendations, CPU offload, GPU share, thinking router + model lab, advanced tuning panel, battery saver | ✅ Done (test.7–test.9, v0.8.0) |
 | Cloud | BYTE cloud backend: chat, streaming, actions, attachments, documents with approval, account data | ✅ Built (test.10), awaiting real-cluster check; tab redesign + "Both" next (see HANDOFF) |
 | 9 | Mac control: Apple apps, Shortcuts, files, clipboard, undo & dry-run | 🔄 v0.9.0: Reminders, Calendar, Notes, Music, Shortcuts, Safari, system toggles, approval + undo; v0.9.1: Mail (read, reply, new) and Messages drafts; v0.9.2: ⌥⌘B selected text anywhere + clipboard history; v0.9.3: files (find, tidy, convert, Finder selection) and the terminal helper. ✅ Done (the byte:// link moves to Phase 11, creating Shortcuts to Phase 10) |
-| 10 | Upkeep & automation: scheduler, briefing, watchers, trackers, connectors, dashboards | Planned |
+| 10 | Upkeep & automation: Mac upkeep, scheduler, briefing, watchers, trackers, connectors, dashboards | 🔄 v0.10.0: storage analyzer (treemap, duplicates, safe caches, Trash with Undo), slowness/battery coach, check-up, uninstaller with leftovers, login items |
 | 11 | Input & windows: voice, vision, Quick Ask, floating widget, menu-bar popover, palette, notes | Planned |
 | 12 | Privacy & polish: offline, Touch ID, permissions dashboard, sharing, v1.0 (20 themes + byte-ai palette + eight-bit logo already done) | Planned |
 

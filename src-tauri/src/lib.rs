@@ -50,6 +50,7 @@ mod system;
 mod tools;
 mod translate;
 mod trip;
+mod upkeep;
 mod web_agent;
 mod writing;
 mod youtube;
@@ -195,6 +196,10 @@ pub fn run() {
             lab::lab_list,
             lab::lab_remove,
             macctl::mac_undo,
+            upkeep::upkeep_trash,
+            upkeep::upkeep_quit,
+            upkeep::upkeep_reveal,
+            upkeep::upkeep_open_settings,
             selection::selection_paste,
             clipboard::clip_list,
             clipboard::clip_copy,

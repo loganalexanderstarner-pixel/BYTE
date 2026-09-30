@@ -38,6 +38,8 @@ import type {
   ApprovalCard,
   SavedFile,
   MacDone,
+  Storage,
+  Health,
   Reviews,
   Prices,
   GameHints,
@@ -136,6 +138,9 @@ export interface Message {
   /** Study cards made in chat. */
   flashcards?: Flashcards;
   quiz?: Quiz;
+  /** Mac upkeep cards: storage and health. */
+  storage?: Storage;
+  health?: Health;
   /** A job this (user) message asked for with a button, e.g. Fact-check. */
   task?: ChatTask;
   /** Thumbs up/down given on the cloud. */
@@ -671,6 +676,16 @@ export const useStore = create<State>((set, get) => {
         case "quiz": {
           const { kind: _kind, ...quiz } = e;
           patchMessage(convId, reply.id, (m) => ({ ...m, quiz }));
+          break;
+        }
+        case "storage": {
+          const { kind: _kind, ...storage } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, storage }));
+          break;
+        }
+        case "health": {
+          const { kind: _kind, ...health } = e;
+          patchMessage(convId, reply.id, (m) => ({ ...m, health }));
           break;
         }
         case "selfCheck": {
