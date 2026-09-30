@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.1 — Mail and Messages
+
+- "Any new emails?", "summarize my inbox", "did Sam email me?": BYTE reads Mail and says what needs a reply first.
+- "Reply to Sam's email saying…" and "email Jen about…": BYTE writes it (addresses from Contacts; asks which one if
+  several match), shows it, and opens it in Mail for you to send. Undo removes the draft.
+- "Text Mom that I'm running late": Messages opens with the text filled in. BYTE never sends email or texts itself.
+
 ## 0.9.0 — Mac control, part 1
 
 - Ask BYTE to add **reminders**, **calendar events** and **notes**, read your reminders, schedule and notes, play and

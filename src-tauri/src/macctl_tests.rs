@@ -316,6 +316,96 @@ async fn an_event_without_a_time_asks_for_one() {
     assert!(out.unwrap().1.contains("When is \"Dentist\"?"));
 }
 
+#[test]
+fn mail_and_messages_are_routed_only_when_asked_for() {
+    assert_eq!(family("Any new emails?"), Some(Family::MailList));
+    assert_eq!(family("summarize my inbox"), Some(Family::MailList));
+    assert_eq!(family("did Sam email me?"), Some(Family::MailList));
+    assert_eq!(family("emails from Jen this week"), Some(Family::MailList));
+    assert_eq!(family("Reply to Sam's email saying I can make it"), Some(Family::MailReply));
+    assert_eq!(family("email Jen about the party on Saturday"), Some(Family::MailDraft));
+    assert_eq!(family("send an email to sam@example.com asking for the slides"), Some(Family::MailDraft));
+    assert_eq!(family("text Mom that I'm running late"), Some(Family::Message));
+    assert_eq!(family("message Sam: see you at 7"), Some(Family::Message));
+    for q in [
+        "write an email to my landlord about the heating",
+        "how do I write a professional email?",
+        "email me when it's done",
+        "text summarization models",
+        "What is a good email subject line for a job application?",
+        "reply to this comment politely",
+    ] {
+        assert!(!matches!(family(q), Some(Family::MailDraft | Family::MailReply | Family::Message | Family::MailList)), "{q}");
+    }
+}
+
+#[test]
+fn mail_and_messages_keep_words_out_of_scripts() {
+    let evil = "x\" & (do shell script \"rm -rf ~\") & \"";
+    for a in [
+        Action::MailList { query: evil.into(), days: 3 },
+        Action::MailDraft { to: evil.into(), name: String::new(), subject: evil.into(), body: evil.into() },
+        Action::MessageDraft { to: "+1 555 123 4567".into(), name: String::new(), body: evil.into() },
+        Action::ContactFind { name: evil.into() },
+    ] {
+        let Command::Osa { script, args } = a.command() else { panic!("{a:?}") };
+        assert!(ALL_SCRIPTS.contains(&script) && !script.contains("rm -rf"), "{a:?}");
+        assert!(args.iter().any(|x| x.contains("rm") || x.contains("rm%20")), "{a:?}");
+    }
+    assert_eq!(sms_url("+1 (555) 123-4567", "Running late, 10 min!"), "sms:%2B15551234567&body=Running%20late%2C%2010%20min%21");
+    assert_eq!(sms_url("mom@example.com", "hi"), "sms:mom%40example.com&body=hi");
+    assert!(Action::MailDraft { to: "a@b.c".into(), name: String::new(), subject: "s".into(), body: "b".into() }.needs_ok());
+    assert!(Action::MessageDraft { to: "1".into(), name: String::new(), body: "b".into() }.needs_ok());
+    assert!(!Action::MailList { query: String::new(), days: 3 }.needs_ok());
+}
+
+#[test]
+fn template_placeholders_are_removed() {
+    assert_eq!(without_placeholders("Hi Sam,\n\nI can make it.\n\nBest,\n[Your Name]"), "Hi Sam,\n\nI can make it.\n\nBest,");
+    assert_eq!(without_placeholders("See you on [Date] at 7."), "See you on  at 7.");
+    assert_eq!(without_placeholders("Use a[i] carefully"), "Use a carefully");
+}
+
+#[test]
+fn contacts_and_senders_are_read() {
+    let out = format!("Sam Lee{US}sam@example.com,sam.lee@work.example{US}+1 555 0100{RS}Mom{US}missing value{US}+1 555 0199{RS}");
+    let p = people(&out);
+    assert_eq!(p.len(), 2);
+    assert_eq!(p[0].emails, vec!["sam@example.com", "sam.lee@work.example"]);
+    assert!(p[1].emails.is_empty() && p[1].phones == vec!["+1 555 0199"]);
+    assert_eq!(sender_parts("Sam Lee <sam@example.com>"), ("Sam Lee".into(), "sam@example.com".into()));
+    assert_eq!(sender_parts("\"Lee, Sam\" <sam@example.com>"), ("Lee, Sam".into(), "sam@example.com".into()));
+    assert_eq!(sender_parts("sam@example.com"), (String::new(), "sam@example.com".into()));
+}
+
+#[tokio::test]
+async fn a_text_finds_the_number_asks_first_and_never_sends() {
+    let fake = Fake::default();
+    fake.replies.lock().unwrap().push(Ok(format!("Mom{US}{US}+1 555 0199{RS}")));
+    fake.replies.lock().unwrap().push(Ok("opened".into()));
+    let (out, ev) = flow("text Mom that I'm running late", &fake, Some(true)).await;
+    let card = ev.iter().find_map(|e| if let ChatEvent::Approval(a) = e { Some(a.clone()) } else { None }).expect("approval card");
+    assert_eq!(card.title, "Open Messages with a text to Mom");
+    assert!(card.fields.iter().any(|f| f.label == "Text" && f.value == "I'm running late"), "{:?}", card.fields);
+    let ran = fake.ran.lock().unwrap().clone();
+    assert_eq!(ran[1], Command::Osa { script: MESSAGE_DRAFT, args: vec!["I'm running late".into(), "sms:%2B15550199&body=I%27m%20running%20late".into()] });
+    assert!(out.unwrap().1.contains("It isn't sent"));
+}
+
+#[tokio::test]
+async fn several_matches_ask_which_one() {
+    let fake = Fake::default();
+    fake.replies.lock().unwrap().push(Ok(format!("Sam Lee{US}sam@example.com{US}{RS}Samantha Ruiz{US}sr@example.com{US}{RS}")));
+    let (out, ev) = flow("email Sam about Friday", &fake, None).await;
+    assert!(!ev.iter().any(|e| matches!(e, ChatEvent::Approval(_))));
+    assert!(out.unwrap().1.contains("Which Sam? Sam Lee, Samantha Ruiz"));
+    // Nobody found: ask for the address.
+    let fake = Fake::default();
+    fake.replies.lock().unwrap().push(Ok(String::new()));
+    let (out, _) = flow("text Grandpa that I'll call tonight", &fake, None).await;
+    assert!(out.unwrap().1.contains("couldn't find Grandpa in your Contacts"));
+}
+
 /// A real small model fills in the details (rules back it up): Qwen3 0.6B in CI.
 #[tokio::test]
 #[ignore]
@@ -332,7 +422,7 @@ async fn e2e_details_from_a_real_model() {
         modules: crate::agent::Modules { mac: true, ..Default::default() },
     };
     let q = "Add lunch with Sam to my calendar on Friday at 1pm for 90 minutes";
-    let a = details(&turn, Family::Event, q, now()).await.unwrap().unwrap();
+    let a = details(&turn, Family::Event, q, now(), &Fake::default()).await.unwrap().unwrap();
     eprintln!("{a:?}");
     match a {
         Action::EventAdd { title, start, minutes, calendar } => {
@@ -344,19 +434,50 @@ async fn e2e_details_from_a_real_model() {
         other => panic!("{other:?}"),
     }
     let q = "make a note: gate code 4417, the spare key is under the blue pot";
-    let a = details(&turn, Family::Note, q, now()).await.unwrap().unwrap();
+    let a = details(&turn, Family::Note, q, now(), &Fake::default()).await.unwrap().unwrap();
     eprintln!("{a:?}");
     match a {
         Action::NoteCreate { title, body } => assert!(!title.is_empty() && body.starts_with("gate code 4417") && body.contains("blue pot"), "{title} / {body}"),
         other => panic!("{other:?}"),
     }
     let q = "Remind me to renew my passport next week";
-    let a = details(&turn, Family::Reminder, q, now()).await.unwrap().unwrap();
+    let a = details(&turn, Family::Reminder, q, now(), &Fake::default()).await.unwrap().unwrap();
     eprintln!("{a:?}");
     match a {
         Action::ReminderAdd { title, due, .. } => {
             assert!(title.to_lowercase().contains("passport") && !title.to_lowercase().contains("next week"), "{title}");
             assert_eq!(due, Some(at(2026, 10, 5, 9, 0)));
+        }
+        other => panic!("{other:?}"),
+    }
+}
+
+/// A real small model writes an email reply from the user's words and the email being answered.
+#[tokio::test]
+#[ignore]
+async fn e2e_mail_reply_draft() {
+    let Some((_server, ep)) = crate::chat::e2e_support::start_server().await else { return };
+    let dir = tempfile::tempdir().unwrap();
+    let log = crate::tools::ActionLog::new(dir.path().join("a.jsonl"));
+    let http = chat::local_client();
+    let history = vec![];
+    let plan = crate::router::plan_turn(crate::settings::Mode::Auto, crate::settings::ThinkingPref::Off, "");
+    let turn = Turn {
+        http: &http, cloud: None, net: &http, ep: &ep, system: "", history: &history, plan, mode: crate::settings::Mode::Auto, web: false, memory: false, log: &log, files: None,
+        app: None, task: None, home: None, depth: 0, web_always: false, kitchen: false, metric: false, agent: false,
+        modules: crate::agent::Modules { mac: true, ..Default::default() },
+    };
+    let fake = Fake::default();
+    fake.replies.lock().unwrap().push(Ok(format!(
+        "Sam Lee <sam@example.com>{US}Dinner on Friday?{US}Tuesday, September 29, 2026 at 9:00:00 AM{US}Hi! A few of us are getting dinner at Luca's on Friday at 7. Can you come?{RS}"
+    )));
+    let a = details(&turn, Family::MailReply, "Reply to Sam's email saying I can make it and I'll bring dessert", now(), &fake).await.unwrap().unwrap();
+    eprintln!("{a:?}");
+    match a {
+        Action::MailDraft { to, name, subject, body } => {
+            assert_eq!((to.as_str(), name.as_str(), subject.as_str()), ("sam@example.com", "Sam Lee", "Re: Dinner on Friday?"));
+            let b = body.to_lowercase();
+            assert!(b.contains("dessert") && !body.contains('['), "{body}");
         }
         other => panic!("{other:?}"),
     }

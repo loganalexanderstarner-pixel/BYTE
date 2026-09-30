@@ -71,6 +71,14 @@ pub enum Action {
     OpenSettings { pane: String },
     ShortcutsList,
     ShortcutRun { name: String, input: String },
+    /// Recent emails: unread (empty query) or from/about someone, within `days`.
+    MailList { query: String, days: u32 },
+    /// A new email opened in Mail, filled in, for the user to send (BYTE never sends).
+    MailDraft { to: String, name: String, subject: String, body: String },
+    /// Messages opened to someone with the text filled in (the user presses Send).
+    MessageDraft { to: String, name: String, body: String },
+    /// People in Contacts (for finding an address; never shown as its own action).
+    ContactFind { name: String },
 }
 
 /// A fixed program run with the user's words as separate arguments.
@@ -95,6 +103,9 @@ impl Action {
             DarkMode(_) => "System Events",
             Volume(_) | Mute(_) | Wifi(_) | SleepDisplay | OpenSettings { .. } => "System Settings",
             ShortcutsList | ShortcutRun { .. } => "Shortcuts",
+            MailList { .. } | MailDraft { .. } => "Mail",
+            MessageDraft { .. } => "Messages",
+            ContactFind { .. } => "Contacts",
         }
     }
 
@@ -117,12 +128,16 @@ impl Action {
             OpenSettings { .. } => "mac_open_settings",
             ShortcutsList => "mac_shortcuts_list",
             ShortcutRun { .. } => "mac_shortcut_run",
+            MailList { .. } => "mac_mail_list",
+            MailDraft { .. } => "mac_mail_draft",
+            MessageDraft { .. } => "mac_message_draft",
+            ContactFind { .. } => "mac_contact_find",
         }
     }
 
     /// Adds or changes something that stays: the user approves it first.
     pub fn needs_ok(&self) -> bool {
-        matches!(self, Action::NoteCreate { .. } | Action::ReminderAdd { .. } | Action::EventAdd { .. } | Action::Wifi(false) | Action::ShortcutRun { .. })
+        matches!(self, Action::NoteCreate { .. } | Action::ReminderAdd { .. } | Action::EventAdd { .. } | Action::Wifi(false) | Action::ShortcutRun { .. } | Action::MailDraft { .. } | Action::MessageDraft { .. })
     }
 
     /// One line saying what BYTE will do (the approval card's title).
@@ -154,6 +169,11 @@ impl Action {
             OpenSettings { pane } => format!("Open {} settings", pane_label(pane)),
             ShortcutsList => "List your shortcuts".into(),
             ShortcutRun { name, .. } => format!("Run the shortcut \"{name}\""),
+            MailList { query, .. } if query.is_empty() => "Check your new emails".into(),
+            MailList { query, .. } => format!("Look for emails about \"{query}\""),
+            MailDraft { name, to, .. } => format!("Open an email to {} in Mail, ready to send", if name.is_empty() { to } else { name }),
+            MessageDraft { name, to, .. } => format!("Open Messages with a text to {}", if name.is_empty() { to } else { name }),
+            ContactFind { name } => format!("Look up {name} in Contacts"),
         }
     }
 
@@ -184,6 +204,17 @@ impl Action {
                 f
             }
             Wifi(false) => vec![("Note".into(), "BYTE's web search stops working until Wi-Fi is back on.".into())],
+            MailDraft { to, name, subject, body } => vec![
+                ("To".into(), if name.is_empty() || name == to { to.clone() } else { format!("{name} <{to}>") }),
+                ("Subject".into(), subject.clone()),
+                ("Email".into(), body.chars().take(1500).collect()),
+                ("Note".into(), "Mail opens it for you to read and send. BYTE doesn't send it.".into()),
+            ],
+            MessageDraft { to, name, body } => vec![
+                ("To".into(), if name.is_empty() || name == to { to.clone() } else { format!("{name} ({to})") }),
+                ("Text".into(), body.clone()),
+                ("Note".into(), "Messages opens with it filled in; you press Send.".into()),
+            ],
             _ => vec![],
         }
     }
@@ -220,6 +251,10 @@ impl Action {
             OpenSettings { pane } => Command::Exec { program: "open", args: vec![settings_url(pane)] },
             ShortcutsList => exec("shortcuts", vec!["list"]),
             ShortcutRun { name, .. } => Command::Exec { program: "shortcuts", args: vec!["run".into(), name.clone()] },
+            MailList { query, days } => osa(MAIL_LIST, vec![query.clone(), days.to_string()]),
+            MailDraft { to, subject, body, .. } => osa(MAIL_DRAFT, vec![to.clone(), subject.clone(), body.clone()]),
+            MessageDraft { to, body, .. } => osa(MESSAGE_DRAFT, vec![body.clone(), sms_url(to, body)]),
+            ContactFind { name } => osa(CONTACT_FIND, vec![name.clone()]),
         }
     }
 }
@@ -444,12 +479,146 @@ const MUTE: &str = r#"on run argv
 	return (output muted of (get volume settings)) as string
 end run"#;
 
+/// Recent inbox messages (all accounts): unread ones, or ones whose sender or
+/// subject contains the query; at most 15.
+const MAIL_LIST: &str = r#"on run argv
+	set q to item 1 of argv
+	set since to (current date) - ((item 2 of argv) as integer) * days
+	set out to ""
+	tell application "Mail"
+		if q is "" then
+			set msgs to (messages of inbox whose read status is false and date received > since)
+		else
+			set msgs to (messages of inbox whose date received > since and (sender contains q or subject contains q))
+		end if
+		set k to 0
+		repeat with m in msgs
+			set k to k + 1
+			if k > 15 then exit repeat
+			set c to content of m
+			if (length of c) > 400 then set c to text 1 thru 400 of c
+			set out to out & (sender of m) & (character id 31) & (subject of m) & (character id 31) & ((date received of m) as string) & (character id 31) & c & (character id 30)
+		end repeat
+	end tell
+	return out
+end run"#;
+
+/// A new message window in Mail, filled in; the user reads it and sends it.
+const MAIL_DRAFT: &str = r#"on run argv
+	tell application "Mail"
+		set m to make new outgoing message with properties {subject:item 2 of argv, content:item 3 of argv, visible:true}
+		tell m to make new to recipient at end of to recipients with properties {address:item 1 of argv}
+		activate
+		return id of m
+	end tell
+end run"#;
+
+const MAIL_DRAFT_DELETE: &str = r#"on run argv
+	tell application "Mail" to delete (first outgoing message whose id is ((item 1 of argv) as integer))
+end run"#;
+
+/// Messages opened to the person with the text filled in (and on the clipboard,
+/// in case this macOS version leaves the box empty). Nothing is sent.
+const MESSAGE_DRAFT: &str = r#"on run argv
+	set the clipboard to (item 1 of argv)
+	open location (item 2 of argv)
+	return "opened"
+end run"#;
+
+/// People whose name or nickname contains the words: name, emails, phones.
+const CONTACT_FIND: &str = r#"on run argv
+	set q to item 1 of argv
+	set out to ""
+	tell application "Contacts"
+		set ps to (people whose name contains q or nickname contains q)
+		set k to 0
+		repeat with p in ps
+			set k to k + 1
+			if k > 6 then exit repeat
+			set AppleScript's text item delimiters to ","
+			set es to (value of emails of p) as text
+			set ph to (value of phones of p) as text
+			set AppleScript's text item delimiters to ""
+			set out to out & (name of p) & (character id 31) & es & (character id 31) & ph & (character id 30)
+		end repeat
+	end tell
+	return out
+end run"#;
+
 /// Every fixed script, for the syntax check on macOS (`e2e_scripts_compile`).
 #[cfg_attr(not(test), allow(dead_code))]
 pub const ALL_SCRIPTS: &[&str] = &[
     NOTE_CREATE, NOTE_DELETE, NOTE_FIND, REMINDER_ADD, REMINDER_DELETE, REMINDERS_LIST, EVENT_ADD, EVENT_DELETE, EVENTS_LIST, MUSIC_PLAY,
-    MUSIC_CONTROL, SAFARI_TAB, DARK_MODE, VOLUME, MUTE,
+    MUSIC_CONTROL, SAFARI_TAB, DARK_MODE, VOLUME, MUTE, MAIL_LIST, MAIL_DRAFT, MAIL_DRAFT_DELETE, MESSAGE_DRAFT, CONTACT_FIND,
 ];
+
+/// Percent-encodes for a URL part (spaces as %20, which Messages shows as spaces).
+fn url_part(s: &str) -> String {
+    let mut out = String::new();
+    for b in s.bytes() {
+        if b.is_ascii_alphanumeric() || b"-._~".contains(&b) {
+            out.push(b as char);
+        } else {
+            out.push_str(&format!("%{b:02X}"));
+        }
+    }
+    out
+}
+
+/// `sms:` link that opens Messages to a number or email with the text filled in.
+fn sms_url(to: &str, body: &str) -> String {
+    // A phone number keeps only digits and "+"; an email address its own characters.
+    let to: String = if to.contains('@') { to.chars().filter(|c| c.is_ascii_alphanumeric() || "+@.-_".contains(*c)).collect() } else { to.chars().filter(|c| c.is_ascii_digit() || *c == '+').collect() };
+    format!("sms:{}&body={}", url_part(&to), url_part(body))
+}
+
+/// Drops template leftovers small models add ("[Your Name]", "[Date]"): a line
+/// that is only a placeholder goes, and a placeholder inside a line is removed.
+fn without_placeholders(body: &str) -> String {
+    let mut out: Vec<String> = Vec::new();
+    for line in body.lines() {
+        let mut l = line.to_string();
+        while let (Some(a), Some(b)) = (l.find('['), l.find(']')) {
+            if b <= a || b - a > 40 {
+                break;
+            }
+            l.replace_range(a..=b, "");
+        }
+        let t = l.trim_end().to_string();
+        if t.trim().is_empty() && !line.trim().is_empty() {
+            continue;
+        }
+        out.push(t);
+    }
+    out.join("\n").trim().to_string()
+}
+
+/// One person from Contacts.
+#[derive(Debug, Clone, PartialEq)]
+struct Person {
+    name: String,
+    emails: Vec<String>,
+    phones: Vec<String>,
+}
+
+fn people(out: &str) -> Vec<Person> {
+    let split = |s: &str| s.split(',').map(str::trim).filter(|x| !x.is_empty() && *x != "missing value").map(String::from).collect::<Vec<_>>();
+    out.split(RS)
+        .filter_map(|r| {
+            let f: Vec<&str> = r.split(US).collect();
+            let name = f.first()?.trim();
+            (!name.is_empty()).then(|| Person { name: name.to_string(), emails: split(f.get(1).unwrap_or(&"")), phones: split(f.get(2).unwrap_or(&"")) })
+        })
+        .collect()
+}
+
+/// "Sam Lee <sam@example.com>" → ("Sam Lee", "sam@example.com").
+fn sender_parts(s: &str) -> (String, String) {
+    match (s.find('<'), s.rfind('>')) {
+        (Some(a), Some(b)) if b > a => (s[..a].trim().trim_matches('"').to_string(), s[a + 1..b].trim().to_string()),
+        _ => (String::new(), s.trim().to_string()),
+    }
+}
 
 fn date_arg(d: NaiveDateTime) -> String {
     format!("{} {} {} {} {}", d.year(), d.month(), d.day(), d.hour(), d.minute())
@@ -566,6 +735,10 @@ enum Family {
     EventsList,
     Music,
     Shortcut,
+    MailList,
+    MailDraft,
+    MailReply,
+    Message,
 }
 
 /// A message's action when rules can tell (no model needed), or the family
@@ -678,6 +851,28 @@ fn plan(q: &str) -> Option<Plan> {
         && starts(&l, &["what's on", "what is on", "what do i have", "what have i got", "show my", "read my", "what's my", "what is my", "do i have", "am i free", "am i busy", "any meetings", "how busy"])
     {
         return Some(Plan::Ask(Family::EventsList));
+    }
+    // Mail and Messages: only clear requests to use the apps ("write an email to…"
+    // stays an ordinary answer, written in the chat).
+    if starts(&l, &["any new email", "any new mail", "do i have any email", "do i have any new email", "do i have new email", "do i have any mail", "check my email", "check my mail", "check my inbox", "summarize my inbox", "summarise my inbox", "summarize my email", "summarise my email", "what's in my inbox", "what is in my inbox", "show my email", "read my email", "any emails from", "did i get an email", "did i get any email", "emails from ", "email from "])
+        || (l.starts_with("did ") && (l.contains(" email me") || l.contains(" mail me")))
+    {
+        return Some(Plan::Ask(Family::MailList));
+    }
+    if starts(&l, &["reply to ", "write back to ", "respond to "]) && (l.contains("email") || l.contains("mail")) {
+        return Some(Plan::Ask(Family::MailReply));
+    }
+    if (starts(&l, &["email ", "e-mail ", "send an email to ", "send email to ", "send a mail to ", "draft an email to ", "draft an email for ", "compose an email to ", "start an email to "])
+        || (starts(&l, &["write an email to ", "write a email to "]) && (l.contains(" in mail") || l.contains("mail app"))))
+        && !starts(&l, &["email me", "email address", "email marketing", "email etiquette"])
+    {
+        return Some(Plan::Ask(Family::MailDraft));
+    }
+    if starts(&l, &["text ", "send a text to ", "send a message to ", "message ", "imessage ", "send an imessage to "])
+        && [" that ", " saying ", ":", " to say ", " and say ", " and tell "].iter().any(|c| l.contains(c))
+        && !starts(&l, &["text me", "message me", "text summar", "text to speech", "message queue"])
+    {
+        return Some(Plan::Ask(Family::Message));
     }
     // Notes.
     if starts(&l, &["make a note", "create a note", "add a note", "new note", "take a note", "write a note", "save a note", "note that", "note down", "jot down", "save this to notes", "save that to notes", "put this in notes", "put that in notes", "save this in notes", "save that in notes"])
@@ -965,7 +1160,7 @@ fn reminder_title(q: &str) -> Option<String> {
 
 /// The model fills in what rules can't. Returns the action, or a message for
 /// the user when something essential is missing.
-async fn details(turn: &Turn<'_>, family: Family, q: &str, now: NaiveDateTime) -> AppResult<Result<Action, String>> {
+async fn details(turn: &Turn<'_>, family: Family, q: &str, now: NaiveDateTime, runner: &dyn Runner) -> AppResult<Result<Action, String>> {
     let today = now.format("%A, %B %-d, %Y, %-I:%M %p").to_string();
     let ask = |what: &str, schema: Value| {
         let user = format!("Today is {today}.\nThe user said: \"{q}\"\n\n{what}");
@@ -1079,7 +1274,126 @@ async fn details(turn: &Turn<'_>, family: Family, q: &str, now: NaiveDateTime) -
             let rule = after(q, &["run my ", "run the ", "run "]).map(|s| s.replace(" shortcut", "").replace("shortcut ", "").trim_matches('"').trim().to_string());
             Ok(Action::ShortcutRun { name: rule.unwrap_or_default(), input: String::new() })
         }
+        Family::MailList => {
+            let l = q.to_lowercase();
+            let days = if l.contains("today") {
+                1
+            } else if l.contains("month") {
+                30
+            } else if l.contains("week") || l.contains(" from ") || l.starts_with("did ") {
+                7
+            } else {
+                3
+            };
+            let who = after(q, &["emails from ", "email from ", "mail from ", "anything from "]).or_else(|| {
+                // "did Sam email me"
+                l.strip_prefix("did ").map(|r| r.split(" email").next().unwrap_or(r).split(" mail").next().unwrap_or(r).trim().to_string()).filter(|s| !s.is_empty() && s.split_whitespace().count() <= 3 && s != "i")
+            });
+            let query = who.map(|w| without_time(w.trim_end_matches(['?', '.']).trim_end_matches(" this week").trim_end_matches(" today"))).unwrap_or_default();
+            Ok(Action::MailList { query, days })
+        }
+        Family::MailDraft | Family::MailReply => {
+            let reply = family == Family::MailReply;
+            // Who it's to, by rules: "email Sam about…", "reply to Sam's email saying…".
+            let who = if reply {
+                after(q, &["reply to the email from ", "reply to the mail from ", "reply to ", "write back to ", "respond to "]).map(|s| {
+                    let s = s.split(['\'', '’']).next().unwrap_or(&s).to_string();
+                    s.split(" email").next().unwrap_or(&s).split(" saying").next().unwrap_or(&s).trim().to_string()
+                })
+            } else {
+                after(q, &["send an email to ", "send email to ", "send a mail to ", "draft an email to ", "draft an email for ", "compose an email to ", "start an email to ", "write an email to ", "write a email to ", "e-mail ", "email "]).map(|s| {
+                    let lower = s.to_lowercase();
+                    let cut = [" about ", " saying ", " that ", " to say ", " to tell ", " to ask ", " and ", ":", " asking ", " letting ", " re "].iter().filter_map(|c| lower.find(c)).min().unwrap_or(s.len());
+                    s[..cut].trim().to_string()
+                })
+            }
+            .map(|w| w.trim_start_matches("my ").trim_matches(|c: char| c == ',' || c == '.').to_string())
+            .unwrap_or_default();
+            if who.is_empty() {
+                return Ok(Err("Who should the email go to?".into()));
+            }
+            // A reply: the latest email from them gives the address, subject and what to answer.
+            let mut original = String::new();
+            let (mut name, mut subject) = (String::new(), String::new());
+            let to: String;
+            if reply {
+                let found = runner.run(&Action::MailList { query: who.clone(), days: 30 }.command()).await.map_err(|e| AppError::msg(e.text("Mail")))?;
+                let first = found.split(RS).map(|r| r.split(US).map(str::trim).collect::<Vec<_>>()).find(|r| r.len() >= 2 && !r[0].is_empty());
+                let Some(m) = first else { return Ok(Err(format!("I couldn't find a recent email from {who} in Mail. Who is it to (an email address works)?"))) };
+                let (n, t) = sender_parts(m[0]);
+                name = n;
+                to = t;
+                subject = if m[1].to_lowercase().starts_with("re:") { m[1].to_string() } else { format!("Re: {}", m[1]) };
+                original = format!("From: {}\nSubject: {}\n\n{}", m[0], m[1], m.get(3).unwrap_or(&""));
+            } else if who.contains('@') {
+                to = who.split_whitespace().find(|w| w.contains('@')).unwrap_or(&who).trim_matches(|c: char| c == '<' || c == '>' || c == ',').to_string();
+            } else {
+                match find_person(runner, &who, |p| p.emails.clone()).await? {
+                    Ok((n, addr)) => {
+                        name = n;
+                        to = addr;
+                    }
+                    Err(ask) => return Ok(Err(ask)),
+                }
+            }
+            // The model writes the email from the request (and the email being answered).
+            let context = if original.is_empty() { String::new() } else { format!("\n\nThe email they're replying to:\n<<<\n{}\n>>>", original.chars().take(2500).collect::<String>()) };
+            let user = format!(
+                "The user said: \"{q}\"{context}\n\nWrite the email they asked for, from them to {}: a short subject line and the email itself. Friendly and clear; \
+say what they asked and nothing more (don't invent facts, dates or promises); a greeting and a short sign-off without a name.",
+                // First names read naturally ("Hi Sam", not "Hi Sam Lee").
+                if name.is_empty() { &who } else { name.split_whitespace().next().unwrap_or(&name) }
+            );
+            let schema = json!({"type":"object","properties":{"subject":{"type":"string"},"body":{"type":"string"}},"required":["subject","body"]});
+            let v = chat::complete_json(turn.http, turn.ep, "You write emails for the user. Reply only with JSON.", &user, schema, 700).await.ok().map(|r| crate::research::lenient_json(&r));
+            let text = |k: &str| v.as_ref().and_then(|v| v.get(k)).and_then(Value::as_str).unwrap_or("").trim().to_string();
+            let body = without_placeholders(&text("body"));
+            if body.is_empty() {
+                return Ok(Err("What should the email say?".into()));
+            }
+            if subject.is_empty() {
+                subject = text("subject");
+            }
+            Ok(Action::MailDraft { to, name, subject, body })
+        }
+        Family::Message => {
+            let rest = after(q, &["send an imessage to ", "send a text to ", "send a message to ", "imessage ", "message ", "text "]).unwrap_or_default();
+            let rl = rest.to_lowercase();
+            let cut = [" that ", " saying ", ":", " to say ", " and say ", " and tell them ", " and tell her ", " and tell him ", " and tell "].iter().filter_map(|c| rl.find(c).map(|i| (i, c.len()))).min();
+            let Some((i, n)) = cut else { return Ok(Err("What should the text say?".into())) };
+            let who = rest[..i].trim().trim_start_matches("my ").to_string();
+            // The user's own words, as they wrote them ("text Mom that I'm running late").
+            let body = first_upper(rest[i + n..].trim().trim_matches('"').trim_end_matches('.').trim());
+            if who.is_empty() || body.is_empty() {
+                return Ok(Err("Who should I text, and what should it say?".into()));
+            }
+            let direct = who.chars().filter(|c| c.is_ascii_digit()).count() >= 7 || who.contains('@');
+            let (name, to) = if direct {
+                (String::new(), who.clone())
+            } else {
+                match find_person(runner, &who, |p| if p.phones.is_empty() { p.emails.clone() } else { p.phones.clone() }).await? {
+                    Ok(x) => x,
+                    Err(ask) => return Ok(Err(ask)),
+                }
+            };
+            Ok(Action::MessageDraft { to, name, body })
+        }
     })
+}
+
+/// Finds one person in Contacts and their address (`pick`: emails or phones).
+/// Err(question) when nobody or several people match.
+async fn find_person(runner: &dyn Runner, who: &str, pick: impl Fn(&Person) -> Vec<String>) -> AppResult<Result<(String, String), String>> {
+    let out = runner.run(&Action::ContactFind { name: who.to_string() }.command()).await.map_err(|e| AppError::msg(e.text("Contacts")))?;
+    let found: Vec<Person> = people(&out).into_iter().filter(|p| !pick(p).is_empty()).collect();
+    // An exact name wins over "Sam" also matching "Samantha" and "Sam Lee".
+    let exact: Vec<&Person> = found.iter().filter(|p| p.name.eq_ignore_ascii_case(who)).collect();
+    let list: Vec<&Person> = if exact.len() == 1 { exact } else { found.iter().collect() };
+    match list.as_slice() {
+        [] => Ok(Err(format!("I couldn't find {who} in your Contacts. What's their email address or phone number?"))),
+        [p] => Ok(Ok((p.name.clone(), pick(p)[0].clone()))),
+        many => Ok(Err(format!("Which {who}? {}", many.iter().take(5).map(|p| p.name.as_str()).collect::<Vec<_>>().join(", ")))),
+    }
 }
 
 /// The installed shortcut closest to what was asked (exact, then contains).
@@ -1214,6 +1528,7 @@ fn undo_for(action: &Action, out: &str) -> Option<Command> {
     match action {
         Action::NoteCreate { .. } => Some(Command::Osa { script: NOTE_DELETE, args: vec![out.into()] }),
         Action::ReminderAdd { .. } => Some(Command::Osa { script: REMINDER_DELETE, args: vec![out.into()] }),
+        Action::MailDraft { .. } => Some(Command::Osa { script: MAIL_DRAFT_DELETE, args: vec![out.into()] }),
         Action::EventAdd { .. } => {
             let (uid, cal) = out.split_once(US)?;
             Some(Command::Osa { script: EVENT_DELETE, args: vec![uid.into(), cal.into()] })
@@ -1333,6 +1648,34 @@ fn read_out(action: &Action, out: &str) -> (String, String) {
             }
             (format!("{} shortcuts", names.len()), format!("The user's shortcuts (Shortcuts app):\n{}", names.iter().take(80).map(|n| format!("- {n}")).collect::<Vec<_>>().join("\n")))
         }
+        MailList { query, days } => {
+            let r = recs(out);
+            let span = if *days <= 1 { "today".to_string() } else { format!("in the last {days} days") };
+            let what = if query.is_empty() { format!("unread emails {span}") } else { format!("emails from or about \"{query}\" {span}") };
+            if r.is_empty() {
+                return (format!("No {what}"), format!("BYTE checked Mail: no {what}."));
+            }
+            let items: Vec<String> = r
+                .iter()
+                .map(|f| format!("- From {} · {} · \"{}\": {}", f.first().unwrap_or(&""), f.get(2).unwrap_or(&""), f.get(1).unwrap_or(&""), f.get(3).unwrap_or(&"").replace(['\n', '\r'], " ")))
+                .collect();
+            (
+                format!("{} {what}", r.len()),
+                format!(
+                    "The user's {what} (from Mail, each with the start of the email):\n{}\n\nSummarize them for the user: first the ones that need a reply or action, then other important ones, then the rest in one line. Don't quote long parts.",
+                    items.join("\n")
+                ),
+            )
+        }
+        MailDraft { to, name, subject, .. } => {
+            let who = if name.is_empty() { to } else { name };
+            (format!("To {who} · {subject}"), format!("Done: BYTE opened a new email to {who} in Mail (\"{subject}\"). It isn't sent: the user reads it and presses Send."))
+        }
+        MessageDraft { to, name, .. } => {
+            let who = if name.is_empty() { to } else { name };
+            (format!("To {who}"), format!("Done: Messages is open with the text to {who} filled in (it's on the clipboard too: ⌘V if the box is empty). It isn't sent: the user presses Send."))
+        }
+        ContactFind { .. } => (String::new(), String::new()),
         ShortcutRun { name, .. } => {
             let o: String = out.chars().take(2000).collect();
             ("Ran it".into(), if o.trim().is_empty() { format!("Done: the shortcut \"{name}\" ran.") } else { format!("Done: the shortcut \"{name}\" ran. It returned:\n{o}") })
@@ -1356,7 +1699,7 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, now: NaiveDateTime
         Plan::Ready(a) => a,
         Plan::Ask(f) => {
             let got = tokio::select! {
-                r = details(turn, f, question, now) => r?,
+                r = details(turn, f, question, now, runner) => r?,
                 _ = cancel.cancelled() => return Err(AppError::Cancelled),
             };
             match got {

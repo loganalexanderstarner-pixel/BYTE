@@ -467,6 +467,25 @@ function initScript({ data }) {
             send({ kind: "done", finishReason: "stop" });
             return null;
           }
+          if (data.mail) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            send({ kind: "toolCall", id: "m0", name: "mac_mail_draft", args: { app: "Mail", what: "Open an email to Sam Lee in Mail, ready to send" } });
+            send({ kind: "approval", id: "mail1", action: "mac", title: "Open an email to Sam Lee in Mail, ready to send", site: "Mail", url: "", target: "Mail",
+              fields: [{ label: "To", value: "Sam Lee <sam@example.com>" }, { label: "Subject", value: "Re: Dinner on Friday?" },
+                { label: "Email", value: "Hi Sam,\n\nYes, I can make it! I'll bring dessert.\n\nSee you Friday," },
+                { label: "Note", value: "Mail opens it for you to read and send. BYTE doesn't send it." }] });
+            let finish;
+            const ended = new Promise((r) => (finish = r));
+            window.__agentContinue = async () => {
+              send({ kind: "approvalDone", id: "mail1", ok: true });
+              send({ kind: "toolResult", id: "m0", ok: true, summary: "To Sam Lee · Re: Dinner on Friday?" });
+              send({ kind: "macDone", app: "Mail", title: "Open an email to Sam Lee in Mail, ready to send", detail: "To Sam Lee · Re: Dinner on Friday?", ok: true, undo: "tok2" });
+              for (const t of ["Your reply to Sam is open in Mail, ready to send. It isn't sent yet: have a look and press **Send** when you're happy with it."]) { send({ kind: "content", delta: t }); await wait(10); }
+              send({ kind: "done", finishReason: "stop" });
+              finish(null);
+            };
+            return ended;
+          }
           if (data.mac) {
             send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
             send({ kind: "toolCall", id: "m0", name: "mac_reminder_add", args: { app: "Reminders", what: "Add the reminder \"Call Mom\"" } });
@@ -1277,6 +1296,21 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(300);
   await shot(p, "23c-mac-undone");
   console.log("mac errors:", errors);
+  await ctx.close();
+}
+// Mail: a reply draft waits for OK, then opens in Mail (never sent by BYTE)
+{
+  const { p, ctx, errors } = await page(true, "midnight", { mail: true });
+  await p.getByLabel("Message BYTE").fill("Reply to Sam's email saying I can make it and I'll bring dessert");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(600);
+  await p.locator(".approval").scrollIntoViewIfNeeded();
+  await shot(p, "23d-mail-draft");
+  await p.getByRole("button", { name: "Do it", exact: true }).click();
+  await p.waitForTimeout(600);
+  await p.locator(".mac-card").scrollIntoViewIfNeeded();
+  await shot(p, "23e-mail-opened");
+  console.log("mail errors:", errors);
   await ctx.close();
 }
 // Study: flashcards, a quiz, a study session

@@ -17,6 +17,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-29
 
+### (this commit) — v0.9.1: Mail and Messages
+- **Why:** next Phase 9 slice (plan: Mail + Messages drafts), same safety rules: fixed scripts, words as argv,
+  approval, never send.
+- **What:** `macctl.rs`: `MailList`/`MailDraft`/`MessageDraft`/`ContactFind`, scripts `MAIL_LIST`, `MAIL_DRAFT`,
+  `MAIL_DRAFT_DELETE`, `MESSAGE_DRAFT`, `CONTACT_FIND`; routing (clear requests only; "write an email to…" stays a
+  chat answer); `find_person`, `sender_parts`, `sms_url`, `without_placeholders`; `details` takes the runner for
+  lookups. Approval fields keep line breaks (`app.css`). Settings text; screenshots `23d-mail-draft`, `23e`.
+- **Verify:** `cargo test macctl` (21); real models: `BYTE_TEST_MODEL=<Qwen3-0.6B|gemma-3-1b|Llama-3.2-1B> cargo test
+  macctl -- --include-ignored` (all pass, drafts without "[Your Name]"); Mac CI compiles the new scripts.
+- **Undo:** revert.
+
 ### (this commit) — Writing studio: Shorten and Expand get a word target
 - **Why:** the Mac engine test failed on v0.8.0 (`writing::tests::e2e_writing`): asked for "about half", Qwen3 0.6B
   cut only 15%. A real quality bug on small models, not a flake.

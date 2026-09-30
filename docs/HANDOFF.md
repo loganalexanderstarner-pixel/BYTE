@@ -513,8 +513,12 @@ anything lasting; `ChatEvent::MacDone` card with Undo (`mac_undo`, in-memory tok
 Reminders, Calendar (AppleScript; repeating events don't expand — EventKit later), Notes, Music, Safari tab, dark
 mode, volume/mute, Wi-Fi (`networksetup`), display sleep (`pmset`), System Settings panes, Shortcuts list/run.
 Tests: unit + fake runner flow; real models (Qwen3 0.6B, Gemma 3 1B, Llama 3.2 1B) for details; on macOS CI
-`e2e_scripts_compile_and_run` compiles every script with `osacompile`. **Left** (v0.9.x): Mail, Messages, creating
-shortcuts, selection hotkey, files, Finder Quick Action + `byte://`, clipboard history, terminal helper.
+`e2e_scripts_compile_and_run` compiles every script with `osacompile`.
+**Done in v0.9.1:** Mail (`MAIL_LIST` read/summarize, `MAIL_DRAFT` opens a filled-in compose window, never sends;
+Undo deletes it; replies take the address, "Re:" subject and text from the sender's latest email), Messages
+(`MESSAGE_DRAFT`: clipboard + `sms:` link, the user presses Send), Contacts lookup (`find_person`: exact name wins,
+asks "Which Sam?"), `without_placeholders` for model drafts. **Left** (v0.9.x): creating shortcuts, selection
+hotkey, files, Finder Quick Action + `byte://`, clipboard history, terminal helper.
 Everything asks for permission once, shows what it will do, and can be undone where possible (activity list
 with undo; dry-run mode).
 1. **AppleScript/JXA library** (`mac/applescript.rs`, vetted scripts only — the model never writes raw

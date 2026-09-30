@@ -3844,6 +3844,7 @@ kbd {
 .approval-fields dd {
   margin: 0;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 .approval-site {
   margin-top: var(--space-2);
