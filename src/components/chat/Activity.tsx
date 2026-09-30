@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Clapperboard, GraduationCap, Layers as LayersIcon, Gamepad2, ShieldCheck, Store, Star, Layers, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert, Languages, Laptop, ListTodo, CalendarClock } from "lucide-react";
+import { Clapperboard, GraduationCap, Layers as LayersIcon, Gamepad2, ShieldCheck, Store, Star, Layers, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert, Languages, Laptop, ListTodo, Newspaper, Rss, CalendarClock } from "lucide-react";
 import { Fragment, useState } from "react";
 
 import { CITE_STYLES, cite, citeAll, plainCitation, type CiteStyle } from "../../lib/citations";
@@ -109,6 +109,20 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: ListTodo, text: s.summary ?? "Read your to-do list" };
     case "schedule_add":
       return { icon: CalendarClock, text: arg("what") };
+    case "feed_follow":
+      return { icon: Rss, text: `Followed ${arg("url")}` };
+    case "feed_unfollow":
+      return { icon: Rss, text: `Unfollowed “${arg("title")}”` };
+    case "feed_list":
+      return { icon: Rss, text: s.summary ?? "Read your feeds" };
+    case "feed_digest":
+      return { icon: Newspaper, text: `Read your feeds (${arg("what")})` };
+    case "watch_add":
+      return { icon: Eye, text: `Watching ${arg("url")}` };
+    case "watch_stop":
+      return { icon: Eye, text: `Stopped watching “${arg("name")}”` };
+    case "watch_list":
+      return { icon: Eye, text: s.summary ?? "Read your watched pages" };
     default:
       if (s.name.startsWith("mac_")) return { icon: Laptop, text: s.status === "running" ? arg("what") : `${arg("what")} (${arg("app")})` };
       return { icon: CircleCheck, text: s.name };

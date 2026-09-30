@@ -46,6 +46,15 @@ pub async fn fetch_html(client: &reqwest::Client, raw_url: &str) -> AppResult<(P
     Ok((page, if html_like { body } else { String::new() }))
 }
 
+/// A page's final address and raw body (HTML, RSS/Atom XML or text), fetched
+/// with the same safety checks. `true` when the body is HTML. Not cached.
+pub async fn fetch_raw(client: &reqwest::Client, raw_url: &str) -> AppResult<(String, String, bool)> {
+    let (final_url, body, html_like) = fetch_body(client, raw_url).await?;
+    // Some servers send feeds as text/html; a body that starts like XML is XML.
+    let xml = body.trim_start_matches('\u{feff}').trim_start().starts_with("<?xml") || body.trim_start().starts_with("<rss") || body.trim_start().starts_with("<feed");
+    Ok((final_url.to_string(), body, html_like && !xml))
+}
+
 /// Every schema.org JSON-LD object a page publishes (`@graph` and lists
 /// flattened), for products, offers and ratings.
 pub fn json_ld(html: &str) -> Vec<serde_json::Value> {
@@ -119,7 +128,7 @@ async fn fetch_body(client: &reqwest::Client, raw_url: &str) -> AppResult<(url::
     let resp = client
         .get(url.clone())
         .header(reqwest::header::USER_AGENT, BROWSER_UA)
-        .header(reqwest::header::ACCEPT, "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5")
+        .header(reqwest::header::ACCEPT, "text/html,application/xhtml+xml,application/rss+xml,application/atom+xml,application/xml;q=0.9,text/plain;q=0.9,*/*;q=0.5")
         .header(reqwest::header::ACCEPT_LANGUAGE, "en-US,en;q=0.9")
         .timeout(TIMEOUT)
         .send()

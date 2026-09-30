@@ -5080,6 +5080,25 @@ kbd {
 .schedule-list li.off {
   opacity: 0.6;
 }
+.feed-new {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  vertical-align: 1px;
+}
+.watch-url {
+  overflow-wrap: anywhere;
+}
+.schedule-list .danger {
+  color: var(--danger);
+}
+.target-input {
+  width: 9rem;
+}
 .schedule-list li > svg {
   flex: none;
   color: var(--accent);

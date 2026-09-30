@@ -60,6 +60,7 @@ export interface Settings {
   macUpkeep?: boolean;
   tasksEnabled?: boolean;
   briefingTopics?: string[];
+  watchEnabled?: boolean;
   /** ⌥⌘B opens selected text from any app in the writing studio. */
   selectionHotkey?: boolean;
   /** Keep a history of copied text (off by default; secrets are skipped). */
@@ -456,6 +457,45 @@ export interface Schedule {
   when: string;
   lastChat: string | null;
   lastOk: boolean | null;
+}
+
+/** A followed news feed (Rust `feeds::Feed`). */
+export interface Feed {
+  id: number;
+  url: string;
+  title: string;
+  site: string;
+  added: number;
+  lastChecked: number | null;
+  lastError: string;
+  /** New items not yet in a digest. */
+  unseen: number;
+}
+
+/** A watched page (Rust `watchers::Watcher`). */
+export interface Watcher {
+  id: number;
+  url: string;
+  name: string;
+  kind: "change" | "price";
+  /** Price watchers: notify at or below this. */
+  target: number | null;
+  everyHours: number;
+  enabled: boolean;
+  created: number;
+  lastChecked: number | null;
+  nextCheck: number | null;
+  lastPrice: number | null;
+  currency: string;
+  lastChange: number | null;
+  /** "Dropped to $179 (was $199)" */
+  lastNote: string;
+  lastError: string;
+}
+
+export interface WatchEvent {
+  at: number;
+  note: string;
 }
 
 /** What's using the disk (Rust `upkeep::Storage`). Ids go back to `upkeep_trash` / `upkeep_reveal`. */

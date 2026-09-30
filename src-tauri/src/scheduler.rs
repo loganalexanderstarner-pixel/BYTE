@@ -552,6 +552,7 @@ pub async fn tick(app: &AppHandle) {
             log::warn!("schedule {}: {e}", s.name);
         }
     }
+    crate::watchers::tick(app).await;
 }
 
 /// Starts the loop (at launch).

@@ -298,6 +298,31 @@ function initScript({ data }) {
             { id: 3, kind: "prompt", name: "Plan my week from my", spec: "weekly sun 18:00", prompt: "Plan my week from my calendar and to-do list", enabled: false, lastRun: null, nextRun: null, when: "Every Sunday at 6:00 PM", lastChat: null, lastOk: null },
           ];
         }
+        case "feeds_list": {
+          const now = Date.now();
+          return [
+            { id: 1, url: "https://www.theverge.com/rss/index.xml", title: "The Verge", site: "https://www.theverge.com", added: now - 9e8, lastChecked: now - 3600000, lastError: "", unseen: 7 },
+            { id: 2, url: "https://blog.rust-lang.org/feed.xml", title: "Rust Blog", site: "https://blog.rust-lang.org/", added: now - 8e8, lastChecked: now - 3600000, lastError: "", unseen: 1 },
+            { id: 3, url: "https://news.example.com/feed", title: "Example News", site: "https://news.example.com/", added: now - 7e8, lastChecked: now - 3600000, lastError: "the page returned 404 Not Found", unseen: 0 },
+          ];
+        }
+        case "watchers_list": {
+          const now = Date.now();
+          const w = (o) => ({ id: 0, url: "", name: "", kind: "change", target: null, everyHours: 6, enabled: true, created: 0, lastChecked: now - 2 * 3600000, nextCheck: now + 4 * 3600000, lastPrice: null, currency: "", lastChange: null, lastNote: "", lastError: "", ...o });
+          return [
+            w({ id: 1, url: "https://shop.example.com/tv-55", name: "55-inch OLED TV", kind: "price", target: 1100, lastPrice: 1149, currency: "USD", lastChange: now - 26 * 3600000, lastNote: "Dropped to $1149 (was $1299)" }),
+            w({ id: 2, url: "https://example.org/careers", name: "Careers at Example", everyHours: 24, lastChange: now - 3 * 86400000, lastNote: "New: “Data scientist, Berlin office, on site”" }),
+            w({ id: 3, url: "https://store.example.com/lamp", name: "store.example.com", kind: "price", enabled: false, lastError: "BYTE couldn't find a price on the page" }),
+          ];
+        }
+        case "feed_follow":
+        case "feed_delete":
+        case "watcher_save":
+        case "watcher_delete":
+        case "watcher_check":
+          return args?.watcher ?? null;
+        case "watcher_events":
+          return [];
         case "schedule_parse":
           return /every/i.test(args?.text ?? "") ? ["daily 18:00", "Every day at 6:00 PM"] : null;
         case "task_save":
@@ -1511,12 +1536,25 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
 // Tasks panel, a briefing, and a schedule waiting for OK
 {
   const { p, ctx, errors } = await page(true, "midnight");
-  await p.getByTitle("Tasks: your to-do list and what BYTE does on a schedule").click();
+  await p.getByTitle("Tasks: your to-do list, schedules, news feeds and watched pages").click();
   await p.waitForTimeout(300);
   await p.getByLabel("When").fill("every day at 6pm");
   await p.waitForTimeout(400);
   await shot(p, "26-tasks");
   console.log("tasks errors:", errors);
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await page(true, "paper");
+  await p.getByTitle("Tasks: your to-do list, schedules, news feeds and watched pages").click();
+  await p.waitForTimeout(300);
+  await p.getByRole("heading", { name: "News feeds" }).scrollIntoViewIfNeeded();
+  await p.getByLabel("Watch for").selectOption("price");
+  await p.getByLabel("Page to watch").fill("shop.example.com/headphones");
+  await p.getByLabel("Target price").fill("$199");
+  await p.waitForTimeout(200);
+  await shot(p, "27-feeds-watch");
+  console.log("feeds/watch errors:", errors);
   await ctx.close();
 }
 {

@@ -292,7 +292,7 @@ pub async fn run(turn: &Turn<'_>, cancel: &CancellationToken, send: Emit<'_>) ->
 pub async fn write(state: &AppState) -> Answer {
     let (web, home, mac, topics) = {
         let s = state.settings.lock().await;
-        (s.web_mode != "off", s.home_place.clone(), s.mac_control, s.briefing_topics.clone())
+        (s.web_search, s.home_place.clone(), s.mac_control, s.briefing_topics.clone())
     };
     let tasks = crate::tasks::list(&state.db, false).unwrap_or_default();
     let setup = Setup { net: &state.net, cloud: None, web, home: home.as_deref(), mac, topics: &topics, tasks: &tasks };

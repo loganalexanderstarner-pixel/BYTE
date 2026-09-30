@@ -177,6 +177,9 @@ pub struct Settings {
     /// Topics the daily briefing follows (a few headlines each; needs the web).
     #[serde(default)]
     pub briefing_topics: Vec<String>,
+    /// News feeds and page watchers (feeds.rs, watchers.rs; needs the web).
+    #[serde(default = "yes")]
+    pub watch_enabled: bool,
     /// Mac upkeep: storage clean-up, health checks, uninstalling apps, login items (macOS).
     #[serde(default = "yes")]
     pub mac_upkeep: bool,
@@ -259,6 +262,7 @@ impl Default for Settings {
             mac_upkeep: true,
             tasks_enabled: true,
             briefing_topics: Vec::new(),
+            watch_enabled: true,
             selection_hotkey: true,
             clipboard_history: false,
             jobs_enabled: true,

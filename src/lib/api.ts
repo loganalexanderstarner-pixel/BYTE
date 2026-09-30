@@ -9,6 +9,9 @@ import type {
   Trashed,
   Task,
   Schedule,
+  Feed,
+  Watcher,
+  WatchEvent,
   BoostInfo,
   Captured,
   Clip,
@@ -202,6 +205,16 @@ export const api = {
   /** "every weekday at 8am" → [spec, description], or null. */
   scheduleParse: (text: string) => invoke<[string, string] | null>("schedule_parse", { text }),
   onScheduleRan: (cb: (chatId: string) => void): Promise<UnlistenFn> => listen<string>("schedules://ran", (e) => cb(e.payload)),
+  // News feeds and page watchers (feeds.rs, watchers.rs).
+  feedsList: () => invoke<Feed[]>("feeds_list"),
+  feedFollow: (url: string) => invoke<Feed>("feed_follow", { url }),
+  feedDelete: (id: number) => invoke<void>("feed_delete", { id }),
+  watchersList: () => invoke<Watcher[]>("watchers_list"),
+  watcherSave: (watcher: Watcher) => invoke<Watcher>("watcher_save", { watcher }),
+  watcherDelete: (id: number) => invoke<void>("watcher_delete", { id }),
+  watcherEvents: (id: number) => invoke<WatchEvent[]>("watcher_events", { id }),
+  watcherCheck: (id: number) => invoke<Watcher>("watcher_check", { id }),
+  onWatcherChanged: (cb: (id: number) => void): Promise<UnlistenFn> => listen<number>("watchers://changed", (e) => cb(e.payload)),
   // Mac upkeep (upkeep.rs): ids from the card, never paths.
   upkeepTrash: (scanId: string, id: string) => invoke<Trashed>("upkeep_trash", { scanId, id }),
   upkeepReveal: (scanId: string, id: string) => invoke<void>("upkeep_reveal", { scanId, id }),

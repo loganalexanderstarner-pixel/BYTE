@@ -17,6 +17,23 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-09-30
 
+### (this commit) — v0.10.2: news feeds and page watchers
+- **Why:** Phase 10 item 3 (HANDOFF §8): news/RSS digest and page watchers with price alerts, built while the v0.10.0
+  release and the v0.10.1 Mac run ran.
+- **What:** `db.rs` v12 (`feeds`, `feed_items`, `watchers`, `watch_events`). `feeds.rs` (RSS/Atom parser on
+  `quick-xml`, discovery, storing, digest composed by BYTE, chat routing, commands). `watchers.rs` (content-line
+  diff, price from JSON-LD → microdata → Amazon's price-to-pay element, `price_change`, due checks from the scheduler
+  tick, chat routing with approval card, commands). `tools/fetch.rs` `fetch_raw` + feed types in `Accept`.
+  `scheduler::tick` calls `watchers::tick`; `agent`/`backend` send `feeds_digest` as BYTE's own reply; setting
+  `watchEnabled`, `Modules.watch`. UI: `WatchSection.tsx` in the ✅ panel, `lib/watch.ts` (+ tests), Activity labels,
+  Settings toggle, `.schedule-list .danger` (error hints were not red), screenshot `27-feeds-watch`.
+  Fix: `briefing::write` checked `web_mode != "off"` (always true) instead of `web_search`.
+- **Verify:** `cargo test feeds:: watchers::`; `cargo test e2e_real -- --ignored --nocapture` (live: HN, Rust blog,
+  The Verge found from its homepage, BBC, GitHub blog; the run caught double-escaped entities in The Verge's titles,
+  fixed). Amazon serves this environment a Captcha, so its price element is tested on a snippet only. Owner: "follow
+  theverge.com" → "what's new in my feeds?"; "tell me when <product link> drops below $X" → Do it → ✅ panel.
+- **Undo:** revert; Settings → News feeds and watched pages off stops all checks (the tables stay, unused).
+
 ### (this commit) — v0.10.1: tasks, schedules and a daily briefing
 - **Why:** Phase 10 item 2 (HANDOFF §8): tasks & reminders, a scheduler, the daily briefing. Built while the v0.10.0
   Mac run and release ran.

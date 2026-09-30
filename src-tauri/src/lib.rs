@@ -53,6 +53,8 @@ mod trip;
 mod briefing;
 mod scheduler;
 mod tasks;
+mod feeds;
+mod watchers;
 mod upkeep;
 mod web_agent;
 mod writing;
@@ -215,6 +217,14 @@ pub fn run() {
             scheduler::schedule_delete,
             scheduler::schedule_run,
             scheduler::schedule_parse,
+            feeds::feeds_list,
+            feeds::feed_follow,
+            feeds::feed_delete,
+            watchers::watchers_list,
+            watchers::watcher_save,
+            watchers::watcher_delete,
+            watchers::watcher_events,
+            watchers::watcher_check,
             selection::selection_paste,
             clipboard::clip_list,
             clipboard::clip_copy,

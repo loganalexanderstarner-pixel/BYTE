@@ -117,7 +117,7 @@ pub async fn answer(state: &AppState, mut request: ChatRequest, on_event: &Chann
         // Flashcards and quizzes need no written answer: BYTE's own short reply.
         let own = match p.kind {
             "study" => crate::study::reply_for(&p.notes),
-            "briefing" => Some(p.notes.clone()),
+            "briefing" | "feeds_digest" => Some(p.notes.clone()),
             _ => None,
         };
         if let Some(reply) = own {
@@ -317,6 +317,7 @@ impl Setup {
                 mac: s.mac_control,
                 upkeep: s.mac_upkeep,
                 tasks: s.tasks_enabled,
+                watch: s.watch_enabled,
             }, s.kb_enabled, s.cloud_connected)
         };
         let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());

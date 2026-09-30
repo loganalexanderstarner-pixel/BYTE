@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.2 — News feeds and page watchers
+
+- **News feeds**: follow a site or feed address (RSS, Atom; a site's page is enough) and ask "what's new in my
+  feeds?" for a digest BYTE puts together from the feeds (only what's new since the last one, with sources).
+- **Watched pages**: notifications when a page's content changes, or when a product's price drops (below a target,
+  if given). Prices come from the page's own product data. Approval card first; checks run while BYTE is open.
+- ✅ panel sections for both; Settings → Features → News feeds and watched pages.
+- Fixed: the scheduled daily briefing ignored the web-access switch.
+
 ## 0.10.1 — Tasks, schedules and a daily briefing
 
 - **✅ Tasks**: to-dos with due dates, reminders (Mac notifications) and repeats; add, list and check off in chat.

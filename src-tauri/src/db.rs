@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 11;
+const SCHEMA_VERSION: i32 = 12;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -726,7 +726,63 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 11);
+    if version < 12 {
+        // News feeds and page watchers (feeds.rs, watchers.rs).
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE feeds (
+                 id INTEGER PRIMARY KEY,
+                 url TEXT NOT NULL UNIQUE,
+                 title TEXT NOT NULL,
+                 site TEXT NOT NULL DEFAULT '',
+                 added INTEGER NOT NULL,
+                 last_checked INTEGER,
+                 last_error TEXT NOT NULL DEFAULT ''
+             );
+             CREATE TABLE feed_items (
+                 id INTEGER PRIMARY KEY,
+                 feed_id INTEGER NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+                 guid TEXT NOT NULL,
+                 title TEXT NOT NULL,
+                 link TEXT NOT NULL,
+                 published INTEGER,
+                 summary TEXT NOT NULL DEFAULT '',
+                 seen INTEGER NOT NULL DEFAULT 0,
+                 fetched INTEGER NOT NULL,
+                 UNIQUE(feed_id, guid)
+             );
+             CREATE INDEX feed_items_unseen ON feed_items(seen, feed_id);
+             CREATE TABLE watchers (
+                 id INTEGER PRIMARY KEY,
+                 url TEXT NOT NULL,
+                 name TEXT NOT NULL,
+                 kind TEXT NOT NULL,
+                 target REAL,
+                 every_hours INTEGER NOT NULL DEFAULT 6,
+                 enabled INTEGER NOT NULL DEFAULT 1,
+                 created INTEGER NOT NULL,
+                 last_checked INTEGER,
+                 next_check INTEGER,
+                 last_hash TEXT NOT NULL DEFAULT '',
+                 last_text TEXT NOT NULL DEFAULT '',
+                 last_price REAL,
+                 currency TEXT NOT NULL DEFAULT '',
+                 last_change INTEGER,
+                 last_note TEXT NOT NULL DEFAULT '',
+                 last_error TEXT NOT NULL DEFAULT ''
+             );
+             CREATE TABLE watch_events (
+                 id INTEGER PRIMARY KEY,
+                 watcher_id INTEGER NOT NULL REFERENCES watchers(id) ON DELETE CASCADE,
+                 at INTEGER NOT NULL,
+                 note TEXT NOT NULL
+             );
+             CREATE INDEX watch_events_watcher ON watch_events(watcher_id, at);
+             PRAGMA user_version = 12;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 12);
     Ok(())
 }
 

@@ -759,6 +759,13 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
+            News feeds and watched pages
+            <small>Follow sites (“follow theverge.com”, then “what's new in my feeds?”) and watch pages for changes or price drops (“tell me when &lt;link&gt; drops below $200”). BYTE checks while it's open and sends a notification. Needs web access.</small>
+          </span>
+          <input type="checkbox" checked={settings?.watchEnabled ?? true} onChange={(e) => void update({ watchEnabled: e.target.checked })} />
+        </label>
+        <label className="field">
+          <span>
             Mac upkeep
             <small>“What's taking up space?”, “find duplicate files”, “why is my Mac slow?”, “what's draining my battery?”, “check my Mac”, “uninstall Zoom”, “what opens at login?”. Anything removed goes to the Trash (Undo puts it back); BYTE never empties the Trash or touches macOS itself.</small>
           </span>
