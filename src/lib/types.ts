@@ -89,6 +89,13 @@ export interface Settings {
   voiceLanguage?: string;
   /** Label who's speaking in recordings (speakers.rs). */
   voiceSpeakers?: boolean;
+  /** Read answers aloud (speech.rs). */
+  readAloud?: boolean;
+  /** A macOS voice name ("" = the system default). */
+  speechVoice?: string;
+  speechSpeed?: "slow" | "normal" | "fast";
+  /** Listen for "Hey BYTE" (wake.rs). */
+  wakeWord?: boolean;
   /** ⌥⌘B opens selected text from any app in the writing studio. */
   selectionHotkey?: boolean;
   /** Keep a history of copied text (off by default; secrets are skipped). */
@@ -1134,6 +1141,14 @@ export interface VoiceStatus {
   models: VoiceInfo[];
   /** The model voice input uses now (null until one is downloaded). */
   ready: string | null;
+}
+
+/** Rust `speech::Voice`: one of the Mac's voices. */
+export interface SpeechVoice {
+  name: string;
+  /** "en_US" */
+  language: string;
+  sample: string;
 }
 
 /** Rust `speakers::SpeakersStatus`: the two speaker-label models. */

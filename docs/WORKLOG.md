@@ -17,6 +17,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-01
 
+### (this commit) — v0.11.3: spoken answers, hands-free conversation, “Hey BYTE”
+- **Why:** Phase 11 items 1 (hands-free) and 4 (wake word); BYTE couldn't speak at all.
+- **What:** `src-tauri/src/speech.rs`, `src-tauri/src/wake.rs` (+ tests and Mac e2e), `voice::transcribe_short`,
+  `quick::show`, settings `readAloud`/`speechVoice`/`speechSpeed`/`wakeWord`, `lib.rs`/`commands.rs` wiring, `cpal`
+  (macOS only) in `Cargo.toml`, `mac-engine.yml` paths; UI `lib/handsfree.ts` (+ test), store speaking/talk state,
+  `MicButton` auto mode + wake pause, Composer Talk button and wake turn, `MessageView` 🔊, Esc in Shell/Quick Ask,
+  Settings `SpeechRows`/`WakeRow`, CSS; screenshots `35-*` (the shots now use a Mac user agent).
+- **Verify:** `cargo test speech wake`; `npx vitest run src/lib/handsfree.test.ts`; on a Mac: 🔊 on an answer, Talk
+  mode, “Hey BYTE” with the setting on.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — v0.11.2: speaker labels and videos without captions
 - **Why:** Phase 11 items 1 and 1b (HANDOFF §8): transcripts with who said what; YouTube videos without captions.
 - **What:** `src-tauri/src/speakers.rs` (+ tests, `e2e_speakers`, `e2e_labelled_transcript`), `src-tauri/src/media.rs`

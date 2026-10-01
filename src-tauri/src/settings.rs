@@ -219,6 +219,18 @@ pub struct Settings {
     /// Which speech model to use ("turbo" or "base-en", voice::MODELS).
     #[serde(default = "default_voice_model")]
     pub voice_model: String,
+    /// Read answers aloud (speech.rs, macOS voices).
+    #[serde(default)]
+    pub read_aloud: bool,
+    /// The macOS voice ("" = the system's default voice).
+    #[serde(default)]
+    pub speech_voice: String,
+    /// "slow", "normal" or "fast".
+    #[serde(default = "default_speech_speed")]
+    pub speech_speed: String,
+    /// Listen for "Hey BYTE" (wake.rs; off until switched on).
+    #[serde(default)]
+    pub wake_word: bool,
     /// Label who's speaking in recordings (speakers.rs; needs its small models).
     #[serde(default = "yes")]
     pub voice_speakers: bool,
@@ -323,6 +335,10 @@ impl Default for Settings {
             voice_model: default_voice_model(),
             voice_language: default_voice_language(),
             voice_speakers: true,
+            read_aloud: false,
+            speech_voice: String::new(),
+            speech_speed: default_speech_speed(),
+            wake_word: false,
             selection_hotkey: true,
             clipboard_history: false,
             jobs_enabled: true,
@@ -383,6 +399,10 @@ impl Settings {
 
 fn yes() -> bool {
     true
+}
+
+fn default_speech_speed() -> String {
+    "normal".into()
 }
 
 fn default_voice_model() -> String {

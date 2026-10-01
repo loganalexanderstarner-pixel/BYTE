@@ -9,6 +9,7 @@ import type {
   Trashed,
   VoiceStatus,
   SpeakersStatus,
+  SpeechVoice,
   MediaStatus,
   Task,
   Schedule,
@@ -254,6 +255,15 @@ export const api = {
   voiceDownload: (id: string) => invoke<void>("voice_download", { id }),
   voiceDelete: (id: string) => invoke<void>("voice_delete", { id }),
   voiceTranscribe: (wavBase64: string) => invoke<string>("voice_transcribe", { wavBase64 }),
+  // Spoken replies (speech.rs) and "Hey BYTE" (wake.rs).
+  speechSay: (text: string) => invoke<void>("speech_say", { text }),
+  speechStop: () => invoke<void>("speech_stop"),
+  speechVoices: () => invoke<SpeechVoice[]>("speech_voices"),
+  onSpeechDone: (cb: () => void): Promise<UnlistenFn> => listen("speech://done", () => cb()),
+  wakePause: (paused: boolean) => invoke<void>("wake_pause", { paused }),
+  wakeReady: () => invoke<boolean>("wake_ready"),
+  /** Quick Ask: "Hey BYTE" was heard. */
+  onWakeHeard: (cb: () => void): Promise<UnlistenFn> => listen("wake://heard", () => cb()),
   // Speaker labels (speakers.rs) and the video helper (media.rs).
   speakersStatus: () => invoke<SpeakersStatus>("speakers_status"),
   speakersDownload: () => invoke<void>("speakers_download"),

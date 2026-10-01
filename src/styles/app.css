@@ -5585,3 +5585,27 @@ kbd {
     animation: none;
   }
 }
+
+/* ------------------------------------------------ hands-free talking */
+.talk-on {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.talk-pill {
+  font-size: 0.8em;
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  animation: talk-breathe 1.8s var(--ease) infinite;
+}
+@keyframes talk-breathe {
+  50% {
+    opacity: 0.6;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .talk-pill {
+    animation: none;
+  }
+}

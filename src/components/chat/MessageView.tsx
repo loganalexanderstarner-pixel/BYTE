@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Brain, Check, ChevronLeft, ChevronRight, Cloud, Copy, FastForward, HelpCircle, Layers, Lightbulb, Pencil, PenLine, RefreshCw, ShieldCheck, ThumbsDown, ThumbsUp, TriangleAlert } from "lucide-react";
+import { Brain, Check, ChevronLeft, ChevronRight, Cloud, Copy, FastForward, HelpCircle, Layers, Lightbulb, Pencil, PenLine, RefreshCw, ShieldCheck, Square, ThumbsDown, ThumbsUp, TriangleAlert, Volume2 } from "lucide-react";
 import { memo, useMemo, useState, type MouseEvent } from "react";
 
 import { versionInfo } from "../../lib/branches";
@@ -10,7 +10,7 @@ import { displayName } from "../../lib/models";
 import { closeOpenFences, renderMarkdown } from "../../lib/markdown";
 import { useThrottled } from "../../lib/throttle";
 import { AttachmentChips, LocalFileChips } from "./Attachments";
-import { useStore, type Message, type Step } from "../../state/store";
+import { canSpeak, useStore, type Message, type Step } from "../../state/store";
 import { Activity, Sources } from "./Activity";
 import { DecisionTable } from "./Decision";
 import { PlacesCards } from "./Places";
@@ -288,6 +288,7 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
               {copied ? <Check size={15} /> : <Copy size={15} />}
             </button>
           )}
+          {message.content.trim() && canSpeak() && <ReadAloudButton id={message.id} text={message.content} />}
           {writingOn && message.content.trim().length > 20 && (
             <button className="icon-btn" onClick={() => openWriting(message.content.replace(/\[\d{1,3}\]/g, ""))} title="Edit in the writing studio">
               <PenLine size={15} />
@@ -348,6 +349,22 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
         </div>
       )}
     </div>
+  );
+}
+
+/** 🔊 Reads the answer aloud with the Mac's voice (or stops it). */
+function ReadAloudButton({ id, text }: { id: string; text: string }) {
+  const speaking = useStore((s) => s.speakingId === id);
+  const speak = useStore((s) => s.speak);
+  const stop = useStore((s) => s.stopSpeaking);
+  return speaking ? (
+    <button className="icon-btn" onClick={stop} title="Stop reading aloud" aria-label="Stop reading aloud">
+      <Square size={14} />
+    </button>
+  ) : (
+    <button className="icon-btn" onClick={() => void speak(id, text)} title="Read aloud" aria-label="Read aloud">
+      <Volume2 size={15} />
+    </button>
   );
 }
 

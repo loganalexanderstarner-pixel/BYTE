@@ -56,6 +56,8 @@ src-tauri/                Rust core (Tauri 2)
   src/voice.rs            voice input: whisper-cli sidecar, speech models in <models>/voice, transcribe recordings/files
   src/speakers.rs         speaker labels in transcripts: sherpa-diarize sidecar + 2 small models, matched to whisper segments
   src/media.rs            video helper: yt-dlp (downloaded on request, checksum-checked) for videos without captions
+  src/speech.rs           answers read aloud (macOS `say`, text via a temp file), speakable(), voices
+  src/wake.rs             "Hey BYTE": native mic (cpal, macOS), voice-burst detector, whisper check, opens Quick Ask
   src/quick.rs            Quick Ask window, menu-bar icon, global shortcuts from settings
   src/macctl.rs           Mac control: fixed AppleScripts (user words only as argv), approval card, undo
   src/router.rs           per-turn thinking/length plan by mode

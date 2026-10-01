@@ -1,6 +1,6 @@
 [package]
 name = "byte"
-version = "0.11.2"
+version = "0.11.3"
 description = "BYTE — a local-first AI assistant for Apple Silicon Macs"
 authors = ["Logan Starner"]
 edition = "2021"
@@ -63,6 +63,8 @@ zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
 
 # Cloud mode: the API key lives in the macOS Keychain, never in files.
 [target.'cfg(target_os = "macos")'.dependencies]
+# "Hey BYTE": the microphone read natively (wake.rs).
+cpal = "0.18"
 keyring = { version = "3", features = ["apple-native"] }
 # Reading text in photos and scanned PDFs (Apple Vision + PDFKit, see ocr.rs).
 objc2 = "0.6"

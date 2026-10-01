@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.3 — BYTE talks back, and “Hey BYTE”
+
+- **Spoken answers** (`speech.rs`): macOS `say` with the text in a temp file, one reply at a time, Stop; `speakable()`
+  drops code, tables, links, citation marks and the confidence line, and cuts long answers at a sentence. 🔊 on every
+  answer, "Read answers aloud", voice and speed, Try it.
+- **Hands-free conversation** (Talk button): automatic end of a spoken turn on a pause (`lib/handsfree.ts`), send,
+  answer read aloud, listen again; "stop" / "that's all" / Esc / 20 s of quiet end it.
+- **“Hey BYTE”** (`wake.rs`, opt-in): native mic (cpal), energy voice detector for 0.4–2.5 s bursts, whisper on each
+  burst, fuzzy phrase match; opens Quick Ask listening, with a chime. Pauses while BYTE talks or records.
+
 ## 0.11.2 — Who said what, and videos without captions
 
 - **Speaker labels** in transcripts of attached recordings (`Speaker 1 [0:00]: …`): sherpa-onnx's diarization tool as a

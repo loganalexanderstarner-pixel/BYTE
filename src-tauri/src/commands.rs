@@ -313,6 +313,7 @@ pub async fn settings_update(app: AppHandle, state: State<'_, AppState>, patch: 
     *s = next.clone();
     crate::quick::apply_shortcuts(&app, &next);
     crate::quick::apply_tray(&app, next.menu_bar_icon);
+    crate::wake::apply(&app, next.wake_word);
     Ok(next)
 }
 

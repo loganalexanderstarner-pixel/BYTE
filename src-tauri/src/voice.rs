@@ -283,6 +283,14 @@ pub async fn wav_16k(audio: &Path, tmp: &Path) -> AppResult<PathBuf> {
     Ok(tmp.to_path_buf())
 }
 
+/// A short clip (the wake word): the smallest installed model, English, steered by `prompt`.
+pub async fn transcribe_short(app: Option<&AppHandle>, models_dir: &Path, wav: &Path, prompt: &str) -> AppResult<String> {
+    let m = pick(models_dir, "base-en").ok_or_else(|| AppError::msg("needs a speech model"))?;
+    let mut a = args(&model_path(models_dir, m), wav, "en", true, threads().min(4));
+    a.extend(["--prompt".into(), prompt.into()]);
+    Ok(clean(&run_whisper(app, a).await?))
+}
+
 /// Transcribes a 16 kHz WAV into timed segments.
 pub async fn transcribe_segments(app: Option<&AppHandle>, models_dir: &Path, chosen: &str, language: &str, wav: &Path) -> AppResult<Vec<Segment>> {
     let m = pick(models_dir, chosen).ok_or_else(|| AppError::msg("Voice input needs a speech model first: Settings → Models → Voice."))?;

@@ -179,6 +179,20 @@ pub fn toggle(app: &AppHandle, tray: Option<Rect>) {
     let _ = w.emit("quick://shown", ());
 }
 
+/// Shows Quick Ask (never hides it): the wake word.
+pub fn show(app: &AppHandle) {
+    let w = match window(app) {
+        Ok(w) => w,
+        Err(e) => return log::warn!("Quick Ask window: {e}"),
+    };
+    if !w.is_visible().unwrap_or(false) {
+        place(app, &w, None);
+    }
+    let _ = w.show();
+    let _ = w.set_focus();
+    let _ = w.emit("quick://shown", ());
+}
+
 /// Quick Ask hides when you click elsewhere, like Spotlight.
 pub fn on_blur(w: &tauri::Window) {
     if w.label() == LABEL {

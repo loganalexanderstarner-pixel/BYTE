@@ -39,6 +39,8 @@ mod prompt;
 mod quick;
 mod media;
 mod speakers;
+mod speech;
+mod wake;
 mod voice;
 mod quality;
 mod research;
@@ -142,6 +144,7 @@ pub fn run() {
             // clipboard history checks its own setting.
             quick::apply_shortcuts(app.handle(), &settings_now);
             quick::apply_tray(app.handle(), settings_now.menu_bar_icon);
+            wake::apply(app.handle(), settings_now.wake_word);
             clipboard::watch(app.handle().clone());
             // Reminders, the daily briefing and scheduled questions.
             scheduler::start(app.handle().clone());
@@ -284,6 +287,11 @@ pub fn run() {
             media::media_status,
             media::media_download,
             media::media_delete,
+            speech::speech_say,
+            speech::speech_stop,
+            speech::speech_voices,
+            wake::wake_pause,
+            wake::wake_ready,
             clipboard::clip_list,
             clipboard::clip_copy,
             clipboard::clip_delete,

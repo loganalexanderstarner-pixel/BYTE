@@ -54,7 +54,11 @@ export function QuickAsk() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        if (useStore.getState().running.length) void stop();
+        const st = useStore.getState();
+        if (st.talk || st.speakingId) {
+          st.setTalk(false);
+          st.stopSpeaking();
+        } else if (st.running.length) void stop();
         else if (inTauri) void api.quickHide();
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
         e.preventDefault();

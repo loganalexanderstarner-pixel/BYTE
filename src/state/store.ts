@@ -207,6 +207,12 @@ interface State {
   generating: string | null;
   /** Every answer currently streaming (several when comparing models). */
   running: string[];
+  /** The answer BYTE is reading aloud (speech.rs), if any. */
+  speakingId: string | null;
+  /** Hands-free conversation: answers are read aloud and the mic opens again after each. */
+  talk: boolean;
+  /** The last answer that finished (hands-free and read-aloud react to it). */
+  lastAnswer: { id: string; ok: boolean; at: number } | null;
   /** "Tune for this Mac" progress while it runs (chat waits meanwhile). */
   tune: TuneProgress | null;
   /** Models in memory: the main one and any loaded alongside. */
@@ -239,6 +245,9 @@ interface State {
   resolveMemory(msgId: string, stepId: string, save: boolean): Promise<void>;
   /** Reload the chat list from the database (after an erase or import). */
   reloadChats(): Promise<void>;
+  speak(id: string, text: string): Promise<void>;
+  stopSpeaking(): void;
+  setTalk(on: boolean): void;
   /** Adds chats saved elsewhere (Quick Ask, schedules) without leaving the open one. */
   addNewChats(): Promise<void>;
   /** Re-reads one chat from disk (another window changed it) and opens it. */
@@ -732,6 +741,11 @@ export const useStore = create<State>((set, get) => {
       const running = get().running.filter((id) => id !== reply.id);
       set({ running, generating: running.length ? (get().generating === reply.id ? running[0] : get().generating) : null });
       const done = get().conversations.find((c) => c.id === convId);
+      const answer = done?.messages.find((m) => m.id === reply.id);
+      const ok = answer?.status === "done" && !!answer.content.trim();
+      set({ lastAnswer: { id: reply.id, ok, at: Date.now() } });
+      // Read it aloud (setting, or hands-free conversation). Only the main answer of a chat, on a Mac.
+      if (ok && answer && !answer.alt && (get().settings?.readAloud || get().talk) && canSpeak()) void get().speak(reply.id, answer.content);
       if (done && inTauri) {
         scheduleSave(done, 100);
         maybeAutotitle(done);
@@ -809,6 +823,9 @@ export const useStore = create<State>((set, get) => {
     currentId: null,
     generating: null,
     running: [],
+    speakingId: null,
+    talk: false,
+    lastAnswer: null,
     loaded: [],
     projects: [],
     tune: null,
@@ -862,6 +879,7 @@ export const useStore = create<State>((set, get) => {
         void get().refreshModels();
       });
       await events.onDownload((e) => handleDownload(e));
+      await api.onSpeechDone(() => set({ speakingId: null }));
       void get().refreshKb();
       await events.onKbProgress((p) => {
         set({ kbProgress: p.phase === "done" ? null : p });
@@ -1025,6 +1043,26 @@ export const useStore = create<State>((set, get) => {
       if (!inTauri) return;
       const conversations = (await api.chatsList()).map(fromMeta);
       set({ conversations, currentId: null });
+    },
+
+    async speak(id, text) {
+      try {
+        set({ speakingId: id });
+        await api.speechSay(text);
+      } catch (e) {
+        set({ speakingId: null });
+        console.warn("couldn't read aloud", e);
+      }
+    },
+
+    stopSpeaking() {
+      set({ speakingId: null });
+      if (inTauri) void api.speechStop();
+    },
+
+    setTalk(talk) {
+      set({ talk });
+      if (!talk) get().stopSpeaking();
     },
 
     async addNewChats() {
@@ -1364,5 +1402,8 @@ export const useStore = create<State>((set, get) => {
     }
   }
 });
+
+/** macOS voices read answers aloud (`say`); elsewhere there's no speech yet. */
+export const canSpeak = () => inTauri && /Mac/i.test(navigator.userAgent);
 
 export const currentConversation = (s: State) => s.conversations.find((c) => c.id === s.currentId) ?? null;

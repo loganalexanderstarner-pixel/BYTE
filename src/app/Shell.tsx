@@ -92,6 +92,9 @@ export function Shell() {
         toggleSidebar();
       } else if (e.key === "Escape" && !useStore.getState().settingsTab) {
         void stop();
+        // Esc also ends hands-free talking and stops BYTE reading aloud.
+        useStore.getState().setTalk(false);
+        useStore.getState().stopSpeaking();
       }
     };
     window.addEventListener("keydown", onKey);

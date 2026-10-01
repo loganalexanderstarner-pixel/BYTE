@@ -1,6 +1,6 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { AppWindow, ArrowUp, Brain, GraduationCap, Cloud, FolderSearch, Images, Loader2, Paperclip, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap } from "lucide-react";
+import { AppWindow, AudioLines, ArrowUp, Brain, GraduationCap, Cloud, FolderSearch, Images, Loader2, Paperclip, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { api, inTauri } from "../../lib/api";
@@ -10,8 +10,9 @@ import { displayName } from "../../lib/models";
 import { AttachmentChips, LibraryPicker, LocalFileChips } from "./Attachments";
 import { MemoryHelper } from "../MemoryHelper";
 import { MicButton, type MicHandle } from "./MicButton";
+import { isStopPhrase } from "../../lib/handsfree";
 import type { Mode, ThinkingPref } from "../../lib/types";
-import { spaceOf, useStore, workspaceOf } from "../../state/store";
+import { canSpeak, spaceOf, useStore, workspaceOf } from "../../state/store";
 
 const MODES: { id: Mode; label: string; icon: typeof Zap; hint: string }[] = [
   { id: "fast", label: "Fast", icon: Zap, hint: "Quick, short answers. No thinking." },
@@ -53,6 +54,48 @@ export function Composer() {
     setText((t) => (t.trim() ? `${t.trimEnd()} ${spoken}` : spoken));
     setTimeout(() => ref.current?.focus(), 0);
   };
+  // Hands-free conversation (Talk): listen → send → BYTE answers aloud → listen again.
+  const talk = useStore((s) => s.talk);
+  const setTalk = useStore((s) => s.setTalk);
+  const speakingId = useStore((s) => s.speakingId);
+  const busy = useStore((s) => s.running.length > 0);
+  const lastAnswer = useStore((s) => s.lastAnswer);
+  // A spoken turn was sent and BYTE's answer hasn't been heard out yet.
+  const awaiting = useRef(false);
+  // "Hey BYTE" opened this window: send what's said next (one turn).
+  const wakeTurn = useRef(false);
+  const onSpoken = (spoken: string, auto: boolean) => {
+    if (auto && (talk || wakeTurn.current)) {
+      wakeTurn.current = false;
+      if (talk && isStopPhrase(spoken)) return setTalk(false);
+      awaiting.current = talk;
+      void useStore.getState().send(spoken);
+      return;
+    }
+    addSpoken(spoken);
+  };
+  useEffect(() => {
+    if (talk) {
+      awaiting.current = false;
+      void mic.current?.start({ auto: true });
+    }
+  }, [talk]);
+  useEffect(() => {
+    // The answer is done and (on a Mac) has been read out: listen for the next turn.
+    if (talk && awaiting.current && !busy && !speakingId && lastAnswer) {
+      awaiting.current = false;
+      if (!lastAnswer.ok) return setTalk(false);
+      setTimeout(() => void mic.current?.start({ auto: true }), 250);
+    }
+  }, [talk, busy, speakingId, lastAnswer, setTalk]);
+  useEffect(() => {
+    if (!inTauri) return;
+    const off = api.onWakeHeard(() => {
+      wakeTurn.current = true;
+      void mic.current?.start({ auto: true });
+    });
+    return () => void off.then((f) => f());
+  }, []);
   const send = useStore((s) => s.send);
   const stop = useStore((s) => s.stop);
   const generating = useStore((s) => !!s.generating);
@@ -307,7 +350,19 @@ export function Composer() {
           spellCheck
         />
         <div className="composer-bar">
-          {voiceOn && <MicButton ref={mic} onText={addSpoken} />}
+          {voiceOn && <MicButton ref={mic} onText={onSpoken} onNothing={() => talk && setTalk(false)} />}
+          {voiceOn && (
+            <button
+              className={`icon-btn ${talk ? "talk-on" : ""}`}
+              onClick={() => setTalk(!talk)}
+              aria-pressed={talk}
+              title={talk ? "Stop talking with BYTE (Esc)" : canSpeak() ? "Talk with BYTE: say something, BYTE answers out loud, then listens again" : "Talk with BYTE: say something and BYTE answers, then listens again"}
+              aria-label="Talk with BYTE"
+            >
+              <AudioLines size={16} />
+            </button>
+          )}
+          {talk && <span className="talk-pill">{speakingId ? "Speaking…" : busy ? "Thinking…" : "Listening…"}</span>}
           {onLocal && (
             <button
               className="icon-btn"

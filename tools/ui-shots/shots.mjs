@@ -336,6 +336,18 @@ function initScript({ data }) {
             ],
           };
         }
+        case "speech_voices":
+          return [
+            { name: "Samantha", language: "en_US", sample: "Hello! My name is Samantha." },
+            { name: "Daniel", language: "en_GB", sample: "Hello! My name is Daniel." },
+            { name: "Ava (Premium)", language: "en_US", sample: "Hello! My name is Ava." },
+          ];
+        case "speech_say":
+        case "speech_stop":
+        case "wake_pause":
+          return null;
+        case "wake_ready":
+          return true;
         case "speakers_status":
           return { installed: !!data.voiceReady, sizeBytes: 32478176, keys: ["voice:seg", "voice:emb"] };
         case "media_status":
@@ -1123,7 +1135,13 @@ const browser = await chromium.launch({
   args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
 });
 async function page(onboarded, theme = "midnight", extra = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 1240, height: 820 }, deviceScaleFactor: 1, colorScheme: "dark" });
+  const ctx = await browser.newContext({
+    viewport: { width: 1240, height: 820 },
+    deviceScaleFactor: 1,
+    colorScheme: "dark",
+    // BYTE is a Mac app: Mac-only controls (reading aloud, "Hey BYTE") show as they do there.
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_0) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  });
   const p = await ctx.newPage();
   const errors = [];
   p.on("pageerror", (e) => errors.push(e.message));
@@ -1712,6 +1730,14 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.getByText("Video helper").scrollIntoViewIfNeeded();
   await p.waitForTimeout(150);
   await shot(p, "34-speakers-video-helper");
+  await p.getByText("Read answers aloud").scrollIntoViewIfNeeded();
+  await p.waitForTimeout(150);
+  await shot(p, "35b-speech-settings");
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(200);
+  await p.getByRole("button", { name: "Talk with BYTE" }).click();
+  await p.waitForTimeout(900);
+  await shot(p, "35-talk-listening");
   console.log("voice errors:", errors);
   await ctx.close();
 }

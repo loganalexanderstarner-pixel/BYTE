@@ -50,6 +50,8 @@ on:
       - "src-tauri/src/voice.rs"
       - "src-tauri/src/speakers.rs"
       - "src-tauri/src/media.rs"
+      - "src-tauri/src/speech.rs"
+      - "src-tauri/src/wake.rs"
       - "scripts/build-sherpa.sh"
       - "scripts/SHERPA_TAG"
       - ".github/workflows/mac-engine.yml"

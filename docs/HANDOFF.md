@@ -479,7 +479,8 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 (with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
 **Next:** **Phase 10 is complete** (v0.10.0–v0.10.6, all released). Phase 11 (input & windows) has started: v0.11.0
 Quick Ask + menu bar + ⌘K palette + custom shortcuts, v0.11.1 voice input and v0.11.2 speaker labels + videos without
-captions are done; next v0.11.3 spoken replies, hands-free and "Hey BYTE" (see the Phase 11 section). Way of working
+captions and v0.11.3 spoken answers + hands-free + "Hey BYTE" are done; next v0.11.4 notes, web clipper, mind maps
+(see the Phase 11 section). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
@@ -666,6 +667,13 @@ are there. `media.rs`: yt-dlp (`yt-dlp_macos`/`_linux`/`.exe` from `releases/lat
 `SHA2-256SUMS`, `<data>/tools/`), `video_audio` (fixed arguments, id after `--`, `--match-filter duration <= 3h`,
 `--print before_dl:` metadata); `youtube::spoken_transcript` is the fallback when there are no captions
 (`VideoCard.transcribed`). Video-to-slides (ffmpeg key frames) is still later.
+**Done in v0.11.3:** `speech.rs` (`say -v -r -f <tempfile>`, one player, `/bin/kill` to stop, `speech://done`,
+`speakable()`, `say -v '?'` voices), store `speakingId`/`talk`/`lastAnswer` + `speak()` (auto-read in `send`'s
+finally when `readAloud` or Talk), 🔊 in `MessageView`, Talk loop in `Composer` (`MicButton` `start({auto})` with
+`lib/handsfree.ts` `SilenceDetector`, `isStopPhrase`), `wake.rs` (cpal input on a dedicated thread, `Vad`,
+`voice::transcribe_short` with `--prompt "Hey BYTE"`, `is_wake`, `quick::show` + `wake://heard` to the Quick Ask
+window, `wake_pause` from the UI while recording). Mac test: `e2e_wake_word` (say → afconvert → detect),
+`e2e_say_writes_audio`.
 Later: the Finder "Ask BYTE" Quick Action (a Shortcut or Service that opens `byte://ask`), a floating desktop
 widget.
 1. **Voice**: whisper (sidecar `whisper-cli`, small/base models) push-to-talk / hold Space; hands-free

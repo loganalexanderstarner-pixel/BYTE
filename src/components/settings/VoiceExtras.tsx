@@ -1,10 +1,10 @@
-import { Download, RefreshCw, Trash2 } from "lucide-react";
+import { Download, RefreshCw, Trash2, Volume2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { api, errorText, inTauri } from "../../lib/api";
 import { bytes } from "../../lib/format";
-import type { MediaStatus, SpeakersStatus } from "../../lib/types";
-import { useStore, type DownloadState } from "../../state/store";
+import type { MediaStatus, SpeakersStatus, SpeechVoice } from "../../lib/types";
+import { canSpeak, useStore, type DownloadState } from "../../state/store";
 
 const busy = (d?: DownloadState) => !!d && (d.phase === "downloading" || d.phase === "resuming" || d.phase === "verifying");
 const pct = (ds: (DownloadState | undefined)[]) => {
@@ -105,5 +105,84 @@ export function VideoHelperRow() {
         </button>
       )}
     </div>
+  );
+}
+
+/** Settings → Models → Voice: reading answers aloud with the Mac's voices (speech.rs). */
+export function SpeechRows() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const [voices, setVoices] = useState<SpeechVoice[] | null>(null);
+  const mac = canSpeak();
+  useEffect(() => {
+    if (mac) void api.speechVoices().then(setVoices, () => setVoices([]));
+  }, [mac]);
+  const lang = (navigator.language || "en-US").split("-")[0];
+  const shown = (voices ?? []).filter((v) => v.language.startsWith(lang) || v.name === settings?.speechVoice);
+  const speed = settings?.speechSpeed ?? "normal";
+  return (
+    <>
+      <label className="field">
+        <span>
+          Read answers aloud
+          <small>{mac ? "BYTE reads each answer with your Mac's own voice (the 🔊 on any answer does it once). Code and tables stay on screen." : "Reading aloud needs a Mac for now."}</small>
+        </span>
+        <input type="checkbox" disabled={!mac} checked={!!settings?.readAloud} onChange={(e) => void update({ readAloud: e.target.checked })} />
+      </label>
+      {mac && (
+        <div className="field">
+          <span>
+            Voice and speed
+            <small>More voices: System Settings → Accessibility → Spoken Content → System voice → Manage Voices.</small>
+          </span>
+          <span className="row" style={{ gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <select value={settings?.speechVoice ?? ""} onChange={(e) => void update({ speechVoice: e.target.value })} aria-label="Voice">
+              <option value="">Mac's default voice</option>
+              {shown.map((v) => (
+                <option key={v.name} value={v.name}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+            <span className="segmented" role="group" aria-label="Speaking speed">
+              {(["slow", "normal", "fast"] as const).map((s) => (
+                <button key={s} aria-pressed={speed === s} onClick={() => void update({ speechSpeed: s })}>
+                  {s[0].toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </span>
+            <button className="btn sm ghost" onClick={() => void api.speechSay("Hi, I'm BYTE. This is how I'll sound when I read answers to you.")} title="Hear it">
+              <Volume2 size={13} /> Try it
+            </button>
+          </span>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Settings → Models → Voice: "Hey BYTE" (wake.rs). */
+export function WakeRow() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const [ready, setReady] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (inTauri) void api.wakeReady().then(setReady, () => setReady(false));
+  }, []);
+  const mac = canSpeak();
+  return (
+    <label className="field">
+      <span>
+        Listen for “Hey BYTE”
+        <small>
+          {!mac
+            ? "“Hey BYTE” needs a Mac for now."
+            : ready === false
+              ? "Download a speech model above first."
+              : "Say “Hey BYTE” and Quick Ask opens, listening. While this is on, the microphone stays on (macOS shows its orange dot); only short bursts of speech are checked, on this Mac, and nothing is kept. It pauses while BYTE talks or you record."}
+        </small>
+      </span>
+      <input type="checkbox" disabled={!mac || ready === false} checked={!!settings?.wakeWord} onChange={(e) => void update({ wakeWord: e.target.checked })} />
+    </label>
   );
 }
