@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.2 — Who said what, and videos without captions
+
+- **Speaker labels** in transcripts of attached recordings (`Speaker 1 [0:00]: …`): sherpa-onnx's diarization tool as a
+  third sidecar (`sherpa-diarize`, `scripts/build-sherpa.sh`), pyannote segmentation + an English speaker-embedding
+  model (32 MB, downloaded on request), matched to whisper's timed segments. Falls back to the plain transcript.
+- **YouTube videos without captions**: the video helper (yt-dlp from its official release, SHA-256-checked, downloaded
+  only on request, Update button) gets the audio; whisper transcribes it; the usual chapters and summary follow. Up
+  to 3 hours.
+- Settings → Models → Voice: "Label who's speaking in recordings" and "Video helper".
+
 ## 0.11.1 — Voice input
 
 - **🎤 / hold Space** in the message box (main window and Quick Ask): speech is typed out for you to check and send.

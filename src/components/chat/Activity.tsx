@@ -60,6 +60,8 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
       return { icon: CalendarDays, text: "Planned the meals" };
     case "get_transcript":
       return { icon: Clapperboard, text: "Read the video's captions" };
+    case "transcribe_video":
+      return { icon: Clapperboard, text: "Transcribed the video's audio on this Mac" };
     case "summarize_video":
       return { icon: ListChecks, text: "Summarized the video" };
     // The web agent: once a step finished, its result says exactly what happened.

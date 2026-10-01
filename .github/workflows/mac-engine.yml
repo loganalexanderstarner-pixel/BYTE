@@ -48,6 +48,10 @@ on:
       - "scripts/build-whisper.sh"
       - "scripts/WHISPER_TAG"
       - "src-tauri/src/voice.rs"
+      - "src-tauri/src/speakers.rs"
+      - "src-tauri/src/media.rs"
+      - "scripts/build-sherpa.sh"
+      - "scripts/SHERPA_TAG"
       - ".github/workflows/mac-engine.yml"
   workflow_dispatch:
 
@@ -88,6 +92,13 @@ jobs:
           key: whisper-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/WHISPER_TAG', 'scripts/build-whisper.sh') }}
       - name: Build voice engine (whisper-cli, Metal)
         run: scripts/build-whisper.sh
+      - name: Cache sherpa-onnx build
+        uses: actions/cache@v4
+        with:
+          path: .cache/sherpa-onnx
+          key: sherpa-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/SHERPA_TAG', 'scripts/build-sherpa.sh') }}
+      - name: Build speaker-label tool (sherpa-onnx)
+        run: scripts/build-sherpa.sh
       - name: Build frontend (embedded into the app)
         run: npm ci && npm run build
       - name: Unit tests
@@ -151,6 +162,19 @@ jobs:
           echo "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002  $f" | shasum -a 256 -c
           # whisper.cpp's own speech sample, from the source the build step fetched.
           echo "BYTE_TEST_WHISPER_AUDIO=$(ls "$GITHUB_WORKSPACE"/.cache/whisper.cpp/src-*/samples/jfk.wav | head -n1)" >> "$GITHUB_ENV"
+      - name: Cache speaker-label test models
+        uses: actions/cache@v4
+        with:
+          path: .cache/speakers
+          key: speakers-pyannote3-eres2net-en-v1
+      - name: Download speaker-label test models and audio
+        run: |
+          mkdir -p .cache/speakers && cd .cache/speakers
+          [ -f seg.onnx ] || curl -fsSL -o seg.onnx "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/main/model.onnx?download=true"
+          [ -f emb.onnx ] || curl -fsSL -o emb.onnx "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx?download=true"
+          [ -f four.wav ] || curl -fsSL -o four.wav "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/0-four-speakers-zh.wav"
+          echo "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079  seg.onnx" | shasum -a 256 -c
+          echo "c59158379255ad66e161679cca6af8d52d51e389e3224ab7d7a7baae295c2db5  emb.onnx" | shasum -a 256 -c
       - name: End-to-end test against the real engine
         working-directory: src-tauri
         env:
@@ -163,4 +187,8 @@ jobs:
           BYTE_TEST_EMBED_MODEL: ${{ github.workspace }}/.cache/embed/nomic-embed-text-v1.5.Q8_0.gguf
           BYTE_TEST_WHISPER: ${{ github.workspace }}/src-tauri/binaries/whisper-cli-aarch64-apple-darwin
           BYTE_TEST_WHISPER_MODEL: ${{ github.workspace }}/.cache/voice/ggml-base.en.bin
+          BYTE_TEST_SHERPA: ${{ github.workspace }}/src-tauri/binaries/sherpa-diarize-aarch64-apple-darwin
+          BYTE_TEST_SPEAKER_SEG: ${{ github.workspace }}/.cache/speakers/seg.onnx
+          BYTE_TEST_SPEAKER_EMB: ${{ github.workspace }}/.cache/speakers/emb.onnx
+          BYTE_TEST_SPEAKERS_AUDIO: ${{ github.workspace }}/.cache/speakers/four.wav
         run: cargo test --locked e2e -- --ignored --nocapture --test-threads=1

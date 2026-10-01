@@ -37,6 +37,8 @@ mod paths;
 mod profiles;
 mod prompt;
 mod quick;
+mod media;
+mod speakers;
 mod voice;
 mod quality;
 mod research;
@@ -276,6 +278,12 @@ pub fn run() {
             voice::voice_delete,
             voice::voice_transcribe,
             voice::voice_transcribe_file,
+            speakers::speakers_status,
+            speakers::speakers_download,
+            speakers::speakers_delete,
+            media::media_status,
+            media::media_download,
+            media::media_delete,
             clipboard::clip_list,
             clipboard::clip_copy,
             clipboard::clip_delete,

@@ -34,5 +34,7 @@ describe("video summaries", () => {
     const spec = videoDocSpec(v);
     expect(spec.sections.map((s) => s.title)).toEqual(["In short", "Key points", "0:00 · Intro", "0:43 · Chorus"]);
     expect(spec.sources[0].url).toBe("https://youtu.be/dQw4w9WgXcQ");
+    expect(videoDocSpec({ ...v, transcribed: true }).subtitle).toContain("transcribed from its audio");
+    expect(videoDocSpec({ ...v, autoCaptions: true }).subtitle).toContain("auto-generated captions");
   });
 });

@@ -478,8 +478,8 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 `settings.model_overrides` (`ModelOverride::apply`) + `TuningPanel`, `battery_saver` (`system::battery`), `commands::engine_live`
 (with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
 **Next:** **Phase 10 is complete** (v0.10.0–v0.10.6, all released). Phase 11 (input & windows) has started: v0.11.0
-Quick Ask + menu bar + ⌘K palette + custom shortcuts and v0.11.1 voice input are done; next v0.11.2 transcripts with
-speaker labels and videos without captions (see the Phase 11 section). Way of working
+Quick Ask + menu bar + ⌘K palette + custom shortcuts, v0.11.1 voice input and v0.11.2 speaker labels + videos without
+captions are done; next v0.11.3 spoken replies, hands-free and "Hey BYTE" (see the Phase 11 section). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
@@ -655,6 +655,17 @@ Metal on a Mac, `GGML_NATIVE=OFF` so a binary never hits "illegal instruction" o
 download), `VoiceModels.tsx`, Settings → Models → Voice. The webview grants the mic (no permission handler set);
 macOS asks once (Info.plist `NSMicrophoneUsageDescription`). Mac test: `voice::tests::e2e_whisper_transcribes`
 (base.en + whisper.cpp's JFK sample).
+**Done in v0.11.2:** `speakers.rs`: sherpa-onnx v1.13.8 `sherpa-onnx-offline-speaker-diarization` as the
+`sherpa-diarize` sidecar (`scripts/build-sherpa.sh`, `SHERPA_TAG`, static onnxruntime; `SHERPA_CMAKE_EXTRA` passes
+`FETCHCONTENT_SOURCE_DIR_*` where GitHub archive downloads are blocked, as in the cloud container), models
+pyannote-segmentation-3.0 + 3D-Speaker ERes2Net (voxceleb, English) in `<models>/voice/{seg,emb}/` (keys
+`voice:seg`/`voice:emb`), threshold 0.9 (on sherpa's 4-speaker sample: 0.9 → 5, 1.0 → 3, so over-splitting is the
+safer side); `voice::transcribe_segments` (whisper with timestamps) + `label()` (most overlap per segment, gaps take
+the previous speaker, numbered by first appearance). `voice::ingest` uses it when `voiceSpeakers` and the models
+are there. `media.rs`: yt-dlp (`yt-dlp_macos`/`_linux`/`.exe` from `releases/latest`, checked against
+`SHA2-256SUMS`, `<data>/tools/`), `video_audio` (fixed arguments, id after `--`, `--match-filter duration <= 3h`,
+`--print before_dl:` metadata); `youtube::spoken_transcript` is the fallback when there are no captions
+(`VideoCard.transcribed`). Video-to-slides (ffmpeg key frames) is still later.
 Later: the Finder "Ask BYTE" Quick Action (a Shortcut or Service that opens `byte://ask`), a floating desktop
 widget.
 1. **Voice**: whisper (sidecar `whisper-cli`, small/base models) push-to-talk / hold Space; hands-free

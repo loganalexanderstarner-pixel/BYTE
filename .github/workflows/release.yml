@@ -62,6 +62,15 @@ jobs:
       - name: Build voice engine (whisper-cli, Metal)
         run: TARGET_TRIPLE=aarch64-apple-darwin scripts/build-whisper.sh
 
+      - name: Cache sherpa-onnx build
+        uses: actions/cache@v4
+        with:
+          path: .cache/sherpa-onnx
+          key: sherpa-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/SHERPA_TAG', 'scripts/build-sherpa.sh') }}
+
+      - name: Build speaker-label tool (sherpa-onnx)
+        run: TARGET_TRIPLE=aarch64-apple-darwin scripts/build-sherpa.sh
+
       - run: npm ci
 
       # Title and description from docs/releases/<tag>.md (first line "# Title"),
@@ -111,6 +120,7 @@ jobs:
           app=$(ls -d src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app | head -n1)
           test -x "$app/Contents/MacOS/llama-server"
           test -x "$app/Contents/MacOS/whisper-cli"
+          test -x "$app/Contents/MacOS/sherpa-diarize"
           codesign --verify --deep --strict --verbose=2 "$app"
           "$app/Contents/MacOS/llama-server" --version
           "$app/Contents/MacOS/whisper-cli" --help >/dev/null

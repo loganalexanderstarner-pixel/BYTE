@@ -91,10 +91,14 @@ pub fn pick(models_dir: &Path, chosen: &str) -> Option<&'static VoiceModel> {
     find(chosen).filter(|m| installed(models_dir, m)).or_else(|| MODELS.iter().find(|m| installed(models_dir, m)))
 }
 
-/// whisper-cli's arguments: plain text out (no timestamps, no progress).
+/// whisper-cli's arguments: plain text out (no progress), with `[start --> end]` timestamps when asked.
 pub fn args(model: &Path, audio: &Path, language: &str, english_only: bool, threads: usize) -> Vec<String> {
+    with_timestamps(model, audio, language, english_only, threads, false)
+}
+
+fn with_timestamps(model: &Path, audio: &Path, language: &str, english_only: bool, threads: usize, timestamps: bool) -> Vec<String> {
     let lang = if english_only { "en" } else { language_code(language) };
-    vec![
+    let mut a = vec![
         "-m".into(),
         model.to_string_lossy().into_owned(),
         "-f".into(),
@@ -105,7 +109,40 @@ pub fn args(model: &Path, audio: &Path, language: &str, english_only: bool, thre
         threads.to_string(),
         "-nt".into(),
         "-np".into(),
-    ]
+    ];
+    if timestamps {
+        a.retain(|x| x != "-nt");
+    }
+    a
+}
+
+/// A stretch of speech with its time (from whisper's timestamped output).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Segment {
+    pub start_ms: u64,
+    pub end_ms: u64,
+    pub text: String,
+}
+
+/// `[00:01:02.500 --> 00:01:05.000]   text` lines → segments (sound markers removed, empty ones dropped).
+pub fn parse_segments(stdout: &str) -> Vec<Segment> {
+    fn ms(t: &str) -> Option<u64> {
+        let (hms, frac) = t.trim().split_once('.')?;
+        let mut parts = hms.split(':').map(|x| x.parse::<u64>().ok());
+        let (h, m, s) = (parts.next()??, parts.next()??, parts.next()??);
+        Some(((h * 60 + m) * 60 + s) * 1000 + frac.parse::<u64>().ok()?)
+    }
+    stdout
+        .lines()
+        .filter_map(|l| {
+            let l = l.trim();
+            let rest = l.strip_prefix('[')?;
+            let (stamps, text) = rest.split_once(']')?;
+            let (a, b) = stamps.split_once("-->")?;
+            let text = clean(text);
+            (!text.is_empty()).then_some(Segment { start_ms: ms(a)?, end_ms: ms(b)?, text })
+        })
+        .collect()
 }
 
 /// A language setting → whisper's code ("auto" when unknown, so nothing odd reaches the command).
@@ -207,7 +244,7 @@ async fn run_whisper(app: Option<&AppHandle>, args: Vec<String>) -> AppResult<St
         log::warn!("whisper-cli failed: {}", err.lines().rev().take(5).collect::<Vec<_>>().join(" | "));
         return Err(AppError::msg("BYTE couldn't make out any speech in that audio."));
     }
-    Ok(clean(&String::from_utf8_lossy(&stdout)))
+    Ok(String::from_utf8_lossy(&stdout).into_owned())
 }
 
 /// Transcribes an audio file with the chosen model.
@@ -220,7 +257,37 @@ pub async fn transcribe(app: Option<&AppHandle>, models_dir: &Path, chosen: &str
     } else {
         audio.to_path_buf()
     };
-    run_whisper(app, args(&model_path(models_dir, m), &input, language, m.english_only, threads())).await
+    Ok(clean(&run_whisper(app, args(&model_path(models_dir, m), &input, language, m.english_only, threads())).await?))
+}
+
+/// The sample rate and channel count of a PCM WAV file (None if it isn't one).
+fn wav_format(path: &Path) -> Option<(u32, u16)> {
+    use std::io::Read;
+    let mut h = [0u8; 36];
+    std::fs::File::open(path).ok()?.read_exact(&mut h).ok()?;
+    (&h[0..4] == b"RIFF" && &h[8..12] == b"WAVE").then(|| (u32::from_le_bytes([h[24], h[25], h[26], h[27]]), u16::from_le_bytes([h[22], h[23]])))
+}
+
+/// A 16 kHz mono WAV of `audio` (what speaker labelling reads): `audio` itself when it already is one.
+pub async fn wav_16k(audio: &Path, tmp: &Path) -> AppResult<PathBuf> {
+    if wav_format(audio) == Some((16_000, 1)) {
+        return Ok(audio.to_path_buf());
+    }
+    if !cfg!(target_os = "macos") {
+        return Err(AppError::msg("Speaker labels need a 16 kHz mono WAV here; other audio needs a Mac."));
+    }
+    let out = tokio::process::Command::new("/usr/bin/afconvert").args(["-f", "WAVE", "-d", "LEI16@16000", "-c", "1"]).arg(audio).arg(tmp).output().await?;
+    if !out.status.success() {
+        return Err(AppError::msg("macOS couldn't read that audio file."));
+    }
+    Ok(tmp.to_path_buf())
+}
+
+/// Transcribes a 16 kHz WAV into timed segments.
+pub async fn transcribe_segments(app: Option<&AppHandle>, models_dir: &Path, chosen: &str, language: &str, wav: &Path) -> AppResult<Vec<Segment>> {
+    let m = pick(models_dir, chosen).ok_or_else(|| AppError::msg("Voice input needs a speech model first: Settings → Models → Voice."))?;
+    let out = run_whisper(app, with_timestamps(&model_path(models_dir, m), wav, language, m.english_only, threads(), true)).await?;
+    Ok(parse_segments(&out))
 }
 
 /// A recording from the UI must be a WAV file of a sensible size.
@@ -244,11 +311,27 @@ pub async fn ingest(app: &AppHandle, state: &AppState, path: &Path) -> AppResult
     if size > MAX_AUDIO_FILE_BYTES {
         return Err(AppError::msg(format!("{name} is larger than 500 MB")));
     }
-    let (chosen, language) = {
+    let (chosen, language, speakers) = {
         let s = state.settings.lock().await;
-        (s.voice_model.clone(), s.voice_language.clone())
+        (s.voice_model.clone(), s.voice_language.clone(), s.voice_speakers)
     };
-    let text = transcribe(Some(app), &state.paths.models, &chosen, &language, path).await?;
+    let models = &state.paths.models;
+    // Who said what, when that's on and its models are here; the plain transcript otherwise.
+    let labelled = if speakers && crate::speakers::ready(models) {
+        match crate::speakers::labelled_transcript(Some(app), models, &chosen, &language, path).await {
+            Ok(t) => Some(t),
+            Err(e) => {
+                log::warn!("speaker labels for {name}: {e}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+    let text = match labelled {
+        Some(t) => t,
+        None => transcribe(Some(app), models, &chosen, &language, path).await?,
+    };
     if text.trim().is_empty() {
         return Err(AppError::msg(format!("{name}: BYTE couldn't make out any speech in it")));
     }
@@ -344,6 +427,16 @@ mod tests {
         assert_eq!(clean(" (music) Hello there [MUSIC] friend\n"), "Hello there friend");
         // Ordinary brackets in speech stay.
         assert_eq!(clean("Call me (maybe) tomorrow"), "Call me (maybe) tomorrow");
+    }
+
+    #[test]
+    fn reads_timestamped_segments() {
+        let out = "\n[00:00:00.000 --> 00:00:07.600]   And so my fellow Americans,\n[00:00:07.600 --> 00:00:11.000]   [BLANK_AUDIO]\n[01:02:03.250 --> 01:02:05.000]  ask not.\nnoise line\n";
+        let s = parse_segments(out);
+        assert_eq!(s.len(), 2);
+        assert_eq!(s[0], Segment { start_ms: 0, end_ms: 7600, text: "And so my fellow Americans,".into() });
+        assert_eq!(s[1].start_ms, 3_723_250);
+        assert!(!with_timestamps(Path::new("m"), Path::new("a"), "en", false, 4, true).contains(&"-nt".to_string()));
     }
 
     #[test]

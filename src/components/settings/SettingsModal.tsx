@@ -1,3 +1,4 @@
+import { SpeakerLabelsRow, VideoHelperRow } from "./VoiceExtras";
 import { VoiceModels } from "../chat/VoiceModels";
 import { KeyboardSection } from "./KeyboardSection";
 import { prettyKeys } from "../../lib/keys";
@@ -118,7 +119,7 @@ function VoiceSection() {
       <label className="field">
         <span>
           Voice input
-          <small>Click 🎤 in the message box, or hold Space in an empty box, and talk; what you say is typed out for you to check and send. Audio files you attach (WAV, MP3, M4A…) become transcripts. It all happens on this Mac.</small>
+          <small>Click 🎤 in the message box, or hold Space in an empty box, and talk; what you say is typed out for you to check and send. Audio files you attach (WAV, MP3, M4A…) become transcripts, with who said what when speaker labels are on. It all happens on this Mac.</small>
         </span>
         <input type="checkbox" checked={on} onChange={(e) => void update({ voiceEnabled: e.target.checked })} />
       </label>
@@ -138,6 +139,8 @@ function VoiceSection() {
               ))}
             </select>
           </label>
+          <SpeakerLabelsRow />
+          <VideoHelperRow />
         </>
       )}
     </div>

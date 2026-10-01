@@ -336,6 +336,10 @@ function initScript({ data }) {
             ],
           };
         }
+        case "speakers_status":
+          return { installed: !!data.voiceReady, sizeBytes: 32478176, keys: ["voice:seg", "voice:emb"] };
+        case "media_status":
+          return { version: data.voiceReady ? "2026.09.20" : null, approxBytes: 36000000, key: "tool:yt-dlp" };
         case "voice_download":
           setTimeout(() => window.__emit("models://download", { kind: "progress", id: `voice:${args.id}`, bytes: 2.3e8, total: 5.74e8, bytesPerSec: 3.1e7 }), 50);
           return null;
@@ -1705,6 +1709,9 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.getByRole("heading", { name: "Voice" }).scrollIntoViewIfNeeded();
   await p.waitForTimeout(200);
   await shot(p, "33d-voice-settings");
+  await p.getByText("Video helper").scrollIntoViewIfNeeded();
+  await p.waitForTimeout(150);
+  await shot(p, "34-speakers-video-helper");
   console.log("voice errors:", errors);
   await ctx.close();
 }

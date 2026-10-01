@@ -8,6 +8,8 @@ import type { DocEvent, DocKind, DocOutline, DocSpec } from "./docs/spec";
 import type {
   Trashed,
   VoiceStatus,
+  SpeakersStatus,
+  MediaStatus,
   Task,
   Schedule,
   Feed,
@@ -252,6 +254,13 @@ export const api = {
   voiceDownload: (id: string) => invoke<void>("voice_download", { id }),
   voiceDelete: (id: string) => invoke<void>("voice_delete", { id }),
   voiceTranscribe: (wavBase64: string) => invoke<string>("voice_transcribe", { wavBase64 }),
+  // Speaker labels (speakers.rs) and the video helper (media.rs).
+  speakersStatus: () => invoke<SpeakersStatus>("speakers_status"),
+  speakersDownload: () => invoke<void>("speakers_download"),
+  speakersDelete: () => invoke<void>("speakers_delete"),
+  mediaStatus: () => invoke<MediaStatus>("media_status"),
+  mediaDownload: () => invoke<void>("media_download"),
+  mediaDelete: () => invoke<void>("media_delete"),
   // Trackers (trackers.rs).
   trackersList: () => invoke<Tracker[]>("trackers_list"),
   trackerSave: (tracker: Tracker) => invoke<Tracker>("tracker_save", { tracker }),

@@ -53,7 +53,11 @@ export function VideoCard({ video }: { video: Video }) {
             <button className="btn sm ghost" onClick={() => void pdf()}>
               <FileDown size={13} /> PDF
             </button>
-            {video.autoCaptions && <span className="hint">From auto-generated captions: names may be misheard</span>}
+            {video.transcribed ? (
+              <span className="hint">No captions, so BYTE transcribed the audio on this Mac: names may be misheard</span>
+            ) : (
+              video.autoCaptions && <span className="hint">From auto-generated captions: names may be misheard</span>
+            )}
             {status && <span className="hint ok">{status}</span>}
           </div>
         </div>

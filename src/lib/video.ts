@@ -34,7 +34,7 @@ export function videoDocSpec(v: VideoCard): DocSpec {
   return {
     kind: "pdf",
     title: v.title,
-    subtitle: `${v.channel} · ${stamp(v.seconds)}${v.autoCaptions ? " · from auto-generated captions" : ""}`,
+    subtitle: `${v.channel} · ${stamp(v.seconds)}${v.transcribed ? " · transcribed from its audio" : v.autoCaptions ? " · from auto-generated captions" : ""}`,
     sections,
     sources: [{ n: 1, title: `${v.title} (YouTube)`, url: videoLink(v.id, 0) }],
   };

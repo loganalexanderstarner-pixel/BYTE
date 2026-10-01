@@ -87,6 +87,8 @@ export interface Settings {
   voiceModel?: string;
   /** "auto" or a language code ("en", "es"…). */
   voiceLanguage?: string;
+  /** Label who's speaking in recordings (speakers.rs). */
+  voiceSpeakers?: boolean;
   /** ⌥⌘B opens selected text from any app in the writing studio. */
   selectionHotkey?: boolean;
   /** Keep a history of copied text (off by default; secrets are skipped). */
@@ -828,6 +830,8 @@ export interface VideoCard {
   thumbnail: string;
   language: string;
   autoCaptions: boolean;
+  /** No captions: BYTE transcribed the audio itself (Rust `youtube::spoken_transcript`). */
+  transcribed?: boolean;
   tldr: string;
   keyPoints: { start: number; text: string }[];
   chapters: { start: number; title: string; summary: string }[];
@@ -1130,6 +1134,20 @@ export interface VoiceStatus {
   models: VoiceInfo[];
   /** The model voice input uses now (null until one is downloaded). */
   ready: string | null;
+}
+
+/** Rust `speakers::SpeakersStatus`: the two speaker-label models. */
+export interface SpeakersStatus {
+  installed: boolean;
+  sizeBytes: number;
+  keys: string[];
+}
+
+/** Rust `media::MediaStatus`: the video helper (yt-dlp). */
+export interface MediaStatus {
+  version: string | null;
+  approxBytes: number;
+  key: string;
 }
 
 /** Rust `files::FileKind`. */

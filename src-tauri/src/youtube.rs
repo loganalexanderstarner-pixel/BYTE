@@ -260,6 +260,50 @@ pub async fn transcript(net: &reqwest::Client, id: &str, lang: &str) -> AppResul
     Ok(out)
 }
 
+/// A video without captions: its audio from the video helper (media.rs), transcribed on this Mac (voice.rs).
+async fn spoken_transcript(turn: &Turn<'_>, id: &str, lang: &str) -> AppResult<(VideoInfo, Vec<Cue>, Track)> {
+    use tauri::Manager;
+    let key = format!("{id}|spoken|{lang}");
+    if let Some(hit) = crate::tools::cache::TRANSCRIPTS.get(&key) {
+        return Ok(hit);
+    }
+    let app = turn.app.ok_or_else(|| AppError::msg("transcribing videos needs the app"))?;
+    let state = app.state::<crate::state::AppState>();
+    let (chosen, language, voice_on) = {
+        let s = state.settings.lock().await;
+        (s.voice_model.clone(), s.voice_language.clone(), s.voice_enabled)
+    };
+    let models = &state.paths.models;
+    if !voice_on || crate::voice::pick(models, &chosen).is_none() {
+        return Err(AppError::msg("transcribing a video needs voice input and a speech model (Settings → Models → Voice)"));
+    }
+    let tmp = tempfile::tempdir()?;
+    let (meta, audio) = crate::media::video_audio(&state.paths.data, id, tmp.path()).await?;
+    let wav = crate::voice::wav_16k(&audio, &tmp.path().join("audio16k.wav")).await?;
+    // "Detect it" can follow the question's language; an explicit setting wins.
+    let lang = if language == "auto" { lang } else { language.as_str() };
+    let segments = crate::voice::transcribe_segments(Some(app), models, &chosen, lang, &wav).await?;
+    if segments.is_empty() {
+        return Err(AppError::msg("no speech was heard in the video"));
+    }
+    let cues: Vec<Cue> = segments.iter().map(|s| Cue { start_ms: s.start_ms, text: s.text.clone() }).collect();
+    let seconds = if meta.seconds > 0 { meta.seconds } else { segments.last().map(|s| s.end_ms / 1000).unwrap_or(0) };
+    let info = VideoInfo {
+        id: id.to_string(),
+        title: if meta.title.is_empty() { "This video".into() } else { meta.title },
+        channel: meta.channel,
+        seconds,
+        thumbnail: meta.thumbnail,
+        tracks: vec![],
+    };
+    // An empty url marks a transcript BYTE made itself.
+    let track = Track { lang: lang.to_string(), asr: true, url: String::new() };
+    let size = cues.iter().map(|c| c.text.len() + 16).sum::<usize>();
+    let out = (info, cues, track);
+    crate::tools::cache::TRANSCRIPTS.put(&key, out.clone(), size);
+    Ok(out)
+}
+
 // ---------- the card ----------
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -290,6 +334,9 @@ pub struct VideoCard {
     pub language: String,
     /// The captions were auto-generated (may have mistakes).
     pub auto_captions: bool,
+    /// There were no captions: BYTE transcribed the audio itself.
+    #[serde(default)]
+    pub transcribed: bool,
     pub tldr: String,
     pub key_points: Vec<KeyPoint>,
     pub chapters: Vec<Chapter>,
@@ -412,8 +459,19 @@ pub async fn run(turn: &Turn<'_>, question: &str, used_tokens: usize, cancel: &C
         Ok(t) => t,
         Err(e) => {
             c.result("byte_yt", false, e.to_string())?;
-            let note = format!("BYTE couldn't read this video's transcript: {e}. Tell the user plainly, and say that videos without captions can't be summarized yet. Don't guess what the video says.");
-            return Ok(Some((SourceBook::default(), note)));
+            // No captions: get the audio with the video helper and transcribe it on this Mac.
+            c.call("byte_ytaudio", "transcribe_video", json!({ "video": id }))?;
+            match c.cancellable(spoken_transcript(turn, &id, wanted_lang(question))).await? {
+                Ok(t) => {
+                    c.result("byte_ytaudio", true, format!("Transcribed {} of audio", stamp(t.0.seconds)))?;
+                    t
+                }
+                Err(e2) => {
+                    c.result("byte_ytaudio", false, e2.to_string())?;
+                    let note = format!("BYTE couldn't read this video's transcript ({e}), and couldn't transcribe its audio either: {e2}. Tell the user plainly, including what would fix it. Don't guess what the video says.");
+                    return Ok(Some((SourceBook::default(), note)));
+                }
+            }
         }
     };
     c.result("byte_yt", true, format!("{} · {} · {} captions", info.title.chars().take(50).collect::<String>(), stamp(info.seconds), if track.asr { "auto" } else { track.lang.as_str() }))?;
@@ -421,7 +479,8 @@ pub async fn run(turn: &Turn<'_>, question: &str, used_tokens: usize, cancel: &C
     let n = book.add(&format!("{} ({})", info.title, info.channel), &link(&id, 0), "");
     book.mark_read(&link(&id, 0), &format!("{} ({})", info.title, info.channel));
     (c.send)(ChatEvent::Sources { sources: book.sources.clone() })?;
-    let head = format!("Video [{n}]: “{}” by {} ({}), id {id}. Captions: {}.", info.title, info.channel, stamp(info.seconds), if track.asr { "auto-generated" } else { "human-made" });
+    let captions = if track.url.is_empty() { "none; BYTE transcribed its audio on this Mac (may have small mistakes)" } else if track.asr { "auto-generated" } else { "human-made" };
+    let head = format!("Video [{n}]: “{}” by {} ({}), id {id}. Captions: {captions}.", info.title, info.channel, stamp(info.seconds));
 
     match ask {
         VideoAsk::Question(_) => {
@@ -494,6 +553,7 @@ pub async fn run(turn: &Turn<'_>, question: &str, used_tokens: usize, cancel: &C
                 thumbnail: if info.thumbnail.is_empty() { format!("https://i.ytimg.com/vi/{id}/hqdefault.jpg") } else { info.thumbnail.clone() },
                 language: track.lang.clone(),
                 auto_captions: track.asr,
+                transcribed: track.url.is_empty(),
                 tldr: tldr.clone(),
                 key_points: points.clone(),
                 chapters: chapters.clone(),
@@ -590,7 +650,7 @@ mod tests {
         assert_eq!(points.iter().map(|p| p.start).collect::<Vec<_>>(), vec![19, 90]);
         assert_eq!(chapters.iter().map(|c| (c.start, c.title.as_str())).collect::<Vec<_>>(), vec![(0, "Intro"), (85, "Chorus")]);
         assert!(parse_summary("nope", 100).is_none());
-        let v = serde_json::to_value(VideoCard { id: "x".into(), title: "t".into(), channel: "c".into(), seconds: 1, thumbnail: String::new(), language: "en".into(), auto_captions: true, tldr, key_points: points, chapters }).unwrap();
+        let v = serde_json::to_value(VideoCard { id: "x".into(), title: "t".into(), channel: "c".into(), seconds: 1, thumbnail: String::new(), language: "en".into(), auto_captions: true, transcribed: false, tldr, key_points: points, chapters }).unwrap();
         assert_eq!(v["autoCaptions"], true);
         assert_eq!(v["keyPoints"][0]["start"], 19);
     }

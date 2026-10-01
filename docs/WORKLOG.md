@@ -17,6 +17,21 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-01
 
+### (this commit) — v0.11.2: speaker labels and videos without captions
+- **Why:** Phase 11 items 1 and 1b (HANDOFF §8): transcripts with who said what; YouTube videos without captions.
+- **What:** `src-tauri/src/speakers.rs` (+ tests, `e2e_speakers`, `e2e_labelled_transcript`), `src-tauri/src/media.rs`
+  (+ tests), `voice.rs` (timestamped segments, `wav_16k`, speaker labels in `ingest`), `youtube.rs`
+  (`spoken_transcript` fallback, `VideoCard.transcribed`), settings `voiceSpeakers`, `lib.rs` commands,
+  `tauri.conf.json` `externalBin` + `binaries/sherpa-diarize`, `scripts/build-sherpa.sh`, `scripts/SHERPA_TAG`,
+  workflows (build/cache sherpa in `release.yml` and `mac-engine.yml`, speaker test models, placeholders in `ci.yml`),
+  `scripts/build-mac.sh`; UI `components/settings/VoiceExtras.tsx`, Voice section, `VideoCard.tsx`, `lib/video.ts`
+  (+ test), Activity label, types/api; screenshots `34-*`; CLAUDE.md.
+- **Verify:** `cargo test speakers media voice`; `scripts/build-sherpa.sh`, then the two speaker e2e tests with
+  `BYTE_TEST_SHERPA`, `BYTE_TEST_SPEAKER_SEG`, `BYTE_TEST_SPEAKER_EMB`, `BYTE_TEST_SPEAKERS_AUDIO` (+ the whisper
+  variables); on a Mac: attach a two-person recording; ask for a summary of a YouTube video without captions after
+  downloading the video helper.
+- **Undo:** `git revert` this commit (downloaded models stay in `<models>/voice/{seg,emb}`, yt-dlp in `<data>/tools/`).
+
 ### (this commit) — v0.11.1: voice input
 - **Why:** Phase 11 item 1 (HANDOFF §8): talk instead of typing; recordings as transcripts.
 - **What:** `src-tauri/src/voice.rs` (+ tests, real-engine `e2e_whisper_transcribes`), `scripts/build-whisper.sh`,

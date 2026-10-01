@@ -219,6 +219,9 @@ pub struct Settings {
     /// Which speech model to use ("turbo" or "base-en", voice::MODELS).
     #[serde(default = "default_voice_model")]
     pub voice_model: String,
+    /// Label who's speaking in recordings (speakers.rs; needs its small models).
+    #[serde(default = "yes")]
+    pub voice_speakers: bool,
     /// The spoken language ("auto", or a code like "en", "es").
     #[serde(default = "default_voice_language")]
     pub voice_language: String,
@@ -319,6 +322,7 @@ impl Default for Settings {
             voice_enabled: true,
             voice_model: default_voice_model(),
             voice_language: default_voice_language(),
+            voice_speakers: true,
             selection_hotkey: true,
             clipboard_history: false,
             jobs_enabled: true,
