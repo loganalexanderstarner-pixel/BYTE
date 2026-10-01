@@ -53,6 +53,15 @@ jobs:
       - name: Build engine (llama-server, Metal)
         run: TARGET_TRIPLE=aarch64-apple-darwin scripts/build-llama-server.sh
 
+      - name: Cache whisper.cpp build
+        uses: actions/cache@v4
+        with:
+          path: .cache/whisper.cpp
+          key: whisper-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/WHISPER_TAG', 'scripts/build-whisper.sh') }}
+
+      - name: Build voice engine (whisper-cli, Metal)
+        run: TARGET_TRIPLE=aarch64-apple-darwin scripts/build-whisper.sh
+
       - run: npm ci
 
       # Title and description from docs/releases/<tag>.md (first line "# Title"),
@@ -101,8 +110,10 @@ jobs:
         run: |
           app=$(ls -d src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app | head -n1)
           test -x "$app/Contents/MacOS/llama-server"
+          test -x "$app/Contents/MacOS/whisper-cli"
           codesign --verify --deep --strict --verbose=2 "$app"
           "$app/Contents/MacOS/llama-server" --version
+          "$app/Contents/MacOS/whisper-cli" --help >/dev/null
 
       # The .dmg is also kept on the run's page, so a build can be downloaded
       # even if publishing the release fails (e.g. the token is read-only).

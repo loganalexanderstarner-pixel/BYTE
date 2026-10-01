@@ -1,6 +1,6 @@
 [package]
 name = "byte"
-version = "0.11.0"
+version = "0.11.1"
 description = "BYTE — a local-first AI assistant for Apple Silicon Macs"
 authors = ["Logan Starner"]
 edition = "2021"
@@ -50,6 +50,8 @@ scraper = "0.27"
 dom_smoothie = "0.18"
 url = "2"
 base64 = "0.22"
+# Voice input writes recordings to temporary files for whisper-cli (voice.rs).
+tempfile = "3"
 # Exact math, units and dates for the calculator tool
 fend-core = "1.5"
 # Encrypted local database (chats, memories); SQLCipher with a vendored OpenSSL so
@@ -74,7 +76,6 @@ block2 = "0.6"
 
 [dev-dependencies]
 lopdf = "0.42"
-tempfile = "3"
 wiremock = "0.6"
 
 [profile.release]

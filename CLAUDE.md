@@ -53,6 +53,8 @@ src-tauri/                Rust core (Tauri 2)
   src/ocr.rs              text in photos / scanned PDFs (Apple Vision + PDFKit; macOS only)
   src/embed.rs            embedding engine (nomic-embed, own llama-server, on demand, idle stop)
   src/kb.rs               knowledge base: folders → passages → FTS5 + vectors, hybrid search, rescans
+  src/voice.rs            voice input: whisper-cli sidecar, speech models in <models>/voice, transcribe recordings/files
+  src/quick.rs            Quick Ask window, menu-bar icon, global shortcuts from settings
   src/macctl.rs           Mac control: fixed AppleScripts (user words only as argv), approval card, undo
   src/router.rs           per-turn thinking/length plan by mode
   src/prompt.rs           system prompt (identity, date, mode rules)
@@ -71,7 +73,7 @@ scripts/                  build-llama-server.sh, LLAMA_TAG (pinned), bump.mjs
 | Task | Command |
 |---|---|
 | Install JS deps | `npm install` |
-| Build engine sidecar for this machine | `scripts/build-llama-server.sh` |
+| Build engine sidecars for this machine | `scripts/build-llama-server.sh` and `scripts/build-whisper.sh` (voice) |
 | Run the app | `npm run tauri dev` |
 | Frontend checks | `npm run typecheck && npx vitest run && npm run build` |
 | Rust tests | `cd src-tauri && cargo test` |
@@ -82,7 +84,8 @@ scripts/                  build-llama-server.sh, LLAMA_TAG (pinned), bump.mjs
 | Secret scan | `scripts/check-secrets.sh` (also in CI) |
 
 On Linux, Tauri needs `libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libsoup-3.0-dev`.
-`tauri-build` requires a sidecar file to exist at `src-tauri/binaries/llama-server-<host-triple>`.
+`tauri-build` requires sidecar files to exist at `src-tauri/binaries/llama-server-<host-triple>` and
+`src-tauri/binaries/whisper-cli-<host-triple>` (an empty placeholder is fine for `cargo test`).
 
 ## Conventions
 

@@ -431,6 +431,7 @@ fn kind_name(k: FileKind) -> &'static str {
         FileKind::Text => "text",
         FileKind::Web => "web",
         FileKind::Image => "image",
+        FileKind::Audio => "audio",
     }
 }
 

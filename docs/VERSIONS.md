@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.11.0** | Phase 11 · Quick Ask, menu bar and command palette | Ask from any app with ⌥Space, BYTE in the menu bar, ⌘K to find any chat, setting, mode or theme, shortcuts you can change | Asking without switching apps |
+| **v0.11.1** | Phase 11 · Voice input | Talk instead of typing (🎤 or hold Space), speech turned into text on your Mac in about 100 languages, recordings you attach become transcripts | Talking to BYTE |
+| v0.11.0 | Phase 11 · Quick Ask, menu bar and command palette | Ask from any app with ⌥Space, BYTE in the menu bar, ⌘K to find any chat, setting, mode or theme, shortcuts you can change | Asking without switching apps |
 | v0.10.6 | Phase 10 · Dashboards (Phase 10 complete) | A home screen with live tiles (today, to-dos, what's coming up, price drops and news, next automation), a searchable research library, private usage stats | Your day at a glance |
 | v0.10.5 | Phase 10 · Connectors | Your Obsidian vault (search, add notes), Notion (search, add pages, with your own integration secret) and calendar links (Google Calendar's iCal address) in the briefing and chat | Using your own notes and calendars |
 | v0.10.4 | Phase 10 · Trackers | Packages (carrier links), bills and subscriptions with monthly totals, birthdays with gift ideas, car and home maintenance, with notifications ahead of time | Not forgetting things |

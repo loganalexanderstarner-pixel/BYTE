@@ -9,6 +9,7 @@ import { budgetSummary } from "../../lib/cloudDocs";
 import { displayName } from "../../lib/models";
 import { AttachmentChips, LibraryPicker, LocalFileChips } from "./Attachments";
 import { MemoryHelper } from "../MemoryHelper";
+import { MicButton, type MicHandle } from "./MicButton";
 import type { Mode, ThinkingPref } from "../../lib/types";
 import { spaceOf, useStore, workspaceOf } from "../../state/store";
 
@@ -34,6 +35,7 @@ const THINKING_LABEL: Record<ThinkingPref, string> = { auto: "Thinking: Auto", o
 const PHOTO_TYPES = ["png", "jpg", "jpeg", "gif", "webp", "heic", "bmp"];
 const CLOUD_DOC_TYPES = ["pdf", "docx", "pptx", "xlsx", "txt", "md", "csv"];
 /** What BYTE reads on this Mac (Rust `files::kind_of`). */
+const AUDIO_TYPES = ["wav", "mp3", "m4a", "flac", "ogg", "opus", "aac", "aiff", "caf"];
 const LOCAL_DOC_TYPES = [
   ...["pdf", "docx", "odt", "pptx", "odp", "xlsx", "ods", "html", "htm", "txt", "md", "csv", "tsv", "json", "yaml", "yml", "xml", "log", "tex"],
   ...["srt", "vtt", "rs", "py", "js", "ts", "tsx", "jsx", "java", "kt", "swift", "c", "h", "cpp", "hpp", "cs", "go", "rb", "php", "sh", "sql", "css"],
@@ -42,6 +44,15 @@ const LOCAL_DOC_TYPES = [
 export function Composer() {
   const [text, setText] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
+  // Voice input: 🎤, or hold Space in an empty box (voice.rs transcribes on this Mac).
+  const voiceOn = useStore((s) => s.settings?.voiceEnabled !== false);
+  const mic = useRef<MicHandle>(null);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holding = useRef(false);
+  const addSpoken = (spoken: string) => {
+    setText((t) => (t.trim() ? `${t.trimEnd()} ${spoken}` : spoken));
+    setTimeout(() => ref.current?.focus(), 0);
+  };
   const send = useStore((s) => s.send);
   const stop = useStore((s) => s.stop);
   const generating = useStore((s) => !!s.generating);
@@ -147,7 +158,7 @@ export function Composer() {
       multiple: true,
       title: photos ? "Attach photos or files" : "Attach files",
       filters: [
-        { name: photos ? "Photos and documents" : "Documents", extensions: [...(photos ? PHOTO_TYPES : []), ...(onCloud ? CLOUD_DOC_TYPES : LOCAL_DOC_TYPES)] },
+        { name: photos ? "Photos and documents" : "Documents", extensions: [...(photos ? PHOTO_TYPES : []), ...(onCloud ? CLOUD_DOC_TYPES : LOCAL_DOC_TYPES), ...(onLocal && voiceOn ? AUDIO_TYPES : [])] },
       ],
     });
     const paths = Array.isArray(picked) ? picked : picked ? [picked] : [];
@@ -174,6 +185,18 @@ export function Composer() {
   };
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Hold Space in an empty box to talk (a quick tap does nothing).
+    if (voiceOn && e.code === "Space" && !text && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      if (!e.repeat && !holdTimer.current && !holding.current) {
+        holdTimer.current = setTimeout(() => {
+          holdTimer.current = null;
+          holding.current = true;
+          void mic.current?.start().then((ok) => (holding.current = ok));
+        }, 250);
+      }
+      return;
+    }
     if (slashMatches.length && (e.key === "Enter" || e.key === "Tab")) {
       e.preventDefault();
       usePrompt(slashMatches[0].text);
@@ -268,11 +291,23 @@ export function Composer() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKey}
+          onKeyUp={(e) => {
+            if (e.code !== "Space") return;
+            if (holdTimer.current) {
+              clearTimeout(holdTimer.current);
+              holdTimer.current = null;
+            }
+            if (holding.current) {
+              holding.current = false;
+              mic.current?.stop();
+            }
+          }}
           placeholder={placeholder}
           aria-label="Message BYTE"
           spellCheck
         />
         <div className="composer-bar">
+          {voiceOn && <MicButton ref={mic} onText={addSpoken} />}
           {onLocal && (
             <button
               className="icon-btn"

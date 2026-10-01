@@ -213,6 +213,15 @@ pub struct Settings {
     /// BYTE's icon in the menu bar (click: Quick Ask; menu: show BYTE, quit).
     #[serde(default = "yes")]
     pub menu_bar_icon: bool,
+    /// Voice input: the mic button, holding Space, and transcribing audio files (voice.rs).
+    #[serde(default = "yes")]
+    pub voice_enabled: bool,
+    /// Which speech model to use ("turbo" or "base-en", voice::MODELS).
+    #[serde(default = "default_voice_model")]
+    pub voice_model: String,
+    /// The spoken language ("auto", or a code like "en", "es").
+    #[serde(default = "default_voice_language")]
+    pub voice_language: String,
     /// Mac upkeep: storage clean-up, health checks, uninstalling apps, login items (macOS).
     #[serde(default = "yes")]
     pub mac_upkeep: bool,
@@ -307,6 +316,9 @@ impl Default for Settings {
             quick_ask_keys: default_quick_keys(),
             selection_keys: default_selection_keys(),
             menu_bar_icon: true,
+            voice_enabled: true,
+            voice_model: default_voice_model(),
+            voice_language: default_voice_language(),
             selection_hotkey: true,
             clipboard_history: false,
             jobs_enabled: true,
@@ -367,6 +379,14 @@ impl Settings {
 
 fn yes() -> bool {
     true
+}
+
+fn default_voice_model() -> String {
+    "turbo".into()
+}
+
+fn default_voice_language() -> String {
+    "auto".into()
 }
 
 pub fn default_quick_keys() -> String {

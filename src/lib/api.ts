@@ -7,6 +7,7 @@ import type { DocEvent, DocKind, DocOutline, DocSpec } from "./docs/spec";
 
 import type {
   Trashed,
+  VoiceStatus,
   Task,
   Schedule,
   Feed,
@@ -246,6 +247,11 @@ export const api = {
   onQuickOpen: (cb: (id: string | null) => void): Promise<UnlistenFn> => listen<string | null>("quick://open", (e) => cb(e.payload)),
   /** Main window: Quick Ask saved a chat. */
   onQuickSaved: (cb: () => void): Promise<UnlistenFn> => listen("quick://saved", () => cb()),
+  // Voice input (voice.rs).
+  voiceStatus: () => invoke<VoiceStatus>("voice_status"),
+  voiceDownload: (id: string) => invoke<void>("voice_download", { id }),
+  voiceDelete: (id: string) => invoke<void>("voice_delete", { id }),
+  voiceTranscribe: (wavBase64: string) => invoke<string>("voice_transcribe", { wavBase64 }),
   // Trackers (trackers.rs).
   trackersList: () => invoke<Tracker[]>("trackers_list"),
   trackerSave: (tracker: Tracker) => invoke<Tracker>("tracker_save", { tracker }),

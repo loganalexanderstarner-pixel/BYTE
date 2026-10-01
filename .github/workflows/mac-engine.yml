@@ -45,6 +45,9 @@ on:
       - "src-tauri/Cargo.lock"
       - "scripts/LLAMA_TAG"
       - "scripts/build-llama-server.sh"
+      - "scripts/build-whisper.sh"
+      - "scripts/WHISPER_TAG"
+      - "src-tauri/src/voice.rs"
       - ".github/workflows/mac-engine.yml"
   workflow_dispatch:
 
@@ -78,6 +81,13 @@ jobs:
           key: llama-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/LLAMA_TAG', 'scripts/build-llama-server.sh') }}
       - name: Build engine (llama-server, Metal)
         run: scripts/build-llama-server.sh
+      - name: Cache whisper.cpp build
+        uses: actions/cache@v4
+        with:
+          path: .cache/whisper.cpp
+          key: whisper-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/WHISPER_TAG', 'scripts/build-whisper.sh') }}
+      - name: Build voice engine (whisper-cli, Metal)
+        run: scripts/build-whisper.sh
       - name: Build frontend (embedded into the app)
         run: npm ci && npm run build
       - name: Unit tests
@@ -128,6 +138,19 @@ jobs:
           f=.cache/embed/nomic-embed-text-v1.5.Q8_0.gguf
           [ -f "$f" ] || curl -fsSL -o "$f" "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q8_0.gguf?download=true"
           echo "3e24342164b3d94991ba9692fdc0dd08e3fd7362e0aacc396a9a5c54a544c3b7  $f" | shasum -a 256 -c
+      - name: Cache speech test model
+        uses: actions/cache@v4
+        with:
+          path: .cache/voice
+          key: voice-whisper-base-en
+      - name: Download speech test model (whisper base.en)
+        run: |
+          mkdir -p .cache/voice
+          f=.cache/voice/ggml-base.en.bin
+          [ -f "$f" ] || curl -fsSL -o "$f" "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin?download=true"
+          echo "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002  $f" | shasum -a 256 -c
+          # whisper.cpp's own speech sample, from the source the build step fetched.
+          echo "BYTE_TEST_WHISPER_AUDIO=$(ls "$GITHUB_WORKSPACE"/.cache/whisper.cpp/src-*/samples/jfk.wav | head -n1)" >> "$GITHUB_ENV"
       - name: End-to-end test against the real engine
         working-directory: src-tauri
         env:
@@ -138,4 +161,6 @@ jobs:
           BYTE_TEST_HEAD_MAIN: ${{ github.workspace }}/.cache/head/gemma-4-E2B-it-Q3_K_M.gguf
           BYTE_TEST_HEAD: ${{ github.workspace }}/.cache/head/mtp-gemma-4-E2B-it.gguf
           BYTE_TEST_EMBED_MODEL: ${{ github.workspace }}/.cache/embed/nomic-embed-text-v1.5.Q8_0.gguf
+          BYTE_TEST_WHISPER: ${{ github.workspace }}/src-tauri/binaries/whisper-cli-aarch64-apple-darwin
+          BYTE_TEST_WHISPER_MODEL: ${{ github.workspace }}/.cache/voice/ggml-base.en.bin
         run: cargo test --locked e2e -- --ignored --nocapture --test-threads=1

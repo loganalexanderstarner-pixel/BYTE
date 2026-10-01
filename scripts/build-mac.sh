@@ -36,8 +36,9 @@ if ! need cargo; then
 fi
 rustup target add aarch64-apple-darwin >/dev/null
 
-say "2/5 Building the engine (llama-server with Metal; cached after the first time)"
+say "2/5 Building the engines (llama-server and whisper-cli with Metal; cached after the first time)"
 TARGET_TRIPLE=aarch64-apple-darwin scripts/build-llama-server.sh
+TARGET_TRIPLE=aarch64-apple-darwin scripts/build-whisper.sh
 
 say "3/5 Installing app dependencies"
 npm ci
@@ -49,6 +50,7 @@ say "5/5 Checking the result"
 app=$(ls -d src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app | head -n1)
 dmg=$(ls src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg | head -n1)
 test -x "$app/Contents/MacOS/llama-server"
+test -x "$app/Contents/MacOS/whisper-cli"
 codesign --verify --deep --strict "$app"
 "$app/Contents/MacOS/llama-server" --version >/dev/null 2>&1 || true
 echo "App: $app"

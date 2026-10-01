@@ -31,6 +31,8 @@ pub enum FileKind {
     Text,
     Web,
     Image,
+    /// A recording, read as its transcript (voice.rs).
+    Audio,
 }
 
 /// A file as the chat keeps it (in the message, so reloads and edits work).
@@ -55,6 +57,15 @@ pub struct Ingested {
     /// have small mistakes.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ocr: bool,
+}
+
+impl Ingested {
+    /// A recording's transcript (voice.rs), capped like any file's text.
+    pub fn transcript(name: String, text: String) -> Ingested {
+        let truncated = text.chars().count() > MAX_TEXT_CHARS;
+        let body: String = if truncated { text.chars().take(MAX_TEXT_CHARS).collect() } else { text };
+        Ingested { name, kind: FileKind::Audio, pages: None, text: format!("[Transcript of the recording]\n{body}"), truncated, image: None, ocr: false }
+    }
 }
 
 pub fn kind_of(path: &Path) -> Option<FileKind> {
@@ -160,6 +171,7 @@ pub fn ingest(path: &Path) -> AppResult<Ingested> {
         }
         FileKind::Web => (crate::tools::fetch::extract(&String::from_utf8_lossy(&bytes), "file://local").text, None, None),
         FileKind::Text => (String::from_utf8_lossy(&bytes).into_owned(), None, None),
+        FileKind::Audio => return Err(AppError::msg(format!("{name}: recordings are read with voice input (voice.rs)"))),
         FileKind::Image => {
             if meta.len() > MAX_IMAGE_BYTES {
                 return Err(AppError::msg(format!("{name} is too large for a photo (8 MB max)")));

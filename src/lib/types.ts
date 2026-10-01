@@ -81,6 +81,12 @@ export interface Settings {
   selectionKeys?: string;
   /** BYTE's icon in the menu bar. */
   menuBarIcon?: boolean;
+  /** Voice input: the mic button, holding Space, audio files (voice.rs). */
+  voiceEnabled?: boolean;
+  /** "turbo" (any language) or "base-en" (English, small). */
+  voiceModel?: string;
+  /** "auto" or a language code ("en", "es"…). */
+  voiceLanguage?: string;
   /** ⌥⌘B opens selected text from any app in the writing studio. */
   selectionHotkey?: boolean;
   /** Keep a history of copied text (off by default; secrets are skipped). */
@@ -1108,8 +1114,26 @@ export interface KbProgress {
   file: string;
 }
 
+/** Rust `voice::VoiceInfo`: a speech model BYTE offers. */
+export interface VoiceInfo {
+  id: string;
+  /** Its download key ("voice:turbo"), as in `models://download` events. */
+  key: string;
+  name: string;
+  about: string;
+  sizeBytes: number;
+  installed: boolean;
+}
+
+/** Rust `voice::VoiceStatus`. */
+export interface VoiceStatus {
+  models: VoiceInfo[];
+  /** The model voice input uses now (null until one is downloaded). */
+  ready: string | null;
+}
+
 /** Rust `files::FileKind`. */
-export type FileKind = "pdf" | "word" | "slides" | "sheet" | "text" | "web" | "image";
+export type FileKind = "pdf" | "word" | "slides" | "sheet" | "text" | "web" | "image" | "audio";
 
 /** A file read on this Mac for a local chat (Rust `files::Ingested`). */
 export interface LocalFile {

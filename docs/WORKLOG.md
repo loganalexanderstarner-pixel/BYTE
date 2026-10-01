@@ -17,6 +17,20 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-01
 
+### (this commit) — v0.11.1: voice input
+- **Why:** Phase 11 item 1 (HANDOFF §8): talk instead of typing; recordings as transcripts.
+- **What:** `src-tauri/src/voice.rs` (+ tests, real-engine `e2e_whisper_transcribes`), `scripts/build-whisper.sh`,
+  `scripts/WHISPER_TAG`, `tauri.conf.json` `externalBin` + `binaries/whisper-cli`, `files.rs` (`FileKind::Audio`,
+  `Ingested::transcript`), `commands.rs` `file_ingest` (audio → voice), `kb.rs` kind name, settings `voiceEnabled`/
+  `voiceModel`/`voiceLanguage`, `tempfile` moved to dependencies; workflows (`release.yml`, `mac-engine.yml` build
+  whisper-cli and run the voice e2e; `ci.yml` placeholder sidecars), `scripts/build-mac.sh`; UI `lib/wav.ts` (+ tests),
+  `lib/recorder.ts`, `components/chat/MicButton.tsx`, `VoiceModels.tsx`, Composer (🎤, hold Space, audio in the file
+  picker), Attachments (audio chip), Settings → Models → Voice, CSS; screenshots `33-*`; CLAUDE.md.
+- **Verify:** `cargo test voice`; `scripts/build-whisper.sh` then `BYTE_TEST_WHISPER=src-tauri/binaries/whisper-cli-<triple>
+  BYTE_TEST_WHISPER_MODEL=<ggml-base.en.bin> BYTE_TEST_WHISPER_AUDIO=.cache/whisper.cpp/src-v1.9.4/samples/jfk.wav
+  cargo test e2e_whisper -- --ignored`; `npx vitest run src/lib/wav.test.ts`; on a Mac: 🎤 → download → talk → text.
+- **Undo:** `git revert` this commit (voice models stay in `<models>/voice/`; delete the folder to free the space).
+
 ### (this commit) — v0.11.0: Quick Ask, menu bar, command palette, custom shortcuts
 - **Why:** Phase 11 item 3 (HANDOFF §8): ask from any app, BYTE in the menu bar, ⌘K, customizable keys.
 - **What:** `src-tauri/src/quick.rs` (+ tests), `icons/tray.png`, settings `quickAsk`/`quickAskKeys`/`selectionKeys`/

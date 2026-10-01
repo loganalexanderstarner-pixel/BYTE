@@ -37,6 +37,7 @@ mod paths;
 mod profiles;
 mod prompt;
 mod quick;
+mod voice;
 mod quality;
 mod research;
 mod router;
@@ -270,6 +271,11 @@ pub fn run() {
             quick::quick_toggle,
             quick::quick_hide,
             quick::quick_open,
+            voice::voice_status,
+            voice::voice_download,
+            voice::voice_delete,
+            voice::voice_transcribe,
+            voice::voice_transcribe_file,
             clipboard::clip_list,
             clipboard::clip_copy,
             clipboard::clip_delete,

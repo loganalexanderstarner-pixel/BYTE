@@ -1,3 +1,4 @@
+import { VoiceModels } from "../chat/VoiceModels";
 import { KeyboardSection } from "./KeyboardSection";
 import { prettyKeys } from "../../lib/keys";
 import { open as openDialog, ask } from "@tauri-apps/plugin-dialog";
@@ -81,7 +82,65 @@ function ModelsTab() {
       <SpeedPrefPicker />
       <CatalogBrowser />
       <ModelLab />
+      <VoiceSection />
     </>
+  );
+}
+
+const VOICE_LANGUAGES: [string, string][] = [
+  ["auto", "Detect it"],
+  ["en", "English"],
+  ["es", "Spanish"],
+  ["fr", "French"],
+  ["de", "German"],
+  ["it", "Italian"],
+  ["pt", "Portuguese"],
+  ["nl", "Dutch"],
+  ["pl", "Polish"],
+  ["ru", "Russian"],
+  ["uk", "Ukrainian"],
+  ["zh", "Chinese"],
+  ["ja", "Japanese"],
+  ["ko", "Korean"],
+  ["hi", "Hindi"],
+  ["ar", "Arabic"],
+  ["tr", "Turkish"],
+];
+
+/** Voice input (voice.rs): speech models, language, on/off. */
+function VoiceSection() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const on = settings?.voiceEnabled !== false;
+  return (
+    <div className="section">
+      <h4>Voice</h4>
+      <label className="field">
+        <span>
+          Voice input
+          <small>Click 🎤 in the message box, or hold Space in an empty box, and talk; what you say is typed out for you to check and send. Audio files you attach (WAV, MP3, M4A…) become transcripts. It all happens on this Mac.</small>
+        </span>
+        <input type="checkbox" checked={on} onChange={(e) => void update({ voiceEnabled: e.target.checked })} />
+      </label>
+      {on && (
+        <>
+          <VoiceModels />
+          <label className="field">
+            <span>
+              Spoken language
+              <small>“Detect it” works for most; picking yours helps with short phrases. The English model always hears English.</small>
+            </span>
+            <select value={settings?.voiceLanguage ?? "auto"} onChange={(e) => void update({ voiceLanguage: e.target.value })} aria-label="Spoken language">
+              {VOICE_LANGUAGES.map(([code, name]) => (
+                <option key={code} value={code}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
+      )}
+    </div>
   );
 }
 

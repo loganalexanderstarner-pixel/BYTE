@@ -478,7 +478,8 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 `settings.model_overrides` (`ModelOverride::apply`) + `TuningPanel`, `battery_saver` (`system::battery`), `commands::engine_live`
 (with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
 **Next:** **Phase 10 is complete** (v0.10.0–v0.10.6, all released). Phase 11 (input & windows) has started: v0.11.0
-Quick Ask + menu bar + ⌘K palette + custom shortcuts is done; next v0.11.1 voice (see the Phase 11 section). Way of working
+Quick Ask + menu bar + ⌘K palette + custom shortcuts and v0.11.1 voice input are done; next v0.11.2 transcripts with
+speaker labels and videos without captions (see the Phase 11 section). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
@@ -645,6 +646,15 @@ Quit); global shortcuts from settings (`quickAskKeys`, `selectionKeys`; `quick::
 ⌘/⌥/⌃ or a clash; one handler dispatches by shortcut id); ⌘K palette (`components/Palette.tsx`, `lib/palette.ts`
 fuzzy ranking) over actions, settings tabs, modes, themes and chats; Settings → About → Keyboard and menu bar
 (`KeyboardSection.tsx`, key recorder, `lib/keys.ts`). No positioner plugin was needed (tray click rects).
+**Done in v0.11.1:** `voice.rs`: `whisper-cli` as a second sidecar (`scripts/build-whisper.sh`, `WHISPER_TAG`;
+Metal on a Mac, `GGML_NATIVE=OFF` so a binary never hits "illegal instruction" on another CPU), speech models
+(`voice::MODELS`: large-v3-turbo q5_0, base.en) in `<models>/voice/` through `Downloads` (keys `voice:<id>`),
+`voice_status/download/delete/transcribe` (UI WAV, base64) and `file_ingest` routing audio to `voice::ingest`
+(`FileKind::Audio`, transcript text; M4A/AAC/AIFF/CAF via `afconvert`). UI: `lib/wav.ts` (downsample, PCM16 WAV),
+`lib/recorder.ts` (Web Audio, ScriptProcessor), `MicButton.tsx` (click or hold Space; first press offers the model
+download), `VoiceModels.tsx`, Settings → Models → Voice. The webview grants the mic (no permission handler set);
+macOS asks once (Info.plist `NSMicrophoneUsageDescription`). Mac test: `voice::tests::e2e_whisper_transcribes`
+(base.en + whisper.cpp's JFK sample).
 Later: the Finder "Ask BYTE" Quick Action (a Shortcut or Service that opens `byte://ask`), a floating desktop
 widget.
 1. **Voice**: whisper (sidecar `whisper-cli`, small/base models) push-to-talk / hold Space; hands-free

@@ -326,6 +326,22 @@ function initScript({ data }) {
             { id: "r1", title: "M5 MacBook Air: worth upgrading?", updatedAt: Date.now() - 3600000, sources: 12, examples: ["Apple M5 announcement", "MacBook Air M5 review"] },
             { id: "r2", title: "Rust vs Go for a CLI", updatedAt: Date.now() - 5 * 86400000, sources: 9, examples: ["The Rust book", "Go blog"] },
           ];
+        case "voice_status": {
+          const ready = data.voiceReady ? "turbo" : null;
+          return {
+            ready,
+            models: [
+              { id: "turbo", key: "voice:turbo", name: "Best (any language)", about: "Whisper large-v3 turbo: very accurate, about 100 languages, fast on Apple Silicon.", sizeBytes: 574041195, installed: !!ready },
+              { id: "base-en", key: "voice:base-en", name: "Quick (English)", about: "Whisper base, English only: a small download that's good for short dictation.", sizeBytes: 147964211, installed: false },
+            ],
+          };
+        }
+        case "voice_download":
+          setTimeout(() => window.__emit("models://download", { kind: "progress", id: `voice:${args.id}`, bytes: 2.3e8, total: 5.74e8, bytesPerSec: 3.1e7 }), 50);
+          return null;
+        case "voice_transcribe":
+          await new Promise((r) => setTimeout(r, 300));
+          return "What's a good recipe for banana bread without eggs?";
         case "connectors_status":
           return { keychain: true, vault: "/Users/sam/Documents/Obsidian/Main", vaultNotes: 412, notion: false, notionParent: null, calendars: [["Work", "calendar.google.com"], ["Family", "p58-caldav.icloud.com"]] };
         case "trackers_list": {
@@ -1097,7 +1113,11 @@ function initScript({ data }) {
   };
 }
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await chromium.launch({
+  executablePath: "/opt/pw-browsers/chromium",
+  // A fake microphone for the voice input screens.
+  args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
+});
 async function page(onboarded, theme = "midnight", extra = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1240, height: 820 }, deviceScaleFactor: 1, colorScheme: "dark" });
   const p = await ctx.newPage();
@@ -1661,6 +1681,31 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".approval").scrollIntoViewIfNeeded();
   await shot(p, "26c-schedule-approval");
   console.log("schedule errors:", errors);
+  await ctx.close();
+}
+// Voice input: first press (set-up), recording, the text in the box, Settings → Models → Voice
+{
+  const { p, ctx, errors } = await page(true, "midnight");
+  await p.getByRole("button", { name: "Voice input" }).click();
+  await p.waitForTimeout(300);
+  await p.getByRole("button", { name: /Download/ }).first().click();
+  await p.waitForTimeout(300);
+  await shot(p, "33-voice-setup");
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await page(true, "midnight", { voiceReady: true });
+  await p.getByRole("button", { name: "Voice input" }).click();
+  await p.waitForTimeout(1600);
+  await shot(p, "33b-voice-recording");
+  await p.getByRole("button", { name: "Stop recording" }).click();
+  await p.waitForTimeout(800);
+  await shot(p, "33c-voice-text");
+  await p.keyboard.press("Meta+Comma");
+  await p.getByRole("heading", { name: "Voice" }).scrollIntoViewIfNeeded();
+  await p.waitForTimeout(200);
+  await shot(p, "33d-voice-settings");
+  console.log("voice errors:", errors);
   await ctx.close();
 }
 // Quick Ask (its own window), the ⌘K palette, Settings → Keyboard and menu bar

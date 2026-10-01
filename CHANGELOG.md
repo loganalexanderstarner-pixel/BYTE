@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.1 — Voice input
+
+- **🎤 / hold Space** in the message box (main window and Quick Ask): speech is typed out for you to check and send.
+- **On-device speech to text**: whisper.cpp (`whisper-cli`, Metal) as a second sidecar; speech models Best (large-v3
+  turbo, 574 MB, any language) or Quick (base.en, 148 MB), downloaded on first use with the resumable,
+  SHA-256-checked downloader.
+- **Audio files become transcripts** when attached or dropped (WAV, MP3, FLAC, OGG directly; M4A, AAC, AIFF, CAF via
+  macOS `afconvert`), up to 500 MB.
+- **Settings → Models → Voice**: on/off, models, spoken language.
+
 ## 0.11.0 — Quick Ask, menu bar and command palette (Phase 11 starts)
 
 - **Quick Ask** (⌥Space from any app): a small window on top that answers right there. Esc or clicking elsewhere hides

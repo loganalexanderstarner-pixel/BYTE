@@ -1,4 +1,4 @@
-import { FileSpreadsheet, FileText, Globe, ImageIcon, Images, Loader2, Presentation, X } from "lucide-react";
+import { AudioLines, FileSpreadsheet, FileText, Globe, ImageIcon, Images, Loader2, Presentation, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { api } from "../../lib/api";
@@ -63,7 +63,7 @@ export function fileDetail(f: LocalFile): string {
   const n = f.pages ?? 0;
   const unit = f.kind === "slides" ? "slide" : f.kind === "sheet" ? "sheet" : "page";
   const count = n > 0 ? `${n} ${unit}${n === 1 ? "" : "s"}` : "";
-  const scan = f.ocr ? (f.kind === "image" ? "text read" : "scan: text read") : "";
+  const scan = f.ocr ? (f.kind === "image" ? "text read" : "scan: text read") : f.kind === "audio" ? "transcript" : "";
   return [count, scan, f.truncated ? "long: best parts used" : ""].filter(Boolean).join(" · ");
 }
 
@@ -92,6 +92,8 @@ export function LocalFileChips({ files, onRemove }: { files: LocalFile[]; onRemo
               <Presentation size={14} />
             ) : f.kind === "web" ? (
               <Globe size={14} />
+            ) : f.kind === "audio" ? (
+              <AudioLines size={14} />
             ) : (
               <FileText size={14} />
             )}

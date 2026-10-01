@@ -271,7 +271,11 @@ pub async fn kb_search(app: AppHandle, query: String, limit: Option<usize>) -> A
 
 /// Reads a file the user attached to a local chat (text for the model, or a photo).
 #[tauri::command]
-pub async fn file_ingest(path: String) -> AppResult<crate::files::Ingested> {
+pub async fn file_ingest(app: AppHandle, state: State<'_, AppState>, path: String) -> AppResult<crate::files::Ingested> {
+    // A recording: its transcript, when voice input is on.
+    if crate::voice::is_audio(std::path::Path::new(&path)) && state.settings.lock().await.voice_enabled {
+        return crate::voice::ingest(&app, &state, std::path::Path::new(&path)).await;
+    }
     tokio::task::spawn_blocking(move || crate::files::ingest(std::path::Path::new(&path))).await.map_err(|e| AppError::msg(e.to_string()))?
 }
 
