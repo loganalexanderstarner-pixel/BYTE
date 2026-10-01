@@ -58,6 +58,8 @@ src-tauri/                Rust core (Tauri 2)
   src/media.rs            video helper: yt-dlp (downloaded on request, checksum-checked) for videos without captions
   src/tts.rs              BYTE's voices: speaking pipeline (chunks, pauses, fades) + one continuous audio stream (cpal)
   src/voices.rs           voice catalog (catalog/voices.json: Kokoro, Piper, Kitten, Supertonic, Pocket), per-engine args
+  src/notes.rs            notes: Markdown files in Documents/BYTE/Notes, web clipper (byte://clip), KB source
+  src/mindmap.rs          mind maps: Markdown → tree (no model) or a model outline
   src/speech.rs           answers read aloud (macOS `say`, text via a temp file), speakable(), voices
   src/wake.rs             "Hey BYTE": native mic (cpal, macOS), voice-burst detector, whisper check, opens Quick Ask
   src/quick.rs            Quick Ask window, menu-bar icon, global shortcuts from settings

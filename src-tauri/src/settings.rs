@@ -225,6 +225,12 @@ pub struct Settings {
     /// BYTE's own voice (voices.rs: "<package>/<speaker>"), used once that voice is downloaded.
     #[serde(default = "default_byte_voice")]
     pub byte_voice: String,
+    /// Notes (notes.rs) and the web clipper.
+    #[serde(default = "yes")]
+    pub notes_enabled: bool,
+    /// Where notes are kept (None = ~/Documents/BYTE/Notes).
+    #[serde(default)]
+    pub notes_dir: Option<String>,
     /// How BYTE speaks: "calm", "natural" or "lively" (pace and pauses).
     #[serde(default = "default_speech_style")]
     pub speech_style: String,
@@ -351,6 +357,8 @@ impl Default for Settings {
             speech_voice: String::new(),
             byte_voice: default_byte_voice(),
             speech_style: default_speech_style(),
+            notes_enabled: true,
+            notes_dir: None,
             voice_where: default_voice_where(),
             cloud_voice: String::new(),
             speech_speed: default_speech_speed(),

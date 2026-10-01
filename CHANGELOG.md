@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.6 — Notes, web clipper and mind maps
+
+- **Notes** (`notes.rs`): Markdown files in `~/Documents/BYTE/Notes/<folder>/<title>.md` (setting `notesDir`) with
+  front matter (title, tags, created, source, chat); list, search, save (renames move the file), delete to the Trash;
+  ids that leave the folder are refused. The folder joins the knowledge base when it's on (re-indexed after saves).
+  UI: `NotesPanel.tsx`, `lib/notes.ts` (+ test), 📝 under answers, ⌘K Notes / New note. Module toggle `notesEnabled`.
+- **Web clipper:** `byte://clip?url=&sel=` (`background::Link::Clip`, http/https only), `notes::clip` reads the page
+  with `fetch_page` and saves it in Clips with the source and the selection quoted; notification + `notes://clipped`.
+  The bookmarklet is in Settings → About.
+- **Mind maps** (`mindmap.rs`): the tree from Markdown structure (headings, nested bullets, numbered lists; no model),
+  else one `complete_json` outline; clamped to 7 branches × 6 children, depth 3. `MindMapView.tsx` + `lib/mindmap.ts`
+  (radial layout weighted by leaves, + test): fold branches, zoom, PNG/SVG (theme colours resolved), outline, save as
+  note. Branch colours are theme tokens (`--branch-0…6`).
+
 ## 0.11.5 — A voice catalog and more human speech
 
 - **Voice catalog** (`voices.rs`, `catalog/voices.json` from `scripts/build-voices.mjs`): 167 packages / 2,346 voices

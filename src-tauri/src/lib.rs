@@ -41,6 +41,8 @@ mod media;
 mod speakers;
 mod speech;
 mod tts;
+mod notes;
+mod mindmap;
 mod voices;
 mod wake;
 mod voice;
@@ -292,6 +294,13 @@ pub fn run() {
             speech::speech_say,
             speech::speech_stop,
             speech::speech_feed,
+            notes::notes_list,
+            notes::note_get,
+            notes::note_save,
+            notes::note_delete,
+            notes::notes_info,
+            notes::note_clip,
+            mindmap::mindmap_make,
             tts::voices_catalog,
             tts::cloud_voices,
             tts::voices_status,

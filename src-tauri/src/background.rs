@@ -16,6 +16,8 @@ use tauri::{AppHandle, Manager, Url};
 use crate::state::AppState;
 
 pub const ASK_EVENT: &str = "deeplink://ask";
+/// A page was clipped into the notes (its note id).
+pub const CLIP_EVENT: &str = "notes://clipped";
 
 /// Started by the login item.
 pub fn launched_in_background() -> bool {
@@ -49,6 +51,8 @@ pub fn show_main(app: &AppHandle) {
 pub enum Link {
     Run { id: i64, key: String },
     Ask { text: String },
+    /// A page to save as a note (the web clipper bookmarklet).
+    Clip { url: String, selection: String },
 }
 
 pub fn read_link(url: &Url) -> Option<Link> {
@@ -65,6 +69,12 @@ pub fn read_link(url: &Url) -> Option<Link> {
         "ask" => {
             let text: String = param("q").unwrap_or_default().chars().take(4000).collect();
             Some(Link::Ask { text })
+        }
+        "clip" => {
+            let page = param("url")?;
+            let u = Url::parse(&page).ok().filter(|u| matches!(u.scheme(), "http" | "https") && page.len() <= 2048)?;
+            let selection: String = param("sel").unwrap_or_default().chars().take(20_000).collect();
+            Some(Link::Clip { url: u.to_string(), selection })
         }
         _ => None,
     }
@@ -96,6 +106,22 @@ pub fn open_links(app: &AppHandle, urls: Vec<Url>) {
                 show_main(app);
                 let _ = tauri::Emitter::emit(app, ASK_EVENT, text);
             }
+            Some(Link::Clip { url, selection }) => {
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if !app.state::<AppState>().settings.lock().await.notes_enabled {
+                        crate::scheduler::notify(&app, "Notes are off", "Turn them on in BYTE → Settings → Features.");
+                        return;
+                    }
+                    match crate::notes::clip(&app, &url, &selection).await {
+                        Ok(n) => {
+                            crate::scheduler::notify(&app, "Clipped to your notes", &n.title);
+                            let _ = tauri::Emitter::emit(&app, CLIP_EVENT, n.id);
+                        }
+                        Err(e) => crate::scheduler::notify(&app, "BYTE couldn't clip that page", &e.to_string()),
+                    }
+                });
+            }
             None => log::info!("ignored link {url}"),
         }
     }
@@ -113,6 +139,13 @@ mod tests {
     fn links_are_read_strictly() {
         assert_eq!(link("byte://run/7?key=abc"), Some(Link::Run { id: 7, key: "abc".into() }));
         assert_eq!(link("byte://run/7"), None, "no key, no run");
+        assert_eq!(
+            link("byte://clip?url=https%3A%2F%2Fex.com%2Fa%3Fb%3D1&sel=hello"),
+            Some(Link::Clip { url: "https://ex.com/a?b=1".into(), selection: "hello".into() })
+        );
+        assert_eq!(link("byte://clip?url=javascript%3Aalert(1)"), None);
+        assert_eq!(link("byte://clip?url=file%3A%2F%2F%2Fetc%2Fpasswd"), None);
+        assert_eq!(link("byte://clip"), None);
         assert_eq!(link("byte://run/7?key="), None);
         assert_eq!(link("byte://run/x?key=abc"), None);
         assert_eq!(link("byte://run/-1?key=abc"), None);

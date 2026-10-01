@@ -7,6 +7,7 @@ import { branchAt, switchVersion, versionsAt } from "../lib/branches";
 import { titleFrom } from "../lib/format";
 import { endBrowsing } from "../lib/agent";
 import type {
+  NoteInput,
   ChatEvent,
   ConversationMeta,
   DownloadEvent,
@@ -296,6 +297,14 @@ interface State {
   openStudy(deck?: number | null): void;
   closeStudy(): void;
   /** The writing studio, with the text it opened with (and the app it came from: the ⌥⌘B hotkey). */
+  /** The Notes panel: closed (null), or open on a note id, or on a new note's draft. */
+  notes: { id?: string; draft?: NoteInput; seq: number } | null;
+  openNotes(opts?: { id?: string; draft?: NoteInput }): void;
+  closeNotes(): void;
+  /** A mind map being shown: the text it's made from, its title, and the chat it came from. */
+  mindmap: { text: string; title: string; chat?: string } | null;
+  openMindmap(text: string, title: string, chat?: string): void;
+  closeMindmap(): void;
   writing: { text: string; app?: string; notice?: string; seq: number } | null;
   openWriting(text?: string, app?: string, notice?: string): void;
   closeWriting(): void;
@@ -871,6 +880,12 @@ export const useStore = create<State>((set, get) => {
     study: null,
     openStudy: (deck) => set({ study: { deck: deck ?? null } }),
     closeStudy: () => set({ study: null }),
+    notes: null,
+    openNotes: (opts) => set((s) => ({ notes: { ...opts, seq: (s.notes?.seq ?? 0) + 1 } })),
+    closeNotes: () => set({ notes: null }),
+    mindmap: null,
+    openMindmap: (text, title, chat) => set({ mindmap: { text, title, chat } }),
+    closeMindmap: () => set({ mindmap: null }),
     writing: null,
     openWriting: (text, app, notice) => set((s) => ({ writing: { text: text ?? "", app, notice, seq: (s.writing?.seq ?? 0) + 1 } })),
     closeWriting: () => set({ writing: null }),

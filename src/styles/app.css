@@ -5637,3 +5637,133 @@ kbd {
 .field small.warn {
   color: var(--warn);
 }
+
+/* Notes (📝) and mind maps (🧠) */
+.notes-panel {
+  width: min(1100px, 96vw);
+}
+.notes-body {
+  display: grid;
+  grid-template-columns: minmax(240px, 32%) 1fr;
+  gap: 14px;
+  min-height: 0;
+  flex: 1;
+}
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.note-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.note-row:hover {
+  background: var(--surface-2);
+}
+.note-row.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.note-snippet {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.notes-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.notes-list .search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.notes-list .search input,
+.note-tags {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+.note-tags {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.note-title {
+  font-size: 1.25em;
+  font-weight: 650;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  padding: 4px 0;
+}
+.note-text,
+.note-preview {
+  flex: 1;
+  min-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 10px 12px;
+}
+.note-text {
+  color: var(--text);
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  resize: none;
+}
+.mindmap-panel {
+  width: min(1200px, 97vw);
+}
+.mindmap-canvas {
+  flex: 1;
+  min-height: 360px;
+  height: 62vh;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.mindmap-canvas g rect {
+  transition: stroke-width var(--dur-fast) var(--ease);
+}
+.mindmap-canvas g:hover rect {
+  stroke-width: 2.4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mindmap-canvas g rect {
+    transition: none;
+  }
+}

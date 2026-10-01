@@ -57,6 +57,14 @@
   --text-3: color-mix(in srgb, var(--text) 52%, var(--bg));
   --accent-contrast: var(--bg);
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  /* Mind map branches: the theme's own colors, mixed for variety. */
+  --branch-0: var(--accent);
+  --branch-1: var(--ok);
+  --branch-2: var(--warn);
+  --branch-3: var(--danger);
+  --branch-4: var(--accent-2);
+  --branch-5: color-mix(in srgb, var(--accent) 55%, var(--ok));
+  --branch-6: color-mix(in srgb, var(--warn) 55%, var(--danger));
   --glow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), 0 0 22px color-mix(in srgb, var(--accent) 16%, transparent);
   --glow-strong: 0 0 0 1px color-mix(in srgb, var(--accent) 65%, transparent), 0 0 30px color-mix(in srgb, var(--accent) 32%, transparent);
   --bg-grad: radial-gradient(1200px 600px at 70% -10%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 60%),

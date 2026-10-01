@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.11.5** | Phase 11 · A voice catalog and more human speech | Over 2,000 free voices from Kokoro, Piper, Kitten, Supertonic and Pocket with filters and samples, speech that sounds like a person (pauses, steps in words, Calm/Natural/Lively), voice on the Mac or in the cloud, “Hey BYTE” that answers out loud and keeps listening | Choosing exactly how BYTE sounds |
+| **v0.11.6** | Phase 11 · Notes, web clipper and mind maps | Markdown notes you own (folders, tags, search, part of the knowledge base), a bookmarklet that clips any page into your notes, mind maps of any answer or note with PNG/SVG export | Keeping what you find and learn |
+| v0.11.5 | Phase 11 · A voice catalog and more human speech | Over 2,000 free voices from Kokoro, Piper, Kitten, Supertonic and Pocket with filters and samples, speech that sounds like a person (pauses, steps in words, Calm/Natural/Lively), voice on the Mac or in the cloud, “Hey BYTE” that answers out loud and keeps listening | Choosing exactly how BYTE sounds |
 | v0.11.4 | Phase 11 · BYTE's own natural voices | 28 free, natural voices made on your Mac (Kokoro), speech that starts while the answer is written and flows without pauses | A voice that doesn't sound robotic |
 | v0.11.3 (inside v0.11.4) | Phase 11 · BYTE talks back, and “Hey BYTE” | Answers read aloud with your Mac's voices, hands-free conversation (listen → answer aloud → listen), and an opt-in “Hey BYTE” wake word | Talking with BYTE without the keyboard |
 | v0.11.2 | Phase 11 · Who said what, and videos without captions | Speaker labels in transcripts of recordings, YouTube videos without captions transcribed and summarized on your Mac (video helper download) | Meetings, interviews and any video |

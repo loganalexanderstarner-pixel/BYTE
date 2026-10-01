@@ -54,6 +54,7 @@ on:
       - "src-tauri/src/wake.rs"
       - "src-tauri/src/tts.rs"
       - "src-tauri/src/voices.rs"
+      - "src-tauri/src/mindmap.rs"
       - "src-tauri/src/cloud/voice.rs"
       - "src-tauri/catalog/voices.json"
       - "scripts/build-sherpa.sh"

@@ -10,7 +10,7 @@ import type {
   VoiceStatus,
   SpeakersStatus,
   SpeechVoice,
-  VoicePackage, VoicesStatus, CloudVoice,
+  VoicePackage, VoicesStatus, CloudVoice, Note, NoteInput, NotesInfo, MapNode,
   MediaStatus,
   Task,
   Schedule,
@@ -264,6 +264,15 @@ export const api = {
   /** More of answer `id` (all its text so far) for BYTE's voices to read; `done` when it's complete. */
   speechFeed: (id: string, text: string, done: boolean, isPrivate = false) => invoke<void>("speech_feed", { id, text, done, private: isPrivate }),
   // BYTE's own voices (tts.rs).
+  // Notes (notes.rs) and mind maps (mindmap.rs).
+  notesList: (query?: string) => invoke<Note[]>("notes_list", { query: query ?? null }),
+  noteGet: (id: string) => invoke<Note>("note_get", { id }),
+  noteSave: (note: NoteInput) => invoke<Note>("note_save", { note }),
+  noteDelete: (id: string) => invoke<void>("note_delete", { id }),
+  notesInfo: () => invoke<NotesInfo>("notes_info"),
+  noteClip: (url: string, selection?: string) => invoke<Note>("note_clip", { url, selection: selection ?? null }),
+  onNoteClipped: (cb: (id: string) => void): Promise<UnlistenFn> => listen<string>("notes://clipped", (e) => cb(e.payload)),
+  mindmapMake: (text: string, title: string) => invoke<MapNode>("mindmap_make", { text, title }),
   voicesCatalog: () => invoke<VoicePackage[]>("voices_catalog"),
   voicesStatus: () => invoke<VoicesStatus>("voices_status"),
   ttsVoiceDownload: (id: string) => invoke<void>("tts_voice_download", { id }),

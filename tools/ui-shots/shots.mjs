@@ -339,6 +339,32 @@ function initScript({ data }) {
             ],
           };
         }
+        case "notes_info":
+          return { dir: "/Users/logan/Documents/BYTE/Notes", folders: ["Inbox", "Clips", "Home", "Work"] };
+        case "notes_list":
+        case "note_get": {
+          const H = 3600000;
+          const n = (title, folder, tags, body, ago, source = "") => ({ id: `${folder}/${title}.md`, title, folder, tags, created: Date.now() - ago, updated: Date.now() - ago, source, chat: "", body, path: `/Users/logan/Documents/BYTE/Notes/${folder}/${title}.md` });
+          const list = [
+            n("Lisbon trip ideas", "Inbox", ["travel"], "## Must do\n- Tram 28 early, before the crowds\n- Pastéis de Belém (go at 9 am)\n- Sunset at Miradouro da Senhora do Monte\n\n## Food\n- Time Out Market for lunch\n- Try ginjinha in Rossio\n\n> Budget: about €120 a day for two.", 2 * H),
+            n("How sourdough starters work", "Clips", ["clip", "baking"], "Clipped from [The Science of Sourdough](https://example.com/sourdough) on October 1, 2026.\n\n## What you selected\n\n> A starter is a living culture of wild yeast and lactic acid bacteria.\n\n## The page\n\nWild yeast makes the dough rise while bacteria give the sour taste…", 5 * H, "https://example.com/sourdough"),
+            n("AC filter sizes", "Home", ["home"], "- Upstairs: 16x25x1\n- Downstairs: 20x20x1\n\nChange every 90 days.", 26 * H),
+            n("Q4 project goals", "Work", ["work", "planning"], "1. Ship the onboarding redesign\n2. Cut page load to under 1 s\n3. Hire one designer", 50 * H),
+          ];
+          return cmd === "note_get" ? list[0] : list;
+        }
+        case "note_save":
+        case "note_delete":
+        case "note_clip":
+          return null;
+        case "mindmap_make":
+          return { label: "Lisbon trip", children: [
+            { label: "Must do", children: [{ label: "Tram 28 early", children: [] }, { label: "Pastéis de Belém", children: [] }, { label: "Sunset viewpoint", children: [] }] },
+            { label: "Food", children: [{ label: "Time Out Market", children: [] }, { label: "Ginjinha in Rossio", children: [] }] },
+            { label: "Getting around", children: [{ label: "Viva Viagem card", children: [] }, { label: "Walk the hills", children: [] }, { label: "Uber at night", children: [] }] },
+            { label: "Budget", children: [{ label: "€120 a day for two", children: [] }] },
+            { label: "Where to stay", children: [{ label: "Chiado", children: [] }, { label: "Alfama", children: [] }] },
+          ] };
         case "voices_catalog":
           return data.voiceCatalog ?? [];
         case "voices_status":
@@ -1802,6 +1828,34 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(150);
   await shot(p, "32c-keyboard");
   console.log("palette errors:", errors);
+  await ctx.close();
+}
+// Notes, mind maps, the clipper bookmarklet
+{
+  const { p, ctx, errors } = await page(true, "midnight");
+  await p.getByRole("button", { name: /^Notes:/ }).click();
+  await p.waitForTimeout(400);
+  await shot(p, "38-notes");
+  await p.getByText("Lisbon trip ideas").first().click();
+  await p.waitForTimeout(250);
+  await shot(p, "38b-note-editor");
+  await p.getByText("How sourdough starters work").first().click();
+  await p.waitForTimeout(250);
+  await shot(p, "38c-clip-note");
+  await p.getByText("Lisbon trip ideas").first().click();
+  await p.getByRole("button", { name: "Mind map" }).click();
+  await p.waitForTimeout(500);
+  await shot(p, "38d-mindmap");
+  await p.keyboard.press("Escape");
+  await p.getByRole("button", { name: "Close" }).first().click().catch(() => undefined);
+  await p.waitForTimeout(200);
+  await p.keyboard.press("Meta+Comma");
+  await p.getByRole("button", { name: "About", exact: true }).click();
+  await p.waitForTimeout(300);
+  await p.getByText("Notes and web clipper").scrollIntoViewIfNeeded();
+  await p.waitForTimeout(150);
+  await shot(p, "38e-notes-settings");
+  console.log("notes errors:", errors);
   await ctx.close();
 }
 // The command-deck home, the research library and usage stats

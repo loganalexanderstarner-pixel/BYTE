@@ -17,6 +17,19 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-01
 
+### (this commit) — v0.11.6: notes, web clipper, mind maps
+- **Why:** Phase 11 items: notes (save answers, feed the knowledge base), a web clipper, mind maps from any answer.
+- **What:** `src-tauri/src/notes.rs` (files, front matter, path safety, search, clip, commands, tests),
+  `src-tauri/src/mindmap.rs` (Markdown → tree, model outline, clamp, tests + `e2e_mindmap_from_prose`),
+  `background.rs` (`Link::Clip`, `CLIP_EVENT`), settings `notesEnabled`/`notesDir`, `lib.rs` commands; UI
+  `components/notes/{NotesPanel,MindMapView}.tsx`, `lib/notes.ts`, `lib/mindmap.ts` (+ tests), store `notes`/`mindmap`,
+  Shell button + palette, MessageView 📝 and mind-map buttons, Settings `NotesRow` (folder, bookmarklet), CSS,
+  `--branch-*` tokens; screenshots `38-*`; `mac-engine.yml` path `mindmap.rs`.
+- **Verify:** `cargo test notes mindmap background`; `npx vitest run src/lib/notes.test.ts src/lib/mindmap.test.ts`;
+  real engine: `cargo test e2e_mindmap_from_prose -- --ignored` (passes on Qwen3 0.6B); on a Mac: 📝 under an answer,
+  the Clip to BYTE bookmarklet on a page, 🧠 under an answer.
+- **Undo:** `git revert` this commit (notes files stay on disk).
+
 ### (this commit) — v0.11.5: voice catalog, more human speech, cloud voice, "Hey BYTE" answers aloud
 - **Why:** owner: voices as expressive and human as the big assistants; many voices from different free providers
   (no accounts) with descriptions; voice on the Mac or in the cloud; not taking memory from the chat model; and

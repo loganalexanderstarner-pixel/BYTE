@@ -1,4 +1,4 @@
-import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot, ClipboardList, ListTodo } from "lucide-react";
+import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot, ClipboardList, ListTodo, NotebookPen } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { ChatView } from "../components/chat/ChatView";
@@ -8,6 +8,8 @@ import { DocumentsPanel } from "../components/documents/DocumentsPanel";
 import { RecipeBox } from "../components/kitchen/RecipeBox";
 import { StudyPanel } from "../components/study/StudyPanel";
 import { WritingPanel } from "../components/writing/WritingPanel";
+import { MindMapView } from "../components/notes/MindMapView";
+import { NotesPanel } from "../components/notes/NotesPanel";
 import { JobsPanel } from "../components/jobs/JobsPanel";
 import { ClipboardPanel } from "../components/clipboard/ClipboardPanel";
 import { TasksPanel } from "../components/tasks/TasksPanel";
@@ -37,6 +39,11 @@ export function Shell() {
   const writingOn = useStore((s) => s.settings?.writingEnabled !== false);
   const writingOpen = useStore((s) => !!s.writing);
   const openWriting = useStore((s) => s.openWriting);
+  const notesOn = useStore((s) => s.settings?.notesEnabled !== false);
+  const notesOpen = useStore((s) => !!s.notes);
+  const notesKey = useStore((s) => s.notes?.seq ?? 0);
+  const openNotes = useStore((s) => s.openNotes);
+  const mindmapOpen = useStore((s) => !!s.mindmap);
   const jobsOn = useStore((s) => s.settings?.jobsEnabled !== false);
   const [jobsOpen, setJobsOpen] = useState(false);
   const assistantsOn = useStore((s) => s.settings?.assistantsEnabled !== false);
@@ -119,13 +126,15 @@ export function Shell() {
     if (clipsOn) items.push({ id: "clips", label: "Clipboard history", group: "Actions" });
     if (jobsOn) items.push({ id: "jobs", label: "Job search", group: "Actions" });
     if (writingOn) items.push({ id: "writing", label: "Writing studio", keywords: "rewrite grammar tone", group: "Actions" });
+    if (notesOn) items.push({ id: "notes", label: "Notes", keywords: "notebook markdown clips", group: "Actions" });
+    if (notesOn) items.push({ id: "note-new", label: "New note", keywords: "write jot", group: "Actions" });
     if (studyOn) items.push({ id: "study", label: "Study: flashcard decks", keywords: "flashcards quiz learn", group: "Actions" });
     for (const t of TABS) items.push({ id: `settings:${t.id}`, label: `Settings: ${t.label}`, hint: t.id === "models" ? "⌘," : undefined, keywords: "preferences options", group: "Settings" });
     for (const m of ["fast", "auto", "deep", "extended"] as const) items.push({ id: `mode:${m}`, label: `Mode: ${m[0].toUpperCase()}${m.slice(1)}`, group: "Modes" });
     for (const t of THEMES) items.push({ id: `theme:${t.id}`, label: `Theme: ${t.name}`, keywords: "colors appearance", group: "Themes" });
     for (const c of conversations) if (!c.private && c.messages.length + (c.messageCount ?? 0) > 0) items.push({ id: `chat:${c.id}`, label: c.title || "Untitled chat", keywords: c.summary ?? undefined, group: "Chats" });
     return items;
-  }, [paletteOpen, conversations, quickKeys, kitchenOn, assistantsOn, tasksOn, clipsOn, jobsOn, writingOn, studyOn]);
+  }, [paletteOpen, conversations, quickKeys, kitchenOn, assistantsOn, tasksOn, clipsOn, jobsOn, writingOn, studyOn, notesOn]);
 
   const runItem = (it: PaletteItem) => {
     const [kind, arg] = it.id.includes(":") ? [it.id.slice(0, it.id.indexOf(":")), it.id.slice(it.id.indexOf(":") + 1)] : [it.id, ""];
@@ -155,6 +164,10 @@ export function Shell() {
         return setJobsOpen(true);
       case "writing":
         return openWriting();
+      case "notes":
+        return openNotes();
+      case "note-new":
+        return openNotes({ draft: { title: "", folder: "Inbox", tags: [], body: "" } });
       case "study":
         return openStudy();
       case "settings":
@@ -224,6 +237,11 @@ export function Shell() {
                 <PenLine size={18} />
               </button>
             )}
+            {notesOn && (
+              <button className="icon-btn" onClick={() => openNotes()} title="Notes: your Markdown notes and web clips">
+                <NotebookPen size={18} />
+              </button>
+            )}
             {studyOn && (
               <button className="icon-btn" onClick={() => openStudy()} title="Study: your flashcard decks">
                 <GraduationCap size={18} />
@@ -243,6 +261,8 @@ export function Shell() {
       {recipesOpen && <RecipeBox onClose={() => setRecipesOpen(false)} />}
       {studyOpen && <StudyPanel />}
       {writingOpen && <WritingPanel key={writingKey} />}
+      {notesOpen && <NotesPanel key={notesKey} />}
+      {mindmapOpen && <MindMapView />}
       {clipsOpen && <ClipboardPanel onClose={() => setClipsOpen(false)} />}
       {tasksOpen && <TasksPanel onClose={() => setTasksOpen(false)} />}
       {jobsOpen && <JobsPanel onClose={() => setJobsOpen(false)} />}

@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Brain, Check, ChevronLeft, ChevronRight, Cloud, Copy, FastForward, HelpCircle, Layers, Lightbulb, Pencil, PenLine, RefreshCw, ShieldCheck, Square, ThumbsDown, ThumbsUp, TriangleAlert, Volume2 } from "lucide-react";
+import { Brain, Check, Network, NotebookPen, ChevronLeft, ChevronRight, Cloud, Copy, FastForward, HelpCircle, Layers, Lightbulb, Pencil, PenLine, RefreshCw, ShieldCheck, Square, ThumbsDown, ThumbsUp, TriangleAlert, Volume2 } from "lucide-react";
 import { memo, useMemo, useState, type MouseEvent } from "react";
 
 import { versionInfo } from "../../lib/branches";
@@ -7,6 +7,7 @@ import { versionInfo } from "../../lib/branches";
 import { Logo } from "../../design/Logo";
 import { duration, tokensPerSec } from "../../lib/format";
 import { displayName } from "../../lib/models";
+import { noteFromAnswer } from "../../lib/notes";
 import { closeOpenFences, renderMarkdown } from "../../lib/markdown";
 import { useThrottled } from "../../lib/throttle";
 import { AttachmentChips, LocalFileChips } from "./Attachments";
@@ -168,6 +169,10 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
   const regenerate = useStore((s) => s.regenerate);
   const writingOn = useStore((s) => s.settings?.writingEnabled !== false);
   const openWriting = useStore((s) => s.openWriting);
+  const notesOn = useStore((s) => s.settings?.notesEnabled !== false);
+  const openNotes = useStore((s) => s.openNotes);
+  const openMindmap = useStore((s) => s.openMindmap);
+  const chat = useStore((s) => s.conversations.find((c) => c.id === s.currentId));
   const send = useStore((s) => s.send);
   const webOn = useStore((s) => s.settings?.webSearch ?? false);
   const cloudAct = useStore((s) => s.cloudAct);
@@ -292,6 +297,16 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
           {writingOn && message.content.trim().length > 20 && (
             <button className="icon-btn" onClick={() => openWriting(message.content.replace(/\[\d{1,3}\]/g, ""))} title="Edit in the writing studio">
               <PenLine size={15} />
+            </button>
+          )}
+          {notesOn && message.content.trim().length > 20 && (
+            <button className="icon-btn" onClick={() => openNotes({ draft: { ...noteFromAnswer(message.content, chat?.title ?? "", chat?.tags ?? []), chat: chat?.title ?? "" } })} title="Save as a note">
+              <NotebookPen size={15} />
+            </button>
+          )}
+          {message.content.trim().length > 120 && (
+            <button className="icon-btn" onClick={() => openMindmap(message.content, chat?.title ?? "Answer", chat?.title)} title="Mind map of this answer">
+              <Network size={15} />
             </button>
           )}
           {isLast && (

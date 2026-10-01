@@ -8,7 +8,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { THEMES } from "../../design/themes";
 import { Logo } from "../../design/Logo";
-import { api, errorText } from "../../lib/api";
+import { api, errorText, inTauri } from "../../lib/api";
+import { BOOKMARKLET } from "../../lib/notes";
 import { topicList } from "../../lib/tasks";
 import { bytes, contextLabel, ramSize } from "../../lib/format";
 import { displayName } from "../../lib/models";
@@ -855,6 +856,7 @@ function AboutTab() {
           </span>
           <input type="checkbox" checked={settings?.writingEnabled ?? true} onChange={(e) => void update({ writingEnabled: e.target.checked })} />
         </label>
+        <NotesRow />
         <label className="field">
           <span>
             Translate
@@ -1151,6 +1153,53 @@ function PhotoHelperRow() {
         )}
         <input type="checkbox" checked={on} onChange={(e) => void update({ photoHelper: e.target.checked })} />
       </span>
+    </div>
+  );
+}
+
+/** Settings → Features: notes, where they're kept, and the web clipper bookmarklet. */
+function NotesRow() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const [dir, setDir] = useState<string | null>(null);
+  useEffect(() => {
+    if (inTauri && settings?.notesEnabled !== false) void api.notesInfo().then((i) => setDir(i.dir), () => undefined);
+  }, [settings?.notesEnabled, settings?.notesDir]);
+  const on = settings?.notesEnabled !== false;
+  return (
+    <div className="field" style={{ display: "block" }}>
+      <label className="row" style={{ alignItems: "flex-start", gap: 12 }}>
+        <span className="grow">
+          Notes and web clipper
+          <small>
+            The 📝 button: Markdown notes with folders and tags, saved as plain files you own{dir ? ` (${dir.replace(/^\/Users\/[^/]+/, "~")})` : ""}. Save any answer with 📝 under it, see any answer
+            as a mind map, and clip web pages. With the knowledge base on, BYTE can answer from your notes.
+          </small>
+        </span>
+        <input type="checkbox" checked={on} onChange={(e) => void update({ notesEnabled: e.target.checked })} />
+      </label>
+      {on && (
+        <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+          <button
+            className="btn sm ghost"
+            onClick={async () => {
+              const picked = await openDialog({ directory: true, title: "Where to keep your notes" }).catch(() => null);
+              if (typeof picked === "string") await update({ notesDir: picked });
+            }}
+          >
+            Change folder…
+          </button>
+          {settings?.notesDir && (
+            <button className="btn sm ghost" onClick={() => void update({ notesDir: null })}>
+              Use Documents/BYTE/Notes
+            </button>
+          )}
+          <span className="faint small">Web clipper: drag this to your browser's bookmarks bar, then click it on any page →</span>
+          <a className="btn sm primary" href={BOOKMARKLET} onClick={(e) => e.preventDefault()} draggable title="Drag me to the bookmarks bar">
+            Clip to BYTE
+          </a>
+        </div>
+      )}
     </div>
   );
 }

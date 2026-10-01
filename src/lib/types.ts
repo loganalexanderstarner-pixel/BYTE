@@ -96,6 +96,8 @@ export interface Settings {
   byteVoice?: string;
   /** "calm" | "natural" | "lively" */
   speechStyle?: string;
+  notesEnabled?: boolean;
+  notesDir?: string | null;
   /** Where BYTE's voice is made: "mac" | "cloud" | "auto". */
   voiceWhere?: string;
   cloudVoice?: string;
@@ -1149,6 +1151,42 @@ export interface VoiceStatus {
   models: VoiceInfo[];
   /** The model voice input uses now (null until one is downloaded). */
   ready: string | null;
+}
+
+/** Rust `notes::Note`: a Markdown file in the notes folder. */
+export interface Note {
+  /** "<folder>/<file>.md" */
+  id: string;
+  title: string;
+  folder: string;
+  tags: string[];
+  created: number;
+  updated: number;
+  source: string;
+  chat: string;
+  body: string;
+  path: string;
+}
+
+export interface NoteInput {
+  id?: string | null;
+  title: string;
+  folder: string;
+  tags: string[];
+  body: string;
+  source?: string;
+  chat?: string;
+}
+
+export interface NotesInfo {
+  dir: string;
+  folders: string[];
+}
+
+/** Rust `mindmap::MapNode`. */
+export interface MapNode {
+  label: string;
+  children: MapNode[];
 }
 
 /** Rust `voices::Speaker`: one voice in a package. */
