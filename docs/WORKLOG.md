@@ -17,6 +17,18 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-01
 
+### (this commit) — “Hey BYTE”: quick phrases at the start of the audio were dropped
+- **Why:** the Mac test (`e2e_wake_word`, run 36891745882) failed: "didn't hear Hey BYTE". `say` starts speaking at
+  the first sample, so the voice detector had no pre-roll, yet subtracted a full 200 ms when measuring the burst; a
+  ~0.5 s "Hey BYTE" measured under 0.4 s and was dropped. Users saying it briskly would hit the same thing.
+- **What:** `src-tauri/src/wake.rs`: `Vad.pre` (the pre-roll actually kept), `MIN_BURST` 0.3 s, `padded()` (0.5 s of
+  silence each side, at least 1.5 s, since whisper.cpp skips audio under a second), `heard_in_file` so the e2e test
+  prints what whisper heard; tests `keeps_a_brisk_phrase_that_starts_the_audio`, `pads_short_bursts_for_whisper`.
+  Docs: v0.11.3 ships inside v0.11.4.
+- **Verify:** `cargo test wake`; locally Kokoro-spoken "Hey BYTE" (4 voices) → "Hey BYTE", and "Good morning", "Hey
+  Bob", "Hey there", "Okay", "What time is it" → not a wake; Mac test `e2e_wake_word`.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — v0.11.4: BYTE's own natural voices (Kokoro), smooth streaming speech
 - **Why:** owner: the Mac's voice sounds robotic; wanted voices like the big assistants, several to choose from,
   smooth (no talk-pause-talk) and free.

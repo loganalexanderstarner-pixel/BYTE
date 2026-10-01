@@ -3,7 +3,7 @@
 //!
 //! How: the Mac's microphone is read natively (cpal/CoreAudio), so it works with
 //! BYTE's windows hidden. A small energy-based voice detector cuts out short
-//! bursts of speech (0.4–2.5 s); only those are passed to whisper (the smallest
+//! bursts of speech (0.3–2.5 s); only those are passed to whisper (the smallest
 //! installed speech model, prompted with "Hey BYTE"), and the text is matched
 //! against the phrase. Nothing is kept: each burst lives in a temp file for the
 //! fraction of a second whisper needs. macOS shows its mic indicator while this
@@ -22,7 +22,8 @@ pub const HEARD_EVENT: &str = "wake://heard";
 const RATE: u32 = 16_000;
 /// Voice-detector frame: 30 ms.
 const FRAME: usize = (RATE as usize) * 30 / 1000;
-const MIN_BURST: usize = RATE as usize * 4 / 10;
+/// A brisk "hey byte" is about half a second.
+const MIN_BURST: usize = RATE as usize * 3 / 10;
 const MAX_BURST: usize = RATE as usize * 5 / 2;
 /// Silence that ends a burst: 300 ms.
 const END_FRAMES: usize = 10;
@@ -33,13 +34,15 @@ const PRE_ROLL: usize = RATE as usize / 5;
 static PAUSED: AtomicBool = AtomicBool::new(false);
 
 /// Cuts speech bursts out of a 16 kHz stream: frames louder than the (adapting) noise floor start one, 300 ms
-/// of quiet ends it, and bursts of 0.4–2.5 s are returned (pre-roll included).
+/// of quiet ends it, and bursts of 0.3–2.5 s are returned (pre-roll included).
 pub struct Vad {
     floor: f32,
     pending: Vec<f32>,
     history: Vec<f32>,
     burst: Vec<f32>,
     quiet: usize,
+    /// How much of `burst` is pre-roll (less than PRE_ROLL when speech starts the audio).
+    pre: usize,
     in_speech: bool,
     /// Talking went on past the longest burst: ignore it until the next pause.
     discard: bool,
@@ -47,7 +50,7 @@ pub struct Vad {
 
 impl Default for Vad {
     fn default() -> Self {
-        Vad { floor: 0.003, pending: vec![], history: vec![], burst: vec![], quiet: 0, in_speech: false, discard: false }
+        Vad { floor: 0.003, pending: vec![], history: vec![], burst: vec![], quiet: 0, pre: 0, in_speech: false, discard: false }
     }
 }
 
@@ -72,14 +75,14 @@ impl Vad {
                 if !self.discard {
                     self.burst.extend_from_slice(&frame);
                     // Speech only: without the pre-roll and the quiet tail.
-                    let spoken = self.burst.len().saturating_sub(PRE_ROLL + self.quiet * FRAME);
+                    let spoken = self.burst.len().saturating_sub(self.pre + self.quiet * FRAME);
                     if spoken > MAX_BURST {
                         self.discard = true;
                         self.burst.clear();
                     }
                 }
                 if self.quiet >= END_FRAMES {
-                    let spoken = self.burst.len().saturating_sub(PRE_ROLL + self.quiet * FRAME);
+                    let spoken = self.burst.len().saturating_sub(self.pre + self.quiet * FRAME);
                     let b = std::mem::take(&mut self.burst);
                     if !self.discard && spoken >= MIN_BURST {
                         out.push(b);
@@ -91,6 +94,7 @@ impl Vad {
             } else if loud {
                 self.in_speech = true;
                 self.burst = std::mem::take(&mut self.history);
+                self.pre = self.burst.len();
                 self.burst.extend_from_slice(&frame);
             } else {
                 // The noise floor follows the room while nobody talks.
@@ -174,11 +178,7 @@ pub fn read_wav(path: &Path) -> Option<Vec<f32>> {
 
 /// Whisper's verdict on one burst.
 async fn heard_wake(app: Option<&AppHandle>, models_dir: &Path, burst: &[f32]) -> bool {
-    let Ok(tmp) = tempfile::Builder::new().prefix("byte-wake").suffix(".wav").tempfile() else { return false };
-    if write_wav(tmp.path(), burst).is_err() {
-        return false;
-    }
-    match crate::voice::transcribe_short(app, models_dir, tmp.path(), "Hey BYTE").await {
+    match transcript(app, models_dir, burst).await {
         Ok(text) => {
             log::debug!("wake burst: {text:?}");
             is_wake(&text)
@@ -190,18 +190,40 @@ async fn heard_wake(app: Option<&AppHandle>, models_dir: &Path, burst: &[f32]) -
     }
 }
 
+async fn transcript(app: Option<&AppHandle>, models_dir: &Path, burst: &[f32]) -> AppResult<String> {
+    let tmp = tempfile::Builder::new().prefix("byte-wake").suffix(".wav").tempfile()?;
+    write_wav(tmp.path(), &padded(burst))?;
+    crate::voice::transcribe_short(app, models_dir, tmp.path(), "Hey BYTE").await
+}
+
+/// Quiet around a burst: whisper.cpp ignores audio shorter than a second, and "Hey BYTE" is about that long.
+const PAD: usize = RATE as usize / 2;
+const MIN_FOR_WHISPER: usize = RATE as usize * 3 / 2;
+
+/// The burst with half a second of silence on each side, and at least 1.5 s long.
+pub fn padded(burst: &[f32]) -> Vec<f32> {
+    let mut out = vec![0.0; PAD];
+    out.extend_from_slice(burst);
+    out.resize((out.len() + PAD).max(MIN_FOR_WHISPER), 0.0);
+    out
+}
+
 /// Runs the detector over a 16 kHz WAV file; true if the wake phrase is in it (Mac e2e test).
 pub async fn detect_in_file(app: Option<&AppHandle>, models_dir: &Path, wav: &Path) -> bool {
-    let Some(samples) = read_wav(wav) else { return false };
+    heard_in_file(app, models_dir, wav).await.iter().any(|t| is_wake(t))
+}
+
+/// What whisper heard in each speech burst of a 16 kHz WAV file.
+pub async fn heard_in_file(app: Option<&AppHandle>, models_dir: &Path, wav: &Path) -> Vec<String> {
+    let Some(samples) = read_wav(wav) else { return vec![] };
     let mut vad = Vad::default();
     let mut bursts = vad.feed(&samples);
     bursts.extend(vad.feed(&vec![0.0; RATE as usize]));
+    let mut out = vec![];
     for b in bursts {
-        if heard_wake(app, models_dir, &b).await {
-            return true;
-        }
+        out.push(transcript(app, models_dir, &b).await.unwrap_or_else(|e| format!("(error: {e})")));
     }
-    false
+    out
 }
 
 pub fn set_paused(p: bool) {
@@ -362,6 +384,25 @@ mod tests {
     }
 
     #[test]
+    fn keeps_a_brisk_phrase_that_starts_the_audio() {
+        // `say` starts speaking at the first sample, with no quiet before it to use as pre-roll.
+        for secs in [0.35, 0.5] {
+            let mut vad = Vad::default();
+            let mut bursts = vad.feed(&tone(secs, 0.2));
+            bursts.extend(vad.feed(&vec![0.0; RATE as usize]));
+            assert_eq!(bursts.len(), 1, "{secs} s");
+        }
+    }
+
+    #[test]
+    fn pads_short_bursts_for_whisper() {
+        let p = padded(&tone(0.5, 0.2));
+        assert_eq!(p.len(), MIN_FOR_WHISPER);
+        assert!(p[..PAD].iter().all(|v| *v == 0.0) && p[PAD + RATE as usize / 4] != 0.0);
+        assert_eq!(padded(&tone(2.0, 0.2)).len(), 2 * PAD + 2 * RATE as usize);
+    }
+
+    #[test]
     fn resamples_and_round_trips_wav() {
         let d = downsample(&[0.0, 0.3, 0.6, 0.9, 0.9, 0.9], 48_000);
         assert!(d.len() == 2 && (d[0] - 0.3).abs() < 1e-6 && (d[1] - 0.9).abs() < 1e-6, "{d:?}");
@@ -397,7 +438,12 @@ mod tests {
         };
         let yes = say("Hey BYTE", "yes");
         let no = say("Good morning", "no");
-        assert!(detect_in_file(None, tmp.path(), &yes).await, "didn't hear Hey BYTE");
-        assert!(!detect_in_file(None, tmp.path(), &no).await, "heard it in Good morning");
+        let heard = heard_in_file(None, tmp.path(), &yes).await;
+        eprintln!("Hey BYTE → {heard:?}");
+        assert!(heard.iter().any(|t| is_wake(t)), "didn't hear Hey BYTE: {heard:?}");
+        let heard = heard_in_file(None, tmp.path(), &no).await;
+        eprintln!("Good morning → {heard:?}");
+        assert!(!heard.iter().any(|t| is_wake(t)), "heard it in Good morning: {heard:?}");
     }
 }
+

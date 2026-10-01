@@ -9,6 +9,9 @@
   chunk starts speech quickly, later chunks are about 320 characters; one sequential maker; audio goes into one queue
   played by a single continuous output stream (cpal), so there are no gaps. `speech://done` when the queue drains.
 - Falls back to the Mac's `say` when the voices aren't downloaded. `Downloads::start_from` downloads from any URL.
+- **Fix (“Hey BYTE”):** the voice detector subtracted a full 200 ms pre-roll even when speech started the audio, so a
+  quick “Hey BYTE” measured under the minimum and was dropped (found by the Mac test with `say`). It now counts the
+  pre-roll it kept, the minimum is 0.3 s, and bursts are padded with silence for whisper. v0.11.3 ships inside 0.11.4.
 
 ## 0.11.3 — BYTE talks back, and “Hey BYTE”
 
