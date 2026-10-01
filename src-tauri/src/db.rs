@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 14;
+const SCHEMA_VERSION: i32 = 15;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -822,7 +822,21 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 14);
+    if version < 15 {
+        // Brainstorm boards (board.rs): the stickies and groups are one JSON document per board.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE boards (
+                 id INTEGER PRIMARY KEY,
+                 title TEXT NOT NULL,
+                 data TEXT NOT NULL,
+                 updated INTEGER NOT NULL
+             );
+             PRAGMA user_version = 15;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 15);
     Ok(())
 }
 

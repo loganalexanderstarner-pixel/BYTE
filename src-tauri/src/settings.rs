@@ -225,6 +225,9 @@ pub struct Settings {
     /// BYTE's own voice (voices.rs: "<package>/<speaker>"), used once that voice is downloaded.
     #[serde(default = "default_byte_voice")]
     pub byte_voice: String,
+    /// How BYTE talks (prompt.rs personality sliders).
+    #[serde(default)]
+    pub personality: crate::prompt::Personality,
     /// Notes (notes.rs) and the web clipper.
     #[serde(default = "yes")]
     pub notes_enabled: bool,
@@ -357,6 +360,7 @@ impl Default for Settings {
             speech_voice: String::new(),
             byte_voice: default_byte_voice(),
             speech_style: default_speech_style(),
+            personality: Default::default(),
             notes_enabled: true,
             notes_dir: None,
             voice_where: default_voice_where(),

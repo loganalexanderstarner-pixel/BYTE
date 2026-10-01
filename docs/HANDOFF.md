@@ -479,8 +479,8 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 (with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
 **Next:** **Phase 10 is complete** (v0.10.0–v0.10.6, all released). Phase 11 (input & windows) has started: v0.11.0
 Quick Ask + menu bar + ⌘K palette + custom shortcuts, v0.11.1 voice input and v0.11.2 speaker labels + videos without
-captions v0.11.3 spoken answers + hands-free + "Hey BYTE" and v0.11.4 BYTE's own natural voices (Kokoro) and v0.11.5 the voice catalog + human speech and v0.11.6 notes, web clipper and mind maps are done;
-next v0.11.7 board, help center, example prompts, personality (finishes Phase 11)
+captions v0.11.3 spoken answers + hands-free + "Hey BYTE" and v0.11.4 BYTE's own natural voices (Kokoro) and v0.11.5 the voice catalog + human speech and v0.11.6 notes, web clipper and mind maps and v0.11.7 personality, help, examples and the board are done:
+**Phase 11 is complete.** Next: Phase 12 (privacy & polish) as v0.12.0
 (see the Phase 11 section). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
@@ -694,6 +694,10 @@ then listen 8 s for a follow-up (Composer `followUp`). Sizes measured on Linux x
 folder, the folder becomes a KB source when the KB is on), `byte://clip` → `notes::clip` (bookmarklet in Settings →
 About), `mindmap.rs` (`from_markdown` without a model, `from_model` otherwise) + `MindMapView` radial layout.
 "note: …" in chat still goes to Apple Notes (Mac control); BYTE notes come from 📝 / the panel.
+**Done in v0.11.7:** personality (`prompt::Personality`; Balanced adds no prompt text), help center (`src/help/*.md`
+shared by the UI and `help.rs`, which feeds app-help questions to the model), daily example prompts
+(`lib/examples.ts`), brainstorm board (`board.rs`, DB v15). The mindfulness module (optional K) was not built; add it
+only if the owner asks.
 Later: the Finder "Ask BYTE" Quick Action (a Shortcut or Service that opens `byte://ask`), a floating desktop
 widget.
 1. **Voice**: whisper (sidecar `whisper-cli`, small/base models) push-to-talk / hold Space; hands-free

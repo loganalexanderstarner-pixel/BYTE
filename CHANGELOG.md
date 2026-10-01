@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.7 — Personality, help, ideas and the brainstorm board (Phase 11 complete)
+
+- **Personality** (`prompt::Personality`, `personality_section`, setting `personality`): five 1–5 sliders, only
+  non-default ones add instructions (Balanced adds nothing); also sent with cloud messages. Presets in
+  `lib/personality.ts` (+ test); Settings → About → Personality.
+- **Help center** (`src/help/*.md`, `lib/help.ts` + test, `components/help/HelpCenter.tsx`): 14 offline articles,
+  search, `help:` / `byte-setting:` links, Ideas to try; ⌘?, top-bar button, palette. `help.rs` (`include_str!` of the
+  same files) adds the best 2 articles to the system prompt for "how do I … in BYTE" questions (`wants_app_help`).
+- **Example prompts** (`lib/examples.ts`): ~37 examples filtered by enabled modules, web and platform;
+  `todaysPicks` rotates the home screen's 4 daily, one per group; composer `prefill` for examples to complete.
+- **Brainstorm board** (`board.rs`, DB v15 `boards`; `lib/board.ts` + test; `BoardPanel.tsx`): stickies (drag, edit,
+  colors), Add ideas / Expand this / Group into themes via `complete_json` (`clean_ideas` dedupes, `clean_groups`
+  validates), outline → mind map or note, autosave. Sticky colors are tokens (`--sticky-*`).
+
 ## 0.11.6 — Notes, web clipper and mind maps
 
 - **Notes** (`notes.rs`): Markdown files in `~/Documents/BYTE/Notes/<folder>/<title>.md` (setting `notesDir`) with

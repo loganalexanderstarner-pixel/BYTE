@@ -43,6 +43,8 @@ mod speech;
 mod tts;
 mod notes;
 mod mindmap;
+mod board;
+mod help;
 mod voices;
 mod wake;
 mod voice;
@@ -301,6 +303,11 @@ pub fn run() {
             notes::notes_info,
             notes::note_clip,
             mindmap::mindmap_make,
+            board::boards_list,
+            board::board_get,
+            board::board_save,
+            board::board_delete,
+            board::board_assist,
             tts::voices_catalog,
             tts::cloud_voices,
             tts::voices_status,

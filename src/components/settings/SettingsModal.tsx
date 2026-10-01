@@ -10,6 +10,7 @@ import { THEMES } from "../../design/themes";
 import { Logo } from "../../design/Logo";
 import { api, errorText, inTauri } from "../../lib/api";
 import { BOOKMARKLET } from "../../lib/notes";
+import { BALANCED, PRESETS, presetOf, SLIDERS, sliderWord } from "../../lib/personality";
 import { topicList } from "../../lib/tasks";
 import { bytes, contextLabel, ramSize } from "../../lib/format";
 import { displayName } from "../../lib/models";
@@ -796,6 +797,7 @@ function AboutTab() {
           />
         </div>
       </div>
+      <PersonalitySection />
       <UsageSection />
       <KeyboardSection settings={settings} />
       <div className="section">
@@ -1200,6 +1202,53 @@ function NotesRow() {
           </a>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Settings → About → Personality: how BYTE talks (sliders and presets; prompt.rs). */
+function PersonalitySection() {
+  const p = useStore((s) => s.settings?.personality) ?? BALANCED;
+  const update = useStore((s) => s.updateSettings);
+  const newChat = useStore((s) => s.newChat);
+  const send = useStore((s) => s.send);
+  const openSettings = useStore((s) => s.openSettings);
+  const current = presetOf(p);
+  return (
+    <div className="section">
+      <h4>Personality</h4>
+      <p className="faint small" style={{ marginTop: 0 }}>How BYTE talks to you. Balanced is BYTE's usual voice; answers stay accurate whatever you pick.</p>
+      <div className="chips" role="group" aria-label="Personality presets">
+        {PRESETS.map((x) => (
+          <button key={x.id} className="chip" aria-pressed={current === x.id} title={x.hint} onClick={() => void update({ personality: x.p })}>
+            {x.name}
+          </button>
+        ))}
+        {!current && <span className="chip" aria-pressed>Your own</span>}
+      </div>
+      <div className="personality-sliders">
+        {SLIDERS.map(({ key, label, low, high }) => (
+          <label key={key} className="personality-slider">
+            <span>
+              {label} <span className="faint small">· {sliderWord(p[key], low, high)}</span>
+            </span>
+            <span className="faint small" style={{ textAlign: "right" }}>{low}</span>
+            <input type="range" min={1} max={5} step={1} value={p[key]} aria-label={label} onChange={(e) => void update({ personality: { ...p, [key]: Number(e.target.value) } })} />
+            <span className="faint small">{high}</span>
+          </label>
+        ))}
+      </div>
+      <button
+        className="btn sm ghost"
+        style={{ marginTop: 8 }}
+        onClick={() => {
+          openSettings(null);
+          newChat(true);
+          void send("In a few sentences: should I learn to cook or keep ordering takeout?");
+        }}
+      >
+        Try it (in a private chat)
+      </button>
     </div>
   );
 }

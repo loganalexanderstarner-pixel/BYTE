@@ -135,6 +135,13 @@ pub async fn answer(state: &AppState, mut request: ChatRequest, on_event: &Chann
             last.content = crate::assistants::cloud_message(&last.content, &a);
         }
     }
+    // So does the personality (only when it isn't the default).
+    let style = prompt::personality_section(&state.settings.lock().await.personality);
+    if !style.is_empty() {
+        if let Some(last) = request.messages.iter_mut().rev().find(|m| m.role == "user") {
+            last.content = format!("{}\n\n---\n({})", last.content, style.trim().replace('\n', " "));
+        }
+    }
     let result = with_fallback(state, &Cloud { turn: &turn }, &request, &LocalLlama, fallback.as_ref(), on_event).await;
     // The card's sources are the ones the answer cites ([n]).
     if let Some(p) = prepared.filter(|p| !p.sources.is_empty()) {
@@ -324,6 +331,10 @@ impl Setup {
             }, s.kb_enabled, s.cloud_connected)
         };
         let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());
+        system.push_str(&prompt::personality_section(&state.settings.lock().await.personality));
+        if let Some(q) = request.messages.iter().rev().find(|m| m.role == "user") {
+            system.push_str(&crate::help::section(chat::question_text(&q.content)));
+        }
         if memory {
             let memories: Vec<String> = state.db.memories()?.into_iter().map(|m| m.text).collect();
             system.push_str(&prompt::memory_section(about_me.as_deref(), &memories, true));

@@ -57,6 +57,13 @@
   --text-3: color-mix(in srgb, var(--text) 52%, var(--bg));
   --accent-contrast: var(--bg);
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  /* Brainstorm stickies look like paper in every theme. */
+  --sticky-ink: #1d1d1f;
+  --sticky-yellow: #fde68a;
+  --sticky-pink: #fbcfe8;
+  --sticky-blue: #bfdbfe;
+  --sticky-green: #bbf7d0;
+  --sticky-purple: #ddd6fe;
   /* Mind map branches: the theme's own colors, mixed for variety. */
   --branch-0: var(--accent);
   --branch-1: var(--ok);

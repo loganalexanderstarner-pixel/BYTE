@@ -61,6 +61,15 @@ mod tests {
     use chrono::TimeZone;
 
     #[test]
+    fn personality_adds_only_what_changed() {
+        assert_eq!(personality_section(&Personality::default()), "");
+        let p = Personality { length: 1, humor: 5, ..Default::default() };
+        let s = personality_section(&p);
+        assert!(s.contains("as brief as possible") && s.contains("playful"), "{s}");
+        assert_eq!(s.matches("\n- ").count(), 2);
+    }
+
+    #[test]
     fn includes_date_and_mode() {
         let now = Local.with_ymd_and_hms(2026, 9, 27, 10, 0, 0).unwrap();
         let p = system_prompt(now, Mode::Fast, false, None);
@@ -137,6 +146,50 @@ mod memory_tests {
     }
 }
 
+/// How BYTE talks (Settings → About → Personality). Each slider is 1–5; 3 is BYTE's normal voice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Personality {
+    pub warmth: u8,
+    pub length: u8,
+    pub humor: u8,
+    pub formality: u8,
+    pub opinions: u8,
+}
+
+impl Default for Personality {
+    fn default() -> Self {
+        Personality { warmth: 3, length: 3, humor: 3, formality: 3, opinions: 3 }
+    }
+}
+
+/// One instruction per slider that isn't at its middle; nothing at all for the default (Balanced).
+pub fn personality_section(p: &Personality) -> String {
+    let pick = |v: u8, low: [&'static str; 2], high: [&'static str; 2]| -> Option<&'static str> {
+        match v {
+            0 | 1 => Some(low[0]),
+            2 => Some(low[1]),
+            4 => Some(high[0]),
+            5.. => Some(high[1]),
+            _ => None,
+        }
+    };
+    let lines: Vec<&str> = [
+        pick(p.warmth, ["Be matter-of-fact: skip pleasantries and emotional language.", "Keep a calm, neutral tone with few pleasantries."], ["Be a little warmer and more encouraging than usual.", "Be very warm, kind and encouraging, like a supportive friend."]),
+        pick(p.length, ["Be as brief as possible: answer in one or two sentences unless the user asks for more.", "Keep answers shorter than usual; leave out background unless asked."], ["Give somewhat fuller answers, with a bit more context and an example.", "Be thorough: explain the reasoning, give examples, and cover edge cases."]),
+        pick(p.humor, ["Don't use humor or jokes.", "Keep humor rare and subtle."], ["A light touch of humor is welcome when it fits.", "Be playful and witty where it fits, without getting in the way of the answer."]),
+        pick(p.formality, ["Talk casually, like a friend: contractions, plain everyday words.", "Lean casual and conversational."], ["Lean a little more formal and polished.", "Use a formal, professional register."]),
+        pick(p.opinions, ["Stay neutral: lay out the options and let the user decide, without recommending one.", "Be cautious with recommendations; present them as options."], ["When asked, give a clear recommendation and say why.", "Be opinionated: give a clear pick and say plainly what you'd do and why."]),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    if lines.is_empty() {
+        return String::new();
+    }
+    format!("\n\nThe user chose how you talk:\n- {}", lines.join("\n- "))
+}
+
 /// When the answer will be heard rather than read: talk like a person, not a document.
 pub const SPOKEN: &str = "\n\nThis answer will be spoken aloud to the user, so answer the way a friendly person talks: \
 lead with the answer in the first sentence; short, natural sentences with contractions; a brief, genuine reaction \
@@ -151,4 +204,5 @@ pub fn project_section(name: &str, instructions: &str) -> String {
         return format!("\n\nThis chat is part of the user's project \"{name}\".");
     }
     format!("\n\nThis chat is part of the user's project \"{name}\". Follow the project's instructions:\n{i}")
+
 }

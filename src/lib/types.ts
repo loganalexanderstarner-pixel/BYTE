@@ -98,6 +98,7 @@ export interface Settings {
   speechStyle?: string;
   notesEnabled?: boolean;
   notesDir?: string | null;
+  personality?: import("./personality").Personality;
   /** Where BYTE's voice is made: "mac" | "cloud" | "auto". */
   voiceWhere?: string;
   cloudVoice?: string;
@@ -1181,6 +1182,20 @@ export interface NoteInput {
 export interface NotesInfo {
   dir: string;
   folders: string[];
+}
+
+/** Rust `board::BoardInfo`. */
+export interface BoardInfo {
+  id: number;
+  title: string;
+  count: number;
+  updated: number;
+}
+
+/** Rust `board::AssistResult`: new ideas, or themes as [label, sticky indexes]. */
+export interface BoardAssist {
+  ideas: string[];
+  groups: [string, number[]][];
 }
 
 /** Rust `mindmap::MapNode`. */

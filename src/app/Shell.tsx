@@ -1,4 +1,4 @@
-import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot, ClipboardList, ListTodo, NotebookPen } from "lucide-react";
+import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot, ClipboardList, ListTodo, NotebookPen, LifeBuoy, Shapes } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { ChatView } from "../components/chat/ChatView";
@@ -10,6 +10,8 @@ import { StudyPanel } from "../components/study/StudyPanel";
 import { WritingPanel } from "../components/writing/WritingPanel";
 import { MindMapView } from "../components/notes/MindMapView";
 import { NotesPanel } from "../components/notes/NotesPanel";
+import { HelpCenter } from "../components/help/HelpCenter";
+import { BoardPanel } from "../components/board/BoardPanel";
 import { JobsPanel } from "../components/jobs/JobsPanel";
 import { ClipboardPanel } from "../components/clipboard/ClipboardPanel";
 import { TasksPanel } from "../components/tasks/TasksPanel";
@@ -44,6 +46,9 @@ export function Shell() {
   const notesKey = useStore((s) => s.notes?.seq ?? 0);
   const openNotes = useStore((s) => s.openNotes);
   const mindmapOpen = useStore((s) => !!s.mindmap);
+  const helpOpen = useStore((s) => !!s.help);
+  const boardKey = useStore((s) => s.board?.seq ?? 0);
+  const boardOpen = useStore((s) => !!s.board);
   const jobsOn = useStore((s) => s.settings?.jobsEnabled !== false);
   const [jobsOpen, setJobsOpen] = useState(false);
   const assistantsOn = useStore((s) => s.settings?.assistantsEnabled !== false);
@@ -94,6 +99,9 @@ export function Shell() {
       } else if (cmd && e.key === ",") {
         e.preventDefault();
         openSettings("models");
+      } else if (cmd && (e.key === "?" || (e.key === "/" && e.shiftKey))) {
+        e.preventDefault();
+        useStore.getState().openHelp();
       } else if (cmd && e.key === "\\") {
         e.preventDefault();
         toggleSidebar();
@@ -126,6 +134,9 @@ export function Shell() {
     if (clipsOn) items.push({ id: "clips", label: "Clipboard history", group: "Actions" });
     if (jobsOn) items.push({ id: "jobs", label: "Job search", group: "Actions" });
     if (writingOn) items.push({ id: "writing", label: "Writing studio", keywords: "rewrite grammar tone", group: "Actions" });
+    items.push({ id: "board", label: "Brainstorm board", keywords: "ideas sticky notes canvas", group: "Actions" });
+    items.push({ id: "help", label: "Help", hint: "⌘?", keywords: "how to guide support faq", group: "Actions" });
+    items.push({ id: "ideas", label: "Ideas to try", keywords: "examples prompts what can byte do", group: "Actions" });
     if (notesOn) items.push({ id: "notes", label: "Notes", keywords: "notebook markdown clips", group: "Actions" });
     if (notesOn) items.push({ id: "note-new", label: "New note", keywords: "write jot", group: "Actions" });
     if (studyOn) items.push({ id: "study", label: "Study: flashcard decks", keywords: "flashcards quiz learn", group: "Actions" });
@@ -166,6 +177,12 @@ export function Shell() {
         return openWriting();
       case "notes":
         return openNotes();
+      case "help":
+        return useStore.getState().openHelp();
+      case "board":
+        return useStore.getState().openBoard();
+      case "ideas":
+        return useStore.getState().openHelp("ideas");
       case "note-new":
         return openNotes({ draft: { title: "", folder: "Inbox", tags: [], body: "" } });
       case "study":
@@ -247,6 +264,12 @@ export function Shell() {
                 <GraduationCap size={18} />
               </button>
             )}
+            <button className="icon-btn" onClick={() => useStore.getState().openBoard()} title="Brainstorm board: sticky notes BYTE can add ideas to">
+              <Shapes size={18} />
+            </button>
+            <button className="icon-btn" onClick={() => useStore.getState().openHelp()} title="Help (⌘?)">
+              <LifeBuoy size={18} />
+            </button>
             <button className="icon-btn" onClick={() => openSettings("models")} title="Settings (⌘,)">
               <SettingsIcon size={18} />
             </button>
@@ -263,6 +286,8 @@ export function Shell() {
       {writingOpen && <WritingPanel key={writingKey} />}
       {notesOpen && <NotesPanel key={notesKey} />}
       {mindmapOpen && <MindMapView />}
+      {helpOpen && <HelpCenter />}
+      {boardOpen && <BoardPanel key={boardKey} />}
       {clipsOpen && <ClipboardPanel onClose={() => setClipsOpen(false)} />}
       {tasksOpen && <TasksPanel onClose={() => setTasksOpen(false)} />}
       {jobsOpen && <JobsPanel onClose={() => setJobsOpen(false)} />}

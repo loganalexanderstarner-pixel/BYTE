@@ -2,13 +2,15 @@ import { Lightbulb, MessageCircle, Rocket, Sparkles, Telescope } from "lucide-re
 import { useEffect, useState } from "react";
 
 import { api } from "../../lib/api";
+import { availableExamples, todaysPicks } from "../../lib/examples";
 import type { Assistant } from "../../lib/types";
 
 import { Logo } from "../../design/Logo";
 import { Deck } from "./Deck";
-import { spaceOf, useStore, workspaceOf } from "../../state/store";
+import { canSpeak, spaceOf, useStore, workspaceOf } from "../../state/store";
 
-const SUGGESTIONS = [
+const ICONS = [Lightbulb, Telescope, Sparkles, Rocket];
+const DEFAULT_SUGGESTIONS = [
   { icon: Lightbulb, title: "What's new", prompt: "What are the biggest tech news stories this week?", hint: "Searches the web, with sources" },
   { icon: Telescope, title: "Think it through", prompt: "Help me decide between renting and buying a home. What should I consider?", hint: "Step-by-step reasoning" },
   { icon: Sparkles, title: "Write for me", prompt: "Write a friendly email asking my landlord to fix a leaking sink.", hint: "Emails, essays, messages" },
@@ -29,6 +31,10 @@ export function EmptyState() {
   const engine = useStore((s) => s.engine);
   const ready = engine.state === "ready";
   const userName = useStore((s) => s.settings?.userName);
+  const settings = useStore((s) => s.settings);
+  // Today's ideas, from what works with the modules that are on (rotates daily).
+  const picks = todaysPicks(availableExamples(settings as unknown as Record<string, unknown>, { web: settings?.webSearch !== false, mac: canSpeak() }), 4);
+  const SUGGESTIONS = picks.length === 4 ? picks.map((e, i) => ({ icon: ICONS[i], title: e.group, prompt: e.text.replace("…", ""), hint: e.text.length > 60 ? `${e.text.slice(0, 58)}…` : e.text, fill: e.text.includes("…") })) : DEFAULT_SUGGESTIONS.map((x) => ({ ...x, fill: false }));
   const space = useStore((s) => {
     const c = s.conversations.find((x) => x.id === s.currentId);
     return c?.private ? "local" : c ? spaceOf(c.id) : workspaceOf(s.settings);
@@ -71,8 +77,8 @@ export function EmptyState() {
       <p className="muted">What can I help you with? {where}</p>
       {space !== "cloud" && <Deck />}
       <div className="suggestions">
-        {SUGGESTIONS.map(({ icon: Icon, title, prompt, hint }) => (
-          <button key={title} className="suggestion" disabled={!ready} onClick={() => void send(prompt)} title={prompt}>
+        {SUGGESTIONS.map(({ icon: Icon, title, prompt, hint, fill }) => (
+          <button key={prompt} className="suggestion" disabled={!ready} onClick={() => (fill ? useStore.setState({ prefill: prompt }) : void send(prompt))} title={prompt}>
             <b>
               <Icon size={16} style={{ color: "var(--accent)" }} />
               {title}
@@ -81,6 +87,9 @@ export function EmptyState() {
           </button>
         ))}
       </div>
+      <button className="linklike faint small" style={{ marginTop: 10 }} onClick={() => useStore.getState().openHelp("ideas")}>
+        More ideas to try
+      </button>
     </div>
   );
 }

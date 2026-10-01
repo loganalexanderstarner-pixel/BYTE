@@ -357,6 +357,16 @@ function initScript({ data }) {
         case "note_delete":
         case "note_clip":
           return null;
+        case "boards_list":
+          return [{ id: 1, title: "Food truck ideas", count: 9, updated: Date.now() - 3600000 }];
+        case "board_save":
+          return 1;
+        case "board_get":
+          return { id: 1, title: "Food truck ideas", updated: Date.now(), data: { stickies: [], groups: [] } };
+        case "board_assist":
+          return args.kind === "group"
+            ? { ideas: [], groups: [["Food", [0, 1, 4, 5]], ["Drinks", [2, 3]], ["Getting noticed", [6, 7, 8]]] }
+            : { ideas: ["Late-night taco window", "Breakfast burritos on weekdays", "Cold brew on tap", "Agua fresca of the day", "Loaded nachos", "Rotating local salsa", "Instagram-worthy menu board", "Weekly spot at the farmers market", "Loyalty punch card"], groups: [] };
         case "mindmap_make":
           return { label: "Lisbon trip", children: [
             { label: "Must do", children: [{ label: "Tram 28 early", children: [] }, { label: "Pastéis de Belém", children: [] }, { label: "Sunset viewpoint", children: [] }] },
@@ -1241,7 +1251,7 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.evaluate(() => window.__emit("engine://tune", { model: "qwen3.5-9b:Q6_K", step: 4, total: 4, label: "Done", done: true }));
   await p.waitForTimeout(200);
   await shot(p, "05-empty");
-  await p.getByRole("button", { name: /What's new/ }).click();
+  await p.locator(".suggestion").first().click();
   await p.waitForTimeout(1200);
   await p.getByRole("button", { name: /Searched the web/ }).click();
   await p.waitForTimeout(200);
@@ -1856,6 +1866,42 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(150);
   await shot(p, "38e-notes-settings");
   console.log("notes errors:", errors);
+  await ctx.close();
+}
+// Personality, ideas on the home screen, the help center, the brainstorm board
+{
+  const { p, ctx, errors } = await page(true, "midnight");
+  await p.getByRole("button", { name: "New chat (⌘N)" }).click();
+  await p.waitForTimeout(300);
+  await shot(p, "39b-examples-home");
+  await p.getByRole("button", { name: /^Help/ }).click();
+  await p.waitForTimeout(300);
+  await p.getByRole("button", { name: /Voice: talking to BYTE/ }).click();
+  await p.waitForTimeout(200);
+  await shot(p, "39c-help");
+  await p.getByRole("button", { name: /Ideas to try/ }).click();
+  await p.waitForTimeout(200);
+  await shot(p, "39c-help-ideas");
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(200);
+  await p.getByRole("button", { name: /^Brainstorm board/ }).click();
+  await p.waitForTimeout(300);
+  await p.getByLabel("Board topic").fill("Food truck ideas");
+  await p.getByRole("button", { name: "Add ideas", exact: true }).click();
+  await p.waitForTimeout(500);
+  await shot(p, "39d-board");
+  await p.getByRole("button", { name: "Group into themes" }).click();
+  await p.waitForTimeout(500);
+  await shot(p, "39e-board-themes");
+  await p.getByRole("button", { name: "Close" }).first().click();
+  await p.keyboard.press("Meta+Comma");
+  await p.getByRole("button", { name: "About", exact: true }).click();
+  await p.getByRole("button", { name: "Coach" }).click();
+  await p.waitForTimeout(200);
+  await p.getByRole("heading", { name: "Personality" }).scrollIntoViewIfNeeded();
+  await p.waitForTimeout(150);
+  await shot(p, "39-personality");
+  console.log("help/board errors:", errors);
   await ctx.close();
 }
 // The command-deck home, the research library and usage stats

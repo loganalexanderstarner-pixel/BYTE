@@ -44,6 +44,12 @@ const LOCAL_DOC_TYPES = [
 
 export function Composer() {
   const [text, setText] = useState("");
+  const prefill = useStore((s) => s.prefill);
+  useEffect(() => {
+    if (prefill === null) return;
+    setText(prefill);
+    useStore.setState({ prefill: null });
+  }, [prefill]);
   const ref = useRef<HTMLTextAreaElement>(null);
   // Voice input: 🎤, or hold Space in an empty box (voice.rs transcribes on this Mac).
   const voiceOn = useStore((s) => s.settings?.voiceEnabled !== false);

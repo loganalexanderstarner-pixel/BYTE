@@ -17,6 +17,19 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-01
 
+### (this commit) — v0.11.7: personality, help center, example prompts, brainstorm board (Phase 11 done)
+- **Why:** the last Phase 11 items.
+- **What:** `prompt.rs` (Personality + section + test), settings `personality`, `backend.rs` (personality local +
+  cloud, help notes), `help.rs` (+ tests), `board.rs` (+ tests + `e2e_board_ideas`), `db.rs` migration v15, `lib.rs`;
+  `src/help/*.md`; UI `lib/{help,examples,personality,board}.ts` (+ tests), `components/help/HelpCenter.tsx`,
+  `components/board/BoardPanel.tsx`, `EmptyState` daily picks, Composer `prefill`, Shell (⌘?, buttons, palette),
+  Settings `PersonalitySection`, tokens `--sticky-*`, CSS; screenshots `39-*` (the 06-chat scene clicks the first
+  suggestion now that they rotate).
+- **Verify:** `cargo test prompt help board db`; `npx vitest run src/lib/{help,personality,board}.test.ts`; real
+  engine `cargo test e2e_board_ideas -- --ignored` (Qwen3 0.6B: 5 ideas, 2 themes); on a Mac: ⌘?, a personality
+  preset then a question, the board's Add ideas / Group.
+- **Undo:** `git revert` this commit (the boards table stays; harmless).
+
 ### (this commit) — v0.11.6: notes, web clipper, mind maps
 - **Why:** Phase 11 items: notes (save answers, feed the knowledge base), a web clipper, mind maps from any answer.
 - **What:** `src-tauri/src/notes.rs` (files, front matter, path safety, search, clip, commands, tests),

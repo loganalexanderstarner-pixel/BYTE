@@ -297,6 +297,16 @@ interface State {
   openStudy(deck?: number | null): void;
   closeStudy(): void;
   /** The writing studio, with the text it opened with (and the app it came from: the ⌥⌘B hotkey). */
+  /** Text to put in the message box (an example prompt); the Composer takes it and clears it. */
+  prefill: string | null;
+  /** The brainstorm board: closed (null), or open (on a topic to start with ideas). */
+  board: { topic?: string; seq: number } | null;
+  openBoard(topic?: string): void;
+  closeBoard(): void;
+  /** The help center: closed (null) or open on an article. */
+  help: string | null;
+  openHelp(article?: string): void;
+  closeHelp(): void;
   /** The Notes panel: closed (null), or open on a note id, or on a new note's draft. */
   notes: { id?: string; draft?: NoteInput; seq: number } | null;
   openNotes(opts?: { id?: string; draft?: NoteInput }): void;
@@ -880,6 +890,13 @@ export const useStore = create<State>((set, get) => {
     study: null,
     openStudy: (deck) => set({ study: { deck: deck ?? null } }),
     closeStudy: () => set({ study: null }),
+    prefill: null,
+    board: null,
+    openBoard: (topic) => set((s) => ({ board: { topic, seq: (s.board?.seq ?? 0) + 1 } })),
+    closeBoard: () => set({ board: null }),
+    help: null,
+    openHelp: (article) => set({ help: article ?? "getting-started" }),
+    closeHelp: () => set({ help: null }),
     notes: null,
     openNotes: (opts) => set((s) => ({ notes: { ...opts, seq: (s.notes?.seq ?? 0) + 1 } })),
     closeNotes: () => set({ notes: null }),
