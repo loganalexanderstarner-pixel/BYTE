@@ -1,3 +1,5 @@
+import { KeyboardSection } from "./KeyboardSection";
+import { prettyKeys } from "../../lib/keys";
 import { open as openDialog, ask } from "@tauri-apps/plugin-dialog";
 import { Brain, Cloud, Cpu, Download, FolderSearch, Gauge, HardDrive, Info, Palette, Plug, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -18,7 +20,7 @@ import { KnowledgeTab } from "./KnowledgeTab";
 import { ModelLab } from "./ModelLab";
 import { TuningPanel } from "./TuningPanel";
 
-const TABS: { id: SettingsTab; label: string; icon: typeof Cpu }[] = [
+export const TABS: { id: SettingsTab; label: string; icon: typeof Cpu }[] = [
   { id: "models", label: "Models", icon: HardDrive },
   { id: "memory", label: "Memory & chats", icon: Brain },
   { id: "knowledge", label: "Knowledge base", icon: FolderSearch },
@@ -729,6 +731,7 @@ function AboutTab() {
         </div>
       </div>
       <UsageSection />
+      <KeyboardSection settings={settings} />
       <div className="section">
         <h4>In the background</h4>
         <label className="field">
@@ -853,8 +856,8 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
-            Selected text hotkey (⌥⌘B)
-            <small>Select text in any app and press ⌥⌘B: it opens in the writing studio to rewrite, fix, translate, reply to or explain, then “Paste into” puts the result back. macOS asks once to allow BYTE in Accessibility.</small>
+            Selected text hotkey ({prettyKeys(settings?.selectionKeys ?? "Alt+Super+KeyB")})
+            <small>Select text in any app and press the hotkey (Keyboard and menu bar, in About, changes it): it opens in the writing studio to rewrite, fix, translate, reply to or explain, then “Paste into” puts the result back. macOS asks once to allow BYTE in Accessibility.</small>
           </span>
           <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.selectionHotkey ?? true} onChange={(e) => void update({ selectionHotkey: e.target.checked })} />
         </label>

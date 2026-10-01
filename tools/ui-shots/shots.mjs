@@ -1272,7 +1272,7 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(250);
   await shot(p, "10-cloud-connect");
   await p.getByLabel("BYTE cloud API key").fill("byte_test_fake_key_for_screens");
-  await p.getByRole("button", { name: /Connect/ }).click();
+  await p.getByRole("button", { name: "Connect", exact: true }).click();
   await p.waitForTimeout(400);
   await shot(p, "10b-cloud-connected");
   await p.getByRole("button", { name: "Close settings" }).click();
@@ -1661,6 +1661,40 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.locator(".approval").scrollIntoViewIfNeeded();
   await shot(p, "26c-schedule-approval");
   console.log("schedule errors:", errors);
+  await ctx.close();
+}
+// Quick Ask (its own window), the ⌘K palette, Settings → Keyboard and menu bar
+{
+  const { p, ctx, errors } = await page(true, "midnight");
+  await p.setViewportSize({ width: 680, height: 480 });
+  await p.goto(URL + "?window=quick");
+  await p.waitForTimeout(500);
+  await shot(p, "32-quick-ask-empty");
+  await p.getByLabel("Message BYTE").fill("How long do I boil an egg for a jammy yolk?");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(1500);
+  await shot(p, "32-quick-ask");
+  console.log("quick errors:", errors);
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await page(true, "midnight");
+  await p.keyboard.press("Meta+KeyK");
+  await p.waitForTimeout(250);
+  await shot(p, "32b-palette");
+  await p.keyboard.type("set");
+  await p.waitForTimeout(200);
+  await shot(p, "32b-palette-settings");
+  await p.keyboard.press("Escape");
+  await p.keyboard.press("Meta+Comma");
+  await p.getByRole("button", { name: "About", exact: true }).click();
+  await p.waitForTimeout(300);
+  await p.getByRole("heading", { name: "Keyboard and menu bar" }).scrollIntoViewIfNeeded();
+  await p.getByRole("button", { name: /Quick Ask shortcut/ }).click();
+  await p.locator(".keys-table").scrollIntoViewIfNeeded();
+  await p.waitForTimeout(150);
+  await shot(p, "32c-keyboard");
+  console.log("palette errors:", errors);
   await ctx.close();
 }
 // The command-deck home, the research library and usage stats

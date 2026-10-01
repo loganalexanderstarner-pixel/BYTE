@@ -17,6 +17,19 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-01
 
+### (this commit) — v0.11.0: Quick Ask, menu bar, command palette, custom shortcuts
+- **Why:** Phase 11 item 3 (HANDOFF §8): ask from any app, BYTE in the menu bar, ⌘K, customizable keys.
+- **What:** `src-tauri/src/quick.rs` (+ tests), `icons/tray.png`, settings `quickAsk`/`quickAskKeys`/`selectionKeys`/
+  `menuBarIcon`, `lib.rs` (shortcut handler, blur, tray at setup, commands), `commands.rs` `settings_update` (check +
+  apply), `selection.rs` (`apply` moved to `quick::apply_shortcuts`), `capabilities/default.json` ("quick" window);
+  UI `app/QuickAsk.tsx`, `app/App.tsx` (`useAppearance`, `windowKind`), `components/Palette.tsx`, `lib/palette.ts`,
+  `lib/keys.ts` (+ tests), `components/settings/KeyboardSection.tsx`, store `addNewChats`/`openFresh`, Shell ⌘K,
+  CSS; screenshots `32-*` (and a fixed `Connect` selector in `shots.mjs`); `mac-engine.yml` paths include `quick.rs`.
+- **Verify:** `cargo test quick`; `npx vitest run src/lib/keys.test.ts src/lib/palette.test.ts`; `scripts/check-all.sh`;
+  on a Mac: ⌥Space in another app, ask, Esc; click the menu-bar icon; ⌘K in BYTE; change the Quick Ask keys in
+  Settings → About.
+- **Undo:** `git revert` this commit (settings keep the new fields harmlessly; old builds ignore them).
+
 ### (this commit) — Connector secrets: remember Keychain reads, keep tests off the real Keychain
 - **Why:** chat routing (`connectors::applies`) reads the Keychain on every message that mentions a calendar, "today"
   and the like; each read is a Security-framework call. And a test build on a CI Mac should never touch a real

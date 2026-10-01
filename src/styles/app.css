@@ -5354,3 +5354,150 @@ kbd {
   border-radius: 3px 3px 0 0;
   background: color-mix(in srgb, var(--accent) 70%, transparent);
 }
+
+/* ------------------------------------------------ command palette (⌘K) */
+.palette-scrim {
+  place-items: start center;
+  padding-top: 14vh;
+}
+.palette {
+  width: min(620px, calc(100vw - 32px));
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), var(--glow);
+  overflow: hidden;
+  animation: palette-in var(--dur) var(--ease);
+}
+@keyframes palette-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+}
+.palette-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-3);
+}
+.palette-input input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 1.05em;
+}
+.palette-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1);
+  max-height: 52vh;
+  overflow-y: auto;
+}
+.palette-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.palette-list li.on {
+  background: var(--accent-soft);
+}
+.palette-group {
+  width: 64px;
+  flex: none;
+  font-size: 0.75em;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.palette-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.palette-hint {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  background: var(--surface-2);
+}
+.palette-empty {
+  padding: var(--space-3);
+  cursor: default;
+}
+
+/* ------------------------------------------------ Quick Ask window */
+.quick {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.quick-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* Room for the Mac's window buttons at the left. */
+  padding: var(--space-2) var(--space-3) var(--space-2) 78px;
+  border-bottom: 1px solid var(--border);
+  min-height: 40px;
+}
+.quick-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+.quick .chat-scroll {
+  flex: 1;
+  min-height: 0;
+}
+.quick .chat-column {
+  padding-top: var(--space-3);
+}
+.quick-hint {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  text-align: center;
+}
+
+/* ------------------------------------------------ Settings → Keyboard */
+.key-recorder {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.key-recorder .keys {
+  min-width: 96px;
+  font-family: var(--font-mono);
+}
+.key-recorder .bad {
+  color: var(--danger);
+  max-width: 260px;
+  text-align: right;
+}
+.keys-table {
+  margin-top: var(--space-2);
+  border-collapse: collapse;
+}
+.keys-table td {
+  padding: 3px var(--space-3) 3px 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .palette {
+    animation: none;
+  }
+}

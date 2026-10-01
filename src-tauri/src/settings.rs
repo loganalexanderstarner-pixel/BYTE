@@ -201,6 +201,18 @@ pub struct Settings {
     /// Closing the window keeps BYTE running (schedules and watchers go on); ⌘Q quits.
     #[serde(default = "yes")]
     pub keep_running: bool,
+    /// Quick Ask: a small window from anywhere on the global shortcut below (quick.rs).
+    #[serde(default = "yes")]
+    pub quick_ask: bool,
+    /// Quick Ask's shortcut, in Tauri's syntax ("Alt+Space" is ⌥Space).
+    #[serde(default = "default_quick_keys")]
+    pub quick_ask_keys: String,
+    /// The selection hotkey's keys ("Alt+Super+KeyB" is ⌥⌘B).
+    #[serde(default = "default_selection_keys")]
+    pub selection_keys: String,
+    /// BYTE's icon in the menu bar (click: Quick Ask; menu: show BYTE, quit).
+    #[serde(default = "yes")]
+    pub menu_bar_icon: bool,
     /// Mac upkeep: storage clean-up, health checks, uninstalling apps, login items (macOS).
     #[serde(default = "yes")]
     pub mac_upkeep: bool,
@@ -291,6 +303,10 @@ impl Default for Settings {
             notion_parent: None,
             open_at_login: false,
             keep_running: true,
+            quick_ask: true,
+            quick_ask_keys: default_quick_keys(),
+            selection_keys: default_selection_keys(),
+            menu_bar_icon: true,
             selection_hotkey: true,
             clipboard_history: false,
             jobs_enabled: true,
@@ -351,6 +367,14 @@ impl Settings {
 
 fn yes() -> bool {
     true
+}
+
+pub fn default_quick_keys() -> String {
+    "Alt+Space".into()
+}
+
+pub fn default_selection_keys() -> String {
+    crate::selection::HOTKEY.into()
 }
 
 fn default_units() -> String {

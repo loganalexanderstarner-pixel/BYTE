@@ -239,6 +239,10 @@ interface State {
   resolveMemory(msgId: string, stepId: string, save: boolean): Promise<void>;
   /** Reload the chat list from the database (after an erase or import). */
   reloadChats(): Promise<void>;
+  /** Adds chats saved elsewhere (Quick Ask, schedules) without leaving the open one. */
+  addNewChats(): Promise<void>;
+  /** Re-reads one chat from disk (another window changed it) and opens it. */
+  openFresh(id: string): Promise<void>;
   send(text: string, opts?: { task?: ChatTask }): Promise<void>;
   regenerate(): Promise<void>;
   /** Cloud account status (connected, modes). */
@@ -1021,6 +1025,21 @@ export const useStore = create<State>((set, get) => {
       if (!inTauri) return;
       const conversations = (await api.chatsList()).map(fromMeta);
       set({ conversations, currentId: null });
+    },
+
+    async addNewChats() {
+      if (!inTauri) return;
+      const list = (await api.chatsList().catch(() => [] as ConversationMeta[])).map(fromMeta);
+      const have = new Set(get().conversations.map((c) => c.id));
+      const fresh = list.filter((c) => !have.has(c.id));
+      if (fresh.length) set({ conversations: [...fresh, ...get().conversations] });
+    },
+
+    async openFresh(id) {
+      await get().addNewChats();
+      // Not loaded: selectChat reads it from disk again.
+      set({ conversations: get().conversations.map((c) => (c.id === id && !get().running.length ? { ...c, loaded: false } : c)) });
+      await get().selectChat(id);
     },
 
     async send(text, opts) {

@@ -13,7 +13,7 @@ use tauri::{Emitter, Manager};
 use crate::error::{AppError, AppResult};
 use crate::macctl::{Command, MacRunner, RunError, Runner};
 
-/// The hotkey, in Tauri's shortcut syntax (⌥⌘B on a Mac).
+/// The default hotkey, in Tauri's shortcut syntax (⌥⌘B on a Mac; Settings → Keyboard changes it).
 pub const HOTKEY: &str = "Alt+Super+KeyB";
 
 const FRONT_APP: &str = r#"on run argv
@@ -83,22 +83,6 @@ pub async fn paste_into(runner: &dyn Runner, app: &str, text: &str) -> AppResult
     crate::clipboard::set_quietly(text);
     runner.run(&Command::Osa { script: PASTE_INTO, args: vec![app.to_string()] }).await.map_err(|e| AppError::msg(explain(&e)))?;
     Ok(())
-}
-
-/// Registers or removes the hotkey to match the setting.
-pub fn apply(app: &tauri::AppHandle, on: bool) {
-    use tauri_plugin_global_shortcut::GlobalShortcutExt;
-    // The hotkey copies with System Events, so it's macOS only for now.
-    let on = on && cfg!(target_os = "macos");
-    let gs = app.global_shortcut();
-    let registered = gs.is_registered(HOTKEY);
-    if on && !registered {
-        if let Err(e) = gs.register(HOTKEY) {
-            log::warn!("couldn't register {HOTKEY}: {e}");
-        }
-    } else if !on && registered {
-        let _ = gs.unregister(HOTKEY);
-    }
 }
 
 /// The hotkey was pressed: read the selection and open the studio with it.

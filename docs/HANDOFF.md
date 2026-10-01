@@ -477,7 +477,8 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 **Done in v0.8.0:** `gguf.rs` + `lab.rs` (model lab, `<data>/added_models.json`, `CatalogStore::set_added`), per-model
 `settings.model_overrides` (`ModelOverride::apply`) + `TuningPanel`, `battery_saver` (`system::battery`), `commands::engine_live`
 (with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
-**Next:** Phase 10 continues (v0.10.0 Mac upkeep, v0.10.1 tasks and briefing, v0.10.2 feeds and watchers, v0.10.3 automations + Shortcuts + open at login, v0.10.4 trackers, v0.10.5 connectors (Obsidian, Notion, calendar links), v0.10.6 dashboards are done: **Phase 10 is complete**; next is Phase 11 (input & windows); see the Phase 10 section). Way of working
+**Next:** **Phase 10 is complete** (v0.10.0–v0.10.6, all released). Phase 11 (input & windows) has started: v0.11.0
+Quick Ask + menu bar + ⌘K palette + custom shortcuts is done; next v0.11.1 voice (see the Phase 11 section). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
 2. **Long-form writer**: outline → chapters with a consistent style; **style cloning** from 3–5 samples;
@@ -631,7 +632,21 @@ Shortcuts; v0.10.4 trackers; v0.10.5 connectors; v0.10.6 dashboards.
 7. **Dashboards**: command-deck home dashboard, local usage stats, live hardware panel, research library.
 Verify: scheduler/cron and diff unit tests, recorded-feed tests, owner checks notifications and connectors.
 
-### Phase 11 — Input & windows ⏳
+### Phase 11 — Input & windows 🔄
+**Plan:** v0.11.0 windows and keys · v0.11.1 voice (whisper-cli sidecar, push-to-talk, dropped audio) · v0.11.2
+diarized transcripts, videos without captions, video-to-slides (ffmpeg download) · v0.11.3 hands-free (spoken replies
+via macOS `say`) + wake word · v0.11.4 notes, web clipper, mind maps · v0.11.5 board, help center, example prompts,
+personality sliders, mindfulness (off by default). Vision (item 2) was done in Phase 4, recipes in Phase 6.
+**Done in v0.11.0:** `quick.rs`: Quick Ask window (label `quick`; `main.tsx`/`App.tsx` `windowKind()` renders
+`app/QuickAsk.tsx`, which reuses `ChatView` + `Composer` and the same store, so chats are ordinary saved chats;
+`quick://saved` → main `addNewChats`, "Open in BYTE" → `quick_open` → main `openFresh`), hidden on blur and Esc,
+placed under the tray icon or high on the pointer's screen; menu-bar icon (template `icons/tray.png`, Ask / Show /
+Quit); global shortcuts from settings (`quickAskKeys`, `selectionKeys`; `quick::check` refuses keys without
+⌘/⌥/⌃ or a clash; one handler dispatches by shortcut id); ⌘K palette (`components/Palette.tsx`, `lib/palette.ts`
+fuzzy ranking) over actions, settings tabs, modes, themes and chats; Settings → About → Keyboard and menu bar
+(`KeyboardSection.tsx`, key recorder, `lib/keys.ts`). No positioner plugin was needed (tray click rects).
+Later: the Finder "Ask BYTE" Quick Action (a Shortcut or Service that opens `byte://ask`), a floating desktop
+widget.
 1. **Voice**: whisper (sidecar `whisper-cli`, small/base models) push-to-talk / hold Space; hands-free
    conversation; transcripts of dropped or recorded audio with speaker labels (sherpa-onnx diarization).
 1b. **Video-to-slides and videos without captions** (moved from Phase 6): ffmpeg keyframes + whisper transcript.

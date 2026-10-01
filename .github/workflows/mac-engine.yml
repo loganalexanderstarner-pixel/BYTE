@@ -35,6 +35,7 @@ on:
       - "src-tauri/src/automations.rs"
       - "src-tauri/src/shortcut_make.rs"
       - "src-tauri/src/background.rs"
+      - "src-tauri/src/quick.rs"
       - "src-tauri/src/lib.rs"
       # Connector secrets use the macOS Keychain (compiled only on macOS).
       - "src-tauri/src/connectors/**"

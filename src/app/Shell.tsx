@@ -1,5 +1,5 @@
 import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot, ClipboardList, ListTodo } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ChatView } from "../components/chat/ChatView";
 import { Composer } from "../components/chat/Composer";
@@ -14,7 +14,11 @@ import { TasksPanel } from "../components/tasks/TasksPanel";
 import { api } from "../lib/api";
 import { AssistantsPanel } from "../components/assistants/AssistantsPanel";
 import { Reader } from "../components/reader/Reader";
-import { SettingsModal } from "../components/settings/SettingsModal";
+import { SettingsModal, TABS } from "../components/settings/SettingsModal";
+import { Palette } from "../components/Palette";
+import { THEMES } from "../design/themes";
+import { prettyKeys } from "../lib/keys";
+import type { PaletteItem } from "../lib/palette";
 import { Sidebar } from "../components/Sidebar";
 import { useStore } from "../state/store";
 
@@ -42,6 +46,15 @@ export function Shell() {
   const tasksOn = useStore((s) => s.settings?.tasksEnabled !== false || s.settings?.watchEnabled !== false || s.settings?.automationsEnabled !== false || s.settings?.trackersEnabled !== false);
   const [tasksOpen, setTasksOpen] = useState(false);
   const reloadChats = useStore((s) => s.reloadChats);
+  const addNewChats = useStore((s) => s.addNewChats);
+  const openFresh = useStore((s) => s.openFresh);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Quick Ask: its chats join the list, and "Open in BYTE" opens one here.
+  useEffect(() => {
+    const offs = [api.onQuickSaved(() => void addNewChats()), api.onQuickOpen((id) => (id ? void openFresh(id) : undefined))];
+    return () => offs.forEach((p) => void p.then((off) => off()));
+  }, [addNewChats, openFresh]);
 
   // A scheduled run (briefing, scheduled question) saved a new chat: show it in the list.
   useEffect(() => {
@@ -65,7 +78,10 @@ export function Shell() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const cmd = e.metaKey || e.ctrlKey;
-      if (cmd && e.key.toLowerCase() === "n") {
+      if (cmd && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      } else if (cmd && e.key.toLowerCase() === "n") {
         e.preventDefault();
         newChat();
       } else if (cmd && e.key === ",") {
@@ -81,6 +97,73 @@ export function Shell() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [newChat, openSettings, toggleSidebar, stop]);
+
+  const conversations = useStore((s) => s.conversations);
+  const quickKeys = useStore((s) => (s.settings?.quickAsk !== false ? (s.settings?.quickAskKeys ?? "Alt+Space") : null));
+  const paletteItems = useMemo(() => {
+    if (!paletteOpen) return [];
+    const items: PaletteItem[] = [
+      { id: "new", label: "New chat", hint: "⌘N", group: "Actions" },
+      { id: "private", label: "New private chat", keywords: "incognito secret", group: "Actions" },
+      { id: "sidebar", label: "Show or hide the sidebar", hint: "⌘\\", group: "Actions" },
+      { id: "web", label: "Web search: switch Off / Auto / Always", keywords: "internet online", group: "Actions" },
+      { id: "docs", label: "Documents: PDFs, slides and Word files", keywords: "pdf pptx docx report deck", group: "Actions" },
+    ];
+    if (quickKeys) items.push({ id: "quick", label: "Quick Ask window", hint: prettyKeys(quickKeys), group: "Actions" });
+    if (kitchenOn) items.push({ id: "recipes", label: "Recipe box", keywords: "kitchen cooking", group: "Actions" });
+    if (assistantsOn) items.push({ id: "assistants", label: "Assistants", group: "Actions" });
+    if (tasksOn) items.push({ id: "tasks", label: "Tasks, schedules, trackers and automations", keywords: "to-do todo reminders bills feeds watchers", group: "Actions" });
+    if (clipsOn) items.push({ id: "clips", label: "Clipboard history", group: "Actions" });
+    if (jobsOn) items.push({ id: "jobs", label: "Job search", group: "Actions" });
+    if (writingOn) items.push({ id: "writing", label: "Writing studio", keywords: "rewrite grammar tone", group: "Actions" });
+    if (studyOn) items.push({ id: "study", label: "Study: flashcard decks", keywords: "flashcards quiz learn", group: "Actions" });
+    for (const t of TABS) items.push({ id: `settings:${t.id}`, label: `Settings: ${t.label}`, hint: t.id === "models" ? "⌘," : undefined, keywords: "preferences options", group: "Settings" });
+    for (const m of ["fast", "auto", "deep", "extended"] as const) items.push({ id: `mode:${m}`, label: `Mode: ${m[0].toUpperCase()}${m.slice(1)}`, group: "Modes" });
+    for (const t of THEMES) items.push({ id: `theme:${t.id}`, label: `Theme: ${t.name}`, keywords: "colors appearance", group: "Themes" });
+    for (const c of conversations) if (!c.private && c.messages.length + (c.messageCount ?? 0) > 0) items.push({ id: `chat:${c.id}`, label: c.title || "Untitled chat", keywords: c.summary ?? undefined, group: "Chats" });
+    return items;
+  }, [paletteOpen, conversations, quickKeys, kitchenOn, assistantsOn, tasksOn, clipsOn, jobsOn, writingOn, studyOn]);
+
+  const runItem = (it: PaletteItem) => {
+    const [kind, arg] = it.id.includes(":") ? [it.id.slice(0, it.id.indexOf(":")), it.id.slice(it.id.indexOf(":") + 1)] : [it.id, ""];
+    const st = useStore.getState();
+    switch (kind) {
+      case "new":
+        return newChat();
+      case "private":
+        return newChat(true);
+      case "sidebar":
+        return toggleSidebar();
+      case "web":
+        return st.toggleWeb();
+      case "docs":
+        return setDocsOpen(true);
+      case "quick":
+        return void api.quickToggle();
+      case "recipes":
+        return setRecipesOpen(true);
+      case "assistants":
+        return setAssistantsOpen(true);
+      case "tasks":
+        return setTasksOpen(true);
+      case "clips":
+        return setClipsOpen(true);
+      case "jobs":
+        return setJobsOpen(true);
+      case "writing":
+        return openWriting();
+      case "study":
+        return openStudy();
+      case "settings":
+        return openSettings(arg as (typeof TABS)[number]["id"]);
+      case "mode":
+        return st.setMode(arg as "fast" | "auto" | "deep" | "extended");
+      case "theme":
+        return void st.updateSettings({ theme: arg });
+      case "chat":
+        return void st.selectChat(arg);
+    }
+  };
 
   return (
     <div className={`app ${sidebarOpen ? "" : "sidebar-hidden"} ${reading ? "reading" : ""}`}>
@@ -161,6 +244,7 @@ export function Shell() {
       {tasksOpen && <TasksPanel onClose={() => setTasksOpen(false)} />}
       {jobsOpen && <JobsPanel onClose={() => setJobsOpen(false)} />}
       {assistantsOpen && <AssistantsPanel onClose={() => setAssistantsOpen(false)} />}
+      {paletteOpen && <Palette items={paletteItems} onRun={runItem} onClose={() => setPaletteOpen(false)} />}
     </div>
   );
 }

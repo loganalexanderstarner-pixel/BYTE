@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.0 — Quick Ask, menu bar and command palette (Phase 11 starts)
+
+- **Quick Ask** (⌥Space from any app): a small window on top that answers right there. Esc or clicking elsewhere hides
+  it; "Open in BYTE" continues the chat in the main window. Its chats are saved like any other.
+- **Menu-bar icon**: click for Quick Ask; menu: Ask BYTE, Show BYTE, Quit.
+- **Command palette (⌘K)**: chats, settings pages, modes, themes and panels, by typing a few letters.
+- **Custom shortcuts** (Settings → About → Keyboard and menu bar) for Quick Ask and the selected-text hotkey, which
+  are checked so they don't block typing or clash with each other.
+
 ## 0.10.6 — Dashboards (Phase 10 complete)
 
 - **Command-deck home**: live tiles on a new chat (today's events, to-dos, coming up, watched pages and news, next

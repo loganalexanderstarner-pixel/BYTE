@@ -236,6 +236,16 @@ export const api = {
   onAutomationProgress: (cb: (v: RunView) => void): Promise<UnlistenFn> => listen<RunView>("automations://progress", (e) => cb(e.payload)),
   /** A byte://ask link: text for the message box (never sent by itself). */
   onDeepLinkAsk: (cb: (text: string) => void): Promise<UnlistenFn> => listen<string>("deeplink://ask", (e) => cb(e.payload)),
+  // Quick Ask and the menu-bar icon (quick.rs).
+  quickToggle: () => invoke<void>("quick_toggle"),
+  quickHide: () => invoke<void>("quick_hide"),
+  quickOpen: (conversationId: string | null) => invoke<void>("quick_open", { conversationId }),
+  /** Quick Ask was shown (focus the box). */
+  onQuickShown: (cb: () => void): Promise<UnlistenFn> => listen("quick://shown", () => cb()),
+  /** Main window: "Open in BYTE" from Quick Ask. */
+  onQuickOpen: (cb: (id: string | null) => void): Promise<UnlistenFn> => listen<string | null>("quick://open", (e) => cb(e.payload)),
+  /** Main window: Quick Ask saved a chat. */
+  onQuickSaved: (cb: () => void): Promise<UnlistenFn> => listen("quick://saved", () => cb()),
   // Trackers (trackers.rs).
   trackersList: () => invoke<Tracker[]>("trackers_list"),
   trackerSave: (tracker: Tracker) => invoke<Tracker>("tracker_save", { tracker }),

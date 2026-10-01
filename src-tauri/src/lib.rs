@@ -36,6 +36,7 @@ mod models;
 mod paths;
 mod profiles;
 mod prompt;
+mod quick;
 mod quality;
 mod research;
 mod router;
@@ -92,6 +93,9 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::Builder::new().args(["--background"]).build())
         // Keep running (macOS): closing the window hides it; ⌘Q quits.
         .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Focused(false) = event {
+                quick::on_blur(window);
+            }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let keep = cfg!(target_os = "macos")
                     && window.label() == "main"
@@ -102,12 +106,12 @@ pub fn run() {
                 }
             }
         })
-        // The selection hotkey (selection.rs): one shortcut, registered from Settings.
+        // Global shortcuts (quick.rs): Quick Ask and the selection hotkey, keys from Settings.
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, _shortcut, event| {
+                .with_handler(|app, shortcut, event| {
                     if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                        selection::pressed(app);
+                        quick::pressed(app, shortcut);
                     }
                 })
                 .build(),
@@ -127,15 +131,14 @@ pub fn run() {
             // Models the user added (model lab) join the catalog.
             state.catalog.set_added(crate::lab::load(&state.paths.data.join("added_models.json")).iter().map(crate::lab::LabModel::to_catalog).collect());
             let _ = state.app.set(app.handle().clone());
-            let hotkey = {
-                let s = state.settings.blocking_lock();
-                s.selection_hotkey && s.mac_control
-            };
+            let settings_now = state.settings.blocking_lock().clone();
             let catalog = state.catalog.get();
             let models_dir = state.paths.models.clone();
             app.manage(state);
-            // Mac control: the selection hotkey and clipboard history (each checks its setting).
-            selection::apply(app.handle(), hotkey);
+            // Global shortcuts (Quick Ask, the selection hotkey) and the menu-bar icon;
+            // clipboard history checks its own setting.
+            quick::apply_shortcuts(app.handle(), &settings_now);
+            quick::apply_tray(app.handle(), settings_now.menu_bar_icon);
             clipboard::watch(app.handle().clone());
             // Reminders, the daily briefing and scheduled questions.
             scheduler::start(app.handle().clone());
@@ -264,6 +267,9 @@ pub fn run() {
             watchers::watcher_events,
             watchers::watcher_check,
             selection::selection_paste,
+            quick::quick_toggle,
+            quick::quick_hide,
+            quick::quick_open,
             clipboard::clip_list,
             clipboard::clip_copy,
             clipboard::clip_delete,

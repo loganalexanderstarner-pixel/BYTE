@@ -73,6 +73,14 @@ export interface Settings {
   openAtLogin?: boolean;
   /** Closing the window keeps BYTE running (macOS); ⌘Q quits. */
   keepRunning?: boolean;
+  /** Quick Ask: a small window from anywhere (quick.rs). */
+  quickAsk?: boolean;
+  /** Its global shortcut, Tauri syntax ("Alt+Space"). */
+  quickAskKeys?: string;
+  /** The selection hotkey's keys ("Alt+Super+KeyB"). */
+  selectionKeys?: string;
+  /** BYTE's icon in the menu bar. */
+  menuBarIcon?: boolean;
   /** ⌥⌘B opens selected text from any app in the writing studio. */
   selectionHotkey?: boolean;
   /** Keep a history of copied text (off by default; secrets are skipped). */
