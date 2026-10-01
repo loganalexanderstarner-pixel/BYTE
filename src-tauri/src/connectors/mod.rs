@@ -26,27 +26,67 @@ use crate::tools::SourceBook;
 
 // ------------------------------------------------------------------ secrets
 
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+#[cfg_attr(any(not(target_os = "macos"), test), allow(dead_code))]
 const SERVICE: &str = "com.loganstarner.byte.connectors";
 const NOTION: &str = "notion";
 const CALENDARS: &str = "calendars";
 
-/// The Keychain, under BYTE's connectors entry.
+/// The Keychain, under BYTE's connectors entry. Reads are remembered for the
+/// session (chat routing asks on many turns, and each Keychain read is a call
+/// into the Security framework); saving or removing updates the memory too.
+/// Test builds never touch the real Keychain (a CI Mac has no one to answer
+/// its prompts).
 pub struct Secrets;
 
-#[cfg(target_os = "macos")]
+static REMEMBERED: std::sync::Mutex<Option<std::collections::HashMap<String, Option<String>>>> = std::sync::Mutex::new(None);
+
+fn remembered(account: &str) -> Option<Option<String>> {
+    REMEMBERED.lock().ok()?.as_ref()?.get(account).cloned()
+}
+
+fn remember(account: &str, value: Option<String>) {
+    if let Ok(mut m) = REMEMBERED.lock() {
+        m.get_or_insert_with(Default::default).insert(account.to_string(), value);
+    }
+}
+
 impl SecretStore for Secrets {
     fn get(&self, account: &str) -> AppResult<Option<String>> {
+        if let Some(v) = remembered(account) {
+            return Ok(v);
+        }
+        let v = keychain::get(account)?;
+        remember(account, v.clone());
+        Ok(v)
+    }
+    fn set(&self, account: &str, secret: &str) -> AppResult<()> {
+        keychain::set(account, secret)?;
+        remember(account, Some(secret.to_string()));
+        Ok(())
+    }
+    fn delete(&self, account: &str) -> AppResult<()> {
+        keychain::delete(account)?;
+        remember(account, None);
+        Ok(())
+    }
+}
+
+#[cfg(all(target_os = "macos", not(test)))]
+mod keychain {
+    use super::SERVICE;
+    use crate::error::{AppError, AppResult};
+
+    pub fn get(account: &str) -> AppResult<Option<String>> {
         match keyring::Entry::new(SERVICE, account).and_then(|e| e.get_password()) {
             Ok(k) => Ok(Some(k)),
             Err(keyring::Error::NoEntry) => Ok(None),
             Err(e) => Err(AppError::msg(format!("Couldn't read the Keychain: {e}"))),
         }
     }
-    fn set(&self, account: &str, secret: &str) -> AppResult<()> {
+    pub fn set(account: &str, secret: &str) -> AppResult<()> {
         keyring::Entry::new(SERVICE, account).and_then(|e| e.set_password(secret)).map_err(|e| AppError::msg(format!("Couldn't save to the Keychain: {e}")))
     }
-    fn delete(&self, account: &str) -> AppResult<()> {
+    pub fn delete(account: &str) -> AppResult<()> {
         match keyring::Entry::new(SERVICE, account).and_then(|e| e.delete_credential()) {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
             Err(e) => Err(AppError::msg(format!("Couldn't remove it from the Keychain: {e}"))),
@@ -54,15 +94,17 @@ impl SecretStore for Secrets {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
-impl SecretStore for Secrets {
-    fn get(&self, _account: &str) -> AppResult<Option<String>> {
+#[cfg(any(not(target_os = "macos"), test))]
+mod keychain {
+    use crate::error::{AppError, AppResult};
+
+    pub fn get(_account: &str) -> AppResult<Option<String>> {
         Ok(None)
     }
-    fn set(&self, _account: &str, _secret: &str) -> AppResult<()> {
+    pub fn set(_account: &str, _secret: &str) -> AppResult<()> {
         Err(AppError::msg("BYTE keeps connector secrets in the macOS Keychain, so this needs a Mac for now."))
     }
-    fn delete(&self, _account: &str) -> AppResult<()> {
+    pub fn delete(_account: &str) -> AppResult<()> {
         Ok(())
     }
 }

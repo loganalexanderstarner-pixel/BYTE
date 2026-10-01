@@ -15,6 +15,19 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ---
 
+## 2026-10-01
+
+### (this commit) — Connector secrets: remember Keychain reads, keep tests off the real Keychain
+- **Why:** chat routing (`connectors::applies`) reads the Keychain on every message that mentions a calendar, "today"
+  and the like; each read is a Security-framework call. And a test build on a CI Mac should never touch a real
+  Keychain, which could wait on a prompt nobody answers.
+- **What:** `src-tauri/src/connectors/mod.rs`: `Secrets` keeps what it read for the session (saving or removing
+  updates it); the Keychain calls moved into a small `keychain` module, which in test builds (and off macOS) is a
+  stub.
+- **Verify:** `cargo test connectors`; on a Mac: connect Notion, ask "search Notion for …" twice (one Keychain read);
+  disconnect, and the next ask no longer sees it.
+- **Undo:** `git revert` this commit.
+
 ## 2026-09-30
 
 ### (this commit) — v0.10.6: dashboards (Phase 10 complete)
