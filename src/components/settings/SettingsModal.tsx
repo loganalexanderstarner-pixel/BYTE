@@ -1,4 +1,4 @@
-import { SpeakerLabelsRow, SpeechRows, VideoHelperRow, WakeRow } from "./VoiceExtras";
+import { ByteVoicesRow, SpeakerLabelsRow, SpeechRows, VideoHelperRow, WakeRow } from "./VoiceExtras";
 import { VoiceModels } from "../chat/VoiceModels";
 import { KeyboardSection } from "./KeyboardSection";
 import { prettyKeys } from "../../lib/keys";
@@ -140,6 +140,7 @@ function VoiceSection() {
             </select>
           </label>
           <SpeechRows />
+          <ByteVoicesRow />
           <WakeRow />
           <SpeakerLabelsRow />
           <VideoHelperRow />

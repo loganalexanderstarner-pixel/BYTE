@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Builds the pinned sherpa-onnx speaker-diarization tool (speaker labels in
-# transcripts, speakers.rs) as one self-contained binary (static onnxruntime)
-# and puts it where Tauri expects the sidecar:
-# src-tauri/binaries/sherpa-diarize-<target-triple>.
+# Builds the pinned sherpa-onnx tools as self-contained binaries (static
+# onnxruntime) and puts them where Tauri expects the sidecars:
+#   src-tauri/binaries/sherpa-diarize-<target-triple>  speaker labels (speakers.rs)
+#   src-tauri/binaries/sherpa-tts-<target-triple>      BYTE's voices, Kokoro (tts.rs)
 #
 # Usage: scripts/build-sherpa.sh            # host triple
 #        TARGET_TRIPLE=aarch64-apple-darwin scripts/build-sherpa.sh
@@ -16,10 +16,11 @@ WORK="${SHERPA_WORK:-$ROOT/.cache/sherpa-onnx}"
 SRC="$WORK/src-$SHERPA_TAG"
 BUILD="$SRC/build"
 BIN="$BUILD/bin/sherpa-onnx-offline-speaker-diarization"
+TTS="$BUILD/bin/sherpa-onnx-offline-tts"
 
 mkdir -p "$WORK" "$OUT_DIR"
 
-if [ ! -f "$BIN" ]; then
+if [ ! -f "$BIN" ] || [ ! -f "$TTS" ]; then
   if [ ! -d "$SRC" ]; then
     echo "==> Fetching sherpa-onnx $SHERPA_TAG"
     git clone --quiet --depth 1 --branch "$SHERPA_TAG" https://github.com/k2-fsa/sherpa-onnx "$SRC"
@@ -34,7 +35,7 @@ if [ ! -f "$BIN" ]; then
     -DSHERPA_ONNX_ENABLE_CHECK=OFF
     -DSHERPA_ONNX_ENABLE_PORTAUDIO=OFF
     -DSHERPA_ONNX_ENABLE_WEBSOCKET=OFF
-    -DSHERPA_ONNX_ENABLE_TTS=OFF
+    -DSHERPA_ONNX_ENABLE_TTS=ON
     -DSHERPA_ONNX_ENABLE_C_API=OFF
   )
   case "$TRIPLE" in
@@ -51,11 +52,13 @@ if [ ! -f "$BIN" ]; then
   # SHERPA_CMAKE_EXTRA: extra cmake arguments (e.g. FETCHCONTENT_SOURCE_DIR_* where downloads are blocked).
   # shellcheck disable=SC2086
   cmake -S "$SRC" -B "$BUILD" "${FLAGS[@]}" ${SHERPA_CMAKE_EXTRA:-} >/dev/null
-  echo "==> Building the speaker-diarization tool with $JOBS jobs"
-  cmake --build "$BUILD" --config Release --target sherpa-onnx-offline-speaker-diarization -j "$JOBS"
+  echo "==> Building the speaker-diarization and speech tools with $JOBS jobs"
+  cmake --build "$BUILD" --config Release --target sherpa-onnx-offline-speaker-diarization sherpa-onnx-offline-tts -j "$JOBS"
 fi
 
-DEST="$OUT_DIR/sherpa-diarize-$TRIPLE"
-cp "$BIN" "$DEST"
-chmod +x "$DEST"
-echo "==> Installed $DEST"
+for pair in "$BIN:sherpa-diarize" "$TTS:sherpa-tts"; do
+  DEST="$OUT_DIR/${pair##*:}-$TRIPLE"
+  cp "${pair%%:*}" "$DEST"
+  chmod +x "$DEST"
+  echo "==> Installed $DEST"
+done

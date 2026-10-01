@@ -189,21 +189,39 @@ pub async fn say(app: Option<AppHandle>, text: &str, voice: &str, speed: &str) -
 
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn speaking() -> bool {
-    PLAYING.lock().map(|p| p.is_some()).unwrap_or(false)
+    PLAYING.lock().map(|p| p.is_some()).unwrap_or(false) || crate::tts::speaking()
 }
 
+/// Reads `text` aloud: BYTE's own voices (tts.rs) when they're downloaded, else the Mac's.
 #[tauri::command]
 pub async fn speech_say(app: AppHandle, state: State<'_, AppState>, text: String) -> AppResult<()> {
-    let (voice, speed) = {
+    speech_feed(app, state, uuid::Uuid::new_v4().to_string(), text, true).await
+}
+
+/// More of answer `id` (the whole text so far): with BYTE's voices, finished sentences start playing while
+/// the answer is still being written. With the Mac's voice, only the finished answer is read.
+#[tauri::command]
+pub async fn speech_feed(app: AppHandle, state: State<'_, AppState>, id: String, text: String, done: bool) -> AppResult<()> {
+    let (byte_voice, mac_voice, speed) = {
         let s = state.settings.lock().await;
-        (s.speech_voice.clone(), s.speech_speed.clone())
+        (s.byte_voice.clone(), s.speech_voice.clone(), s.speech_speed.clone())
     };
-    say(Some(app), &text, &voice, &speed).await
+    let models = &state.paths.models;
+    if crate::tts::usable(models) {
+        stop_playing();
+        return crate::tts::feed(&app, models, &byte_voice, &speed, &id, &text, done);
+    }
+    if done {
+        crate::tts::stop();
+        return say(Some(app), &text, &mac_voice, &speed).await;
+    }
+    Ok(())
 }
 
 #[tauri::command]
 pub fn speech_stop() {
     stop_playing();
+    crate::tts::stop();
 }
 
 #[tauri::command]

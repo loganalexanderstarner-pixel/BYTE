@@ -56,6 +56,7 @@ src-tauri/                Rust core (Tauri 2)
   src/voice.rs            voice input: whisper-cli sidecar, speech models in <models>/voice, transcribe recordings/files
   src/speakers.rs         speaker labels in transcripts: sherpa-diarize sidecar + 2 small models, matched to whisper segments
   src/media.rs            video helper: yt-dlp (downloaded on request, checksum-checked) for videos without captions
+  src/tts.rs              BYTE's voices: Kokoro via sherpa-tts sidecar, chunked + one continuous audio stream (cpal)
   src/speech.rs           answers read aloud (macOS `say`, text via a temp file), speakable(), voices
   src/wake.rs             "Hey BYTE": native mic (cpal, macOS), voice-burst detector, whisper check, opens Quick Ask
   src/quick.rs            Quick Ask window, menu-bar icon, global shortcuts from settings
@@ -89,8 +90,8 @@ scripts/                  build-llama-server.sh, LLAMA_TAG (pinned), bump.mjs
 
 On Linux, Tauri needs `libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libsoup-3.0-dev`.
 `tauri-build` requires sidecar files to exist at `src-tauri/binaries/llama-server-<host-triple>` and
-`src-tauri/binaries/whisper-cli-<host-triple>` and `src-tauri/binaries/sherpa-diarize-<host-triple>` (empty placeholders
-are fine for `cargo test`).
+`src-tauri/binaries/whisper-cli-<host-triple>`, `src-tauri/binaries/sherpa-diarize-<host-triple>` and
+`src-tauri/binaries/sherpa-tts-<host-triple>` (empty placeholders are fine for `cargo test`).
 
 ## Conventions
 

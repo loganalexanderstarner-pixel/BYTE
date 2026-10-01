@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.4 — BYTE's own natural voices
+
+- **BYTE's voices** (`tts.rs`): Kokoro v1.0 (sherpa-onnx `sherpa-onnx-offline-tts` as a fourth sidecar, `sherpa-tts`,
+  built by `scripts/build-sherpa.sh`); the 350 MB model archive from sherpa-onnx's release, SHA-256-checked and
+  unpacked on request; 28 English voices (American/British, female/male), picked in Settings → Models → Voice.
+- **Smooth, streaming speech**: finished sentences are fed while the answer streams (`speech_feed`); a short first
+  chunk starts speech quickly, later chunks are about 320 characters; one sequential maker; audio goes into one queue
+  played by a single continuous output stream (cpal), so there are no gaps. `speech://done` when the queue drains.
+- Falls back to the Mac's `say` when the voices aren't downloaded. `Downloads::start_from` downloads from any URL.
+
 ## 0.11.3 — BYTE talks back, and “Hey BYTE”
 
 - **Spoken answers** (`speech.rs`): macOS `say` with the text in a temp file, one reply at a time, Stop; `speakable()`

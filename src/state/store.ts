@@ -211,6 +211,8 @@ interface State {
   speakingId: string | null;
   /** Hands-free conversation: answers are read aloud and the mic opens again after each. */
   talk: boolean;
+  /** BYTE's own voices (tts.rs) are downloaded: answers start speaking while they're written. */
+  voicesReady: boolean;
   /** The last answer that finished (hands-free and read-aloud react to it). */
   lastAnswer: { id: string; ok: boolean; at: number } | null;
   /** "Tune for this Mac" progress while it runs (chat waits meanwhile). */
@@ -537,6 +539,8 @@ export const useStore = create<State>((set, get) => {
     let pendingContent = "";
     let pendingReasoning = "";
     let frame = 0;
+    let lastFeed = 0;
+    const streamVoice = () => get().voicesReady && canSpeak() && (get().settings?.readAloud || get().talk) && !get().conversations.find((x) => x.id === convId)?.private;
     const flush = () => {
       frame = 0;
       if (!pendingContent && !pendingReasoning) return;
@@ -545,6 +549,15 @@ export const useStore = create<State>((set, get) => {
       pendingContent = "";
       pendingReasoning = "";
       patchMessage(convId, reply.id, (m) => ({ ...m, content: m.content + c, reasoning: (m.reasoning ?? "") + r }));
+      // BYTE's voices start reading while the answer is still being written (finished sentences only).
+      if (c && streamVoice()) {
+        const text = get().conversations.find((x) => x.id === convId)?.messages.find((m) => m.id === reply.id)?.content ?? "";
+        if (/[.!?]\s/.test(c) || Date.now() - lastFeed > 1500) {
+          lastFeed = Date.now();
+          set({ speakingId: reply.id });
+          void api.speechFeed(reply.id, text, false).catch(() => undefined);
+        }
+      }
     };
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(flush);
@@ -745,7 +758,12 @@ export const useStore = create<State>((set, get) => {
       const ok = answer?.status === "done" && !!answer.content.trim();
       set({ lastAnswer: { id: reply.id, ok, at: Date.now() } });
       // Read it aloud (setting, or hands-free conversation). Only the main answer of a chat, on a Mac.
-      if (ok && answer && !answer.alt && (get().settings?.readAloud || get().talk) && canSpeak()) void get().speak(reply.id, answer.content);
+      if (ok && answer && !answer.alt && (get().settings?.readAloud || get().talk) && canSpeak()) {
+        if (get().voicesReady) {
+          set({ speakingId: reply.id });
+          void api.speechFeed(reply.id, answer.content, true).catch(() => set({ speakingId: null }));
+        } else void get().speak(reply.id, answer.content);
+      } else if (get().speakingId === reply.id) get().stopSpeaking();
       if (done && inTauri) {
         scheduleSave(done, 100);
         maybeAutotitle(done);
@@ -826,6 +844,7 @@ export const useStore = create<State>((set, get) => {
     speakingId: null,
     talk: false,
     lastAnswer: null,
+    voicesReady: false,
     loaded: [],
     projects: [],
     tune: null,
@@ -880,6 +899,7 @@ export const useStore = create<State>((set, get) => {
       });
       await events.onDownload((e) => handleDownload(e));
       await api.onSpeechDone(() => set({ speakingId: null }));
+      void api.ttsStatus().then((t) => set({ voicesReady: t.ready }), () => undefined);
       void get().refreshKb();
       await events.onKbProgress((p) => {
         set({ kbProgress: p.phase === "done" ? null : p });

@@ -68,7 +68,7 @@ jobs:
           path: .cache/sherpa-onnx
           key: sherpa-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/SHERPA_TAG', 'scripts/build-sherpa.sh') }}
 
-      - name: Build speaker-label tool (sherpa-onnx)
+      - name: Build speaker-label and voice tools (sherpa-onnx)
         run: TARGET_TRIPLE=aarch64-apple-darwin scripts/build-sherpa.sh
 
       - run: npm ci
@@ -121,6 +121,7 @@ jobs:
           test -x "$app/Contents/MacOS/llama-server"
           test -x "$app/Contents/MacOS/whisper-cli"
           test -x "$app/Contents/MacOS/sherpa-diarize"
+          test -x "$app/Contents/MacOS/sherpa-tts"
           codesign --verify --deep --strict --verbose=2 "$app"
           "$app/Contents/MacOS/llama-server" --version
           "$app/Contents/MacOS/whisper-cli" --help >/dev/null

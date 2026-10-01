@@ -336,6 +336,18 @@ function initScript({ data }) {
             ],
           };
         }
+        case "tts_status": {
+          const v = (id, name, accent, gender) => ({ id, sid: 0, name, accent, gender });
+          return {
+            ready: !!data.voiceReady, downloaded: !!data.voiceReady, sizeBytes: 349906910, key: "voice:kokoro",
+            voices: [v("af_heart", "Heart", "American", "female"), v("af_bella", "Bella", "American", "female"), v("am_michael", "Michael", "American", "male"), v("bf_emma", "Emma", "British", "female"), v("bm_george", "George", "British", "male")],
+          };
+        }
+        case "speech_feed":
+        case "tts_download":
+        case "tts_unpack":
+        case "tts_delete":
+          return null;
         case "speech_voices":
           return [
             { name: "Samantha", language: "en_US", sample: "Hello! My name is Samantha." },
@@ -1733,6 +1745,9 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.getByText("Read answers aloud").scrollIntoViewIfNeeded();
   await p.waitForTimeout(150);
   await shot(p, "35b-speech-settings");
+  await p.getByLabel("BYTE's voice", { exact: true }).scrollIntoViewIfNeeded();
+  await p.waitForTimeout(150);
+  await shot(p, "36-byte-voices");
   await p.keyboard.press("Escape");
   await p.waitForTimeout(200);
   await p.getByRole("button", { name: "Talk with BYTE" }).click();

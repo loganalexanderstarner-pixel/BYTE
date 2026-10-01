@@ -222,6 +222,9 @@ pub struct Settings {
     /// Read answers aloud (speech.rs, macOS voices).
     #[serde(default)]
     pub read_aloud: bool,
+    /// BYTE's own voice (tts.rs, a Kokoro voice id), used once the voices are downloaded.
+    #[serde(default = "default_byte_voice")]
+    pub byte_voice: String,
     /// The macOS voice ("" = the system's default voice).
     #[serde(default)]
     pub speech_voice: String,
@@ -337,6 +340,7 @@ impl Default for Settings {
             voice_speakers: true,
             read_aloud: false,
             speech_voice: String::new(),
+            byte_voice: default_byte_voice(),
             speech_speed: default_speech_speed(),
             wake_word: false,
             selection_hotkey: true,
@@ -399,6 +403,10 @@ impl Settings {
 
 fn yes() -> bool {
     true
+}
+
+fn default_byte_voice() -> String {
+    crate::tts::DEFAULT_VOICE.into()
 }
 
 fn default_speech_speed() -> String {

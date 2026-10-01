@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 import { api, errorText, inTauri } from "../../lib/api";
 import { bytes } from "../../lib/format";
-import type { MediaStatus, SpeakersStatus, SpeechVoice } from "../../lib/types";
+import type { ByteVoice, MediaStatus, SpeakersStatus, SpeechVoice, TtsStatus } from "../../lib/types";
 import { canSpeak, useStore, type DownloadState } from "../../state/store";
 
 const busy = (d?: DownloadState) => !!d && (d.phase === "downloading" || d.phase === "resuming" || d.phase === "verifying");
@@ -125,15 +125,15 @@ export function SpeechRows() {
       <label className="field">
         <span>
           Read answers aloud
-          <small>{mac ? "BYTE reads each answer with your Mac's own voice (the 🔊 on any answer does it once). Code and tables stay on screen." : "Reading aloud needs a Mac for now."}</small>
+          <small>{mac ? "BYTE reads each answer aloud, with BYTE's voices when they're downloaded, otherwise the Mac's (the 🔊 on any answer does it once). Code and tables stay on screen." : "Reading aloud needs a Mac for now."}</small>
         </span>
         <input type="checkbox" disabled={!mac} checked={!!settings?.readAloud} onChange={(e) => void update({ readAloud: e.target.checked })} />
       </label>
       {mac && (
         <div className="field">
           <span>
-            Voice and speed
-            <small>More voices: System Settings → Accessibility → Spoken Content → System voice → Manage Voices.</small>
+            Speed, and the Mac's voice
+            <small>The Mac's voice is used until BYTE's voices are downloaded. Better Mac voices (free): System Settings → Accessibility → Spoken Content → System voice → Manage Voices.</small>
           </span>
           <span className="row" style={{ gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
             <select value={settings?.speechVoice ?? ""} onChange={(e) => void update({ speechVoice: e.target.value })} aria-label="Voice">
@@ -184,5 +184,89 @@ export function WakeRow() {
       </span>
       <input type="checkbox" disabled={!mac || ready === false} checked={!!settings?.wakeWord} onChange={(e) => void update({ wakeWord: e.target.checked })} />
     </label>
+  );
+}
+
+const SAMPLE = "Hi, I'm BYTE. This is how I'll sound when I read my answers to you.";
+
+/** Settings → Models → Voice: BYTE's own voices (Kokoro, free, made on this Mac; tts.rs). */
+export function ByteVoicesRow() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const downloads = useStore((s) => s.downloads);
+  const [st, setSt] = useState<TtsStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [unpacking, setUnpacking] = useState(false);
+  const mac = canSpeak();
+  const refresh = () =>
+    void (inTauri ? api.ttsStatus() : Promise.resolve(null)).then((s) => {
+      setSt(s);
+      if (s) useStore.setState({ voicesReady: s.ready });
+    }, (e) => setError(errorText(e)));
+  useEffect(refresh, []);
+  const d = st ? downloads[st.key] : undefined;
+  // Downloaded: unpack, then they're ready.
+  useEffect(() => {
+    if (d?.phase === "finished" || (st?.downloaded && !st.ready)) {
+      setUnpacking(true);
+      void api
+        .ttsUnpack()
+        .then(refresh, (e) => setError(errorText(e)))
+        .finally(() => setUnpacking(false));
+    }
+  }, [d?.phase, st?.downloaded, st?.ready]);
+  if (!mac) return null;
+  const loading = busy(d) || unpacking;
+  const groups: [string, (v: ByteVoice) => boolean][] = [
+    ["American · female", (v) => v.accent === "American" && v.gender === "female"],
+    ["American · male", (v) => v.accent === "American" && v.gender === "male"],
+    ["British · female", (v) => v.accent === "British" && v.gender === "female"],
+    ["British · male", (v) => v.accent === "British" && v.gender === "male"],
+  ];
+  return (
+    <div className="field">
+      <span>
+        BYTE's voices
+        <small>
+          {st?.ready
+            ? "Natural voices made on this Mac (free, open source: Kokoro). BYTE starts speaking while an answer is still being written, without gaps between sentences."
+            : `Natural, human-sounding voices instead of the Mac's robotic one: free and open source (Kokoro), made on this Mac. A one-time ${st ? bytes(st.sizeBytes) : "350 MB"} download.`}
+        </small>
+        {loading && (
+          <span className="progress" aria-label={unpacking ? "Unpacking" : `Downloading ${pct([d])}%`} style={{ display: "block", marginTop: 6 }}>
+            <span style={{ width: `${unpacking ? 100 : pct([d])}%` }} />
+          </span>
+        )}
+        {error && <small className="bad">{error}</small>}
+        {d?.phase === "failed" && <small className="bad">{d.error}</small>}
+      </span>
+      {st?.ready ? (
+        <span className="row" style={{ gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <select value={settings?.byteVoice ?? "af_heart"} onChange={(e) => void update({ byteVoice: e.target.value })} aria-label="BYTE's voice">
+            {groups.map(([label, test]) => (
+              <optgroup key={label} label={label}>
+                {st.voices.filter(test).map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <button className="btn sm ghost" onClick={() => void api.speechSay(SAMPLE)} title="Hear this voice">
+            <Volume2 size={13} /> Try it
+          </button>
+          <button className="icon-btn sm" title="Delete BYTE's voices (the Mac's voice is used instead)" aria-label="Delete BYTE's voices" onClick={() => void api.ttsDelete().then(refresh, (e) => setError(errorText(e)))}>
+            <Trash2 size={13} />
+          </button>
+        </span>
+      ) : loading ? (
+        <span className="faint small">{unpacking ? "Unpacking…" : `${pct([d])}%`}</span>
+      ) : (
+        <button className="btn sm primary" onClick={() => void api.ttsDownload().catch((e) => setError(errorText(e)))}>
+          <Download size={13} /> {d?.phase === "paused" ? "Resume" : "Download"}
+        </button>
+      )}
+    </div>
   );
 }

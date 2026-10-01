@@ -863,7 +863,13 @@ impl Downloads {
 
     /// Starts downloading every file of a variant in the background. Progress
     /// arrives as `models://download` events keyed by the model key.
-    pub async fn start(
+    pub async fn start(&self, app: AppHandle, client: reqwest::Client, models_dir: PathBuf, repo: String, variant: Variant, key: String) -> AppResult<()> {
+        self.start_from(app, client, models_dir, repo, variant, key, hf_url).await
+    }
+
+    /// Like `start`, with the address of each file from `url_for(repo, file)` (files not on Hugging Face).
+    #[allow(clippy::too_many_arguments)]
+    pub async fn start_from(
         &self,
         app: AppHandle,
         client: reqwest::Client,
@@ -871,6 +877,7 @@ impl Downloads {
         repo: String,
         variant: Variant,
         key: String,
+        url_for: fn(&str, &str) -> String,
     ) -> AppResult<()> {
         let token = CancellationToken::new();
         {
@@ -885,7 +892,7 @@ impl Downloads {
             let emit = |ev: DownloadEvent| {
                 let _ = app.emit(DOWNLOAD_EVENT, ev);
             };
-            let result = download_variant(&client, &models_dir, &repo, &variant, &key, &token, &emit, &hf_url).await;
+            let result = download_variant(&client, &models_dir, &repo, &variant, &key, &token, &emit, &url_for).await;
             active.lock().await.remove(&key);
             match result {
                 Ok(()) => emit(DownloadEvent::Finished { id: key }),

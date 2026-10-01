@@ -17,6 +17,20 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-01
 
+### (this commit) — v0.11.4: BYTE's own natural voices (Kokoro), smooth streaming speech
+- **Why:** owner: the Mac's voice sounds robotic; wanted voices like the big assistants, several to choose from,
+  smooth (no talk-pause-talk) and free.
+- **What:** `src-tauri/src/tts.rs` (new: voices, download/unpack, sentences/chunks, sherpa-tts args, WAV read +
+  resample, speaking queue + cpal output on macOS, `tts_*` commands, tests + `e2e_kokoro_speaks`), `speech.rs`
+  (`speech_feed`, BYTE's voices first, `say` fallback), `models.rs` (`Downloads::start_from`), settings `byteVoice`,
+  `lib.rs` wiring, `scripts/build-sherpa.sh` (TTS on, installs `sherpa-tts`), `tauri.conf.json` externalBin,
+  `ci.yml`/`release.yml`/`mac-engine.yml`/`build-mac.sh`; UI `ByteVoicesRow`, store streams sentences to
+  `speechFeed` while answering, api/types; screenshot `36-byte-voices`.
+- **Verify:** `cargo test tts speech`; with sherpa-onnx's `sherpa-onnx-offline-tts` and the Kokoro folder:
+  `BYTE_TEST_SHERPA_TTS=<bin> BYTE_TEST_KOKORO=<dir> cargo test e2e_kokoro -- --ignored`; on a Mac: download BYTE's
+  voices, pick one, Try it, then Talk mode.
+- **Undo:** `git revert` this commit (BYTE goes back to the Mac's voice).
+
 ### (this commit) — v0.11.3: spoken answers, hands-free conversation, “Hey BYTE”
 - **Why:** Phase 11 items 1 (hands-free) and 4 (wake word); BYTE couldn't speak at all.
 - **What:** `src-tauri/src/speech.rs`, `src-tauri/src/wake.rs` (+ tests and Mac e2e), `voice::transcribe_short`,

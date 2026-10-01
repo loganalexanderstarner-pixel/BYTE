@@ -91,6 +91,8 @@ export interface Settings {
   voiceSpeakers?: boolean;
   /** Read answers aloud (speech.rs). */
   readAloud?: boolean;
+  /** BYTE's own voice (a Kokoro id, e.g. "af_heart"). */
+  byteVoice?: string;
   /** A macOS voice name ("" = the system default). */
   speechVoice?: string;
   speechSpeed?: "slow" | "normal" | "fast";
@@ -1141,6 +1143,24 @@ export interface VoiceStatus {
   models: VoiceInfo[];
   /** The model voice input uses now (null until one is downloaded). */
   ready: string | null;
+}
+
+/** Rust `tts::Voice`: one of BYTE's own voices (Kokoro). */
+export interface ByteVoice {
+  id: string;
+  sid: number;
+  name: string;
+  accent: "American" | "British";
+  gender: "female" | "male";
+}
+
+/** Rust `tts::TtsStatus`. */
+export interface TtsStatus {
+  ready: boolean;
+  downloaded: boolean;
+  sizeBytes: number;
+  key: string;
+  voices: ByteVoice[];
 }
 
 /** Rust `speech::Voice`: one of the Mac's voices. */

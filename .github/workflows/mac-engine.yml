@@ -52,6 +52,7 @@ on:
       - "src-tauri/src/media.rs"
       - "src-tauri/src/speech.rs"
       - "src-tauri/src/wake.rs"
+      - "src-tauri/src/tts.rs"
       - "scripts/build-sherpa.sh"
       - "scripts/SHERPA_TAG"
       - ".github/workflows/mac-engine.yml"
@@ -99,7 +100,7 @@ jobs:
         with:
           path: .cache/sherpa-onnx
           key: sherpa-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/SHERPA_TAG', 'scripts/build-sherpa.sh') }}
-      - name: Build speaker-label tool (sherpa-onnx)
+      - name: Build speaker-label and voice tools (sherpa-onnx)
         run: scripts/build-sherpa.sh
       - name: Build frontend (embedded into the app)
         run: npm ci && npm run build
@@ -177,6 +178,19 @@ jobs:
           [ -f four.wav ] || curl -fsSL -o four.wav "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/0-four-speakers-zh.wav"
           echo "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079  seg.onnx" | shasum -a 256 -c
           echo "c59158379255ad66e161679cca6af8d52d51e389e3224ab7d7a7baae295c2db5  emb.onnx" | shasum -a 256 -c
+      - name: Cache voice test model (Kokoro)
+        uses: actions/cache@v4
+        with:
+          path: .cache/kokoro
+          key: kokoro-multi-lang-v1_0
+      - name: Download voice test model (Kokoro v1.0)
+        run: |
+          mkdir -p .cache/kokoro && cd .cache/kokoro
+          if [ ! -f kokoro-multi-lang-v1_0/model.onnx ]; then
+            curl -fsSL -o k.tar.bz2 "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2"
+            echo "c5f7e2d2caf082bc1d20fb70334a61d99d20b484500aad32e7cf84c128ea3298  k.tar.bz2" | shasum -a 256 -c
+            tar xjf k.tar.bz2 && rm k.tar.bz2
+          fi
       - name: End-to-end test against the real engine
         working-directory: src-tauri
         env:
@@ -193,4 +207,6 @@ jobs:
           BYTE_TEST_SPEAKER_SEG: ${{ github.workspace }}/.cache/speakers/seg.onnx
           BYTE_TEST_SPEAKER_EMB: ${{ github.workspace }}/.cache/speakers/emb.onnx
           BYTE_TEST_SPEAKERS_AUDIO: ${{ github.workspace }}/.cache/speakers/four.wav
+          BYTE_TEST_SHERPA_TTS: ${{ github.workspace }}/src-tauri/binaries/sherpa-tts-aarch64-apple-darwin
+          BYTE_TEST_KOKORO: ${{ github.workspace }}/.cache/kokoro/kokoro-multi-lang-v1_0
         run: cargo test --locked e2e -- --ignored --nocapture --test-threads=1

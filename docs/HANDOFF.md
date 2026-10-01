@@ -479,7 +479,8 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 (with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
 **Next:** **Phase 10 is complete** (v0.10.0–v0.10.6, all released). Phase 11 (input & windows) has started: v0.11.0
 Quick Ask + menu bar + ⌘K palette + custom shortcuts, v0.11.1 voice input and v0.11.2 speaker labels + videos without
-captions and v0.11.3 spoken answers + hands-free + "Hey BYTE" are done; next v0.11.4 notes, web clipper, mind maps
+captions v0.11.3 spoken answers + hands-free + "Hey BYTE" and v0.11.4 BYTE's own natural voices (Kokoro) are done; next
+v0.11.5 notes, web clipper, mind maps
 (see the Phase 11 section). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
@@ -674,6 +675,14 @@ finally when `readAloud` or Talk), 🔊 in `MessageView`, Talk loop in `Composer
 `voice::transcribe_short` with `--prompt "Hey BYTE"`, `is_wake`, `quick::show` + `wake://heard` to the Quick Ask
 window, `wake_pause` from the UI while recording). Mac test: `e2e_wake_word` (say → afconvert → detect),
 `e2e_say_writes_audio`.
+**Done in v0.11.4:** `tts.rs`: Kokoro v1.0 via the `sherpa-tts` sidecar (sherpa-onnx `sherpa-onnx-offline-tts`, from
+`build-sherpa.sh`), model archive from sherpa-onnx's `tts-models` release into `<models>/voice/kokoro` (`.ready`
+marker after unpack), 28 voices (`VOICES`, setting `byteVoice`). Streaming: the store feeds `speech_feed(id, text,
+done)` with the answer so far; `tts::feed` makes chunks from new finished sentences in one sequential maker task,
+resamples to the device rate and appends to one queue; a single cpal output stream plays it (no gaps); `speech://done`
+when generation is done and the queue is empty. Without the voices, `say` is used. Note: our local Linux static build
+of sherpa-tts crashes (onnxruntime static `std::regex`); local tests use the official prebuilt binary; macOS builds
+with libc++ (checked by the Mac test).
 Later: the Finder "Ask BYTE" Quick Action (a Shortcut or Service that opens `byte://ask`), a floating desktop
 widget.
 1. **Voice**: whisper (sidecar `whisper-cli`, small/base models) push-to-talk / hold Space; hands-free

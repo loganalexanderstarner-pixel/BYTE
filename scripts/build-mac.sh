@@ -53,6 +53,7 @@ dmg=$(ls src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg | head -
 test -x "$app/Contents/MacOS/llama-server"
 test -x "$app/Contents/MacOS/whisper-cli"
 test -x "$app/Contents/MacOS/sherpa-diarize"
+test -x "$app/Contents/MacOS/sherpa-tts"
 codesign --verify --deep --strict "$app"
 "$app/Contents/MacOS/llama-server" --version >/dev/null 2>&1 || true
 echo "App: $app"

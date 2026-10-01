@@ -40,6 +40,7 @@ mod quick;
 mod media;
 mod speakers;
 mod speech;
+mod tts;
 mod wake;
 mod voice;
 mod quality;
@@ -289,6 +290,11 @@ pub fn run() {
             media::media_delete,
             speech::speech_say,
             speech::speech_stop,
+            speech::speech_feed,
+            tts::tts_status,
+            tts::tts_download,
+            tts::tts_unpack,
+            tts::tts_delete,
             speech::speech_voices,
             wake::wake_pause,
             wake::wake_ready,
