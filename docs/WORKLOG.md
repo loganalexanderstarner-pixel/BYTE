@@ -17,6 +17,23 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-01
 
+### (this commit) — v0.11.5: voice catalog, more human speech, cloud voice, "Hey BYTE" answers aloud
+- **Why:** owner: voices as expressive and human as the big assistants; many voices from different free providers
+  (no accounts) with descriptions; voice on the Mac or in the cloud; not taking memory from the chat model; and
+  "Hey BYTE" working right after login.
+- **What:** `scripts/build-voices.mjs` + `scripts/voices-cache.json` → `src-tauri/catalog/voices.json`;
+  `src-tauri/src/voices.rs` (catalog, per-engine args, downloads/unpack, tests + `e2e_voices_speak`); `tts.rs`
+  (packages, paragraph-aware chunks, pauses, fades, `Delivery` with cloud, new commands); `cloud/voice.rs` +
+  `CloudClient::post_bytes`; `speech.rs` (`speakable` paragraphs + spoken steps, cloud choice, `speech_say` voice);
+  `prompt::SPOKEN` + `ChatRequest.spoken`; settings `speechStyle`/`voiceWhere`/`cloudVoice`; UI `VoiceBrowser.tsx`,
+  `lib/voices.ts` (+ test), `ByteVoicesRow`, `WakeRow`, Composer follow-up listening, `handsfree.isDone` (+ test),
+  `public/voices/*.wav`; `mac-engine.yml` downloads four packages for the e2e; `CLUSTER-REQUESTS.md` request 7;
+  screenshots `36-*`, `37-*`.
+- **Verify:** `cargo test voices tts speech cloud::voice`; `npx vitest run src/lib/voices.test.ts src/lib/handsfree.test.ts`;
+  locally every engine speaks through BYTE's code (`BYTE_TEST_SHERPA_TTS=<prebuilt> BYTE_TEST_VOICES=<dir> cargo
+  test e2e_voices_speak -- --ignored`); on a Mac: Browse voices → download → ▶ → use; Talk mode; "Hey BYTE, …".
+- **Undo:** `git revert` this commit (back to Kokoro only).
+
 ### (this commit) — “Hey BYTE”: quick phrases at the start of the audio were dropped
 - **Why:** the Mac test (`e2e_wake_word`, run 36891745882) failed: "didn't hear Hey BYTE". `say` starts speaking at
   the first sample, so the voice detector had no pre-roll, yet subtracted a full 200 ms when measuring the burst; a

@@ -10,7 +10,7 @@ import { VoiceModels } from "./VoiceModels";
 export interface MicHandle {
   /** Starts recording (holding Space); false when voice isn't set up yet. `auto`: stops by itself after a pause
    * (hands-free), and says "nothing" through onNothing when no one speaks. */
-  start(opts?: { auto?: boolean }): Promise<boolean>;
+  start(opts?: { auto?: boolean; waitMs?: number }): Promise<boolean>;
   /** Stops and transcribes. */
   stop(): void;
   recording(): boolean;
@@ -31,7 +31,7 @@ export const MicButton = forwardRef<MicHandle, { onText: (text: string, auto: bo
   const nothingRef = useRef(onNothing);
   nothingRef.current = onNothing;
 
-  const start = useCallback(async (opts?: { auto?: boolean }): Promise<boolean> => {
+  const start = useCallback(async (opts?: { auto?: boolean; waitMs?: number }): Promise<boolean> => {
     if (rec.current) return true;
     setError(null);
     const st = inTauri ? await api.voiceStatus().catch(() => null) : null;
@@ -39,7 +39,7 @@ export const MicButton = forwardRef<MicHandle, { onText: (text: string, auto: bo
       setPhase({ kind: "setup" });
       return false;
     }
-    auto.current = opts?.auto ? new SilenceDetector(Date.now()) : null;
+    auto.current = opts?.auto ? new SilenceDetector(Date.now(), 1200, opts.waitMs ?? 20_000) : null;
     try {
       // "Hey BYTE" listening pauses while the mic is in use here.
       if (inTauri) void api.wakePause(true).catch(() => undefined);

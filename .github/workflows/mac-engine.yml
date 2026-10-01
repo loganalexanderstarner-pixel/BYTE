@@ -53,6 +53,9 @@ on:
       - "src-tauri/src/speech.rs"
       - "src-tauri/src/wake.rs"
       - "src-tauri/src/tts.rs"
+      - "src-tauri/src/voices.rs"
+      - "src-tauri/src/cloud/voice.rs"
+      - "src-tauri/catalog/voices.json"
       - "scripts/build-sherpa.sh"
       - "scripts/SHERPA_TAG"
       - ".github/workflows/mac-engine.yml"
@@ -191,6 +194,23 @@ jobs:
             echo "c5f7e2d2caf082bc1d20fb70334a61d99d20b484500aad32e7cf84c128ea3298  k.tar.bz2" | shasum -a 256 -c
             tar xjf k.tar.bz2 && rm k.tar.bz2
           fi
+      - name: Cache voice catalog test models (Kitten, Piper, Supertonic, Pocket)
+        uses: actions/cache@v4
+        with:
+          path: .cache/voices
+          key: voices-${{ hashFiles('src-tauri/catalog/voices.json') }}
+      - name: Download voice catalog test models
+        run: |
+          mkdir -p .cache/voices && cd .cache/voices
+          for id in kitten-nano-v0_8 piper-en_US-amy-medium supertonic-3 pocket-tts; do
+            read -r archive folder sha <<<"$(node -e 'const p=require(process.argv[1]).packages.find(x=>x.id===process.argv[2]);console.log(p.archive,p.folder,p.sha256)' "$GITHUB_WORKSPACE/src-tauri/catalog/voices.json" "$id")"
+            if [ ! -d "$folder" ]; then
+              curl -fsSL -o v.tar.bz2 "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/$archive"
+              echo "$sha  v.tar.bz2" | shasum -a 256 -c
+              tar xjf v.tar.bz2 && rm v.tar.bz2
+            fi
+          done
+          ln -sfn "$GITHUB_WORKSPACE/.cache/kokoro/kokoro-multi-lang-v1_0" kokoro-multi-lang-v1_0
       - name: End-to-end test against the real engine
         working-directory: src-tauri
         env:
@@ -209,4 +229,5 @@ jobs:
           BYTE_TEST_SPEAKERS_AUDIO: ${{ github.workspace }}/.cache/speakers/four.wav
           BYTE_TEST_SHERPA_TTS: ${{ github.workspace }}/src-tauri/binaries/sherpa-tts-aarch64-apple-darwin
           BYTE_TEST_KOKORO: ${{ github.workspace }}/.cache/kokoro/kokoro-multi-lang-v1_0
+          BYTE_TEST_VOICES: ${{ github.workspace }}/.cache/voices
         run: cargo test --locked e2e -- --ignored --nocapture --test-threads=1

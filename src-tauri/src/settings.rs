@@ -222,9 +222,18 @@ pub struct Settings {
     /// Read answers aloud (speech.rs, macOS voices).
     #[serde(default)]
     pub read_aloud: bool,
-    /// BYTE's own voice (tts.rs, a Kokoro voice id), used once the voices are downloaded.
+    /// BYTE's own voice (voices.rs: "<package>/<speaker>"), used once that voice is downloaded.
     #[serde(default = "default_byte_voice")]
     pub byte_voice: String,
+    /// How BYTE speaks: "calm", "natural" or "lively" (pace and pauses).
+    #[serde(default = "default_speech_style")]
+    pub speech_style: String,
+    /// Where BYTE's voice is made: "mac", "cloud" or "auto" (the cloud when it's connected and has voices).
+    #[serde(default = "default_voice_where")]
+    pub voice_where: String,
+    /// The BYTE Cloud voice to use (from the cloud's voice list; "" = its default).
+    #[serde(default)]
+    pub cloud_voice: String,
     /// The macOS voice ("" = the system's default voice).
     #[serde(default)]
     pub speech_voice: String,
@@ -341,6 +350,9 @@ impl Default for Settings {
             read_aloud: false,
             speech_voice: String::new(),
             byte_voice: default_byte_voice(),
+            speech_style: default_speech_style(),
+            voice_where: default_voice_where(),
+            cloud_voice: String::new(),
             speech_speed: default_speech_speed(),
             wake_word: false,
             selection_hotkey: true,
@@ -406,7 +418,15 @@ fn yes() -> bool {
 }
 
 fn default_byte_voice() -> String {
-    crate::tts::DEFAULT_VOICE.into()
+    crate::voices::DEFAULT_VOICE.into()
+}
+
+fn default_speech_style() -> String {
+    "natural".into()
+}
+
+fn default_voice_where() -> String {
+    "mac".into()
 }
 
 fn default_speech_speed() -> String {

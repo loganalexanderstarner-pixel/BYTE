@@ -92,7 +92,13 @@ export interface Settings {
   /** Read answers aloud (speech.rs). */
   readAloud?: boolean;
   /** BYTE's own voice (a Kokoro id, e.g. "af_heart"). */
+  /** BYTE's voice: "<package>/<speaker>" (voices.rs). */
   byteVoice?: string;
+  /** "calm" | "natural" | "lively" */
+  speechStyle?: string;
+  /** Where BYTE's voice is made: "mac" | "cloud" | "auto". */
+  voiceWhere?: string;
+  cloudVoice?: string;
   /** A macOS voice name ("" = the system default). */
   speechVoice?: string;
   speechSpeed?: "slow" | "normal" | "fast";
@@ -1145,22 +1151,56 @@ export interface VoiceStatus {
   ready: string | null;
 }
 
-/** Rust `tts::Voice`: one of BYTE's own voices (Kokoro). */
-export interface ByteVoice {
+/** Rust `voices::Speaker`: one voice in a package. */
+export interface VoiceSpeaker {
   id: string;
   sid: number;
   name: string;
-  accent: "American" | "British";
-  gender: "female" | "male";
+  /** "en-US", "de-DE", "en" */
+  lang: string;
+  gender: "female" | "male" | "";
+  about: string;
+  ref?: string;
 }
 
-/** Rust `tts::TtsStatus`. */
-export interface TtsStatus {
-  ready: boolean;
-  downloaded: boolean;
-  sizeBytes: number;
-  key: string;
-  voices: ByteVoice[];
+/** Rust `voices::Package`: one free voice download (one engine, one or many speakers). */
+export interface VoicePackage {
+  id: string;
+  /** kokoro | vits | kitten | supertonic | pocket */
+  engine: string;
+  provider: string;
+  name: string;
+  about: string;
+  archive: string;
+  folder: string;
+  dir?: string;
+  size: number;
+  sha256: string;
+  /** Memory while speaking. */
+  ramMb: number;
+  quality: string;
+  license: string;
+  expressive: boolean;
+  languages: string[];
+  languageName: string;
+  speakers: VoiceSpeaker[];
+}
+
+/** Rust `tts::VoicesStatus`. */
+export interface VoicesStatus {
+  ready: string[];
+  downloaded: string[];
+  canSpeak: boolean;
+}
+
+/** Rust `cloud::voice::CloudVoice`: a voice the BYTE cloud offers. */
+export interface CloudVoice {
+  id: string;
+  name: string;
+  about: string;
+  lang: string;
+  gender: string;
+  expressive: boolean;
 }
 
 /** Rust `speech::Voice`: one of the Mac's voices. */

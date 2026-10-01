@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.11.5 — A voice catalog and more human speech
+
+- **Voice catalog** (`voices.rs`, `catalog/voices.json` from `scripts/build-voices.mjs`): 167 packages / 2,346 voices
+  from sherpa-onnx's `tts-models` release, each with a pinned size and SHA-256 (archives streamed and hashed once,
+  cached in `scripts/voices-cache.json`). Engines: Kokoro, Piper (VITS), Kitten, Supertonic 3, Pocket TTS, all run by
+  the same `sherpa-tts` sidecar with per-engine arguments; at most half the CPU cores. The setting is
+  `"<package>/<speaker>"`; v0.11.4's Kokoro-only value still works and its download is kept.
+- **Voice browser** (`VoiceBrowser.tsx`, `lib/voices.ts`): filters, provider samples (`public/voices/*.wav`), download /
+  unpack / delete, ▶ per voice (`speech_say` with a voice), memory while speaking.
+- **More human speech:** `ChatRequest.spoken` adds a talk-like-a-person rule (`prompt::SPOKEN`); `speakable()` keeps
+  paragraphs and says numbered steps as "First… Second…"; chunks never cross a paragraph, are trimmed and faded, and
+  are followed by a pause (longer after a paragraph); questions slightly slower; setting `speechStyle`
+  (calm/natural/lively).
+- **Cloud voice** (`cloud/voice.rs`, setting `voiceWhere`/`cloudVoice`): `GET /api/tts/voices`, `POST /api/tts` into the
+  same queue; 404 = no cloud voices (remembered 10 minutes); falls back to the Mac's voice; never for private chats.
+  Cluster request 7.
+- **“Hey BYTE”:** a wake turn's answer is always spoken, then BYTE listens 8 s for a follow-up (`isDone` ends it); the
+  Wake row offers "also open BYTE at login".
+
 ## 0.11.4 — BYTE's own natural voices
 
 - **BYTE's voices** (`tts.rs`): Kokoro v1.0 (sherpa-onnx `sherpa-onnx-offline-tts` as a fourth sidecar, `sherpa-tts`,

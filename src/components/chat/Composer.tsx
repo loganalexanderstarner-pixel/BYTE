@@ -10,7 +10,7 @@ import { displayName } from "../../lib/models";
 import { AttachmentChips, LibraryPicker, LocalFileChips } from "./Attachments";
 import { MemoryHelper } from "../MemoryHelper";
 import { MicButton, type MicHandle } from "./MicButton";
-import { isStopPhrase } from "../../lib/handsfree";
+import { isStopPhrase, isDone } from "../../lib/handsfree";
 import type { Mode, ThinkingPref } from "../../lib/types";
 import { canSpeak, spaceOf, useStore, workspaceOf } from "../../state/store";
 
@@ -62,18 +62,34 @@ export function Composer() {
   const lastAnswer = useStore((s) => s.lastAnswer);
   // A spoken turn was sent and BYTE's answer hasn't been heard out yet.
   const awaiting = useRef(false);
-  // "Hey BYTE" opened this window: send what's said next (one turn).
+  // "Hey BYTE" opened this window: send what's said next, answer out loud, then listen briefly for a follow-up.
   const wakeTurn = useRef(false);
+  const followUp = useRef(false);
   const onSpoken = (spoken: string, auto: boolean) => {
-    if (auto && (talk || wakeTurn.current)) {
+    if (auto && wakeTurn.current && !talk) {
       wakeTurn.current = false;
-      if (talk && isStopPhrase(spoken)) return setTalk(false);
-      awaiting.current = talk;
+      if (isDone(spoken)) return;
+      followUp.current = true;
+      void useStore.getState().send(spoken, { spoken: true });
+      return;
+    }
+    if (auto && talk) {
+      if (isStopPhrase(spoken)) return setTalk(false);
+      awaiting.current = true;
       void useStore.getState().send(spoken);
       return;
     }
     addSpoken(spoken);
   };
+  useEffect(() => {
+    // A "Hey BYTE" answer has been said: listen about 8 seconds for a follow-up ("and tomorrow?").
+    if (followUp.current && !talk && !busy && !speakingId && lastAnswer) {
+      followUp.current = false;
+      if (!lastAnswer.ok) return;
+      wakeTurn.current = true;
+      setTimeout(() => void mic.current?.start({ auto: true, waitMs: 8000 }), 250);
+    }
+  }, [talk, busy, speakingId, lastAnswer]);
   useEffect(() => {
     if (talk) {
       awaiting.current = false;
@@ -350,7 +366,10 @@ export function Composer() {
           spellCheck
         />
         <div className="composer-bar">
-          {voiceOn && <MicButton ref={mic} onText={onSpoken} onNothing={() => talk && setTalk(false)} />}
+          {voiceOn && <MicButton ref={mic} onText={onSpoken} onNothing={() => {
+                wakeTurn.current = false;
+                if (talk) setTalk(false);
+              }} />}
           {voiceOn && (
             <button
               className={`icon-btn ${talk ? "talk-on" : ""}`}

@@ -41,6 +41,7 @@ mod media;
 mod speakers;
 mod speech;
 mod tts;
+mod voices;
 mod wake;
 mod voice;
 mod quality;
@@ -291,10 +292,12 @@ pub fn run() {
             speech::speech_say,
             speech::speech_stop,
             speech::speech_feed,
-            tts::tts_status,
-            tts::tts_download,
-            tts::tts_unpack,
-            tts::tts_delete,
+            tts::voices_catalog,
+            tts::cloud_voices,
+            tts::voices_status,
+            tts::tts_voice_download,
+            tts::tts_voice_unpack,
+            tts::tts_voice_delete,
             speech::speech_voices,
             wake::wake_pause,
             wake::wake_ready,

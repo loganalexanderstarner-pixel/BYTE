@@ -56,7 +56,8 @@ src-tauri/                Rust core (Tauri 2)
   src/voice.rs            voice input: whisper-cli sidecar, speech models in <models>/voice, transcribe recordings/files
   src/speakers.rs         speaker labels in transcripts: sherpa-diarize sidecar + 2 small models, matched to whisper segments
   src/media.rs            video helper: yt-dlp (downloaded on request, checksum-checked) for videos without captions
-  src/tts.rs              BYTE's voices: Kokoro via sherpa-tts sidecar, chunked + one continuous audio stream (cpal)
+  src/tts.rs              BYTE's voices: speaking pipeline (chunks, pauses, fades) + one continuous audio stream (cpal)
+  src/voices.rs           voice catalog (catalog/voices.json: Kokoro, Piper, Kitten, Supertonic, Pocket), per-engine args
   src/speech.rs           answers read aloud (macOS `say`, text via a temp file), speakable(), voices
   src/wake.rs             "Hey BYTE": native mic (cpal, macOS), voice-burst detector, whisper check, opens Quick Ask
   src/quick.rs            Quick Ask window, menu-bar icon, global shortcuts from settings
@@ -64,7 +65,7 @@ src-tauri/                Rust core (Tauri 2)
   src/router.rs           per-turn thinking/length plan by mode
   src/prompt.rs           system prompt (identity, date, mode rules)
   src/backend.rs          ModelBackend trait: LocalLlama + Cloud, fallback rules (chat_send goes through it)
-  src/cloud/              cloud mode (docs/CLOUD-MODE.md): client + SSE follower, Keychain key store, commands
+  src/cloud/              cloud mode (docs/CLOUD-MODE.md): client + SSE follower, Keychain key store, commands, voice.rs (cloud voices)
   src/commands.rs         #[tauri::command] wrappers (thin)
   src/settings.rs         persisted settings (camelCase JSON)
   binaries/               sidecars, built by scripts (gitignored)

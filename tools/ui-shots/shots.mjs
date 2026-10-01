@@ -15,6 +15,9 @@ const CATALOG = JSON.parse(readFileSync(join(here, "../../src-tauri/catalog/mode
 const DETAILS = new Map(CATALOG.models.map((m) => [m.id, { details: m.details ?? null, ...(m.tags ? { tags: m.tags } : {}) }]));
 const VISION = new Map(CATALOG.models.filter((m) => m.vision).map((m) => [m.id, m.vision.file.size]));
 
+// The real voice catalog, trimmed (the big multi-speaker packages keep a few speakers).
+const VOICE_CATALOG = JSON.parse(readFileSync(join(here, "../../src-tauri/catalog/voices.json"), "utf8")).packages.map((p) => ({ ...p, speakers: p.speakers.slice(0, 40) }));
+
 const URL = process.env.URL ?? "http://localhost:4173/";
 const OUT = process.env.OUT ?? join(here, "out");
 mkdirSync(OUT, { recursive: true });
@@ -336,17 +339,16 @@ function initScript({ data }) {
             ],
           };
         }
-        case "tts_status": {
-          const v = (id, name, accent, gender) => ({ id, sid: 0, name, accent, gender });
-          return {
-            ready: !!data.voiceReady, downloaded: !!data.voiceReady, sizeBytes: 349906910, key: "voice:kokoro",
-            voices: [v("af_heart", "Heart", "American", "female"), v("af_bella", "Bella", "American", "female"), v("am_michael", "Michael", "American", "male"), v("bf_emma", "Emma", "British", "female"), v("bm_george", "George", "British", "male")],
-          };
-        }
+        case "voices_catalog":
+          return data.voiceCatalog ?? [];
+        case "voices_status":
+          return { ready: data.voiceReady ? ["kokoro-v1_0", "piper-en_GB-vctk-medium"] : [], downloaded: [], canSpeak: true };
+        case "cloud_voices":
+          return [];
         case "speech_feed":
-        case "tts_download":
-        case "tts_unpack":
-        case "tts_delete":
+        case "tts_voice_download":
+        case "tts_voice_unpack":
+        case "tts_voice_delete":
           return null;
         case "speech_voices":
           return [
@@ -1728,7 +1730,7 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await ctx.close();
 }
 {
-  const { p, ctx, errors } = await page(true, "midnight", { voiceReady: true });
+  const { p, ctx, errors } = await page(true, "midnight", { voiceReady: true, voiceCatalog: VOICE_CATALOG });
   await p.getByRole("button", { name: "Voice input" }).click();
   await p.waitForTimeout(1600);
   await shot(p, "33b-voice-recording");
@@ -1745,9 +1747,21 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.getByText("Read answers aloud").scrollIntoViewIfNeeded();
   await p.waitForTimeout(150);
   await shot(p, "35b-speech-settings");
-  await p.getByLabel("BYTE's voice", { exact: true }).scrollIntoViewIfNeeded();
+  await p.getByText("How BYTE speaks", { exact: true }).scrollIntoViewIfNeeded();
   await p.waitForTimeout(150);
   await shot(p, "36-byte-voices");
+  await p.getByRole("button", { name: "Browse voices" }).click();
+  await p.waitForTimeout(300);
+  await p.getByLabel("Search voices").scrollIntoViewIfNeeded();
+  await shot(p, "37-voice-browser");
+  await p.locator(".voice-card.active").scrollIntoViewIfNeeded();
+  await p.waitForTimeout(150);
+  await shot(p, "37b-voice-card");
+  await p.getByRole("button", { name: "Light on memory" }).click();
+  await p.getByLabel("Search voices").scrollIntoViewIfNeeded();
+  await p.waitForTimeout(150);
+  await shot(p, "37c-voice-light");
+  await p.getByRole("button", { name: "Close", exact: true }).click();
   await p.keyboard.press("Escape");
   await p.waitForTimeout(200);
   await p.getByRole("button", { name: "Talk with BYTE" }).click();

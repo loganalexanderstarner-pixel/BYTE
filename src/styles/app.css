@@ -5609,3 +5609,31 @@ kbd {
     animation: none;
   }
 }
+
+/* Voice browser (Settings → Models → Voice) */
+.voice-browser {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.voice-speakers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.voice-speaker {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.85em;
+}
+.voice-speaker.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.field small.warn {
+  color: var(--warn);
+}

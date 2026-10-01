@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isStopPhrase, SilenceDetector } from "./handsfree";
+import { isDone, isStopPhrase, SilenceDetector } from "./handsfree";
 
 const run = (levels: number[], step = 100) => {
   const d = new SilenceDetector(0);
@@ -28,5 +28,10 @@ describe("hands-free listening", () => {
   it("knows when the user is done talking", () => {
     for (const yes of ["Stop.", "That's all", "okay stop listening", "Goodbye!", "Thanks Byte, that's all", "never mind", "bye byte"]) expect(isStopPhrase(yes), yes).toBe(true);
     for (const no of ["Stop the timer at 5", "That's all the info I need about Rome?", "What's a goodbye letter?", "bye week schedule"]) expect(isStopPhrase(no), no).toBe(false);
+  });
+
+  it("ends a Hey BYTE follow-up on thanks", () => {
+    for (const yes of ["Thanks!", "thank you byte", "No thanks", "That's it", "okay thanks", "Stop"]) expect(isDone(yes), yes).toBe(true);
+    for (const no of ["Thanks, and what about tomorrow?", "thank you notes ideas", "and in Paris?"]) expect(isDone(no), no).toBe(false);
   });
 });

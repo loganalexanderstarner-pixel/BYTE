@@ -45,3 +45,13 @@ export function isStopPhrase(text: string): boolean {
     .trim();
   return /^(ok(ay)? )?(stop( listening| talking)?|that'?s all|that is all|goodbye|bye( bye)?( byte)?|thanks? (byte|you),? (that'?s all|bye)|never ?mind|end conversation|we'?re done)( byte| thanks| thank you)?$/.test(t);
 }
+
+/** Ends a "Hey BYTE" follow-up: a thank-you or a stop phrase. */
+export function isDone(text: string): boolean {
+  const t = text
+    .toLowerCase()
+    .replace(/[^a-z' ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return isStopPhrase(text) || /^(no,? )?(thanks|thank you|cheers|that'?s it|perfect thanks|great thanks|ok(ay)? thanks?)( byte| a lot| so much)?$/.test(t);
+}

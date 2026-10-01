@@ -137,6 +137,13 @@ mod memory_tests {
     }
 }
 
+/// When the answer will be heard rather than read: talk like a person, not a document.
+pub const SPOKEN: &str = "\n\nThis answer will be spoken aloud to the user, so answer the way a friendly person talks: \
+lead with the answer in the first sentence; short, natural sentences with contractions; a brief, genuine reaction \
+where it fits (\"Oh, nice.\", \"Hmm, good question.\", \"Ah, that's a tricky one.\"); no tables, headings, \
+code or links unless the user asked for them; at most three short steps or points, said in words (\"First… then… \
+finally…\"); keep it under about 120 words unless the user asked for more, and offer to go deeper.";
+
 /// Instructions for every chat in a project.
 pub fn project_section(name: &str, instructions: &str) -> String {
     let i = instructions.trim();

@@ -622,6 +622,9 @@ pub struct ChatRequest {
     /// Don't reuse an earlier answer ("Ask again").
     #[serde(default)]
     pub fresh: bool,
+    /// The answer will be heard (read aloud, Talk mode, "Hey BYTE"): BYTE answers like a person talking.
+    #[serde(default)]
+    pub spoken: bool,
     /// A job asked for with a button (e.g. Fact-check).
     #[serde(default)]
     pub task: Option<crate::agent::Task>,

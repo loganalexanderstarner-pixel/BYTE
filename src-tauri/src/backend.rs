@@ -328,6 +328,9 @@ impl Setup {
             let memories: Vec<String> = state.db.memories()?.into_iter().map(|m| m.text).collect();
             system.push_str(&prompt::memory_section(about_me.as_deref(), &memories, true));
         }
+        if request.spoken {
+            system.push_str(prompt::SPOKEN);
+        }
         if let Some(project) = request.project_id.as_deref().filter(|p| !p.is_empty()).map(|p| state.db.project(p)).transpose()?.flatten() {
             system.push_str(&prompt::project_section(&project.name, &project.instructions));
         }
@@ -523,6 +526,7 @@ mod tests {
             assistant_id: None,
             cloud: None,
             fresh: false,
+            spoken: false,
             task: None,
         }
     }

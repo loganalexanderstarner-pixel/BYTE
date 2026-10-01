@@ -1,10 +1,12 @@
 import { Download, RefreshCw, Trash2, Volume2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { api, errorText, inTauri } from "../../lib/api";
 import { bytes } from "../../lib/format";
-import type { ByteVoice, MediaStatus, SpeakersStatus, SpeechVoice, TtsStatus } from "../../lib/types";
+import type { CloudVoice, MediaStatus, SpeakersStatus, SpeechVoice, VoicePackage, VoicesStatus } from "../../lib/types";
+import { pick } from "../../lib/voices";
 import { canSpeak, useStore, type DownloadState } from "../../state/store";
+import { VoiceBrowser } from "./VoiceBrowser";
 
 const busy = (d?: DownloadState) => !!d && (d.phase === "downloading" || d.phase === "resuming" || d.phase === "verifying");
 const pct = (ds: (DownloadState | undefined)[]) => {
@@ -179,8 +181,18 @@ export function WakeRow() {
             ? "“Hey BYTE” needs a Mac for now."
             : ready === false
               ? "Download a speech model above first."
-              : "Say “Hey BYTE” and Quick Ask opens, listening. While this is on, the microphone stays on (macOS shows its orange dot); only short bursts of speech are checked, on this Mac, and nothing is kept. It pauses while BYTE talks or you record."}
+              : "Say “Hey BYTE, …” from anywhere and BYTE answers out loud, then listens a few seconds for a follow-up (say “thanks” to end). While this is on, the microphone stays on (macOS shows its orange dot); only short bursts of speech are checked, on this Mac, and nothing is kept. It pauses while BYTE talks or you record."}
         </small>
+        {mac && settings?.wakeWord && !settings.openAtLogin && (
+          <small>
+            To have it ready as soon as you log in:{" "}
+            <button type="button" className="linklike" onClick={(e) => (e.preventDefault(), void update({ openAtLogin: true }))}>
+              also open BYTE at login
+            </button>{" "}
+            (it starts hidden, in the menu bar).
+          </small>
+        )}
+        {mac && settings?.wakeWord && settings.openAtLogin && <small>BYTE opens when you log in, so “Hey BYTE” works right away.</small>}
       </span>
       <input type="checkbox" disabled={!mac || ready === false} checked={!!settings?.wakeWord} onChange={(e) => void update({ wakeWord: e.target.checked })} />
     </label>
@@ -188,84 +200,118 @@ export function WakeRow() {
 }
 
 const SAMPLE = "Hi, I'm BYTE. This is how I'll sound when I read my answers to you.";
+const STYLES = [
+  { id: "calm", label: "Calm", hint: "A little slower, with longer pauses" },
+  { id: "natural", label: "Natural", hint: "Like a friendly conversation" },
+  { id: "lively", label: "Lively", hint: "Brisker, with shorter pauses" },
+];
 
-/** Settings → Models → Voice: BYTE's own voices (Kokoro, free, made on this Mac; tts.rs). */
+/** Settings → Models → Voice: BYTE's voice (free voices made on this Mac, or BYTE Cloud's), its style, and the browser. */
 export function ByteVoicesRow() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
-  const downloads = useStore((s) => s.downloads);
-  const [st, setSt] = useState<TtsStatus | null>(null);
+  const cloud = useStore((s) => s.cloud);
+  const [catalog, setCatalog] = useState<VoicePackage[]>([]);
+  const [status, setStatus] = useState<VoicesStatus | null>(null);
+  const [cloudVoices, setCloudVoices] = useState<CloudVoice[] | null>(null);
+  const [freeRam, setFreeRam] = useState<number | null>(null);
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [unpacking, setUnpacking] = useState(false);
   const mac = canSpeak();
-  const refresh = () =>
-    void (inTauri ? api.ttsStatus() : Promise.resolve(null)).then((s) => {
-      setSt(s);
-      if (s) useStore.setState({ voicesReady: s.ready });
+  const refresh = useCallback(() => {
+    if (!inTauri) return;
+    void api.voicesStatus().then((s) => {
+      setStatus(s);
+      useStore.setState({ voicesReady: s.ready.length > 0 });
     }, (e) => setError(errorText(e)));
-  useEffect(refresh, []);
-  const d = st ? downloads[st.key] : undefined;
-  // Downloaded: unpack, then they're ready.
+  }, []);
   useEffect(() => {
-    if (d?.phase === "finished" || (st?.downloaded && !st.ready)) {
-      setUnpacking(true);
-      void api
-        .ttsUnpack()
-        .then(refresh, (e) => setError(errorText(e)))
-        .finally(() => setUnpacking(false));
-    }
-  }, [d?.phase, st?.downloaded, st?.ready]);
+    if (!inTauri) return;
+    void api.voicesCatalog().then(setCatalog, (e) => setError(errorText(e)));
+    void api.memoryReport().then((m) => setFreeRam(m.availableBytes), () => undefined);
+    refresh();
+  }, [refresh]);
+  useEffect(() => {
+    if (inTauri && cloud?.connected) void api.cloudVoices().then(setCloudVoices, () => setCloudVoices([]));
+  }, [cloud?.connected]);
   if (!mac) return null;
-  const loading = busy(d) || unpacking;
-  const groups: [string, (v: ByteVoice) => boolean][] = [
-    ["American · female", (v) => v.accent === "American" && v.gender === "female"],
-    ["American · male", (v) => v.accent === "American" && v.gender === "male"],
-    ["British · female", (v) => v.accent === "British" && v.gender === "female"],
-    ["British · male", (v) => v.accent === "British" && v.gender === "male"],
-  ];
+  const current = pick(catalog, settings?.byteVoice);
+  const ready = !!current && !!status?.ready.includes(current.pkg.id);
+  const where = settings?.voiceWhere === "cloud" && cloud?.connected ? "cloud" : "mac";
+  const lowRam = freeRam !== null && freeRam < 1.2e9 && !!current && current.pkg.ramMb > 200;
   return (
-    <div className="field">
-      <span>
-        BYTE's voices
-        <small>
-          {st?.ready
-            ? "Natural voices made on this Mac (free, open source: Kokoro). BYTE starts speaking while an answer is still being written, without gaps between sentences."
-            : `Natural, human-sounding voices instead of the Mac's robotic one: free and open source (Kokoro), made on this Mac. A one-time ${st ? bytes(st.sizeBytes) : "350 MB"} download.`}
-        </small>
-        {loading && (
-          <span className="progress" aria-label={unpacking ? "Unpacking" : `Downloading ${pct([d])}%`} style={{ display: "block", marginTop: 6 }}>
-            <span style={{ width: `${unpacking ? 100 : pct([d])}%` }} />
-          </span>
-        )}
-        {error && <small className="bad">{error}</small>}
-        {d?.phase === "failed" && <small className="bad">{d.error}</small>}
-      </span>
-      {st?.ready ? (
+    <div className="field" style={{ display: "block" }}>
+      <div className="row" style={{ alignItems: "flex-start", gap: 12 }}>
+        <span className="grow">
+          BYTE's voice
+          <small>
+            {ready && current
+              ? `${current.speaker.name} · ${current.pkg.name}${current.pkg.name.startsWith(current.pkg.provider.split(" ")[0]) ? "" : ` (${current.pkg.provider})`}. Natural voices made on this Mac, free and open source; BYTE starts speaking while an answer is still being written, without gaps.`
+              : status?.ready.length
+                ? "Pick a downloaded voice below."
+                : "Natural, human-sounding voices instead of the Mac's robotic one: over 2,000 to choose from, free and open source, made on this Mac. Browse them and download the ones you like (from about 30 MB)."}
+          </small>
+          {lowRam && (
+            <small className="warn">
+              Your Mac is short on free memory right now. A lighter voice (Light on memory: Kitten nano or Piper, about 150 MB) leaves more room for the chat model.
+            </small>
+          )}
+          {error && <small className="bad">{error}</small>}
+        </span>
         <span className="row" style={{ gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <select value={settings?.byteVoice ?? "af_heart"} onChange={(e) => void update({ byteVoice: e.target.value })} aria-label="BYTE's voice">
-            {groups.map(([label, test]) => (
-              <optgroup key={label} label={label}>
-                {st.voices.filter(test).map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <button className="btn sm ghost" onClick={() => void api.speechSay(SAMPLE)} title="Hear this voice">
-            <Volume2 size={13} /> Try it
-          </button>
-          <button className="icon-btn sm" title="Delete BYTE's voices (the Mac's voice is used instead)" aria-label="Delete BYTE's voices" onClick={() => void api.ttsDelete().then(refresh, (e) => setError(errorText(e)))}>
-            <Trash2 size={13} />
+          {ready && (
+            <button className="btn sm ghost" onClick={() => void api.speechSay(SAMPLE).catch((e) => setError(errorText(e)))} title="Hear BYTE's voice">
+              <Volume2 size={13} /> Try it
+            </button>
+          )}
+          <button className="btn sm primary" onClick={() => setOpen(!open)} aria-expanded={open}>
+            {open ? "Close" : "Browse voices"}
           </button>
         </span>
-      ) : loading ? (
-        <span className="faint small">{unpacking ? "Unpacking…" : `${pct([d])}%`}</span>
-      ) : (
-        <button className="btn sm primary" onClick={() => void api.ttsDownload().catch((e) => setError(errorText(e)))}>
-          <Download size={13} /> {d?.phase === "paused" ? "Resume" : "Download"}
-        </button>
+      </div>
+      <div className="row" style={{ gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+        <span className="faint">How BYTE speaks</span>
+        <div className="segmented" role="group" aria-label="How BYTE speaks">
+          {STYLES.map((st) => (
+            <button key={st.id} title={st.hint} aria-pressed={(settings?.speechStyle ?? "natural") === st.id} onClick={() => void update({ speechStyle: st.id })}>
+              {st.label}
+            </button>
+          ))}
+        </div>
+        {cloud?.connected && (
+          <>
+            <span className="faint">Made</span>
+            <div className="segmented" role="group" aria-label="Where BYTE's voice is made">
+              <button aria-pressed={where === "mac"} onClick={() => void update({ voiceWhere: "mac" })} title="Free voices on this Mac: private, work offline">
+                On this Mac
+              </button>
+              <button aria-pressed={where === "cloud"} onClick={() => void update({ voiceWhere: "cloud" })} title="Voices on the BYTE cloud's GPU: no memory used on this Mac. Private chats always use this Mac.">
+                BYTE Cloud
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+      {where === "cloud" && (
+        <div className="row" style={{ gap: 8, marginTop: 8 }}>
+          {cloudVoices?.length ? (
+            <select value={settings?.cloudVoice ?? ""} onChange={(e) => void update({ cloudVoice: e.target.value })} aria-label="BYTE Cloud voice">
+              <option value="">The cloud's default voice</option>
+              {cloudVoices.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}{v.expressive ? " ✨" : ""}{v.lang ? ` · ${v.lang}` : ""}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <small className="faint">Your BYTE Cloud doesn't offer voices yet, so BYTE speaks with the voice on this Mac. Private chats always do.</small>
+          )}
+        </div>
+      )}
+      {open && catalog.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <VoiceBrowser catalog={catalog} status={status} onChanged={refresh} />
+        </div>
       )}
     </div>
   );

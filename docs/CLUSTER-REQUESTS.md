@@ -167,6 +167,33 @@ vision model, so it could be that helper when a small Mac can't fit a local one.
 **Until then**, the app reads the text in photos on the Mac (Apple Vision). For
 anything else, a model that can see is needed.
 
+### 7. Voices (`GET /api/tts/voices`, `POST /api/tts`)
+
+**Why.** BYTE speaks its answers (Talk mode, “Hey BYTE”, Read aloud). On the Mac it uses
+free, small voices on the CPU. The cluster's GPU could run bigger, more expressive voices
+(emotion, laughs, emphasis) without costing the Mac any memory. The app already has the
+client (`cloud/voice.rs`) and a Settings choice: **Made: On this Mac / BYTE Cloud**.
+
+**Suggested shape**
+
+    GET  /api/tts/voices
+    -> 200 [{ "id": "aria", "name": "Aria", "about": "Warm, expressive",
+              "lang": "en-US", "gender": "female", "expressive": true }, …]
+
+    POST /api/tts   { "text": "…one to three sentences…", "voice": "aria",
+                      "style": "calm" | "natural" | "lively", "speed": 1.0 }
+    -> 200 audio/wav   (or raw 16-bit little-endian PCM: `audio/L16; rate=24000`)
+
+- The app sends one chunk at a time (the first sentence alone, then about 320 characters)
+  while the next is being written, and plays them back to back, so a reply within about a
+  second per chunk keeps speech smooth.
+- Optional: an `emotion` field later (e.g. "cheerful", "serious"); the app passes `style` today.
+- Count it in `me.budgets` like other helper work; 429 when spent.
+- 404 means "no voices here": the app then quietly uses the Mac's voice.
+
+**Until then**, the app uses the voice on the Mac (it remembers a 404 for 10 minutes and
+doesn't keep asking). Private chats never use cloud voices.
+
 ---
 
 ## How the app behaves toward the cluster (so the cluster can rely on it)

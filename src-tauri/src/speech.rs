@@ -20,14 +20,23 @@ static PLAYING: Mutex<Option<u32>> = Mutex::new(None);
 
 /// What of an answer is worth hearing: words, without markdown, code, tables, links or citation marks.
 pub fn speakable(markdown: &str) -> String {
-    let mut out: Vec<String> = vec![];
+    // Paragraphs (separated by a blank line in the result, so the voice pauses there) of sentences.
+    let mut paras: Vec<Vec<String>> = vec![vec![]];
     let mut in_code = false;
     let mut in_table = false;
+    let mut item = 0usize;
+    let new_para = |paras: &mut Vec<Vec<String>>| {
+        if paras.last().is_some_and(|p| !p.is_empty()) {
+            paras.push(vec![]);
+        }
+    };
     for raw in markdown.lines() {
         let line = raw.trim();
         if line.starts_with("```") {
             if !in_code {
-                out.push("There's code on screen.".into());
+                new_para(&mut paras);
+                paras.last_mut().unwrap().push("There's code on screen.".into());
+                new_para(&mut paras);
             }
             in_code = !in_code;
             continue;
@@ -37,23 +46,51 @@ pub fn speakable(markdown: &str) -> String {
         }
         if line.starts_with('|') {
             if !in_table {
-                out.push("There's a table on screen.".into());
+                new_para(&mut paras);
+                paras.last_mut().unwrap().push("There's a table on screen.".into());
+                new_para(&mut paras);
                 in_table = true;
             }
             continue;
         }
         in_table = false;
-        if line.is_empty() || line.starts_with("**Confidence:**") || line.chars().all(|c| matches!(c, '-' | '*' | '_' | ' ')) {
+        if line.is_empty() {
+            new_para(&mut paras);
             continue;
+        }
+        if line.starts_with("**Confidence:**") || line.chars().all(|c| matches!(c, '-' | '*' | '_' | ' ')) {
+            continue;
+        }
+        let heading = line.starts_with('#');
+        if heading {
+            new_para(&mut paras);
         }
         let line = line.trim_start_matches('#').trim_start_matches('>').trim();
         let line = line.strip_prefix("- ").or_else(|| line.strip_prefix("* ")).unwrap_or(line);
-        let text = plain(line);
+        // "1. Do this" → "First, do this."
+        let numbered = line.split_once(". ").filter(|(n, _)| !n.is_empty() && n.len() <= 2 && n.chars().all(|c| c.is_ascii_digit()));
+        let text = match numbered {
+            Some((_, rest)) => {
+                item += 1;
+                let rest = plain(rest);
+                let mut chars = rest.chars();
+                let lowered = chars.next().map(|c| c.to_lowercase().collect::<String>() + chars.as_str()).unwrap_or_default();
+                format!("{}, {lowered}", ordinal(item))
+            }
+            None => {
+                item = 0;
+                plain(line)
+            }
+        };
         if !text.is_empty() {
-            out.push(text);
+            let text = if text.ends_with(['.', '!', '?', ':', ';']) { text } else { format!("{text}.") };
+            paras.last_mut().unwrap().push(text);
+        }
+        if heading {
+            new_para(&mut paras);
         }
     }
-    let joined = out.iter().map(|l| if l.ends_with(['.', '!', '?', ':', ';']) { l.clone() } else { format!("{l}.") }).collect::<Vec<_>>().join(" ");
+    let joined = paras.iter().filter(|p| !p.is_empty()).map(|p| p.join(" ")).collect::<Vec<_>>().join("\n\n");
     if joined.chars().count() <= MAX_CHARS {
         return joined;
     }
@@ -61,6 +98,11 @@ pub fn speakable(markdown: &str) -> String {
     let cut: String = joined.chars().take(MAX_CHARS).collect();
     let end = cut.rfind(". ").map(|i| i + 1).unwrap_or(cut.len());
     format!("{} That's the start; the rest is on screen.", cut[..end].trim())
+}
+
+/// "First", "Second"… for spoken steps; "Next" after the fifth.
+fn ordinal(n: usize) -> &'static str {
+    ["First", "Second", "Third", "Fourth", "Fifth"].get(n.wrapping_sub(1)).copied().unwrap_or("Next")
 }
 
 /// One line without markdown: link text only, no URLs, citation marks, emphasis or inline code ticks.
@@ -194,26 +236,51 @@ pub fn speaking() -> bool {
 
 /// Reads `text` aloud: BYTE's own voices (tts.rs) when they're downloaded, else the Mac's.
 #[tauri::command]
-pub async fn speech_say(app: AppHandle, state: State<'_, AppState>, text: String) -> AppResult<()> {
-    speech_feed(app, state, uuid::Uuid::new_v4().to_string(), text, true).await
+/// `voice`: try this voice ("package/speaker") instead of the chosen one (the voice browser's ▶).
+pub async fn speech_say(app: AppHandle, state: State<'_, AppState>, text: String, voice: Option<String>) -> AppResult<()> {
+    if let Some(v) = voice.filter(|v| !v.is_empty()) {
+        let models = &state.paths.models;
+        if !crate::tts::usable(models, &v) {
+            return Err(AppError::msg("Download that voice first."));
+        }
+        let how = {
+            let s = state.settings.lock().await;
+            crate::tts::Delivery { voice: v, speed: s.speech_speed.clone(), style: s.speech_style.clone(), cloud: None }
+        };
+        stop_playing();
+        return crate::tts::feed(&app, models, &how, &uuid::Uuid::new_v4().to_string(), &text, true);
+    }
+    speech_feed(app, state, uuid::Uuid::new_v4().to_string(), text, true, None).await
 }
 
 /// More of answer `id` (the whole text so far): with BYTE's voices, finished sentences start playing while
 /// the answer is still being written. With the Mac's voice, only the finished answer is read.
 #[tauri::command]
-pub async fn speech_feed(app: AppHandle, state: State<'_, AppState>, id: String, text: String, done: bool) -> AppResult<()> {
-    let (byte_voice, mac_voice, speed) = {
+pub async fn speech_feed(app: AppHandle, state: State<'_, AppState>, id: String, text: String, done: bool, private: Option<bool>) -> AppResult<()> {
+    let (mut how, mac_voice, wants_cloud) = {
         let s = state.settings.lock().await;
-        (s.byte_voice.clone(), s.speech_voice.clone(), s.speech_speed.clone())
+        let how = crate::tts::Delivery { voice: s.byte_voice.clone(), speed: s.speech_speed.clone(), style: s.speech_style.clone(), cloud: None };
+        (how, s.speech_voice.clone(), s.voice_where == "cloud" && s.cloud_connected && !private.unwrap_or(false))
     };
     let models = &state.paths.models;
-    if crate::tts::usable(models) {
+    // BYTE Cloud voices: only when chosen, connected, not a private chat, and the cloud offers voices.
+    if wants_cloud && cfg!(target_os = "macos") {
+        if let Ok(client) = state.cloud_client().await {
+            if let Ok(list) = crate::cloud::voice::voices(&client).await {
+                let chosen = state.settings.lock().await.cloud_voice.clone();
+                if let Some(v) = list.iter().find(|v| v.id == chosen).or(list.first()) {
+                    how.cloud = Some((client, v.id.clone()));
+                }
+            }
+        }
+    }
+    if how.cloud.is_some() || crate::tts::usable(models, &how.voice) {
         stop_playing();
-        return crate::tts::feed(&app, models, &byte_voice, &speed, &id, &text, done);
+        return crate::tts::feed(&app, models, &how, &id, &text, done);
     }
     if done {
         crate::tts::stop();
-        return say(Some(app), &text, &mac_voice, &speed).await;
+        return say(Some(app), &text, &mac_voice, &how.speed).await;
     }
     Ok(())
 }
@@ -242,8 +309,16 @@ mod tests {
         let md = "## TL;DR\nThe **M5** is about *20%* faster [1][2].\n\n- See [Apple's page](https://apple.com/m5) for details.\n- More at https://example.com/x\n\n```rust\nfn main() {}\n```\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n**Confidence:** Likely\n";
         assert_eq!(
             speakable(md),
-            "TL;DR. The M5 is about 20% faster. See Apple's page for details. More at. There's code on screen. There's a table on screen."
+            "TL;DR.\n\nThe M5 is about 20% faster.\n\nSee Apple's page for details. More at.\n\nThere's code on screen.\n\nThere's a table on screen."
         );
+    }
+
+    #[test]
+    fn numbered_steps_are_said_in_words() {
+        let md = "To reset it:\n\n1. Hold the **power** button.\n2. Wait ten seconds\n3. Press it again.\n\nThat's it!";
+        assert_eq!(speakable(md), "To reset it:\n\nFirst, hold the power button. Second, wait ten seconds. Third, press it again.\n\nThat's it!");
+        // A version number isn't a step.
+        assert_eq!(speakable("Use version 2.5 now"), "Use version 2.5 now.");
     }
 
     #[test]

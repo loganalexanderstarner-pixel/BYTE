@@ -1,13 +1,15 @@
-//! BYTE's voices (Phase 11): Kokoro, a free, open neural voice model, run on
-//! this Mac by sherpa-onnx's speech tool (`sherpa-tts` sidecar, built by
-//! `scripts/build-sherpa.sh`). 28 English voices, downloaded once (~350 MB)
-//! from sherpa-onnx's release and checked against a pinned SHA-256.
+//! BYTE's voices (Phase 11): free, open neural voices (Kokoro, Piper, Kitten,
+//! Supertonic, Pocket: see `voices.rs` for the catalog), run on this Mac by
+//! sherpa-onnx's speech tool (`sherpa-tts` sidecar, built by
+//! `scripts/build-sherpa.sh`).
 //!
-//! Smooth speech: an answer is cut into chunks (the first sentence alone, so
-//! BYTE starts talking at once; then a few sentences at a time). Chunks are
-//! made one after another while earlier ones play, and all audio goes through
-//! one continuous output stream, so there's no gap between them. Text can be
-//! fed while the answer is still being written (`speech_feed`).
+//! Smooth, human-paced speech: an answer is cut into chunks (the first sentence
+//! alone, so BYTE starts talking at once; then a few sentences at a time, never
+//! across a paragraph). Chunks are made one after another while earlier ones
+//! play, trimmed, faded in and out, and followed by a short pause (longer after a
+//! paragraph). All audio goes through one continuous output stream, so there's
+//! no gap or click between them. Text can be fed while the answer is still being
+//! written (`speech_feed`).
 
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
@@ -20,120 +22,17 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::error::{AppError, AppResult};
-use crate::models::{self, ModelFile, Variant};
 use crate::state::AppState;
+use crate::voices::{self, Package, Speaker};
 
 const SIDECAR: &str = "sherpa-tts";
-pub const KEY: &str = "voice:kokoro";
-const RELEASE: &str = "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models";
-const ARCHIVE: &str = "kokoro-multi-lang-v1_0.tar.bz2";
-const ARCHIVE_SIZE: u64 = 349_906_910;
-const ARCHIVE_SHA: &str = "c5f7e2d2caf082bc1d20fb70334a61d99d20b484500aad32e7cf84c128ea3298";
-const FOLDER: &str = "kokoro-multi-lang-v1_0";
 pub const SAMPLE_RATE: u32 = 24_000;
 /// After the first sentence, chunks of about this many characters (a few sentences).
 const CHUNK: usize = 320;
 
-/// One of BYTE's voices: Kokoro speaker id, a friendly name and its accent.
-#[derive(Debug, Clone, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct Voice {
-    pub id: &'static str,
-    pub sid: u32,
-    pub name: &'static str,
-    /// "American" or "British".
-    pub accent: &'static str,
-    /// "female" or "male".
-    pub gender: &'static str,
-}
-
-const fn v(id: &'static str, sid: u32, name: &'static str, accent: &'static str, gender: &'static str) -> Voice {
-    Voice { id, sid, name, accent, gender }
-}
-
-/// The English voices in Kokoro v1.0 (speaker ids from the model's own metadata).
-pub const VOICES: &[Voice] = &[
-    v("af_heart", 3, "Heart", "American", "female"),
-    v("af_bella", 2, "Bella", "American", "female"),
-    v("af_nicole", 6, "Nicole", "American", "female"),
-    v("af_sarah", 9, "Sarah", "American", "female"),
-    v("af_nova", 7, "Nova", "American", "female"),
-    v("af_sky", 10, "Sky", "American", "female"),
-    v("af_alloy", 0, "Alloy", "American", "female"),
-    v("af_aoede", 1, "Aoede", "American", "female"),
-    v("af_jessica", 4, "Jessica", "American", "female"),
-    v("af_kore", 5, "Kore", "American", "female"),
-    v("af_river", 8, "River", "American", "female"),
-    v("am_michael", 16, "Michael", "American", "male"),
-    v("am_fenrir", 14, "Fenrir", "American", "male"),
-    v("am_puck", 18, "Puck", "American", "male"),
-    v("am_echo", 12, "Echo", "American", "male"),
-    v("am_eric", 13, "Eric", "American", "male"),
-    v("am_liam", 15, "Liam", "American", "male"),
-    v("am_onyx", 17, "Onyx", "American", "male"),
-    v("am_adam", 11, "Adam", "American", "male"),
-    v("am_santa", 19, "Santa", "American", "male"),
-    v("bf_emma", 21, "Emma", "British", "female"),
-    v("bf_isabella", 22, "Isabella", "British", "female"),
-    v("bf_alice", 20, "Alice", "British", "female"),
-    v("bf_lily", 23, "Lily", "British", "female"),
-    v("bm_george", 26, "George", "British", "male"),
-    v("bm_fable", 25, "Fable", "British", "male"),
-    v("bm_lewis", 27, "Lewis", "British", "male"),
-    v("bm_daniel", 24, "Daniel", "British", "male"),
-];
-
-pub const DEFAULT_VOICE: &str = "af_heart";
-
-pub fn voice(id: &str) -> &'static Voice {
-    VOICES.iter().find(|v| v.id == id).unwrap_or(&VOICES[0])
-}
-
-// ------------------------------------------------------------------ the model
-
-fn dir(models_dir: &Path) -> PathBuf {
-    crate::voice::dir(models_dir).join("kokoro")
-}
-
-fn archive_variant() -> Variant {
-    Variant { quant: "kokoro".into(), bits: 0.0, size_bytes: ARCHIVE_SIZE, files: vec![ModelFile { name: ARCHIVE.into(), size: ARCHIVE_SIZE, sha256: ARCHIVE_SHA.into() }] }
-}
-
-fn release_url(_repo: &str, file: &str) -> String {
-    format!("{RELEASE}/{file}")
-}
-
-fn model_dir(models_dir: &Path) -> PathBuf {
-    dir(models_dir).join(FOLDER)
-}
-
-/// The voices are downloaded and unpacked.
-pub fn ready(models_dir: &Path) -> bool {
-    model_dir(models_dir).join(".ready").exists()
-}
-
-/// BYTE's voices can speak here: unpacked, and on a Mac (where the audio output is).
-pub fn usable(models_dir: &Path) -> bool {
-    cfg!(target_os = "macos") && ready(models_dir)
-}
-
-/// Unpacks the downloaded archive (macOS's and Linux's `tar` read .tar.bz2), then removes it.
-pub async fn unpack(models_dir: &Path) -> AppResult<()> {
-    if ready(models_dir) {
-        return Ok(());
-    }
-    let d = dir(models_dir);
-    let archive = models::entry_path(&d, &archive_variant());
-    if !models::is_installed(&d, &archive_variant()) {
-        return Err(AppError::msg("The voices haven't finished downloading."));
-    }
-    let out = tokio::process::Command::new("tar").arg("-xjf").arg(&archive).arg("-C").arg(&d).output().await?;
-    if !out.status.success() || !model_dir(models_dir).join("model.onnx").exists() {
-        return Err(AppError::msg("BYTE couldn't unpack the voices; deleting and downloading them again usually fixes it."));
-    }
-    let _ = std::fs::remove_file(&archive);
-    std::fs::write(model_dir(models_dir).join(".ready"), b"ok")?;
-    Ok(())
+/// The chosen voice can speak here: unpacked, and on a Mac (where the audio output is).
+pub fn usable(models_dir: &Path, voice: &str) -> bool {
+    cfg!(target_os = "macos") && voices::ready(models_dir, voices::pick(voice).0)
 }
 
 // ------------------------------------------------------------------ text → chunks
@@ -161,44 +60,80 @@ pub fn sentences(text: &str) -> Vec<String> {
     out
 }
 
-/// Chunks to make one after another: the first sentence alone (a quick start; joined with the next if tiny),
-/// then sentences grouped up to `CHUNK` characters.
-pub fn chunks(sentences: &[String]) -> Vec<String> {
-    let mut out: Vec<String> = vec![];
-    for s in sentences {
+/// Sentences with whether each ends a paragraph (paragraphs are separated by a blank line).
+pub fn pieces(text: &str) -> Vec<(String, bool)> {
+    let mut out = vec![];
+    for para in text.split("\n\n").map(str::trim).filter(|p| !p.is_empty()) {
+        let s = sentences(para);
+        let n = s.len();
+        out.extend(s.into_iter().enumerate().map(|(i, x)| (x, i + 1 == n)));
+    }
+    out
+}
+
+/// A chunk to make: its text and whether it ends a paragraph.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Chunk {
+    pub text: String,
+    pub para_end: bool,
+}
+
+/// Chunks to make one after another. With `first`, the opening sentence goes alone (a quick start; joined with
+/// the next while tiny); then sentences are grouped up to `CHUNK` characters. A chunk never crosses a paragraph.
+pub fn chunks(pieces: &[(String, bool)], first: bool) -> Vec<Chunk> {
+    let mut out: Vec<Chunk> = vec![];
+    for (s, end) in pieces {
         let n = out.len();
         match out.last_mut() {
-            Some(last) if (n == 1 && last.len() < 24) || (n > 1 && last.len() + s.len() < CHUNK) => {
-                last.push(' ');
-                last.push_str(s);
+            Some(last) if !last.para_end && ((first && n == 1 && last.text.len() < 24) || ((!first || n > 1) && last.text.len() + s.len() < CHUNK)) => {
+                last.text.push(' ');
+                last.text.push_str(s);
+                last.para_end = *end;
             }
-            _ => out.push(s.clone()),
+            _ => out.push(Chunk { text: s.clone(), para_end: *end }),
         }
     }
     out
 }
 
-/// The speech tool's arguments. The text is the last argument, never mistaken for an option.
-pub fn tts_args(model: &Path, sid: u32, speed: &str, out: &Path, text: &str, british: bool) -> Vec<String> {
-    let length_scale = match speed {
-        "slow" => "1.15",
-        "fast" => "0.87",
-        _ => "1.0",
+/// Quiet after a chunk: a breath between sentences, longer after a paragraph; Calm pauses longer, Lively shorter.
+pub fn pause_ms(para_end: bool, style: &str) -> u32 {
+    let base = if para_end { 380.0 } else { 110.0 };
+    let k = match style {
+        "calm" => 1.4,
+        "lively" => 0.7,
+        _ => 1.0,
     };
-    let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).clamp(2, 6);
-    let lexicon = if british { "lexicon-gb-en.txt" } else { "lexicon-us-en.txt" };
-    vec![
-        format!("--kokoro-model={}", model.join("model.onnx").display()),
-        format!("--kokoro-voices={}", model.join("voices.bin").display()),
-        format!("--kokoro-tokens={}", model.join("tokens.txt").display()),
-        format!("--kokoro-data-dir={}", model.join("espeak-ng-data").display()),
-        format!("--kokoro-lexicon={}", model.join(lexicon).display()),
-        format!("--kokoro-length-scale={length_scale}"),
-        format!("--num-threads={threads}"),
-        format!("--sid={sid}"),
-        format!("--output-filename={}", out.display()),
-        text.trim_start_matches(['-', ' ']).to_string(),
-    ]
+    (base * k) as u32
+}
+
+/// Questions a touch slower, exclamations a touch brisker, like people say them.
+pub fn chunk_speed(text: &str, speed: f32) -> f32 {
+    match text.trim_end().chars().last() {
+        Some('?') => speed * 0.97,
+        Some('!') => speed * 1.03,
+        _ => speed,
+    }
+}
+
+/// Trims silence at both ends (keeping 20 ms), fades in and out over 8 ms, then adds `pause_ms` of quiet.
+pub fn shape(mut s: Vec<f32>, rate: u32, pause_ms: u32) -> Vec<f32> {
+    let keep = rate as usize / 50;
+    let loud = |x: &f32| x.abs() > 0.004;
+    let start = s.iter().position(loud).map(|i| i.saturating_sub(keep)).unwrap_or(0);
+    let end = s.iter().rposition(loud).map(|i| (i + keep).min(s.len())).unwrap_or(s.len());
+    if start < end {
+        s = s[start..end].to_vec();
+    }
+    let fade = (rate as usize / 125).min(s.len() / 2);
+    let n = s.len();
+    for i in 0..fade {
+        let g = i as f32 / fade as f32;
+        s[i] *= g;
+        s[n - 1 - i] *= g;
+    }
+    s.extend(std::iter::repeat_n(0.0, (rate as u64 * pause_ms as u64 / 1000) as usize));
+    s
 }
 
 /// A WAV file's samples as f32 (16-bit PCM or 32-bit float), plus its sample rate.
@@ -250,10 +185,10 @@ pub fn resample(input: &[f32], from: u32, to: u32) -> Vec<f32> {
         .collect()
 }
 
-/// Makes one chunk of speech (24 kHz samples).
-pub async fn synthesize(app: Option<&AppHandle>, model: &Path, voice: &Voice, speed: &str, text: &str) -> AppResult<Vec<f32>> {
+/// Makes one chunk of speech (24 kHz samples) with voice `speaker` of package `p`, unpacked in `dir`.
+pub async fn synthesize(app: Option<&AppHandle>, p: &Package, dir: &Path, speaker: &Speaker, speed: f32, text: &str) -> AppResult<Vec<f32>> {
     let tmp = tempfile::Builder::new().prefix("byte-tts").suffix(".wav").tempfile()?;
-    let args = tts_args(model, voice.sid, speed, tmp.path(), text, voice.accent == "British");
+    let args = voices::args(p, dir, speaker, speed, voices::threads(), tmp.path(), text)?;
     let ok = match (std::env::var("BYTE_TEST_SHERPA_TTS").ok().filter(|b| !b.is_empty()), app) {
         (Some(bin), _) => tokio::process::Command::new(bin).args(&args).kill_on_drop(true).output().await?.status.success(),
         (None, Some(app)) => {
@@ -279,7 +214,7 @@ struct Feed {
     id: String,
     /// Sentences already handed to the maker.
     sent: usize,
-    tx: tokio::sync::mpsc::UnboundedSender<Option<String>>,
+    tx: tokio::sync::mpsc::UnboundedSender<Option<Chunk>>,
 }
 
 static FEED: Mutex<Option<Feed>> = Mutex::new(None);
@@ -324,11 +259,21 @@ pub fn finished(session: u64) {
     }
 }
 
+/// How BYTE speaks: the voice ("package/speaker"), speed and style, and (optionally) a BYTE Cloud voice.
+#[derive(Clone)]
+pub struct Delivery {
+    pub voice: String,
+    pub speed: String,
+    pub style: String,
+    /// Make the speech on the BYTE cloud with this voice; the Mac's voice takes over if the cloud fails.
+    pub cloud: Option<(crate::cloud::CloudClient, String)>,
+}
+
 /// Speaks (more of) answer `id`. `text` is the whole answer so far; complete sentences not yet spoken are made
 /// and queued. `done`: the answer is finished (the last sentence counts too).
-pub fn feed(app: &AppHandle, models_dir: &Path, voice_id: &str, speed: &str, id: &str, text: &str, done: bool) -> AppResult<()> {
+pub fn feed(app: &AppHandle, models_dir: &Path, how: &Delivery, id: &str, text: &str, done: bool) -> AppResult<()> {
     let _ = APP.set(app.clone());
-    let mut all = sentences(&crate::speech::speakable(text));
+    let mut all = pieces(&crate::speech::speakable(text));
     if !done && !all.is_empty() {
         all.pop(); // may still be growing
     }
@@ -338,24 +283,23 @@ pub fn feed(app: &AppHandle, models_dir: &Path, voice_id: &str, speed: &str, id:
         drop(guard);
         stop();
         let session = SESSION.load(Ordering::SeqCst);
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Option<String>>();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Option<Chunk>>();
         start_output();
         if let Ok(mut q) = queue().lock() {
             q.more = true;
             q.session = session;
         }
-        spawn_maker(app.clone(), model_dir(models_dir), voice(voice_id).clone(), speed.to_string(), session, rx);
+        let (p, s) = voices::pick(&how.voice);
+        spawn_maker(app.clone(), p, voices::model_dir(models_dir, p), s.clone(), how.clone(), session, rx);
         guard = FEED.lock().map_err(|_| AppError::msg("voice busy"))?;
         *guard = Some(Feed { id: id.to_string(), sent: 0, tx });
     }
     let f = guard.as_mut().expect("set above");
-    let new: Vec<String> = all.iter().skip(f.sent).cloned().collect();
+    let first = f.sent == 0;
+    let new: Vec<(String, bool)> = all.iter().skip(f.sent).cloned().collect();
     f.sent = all.len().max(f.sent);
-    let first = f.sent == new.len();
-    // The first sentence goes alone (a quick start); later ones in groups.
-    let parts = if first { chunks(&new) } else { chunks_after_first(&new) };
-    for p in parts {
-        let _ = f.tx.send(Some(p));
+    for c in chunks(&new, first) {
+        let _ = f.tx.send(Some(c));
     }
     if done {
         let _ = f.tx.send(None);
@@ -363,35 +307,38 @@ pub fn feed(app: &AppHandle, models_dir: &Path, voice_id: &str, speed: &str, id:
     Ok(())
 }
 
-fn chunks_after_first(sentences: &[String]) -> Vec<String> {
-    let mut out: Vec<String> = vec![];
-    for s in sentences {
-        match out.last_mut() {
-            Some(last) if last.len() + s.len() < CHUNK => {
-                last.push(' ');
-                last.push_str(s);
-            }
-            _ => out.push(s.clone()),
-        }
-    }
-    out
-}
-
-fn spawn_maker(app: AppHandle, model: PathBuf, voice: Voice, speed: String, session: u64, mut rx: tokio::sync::mpsc::UnboundedReceiver<Option<String>>) {
+fn spawn_maker(app: AppHandle, p: &'static Package, dir: PathBuf, speaker: Speaker, how: Delivery, session: u64, mut rx: tokio::sync::mpsc::UnboundedReceiver<Option<Chunk>>) {
+    let speed = voices::speed_factor(&how.speed, &how.style);
+    let local_ready = dir.join(".ready").exists();
     tauri::async_runtime::spawn(async move {
+        let mut cloud = how.cloud.clone();
         while let Some(next) = rx.recv().await {
             if SESSION.load(Ordering::SeqCst) != session {
                 return;
             }
-            let Some(text) = next else { break };
-            match synthesize(Some(&app), &model, &voice, &speed, &text).await {
+            let Some(chunk) = next else { break };
+            let pace = chunk_speed(&chunk.text, speed);
+            let made = match &cloud {
+                Some((client, voice)) => match crate::cloud::voice::synthesize(client, &chunk.text, voice, &how.style, pace).await {
+                    Ok(s) => Ok(s),
+                    Err(e) => {
+                        // The cloud stopped answering: the rest is spoken on this Mac (when a voice is there).
+                        log::warn!("cloud voice: {}", crate::error::AppError::from(e));
+                        cloud = None;
+                        if local_ready { synthesize(Some(&app), p, &dir, &speaker, pace, &chunk.text).await } else { Err(AppError::msg("no voice on this Mac")) }
+                    }
+                },
+                None => synthesize(Some(&app), p, &dir, &speaker, pace, &chunk.text).await,
+            };
+            match made {
                 Ok(samples) => {
                     if SESSION.load(Ordering::SeqCst) != session {
                         return;
                     }
+                    let shaped = shape(samples, SAMPLE_RATE, pause_ms(chunk.para_end, &how.style));
                     if let Ok(mut q) = queue().lock() {
                         let rate = q.out_rate;
-                        q.samples.extend(resample(&samples, SAMPLE_RATE, rate));
+                        q.samples.extend(resample(&shaped, SAMPLE_RATE, rate));
                     }
                 }
                 Err(e) => log::warn!("voice: {e}"),
@@ -469,41 +416,68 @@ fn start_output() {}
 
 // ------------------------------------------------------------------ commands
 
+/// The BYTE cloud's voices (empty when it isn't connected or doesn't offer voices yet).
+#[tauri::command]
+pub async fn cloud_voices(state: State<'_, AppState>) -> AppResult<Vec<crate::cloud::voice::CloudVoice>> {
+    let Ok(client) = state.cloud_client().await else { return Ok(vec![]) };
+    Ok(crate::cloud::voice::voices(&client).await.unwrap_or_default())
+}
+
+/// The whole voice catalog (it doesn't change while BYTE runs).
+#[tauri::command]
+pub fn voices_catalog() -> Vec<Package> {
+    voices::catalog().to_vec()
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TtsStatus {
-    pub ready: bool,
+pub struct VoicesStatus {
+    /// Unpacked and ready.
+    pub ready: Vec<String>,
     /// Downloaded but not unpacked yet.
-    pub downloaded: bool,
-    pub size_bytes: u64,
-    pub key: String,
-    pub voices: Vec<Voice>,
+    pub downloaded: Vec<String>,
+    /// Can speak here (a Mac).
+    pub can_speak: bool,
 }
 
 #[tauri::command]
-pub async fn tts_status(state: State<'_, AppState>) -> AppResult<TtsStatus> {
+pub async fn voices_status(state: State<'_, AppState>) -> AppResult<VoicesStatus> {
     let m = &state.paths.models;
-    Ok(TtsStatus { ready: ready(m), downloaded: models::is_installed(&dir(m), &archive_variant()), size_bytes: ARCHIVE_SIZE, key: KEY.into(), voices: VOICES.to_vec() })
+    let (mut ready, mut downloaded) = (vec![], vec![]);
+    for p in voices::catalog() {
+        if voices::ready(m, p) {
+            ready.push(p.id.clone());
+        } else if voices::downloaded(m, p) {
+            downloaded.push(p.id.clone());
+        }
+    }
+    Ok(VoicesStatus { ready, downloaded, can_speak: cfg!(target_os = "macos") })
+}
+
+fn known(id: &str) -> AppResult<&'static Package> {
+    voices::package(id).ok_or_else(|| AppError::msg("BYTE doesn't know that voice."))
 }
 
 #[tauri::command]
-pub async fn tts_download(app: AppHandle, state: State<'_, AppState>) -> AppResult<()> {
-    let d = dir(&state.paths.models);
+pub async fn tts_voice_download(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<()> {
+    let p = known(&id)?;
+    let d = voices::package_dir(&state.paths.models, p);
     std::fs::create_dir_all(&d)?;
-    state.downloads.start_from(app, state.net.clone(), d, String::new(), archive_variant(), KEY.into(), release_url).await
+    state.downloads.start_from(app, state.net.clone(), d, String::new(), voices::variant(p), voices::key(p), voices::release_url).await
 }
 
-/// Unpacks the voices after their download finished.
+/// Unpacks a voice after its download finished.
 #[tauri::command]
-pub async fn tts_unpack(state: State<'_, AppState>) -> AppResult<()> {
-    unpack(&state.paths.models).await
+pub async fn tts_voice_unpack(state: State<'_, AppState>, id: String) -> AppResult<()> {
+    voices::unpack(&state.paths.models, known(&id)?).await
 }
 
 #[tauri::command]
-pub async fn tts_delete(state: State<'_, AppState>) -> AppResult<()> {
-    state.downloads.pause(KEY).await;
+pub async fn tts_voice_delete(state: State<'_, AppState>, id: String) -> AppResult<()> {
+    let p = known(&id)?;
+    state.downloads.pause(&voices::key(p)).await;
     stop();
-    let d = dir(&state.paths.models);
+    let d = voices::package_dir(&state.paths.models, p);
     if d.exists() {
         std::fs::remove_dir_all(d)?;
     }
@@ -520,35 +494,48 @@ mod tests {
         assert_eq!(s, vec!["Hi there!", "The M5 is 3.5 times faster, e.g. for video.", "Is it worth it?", "Probably not"]);
     }
 
+    fn p(list: &[(&str, bool)]) -> Vec<(String, bool)> {
+        list.iter().map(|(s, e)| (s.to_string(), *e)).collect()
+    }
+
     #[test]
-    fn first_chunk_is_quick_then_groups() {
-        let s: Vec<String> = ["Sure.", "The M5 is faster.", "It has a new chip.", "Battery life is the same.", "Most people should wait."].iter().map(|x| x.to_string()).collect();
-        let c = chunks(&s);
+    fn pieces_know_paragraph_ends() {
+        let x = pieces("Sure. Here it is.\n\nNext part! Done.");
+        assert_eq!(x, p(&[("Sure.", false), ("Here it is.", true), ("Next part!", false), ("Done.", true)]));
+    }
+
+    #[test]
+    fn first_chunk_is_quick_then_groups_within_paragraphs() {
+        let s = p(&[("Sure.", false), ("The M5 is faster.", false), ("It has a new chip.", false), ("Battery life is the same.", true), ("Most people should wait.", true)]);
+        let c = chunks(&s, true);
         // A tiny first sentence takes the next ones until the opening is long enough to be worth making alone;
-        // the rest group up to the chunk size.
-        assert_eq!(c[0], "Sure. The M5 is faster. It has a new chip.");
-        assert_eq!(c[1], "Battery life is the same. Most people should wait.");
-        let long: Vec<String> = (0..20).map(|i| format!("This is sentence number {i} about the topic.")).collect();
-        assert!(chunks(&long).iter().skip(1).all(|c| c.len() <= CHUNK + 50));
+        // the rest group up to the chunk size, but never across a paragraph.
+        assert_eq!(c[0], Chunk { text: "Sure. The M5 is faster. It has a new chip.".into(), para_end: false });
+        assert_eq!(c[1], Chunk { text: "Battery life is the same.".into(), para_end: true });
+        assert_eq!(c[2], Chunk { text: "Most people should wait.".into(), para_end: true });
+        let long: Vec<(String, bool)> = (0..20).map(|i| (format!("This is sentence number {i} about the topic."), false)).collect();
+        assert!(chunks(&long, false).iter().all(|c| c.text.len() <= CHUNK + 50));
     }
 
     #[test]
-    fn arguments_keep_text_last_and_safe() {
-        let a = tts_args(Path::new("/m"), 3, "fast", Path::new("/tmp/o.wav"), "--sid=99 hello", false);
-        assert_eq!(a.last().unwrap(), "sid=99 hello");
-        assert!(a.contains(&"--sid=3".to_string()) && a.contains(&"--kokoro-length-scale=0.87".to_string()));
-        assert!(tts_args(Path::new("/m"), 26, "", Path::new("o"), "Hi", true).iter().any(|x| x.ends_with("lexicon-gb-en.txt")));
+    fn pauses_and_pace_follow_the_text() {
+        assert!(pause_ms(true, "natural") > pause_ms(false, "natural"));
+        assert!(pause_ms(true, "calm") > pause_ms(true, "lively"));
+        assert!(chunk_speed("Is it?", 1.0) < 1.0 && chunk_speed("Wow!", 1.0) > 1.0 && chunk_speed("Ok.", 1.0) == 1.0);
     }
 
     #[test]
-    fn voices_are_known_and_unique() {
-        let mut sids: Vec<u32> = VOICES.iter().map(|v| v.sid).collect();
-        sids.sort();
-        sids.dedup();
-        assert_eq!(sids.len(), VOICES.len());
-        assert_eq!(voice("bm_george").sid, 26);
-        assert_eq!(voice("nope").id, DEFAULT_VOICE);
-        assert_eq!(VOICES.len(), 28);
+    fn shapes_chunks_without_clicks() {
+        let rate = 24_000;
+        let mut s = vec![0.0; 2400]; // 100 ms of silence before
+        s.extend((0..4800).map(|i| (i as f32 * 0.05).sin() * 0.5));
+        s.extend(vec![0.0; 4800]); // 200 ms after
+        let out = shape(s, rate, 300);
+        assert_eq!(out[0], 0.0);
+        // Trimmed to the speech plus 20 ms each side, then a 300 ms pause.
+        let expected = 4800 + 2 * 480 + 7200;
+        assert!((out.len() as i64 - expected as i64).abs() < 50, "{} vs {expected}", out.len());
+        assert!(out[out.len() - 7200..].iter().all(|x| *x == 0.0));
     }
 
     #[test]
@@ -573,9 +560,10 @@ mod tests {
             eprintln!("skipped: set BYTE_TEST_SHERPA_TTS and BYTE_TEST_KOKORO");
             return;
         };
-        for id in ["af_heart", "bm_george"] {
+        for id in ["kokoro-v1_0/af_heart", "kokoro-v1_0/bm_george"] {
+            let (p, s) = voices::pick(id);
             let started = std::time::Instant::now();
-            let audio = synthesize(None, Path::new(&model), voice(id), "normal", "Hi, I'm BYTE. Here's what I found about the new MacBook Air.").await.unwrap();
+            let audio = synthesize(None, p, Path::new(&model), s, 1.0, "Hi, I'm BYTE. Here's what I found about the new MacBook Air.").await.unwrap();
             let secs = audio.len() as f32 / SAMPLE_RATE as f32;
             println!("{id}: {secs:.1} s of audio in {:.1} s", started.elapsed().as_secs_f32());
             assert!((2.0..8.0).contains(&secs), "{secs}");

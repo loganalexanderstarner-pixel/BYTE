@@ -10,7 +10,7 @@ import type {
   VoiceStatus,
   SpeakersStatus,
   SpeechVoice,
-  TtsStatus,
+  VoicePackage, VoicesStatus, CloudVoice,
   MediaStatus,
   Task,
   Schedule,
@@ -159,6 +159,8 @@ export const api = {
       cloud?: CloudTurn;
       /** Don't reuse an earlier answer (Regenerate). */
       fresh?: boolean;
+      /** The answer will be heard (BYTE answers like a person talking). */
+      spoken?: boolean;
       /** A job asked for with a button (Rust `agent::Task`). */
       task?: ChatTask;
     },
@@ -257,15 +259,17 @@ export const api = {
   voiceDelete: (id: string) => invoke<void>("voice_delete", { id }),
   voiceTranscribe: (wavBase64: string) => invoke<string>("voice_transcribe", { wavBase64 }),
   // Spoken replies (speech.rs) and "Hey BYTE" (wake.rs).
-  speechSay: (text: string) => invoke<void>("speech_say", { text }),
+  speechSay: (text: string, voice?: string) => invoke<void>("speech_say", { text, voice: voice ?? null }),
   speechStop: () => invoke<void>("speech_stop"),
   /** More of answer `id` (all its text so far) for BYTE's voices to read; `done` when it's complete. */
-  speechFeed: (id: string, text: string, done: boolean) => invoke<void>("speech_feed", { id, text, done }),
+  speechFeed: (id: string, text: string, done: boolean, isPrivate = false) => invoke<void>("speech_feed", { id, text, done, private: isPrivate }),
   // BYTE's own voices (tts.rs).
-  ttsStatus: () => invoke<TtsStatus>("tts_status"),
-  ttsDownload: () => invoke<void>("tts_download"),
-  ttsUnpack: () => invoke<void>("tts_unpack"),
-  ttsDelete: () => invoke<void>("tts_delete"),
+  voicesCatalog: () => invoke<VoicePackage[]>("voices_catalog"),
+  voicesStatus: () => invoke<VoicesStatus>("voices_status"),
+  ttsVoiceDownload: (id: string) => invoke<void>("tts_voice_download", { id }),
+  ttsVoiceUnpack: (id: string) => invoke<void>("tts_voice_unpack", { id }),
+  ttsVoiceDelete: (id: string) => invoke<void>("tts_voice_delete", { id }),
+  cloudVoices: () => invoke<CloudVoice[]>("cloud_voices"),
   speechVoices: () => invoke<SpeechVoice[]>("speech_voices"),
   onSpeechDone: (cb: () => void): Promise<UnlistenFn> => listen("speech://done", () => cb()),
   wakePause: (paused: boolean) => invoke<void>("wake_pause", { paused }),

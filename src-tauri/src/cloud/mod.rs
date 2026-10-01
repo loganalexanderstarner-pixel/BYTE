@@ -14,6 +14,7 @@ pub mod cmd;
 pub mod json;
 pub mod keychain;
 pub mod sse;
+pub mod voice;
 
 use std::time::{Duration, Instant};
 
@@ -247,6 +248,27 @@ impl CloudClient {
                 CloudError::Unreachable(format!("HTTP {status}"))
             } else {
                 CloudError::Other(AppError::msg(format!("The BYTE cloud couldn't send that file ({status}).")))
+            });
+        }
+        let mime = r.headers().get("content-type").and_then(|v| v.to_str().ok()).unwrap_or("application/octet-stream").to_string();
+        Ok((r.bytes().await.map_err(net_error)?.to_vec(), mime))
+    }
+
+    /// POSTs JSON and returns raw bytes and their content type (speech audio).
+    pub async fn post_bytes(&self, path: &str, body: &Value) -> CloudResult<(Vec<u8>, String)> {
+        let r = self.req(reqwest::Method::POST, path).json(body).timeout(Duration::from_secs(120)).send().await.map_err(net_error)?;
+        let status = r.status();
+        if status == 401 || status == 403 {
+            return Err(CloudError::Unauthorized);
+        }
+        if status == 429 {
+            return Err(limit_error(None));
+        }
+        if !status.is_success() {
+            return Err(if matches!(status.as_u16(), 502..=504) {
+                CloudError::Unreachable(format!("HTTP {status}"))
+            } else {
+                CloudError::Other(AppError::msg(format!("The BYTE cloud said no ({status}).")))
             });
         }
         let mime = r.headers().get("content-type").and_then(|v| v.to_str().ok()).unwrap_or("application/octet-stream").to_string();

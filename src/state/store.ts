@@ -254,7 +254,10 @@ interface State {
   addNewChats(): Promise<void>;
   /** Re-reads one chat from disk (another window changed it) and opens it. */
   openFresh(id: string): Promise<void>;
-  send(text: string, opts?: { task?: ChatTask }): Promise<void>;
+  /** `spoken`: asked out loud ("Hey BYTE"): the answer is spoken whatever the Read aloud setting. */
+  send(text: string, opts?: { task?: ChatTask; spoken?: boolean }): Promise<void>;
+  /** A spoken question is being answered (its answer is read aloud). */
+  voiceTurn: boolean;
   regenerate(): Promise<void>;
   /** Cloud account status (connected, modes). */
   cloud: CloudStatus | null;
@@ -525,13 +528,16 @@ export const useStore = create<State>((set, get) => {
     await streamReply(convId, reply, (onEvent) =>
       api.chatSend(
         // Regenerating (a new version of an answer) never reuses an earlier answer.
-        { requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private, projectId: conv.projectId, assistantId: conv.assistantId ?? null, cloud, fresh: !!opts.branch, task },
+        { requestId: reply.id, messages: history, mode, thinking, model: opts.model, private: conv.private, projectId: conv.projectId, assistantId: conv.assistantId ?? null, cloud, fresh: !!opts.branch, task, spoken: spokenTurn() },
         onEvent,
       ),
     );
   };
 
   /** Runs one streamed answer into `reply` (a message already in the chat). */
+  /** This answer will be heard: Read aloud is on, Talk mode, or a question asked out loud. */
+  const spokenTurn = () => canSpeak() && !!(get().settings?.readAloud || get().talk || get().voiceTurn);
+
   const streamReply = async (convId: string, reply: Message, call: (onEvent: (e: ChatEvent) => void) => Promise<void>) => {
     set({ generating: get().generating ?? reply.id, running: [...get().running, reply.id] });
 
@@ -540,7 +546,8 @@ export const useStore = create<State>((set, get) => {
     let pendingReasoning = "";
     let frame = 0;
     let lastFeed = 0;
-    const streamVoice = () => get().voicesReady && canSpeak() && (get().settings?.readAloud || get().talk) && !get().conversations.find((x) => x.id === convId)?.private;
+    const isPrivate = !!get().conversations.find((x) => x.id === convId)?.private;
+    const streamVoice = () => spokenTurn();
     const flush = () => {
       frame = 0;
       if (!pendingContent && !pendingReasoning) return;
@@ -555,7 +562,7 @@ export const useStore = create<State>((set, get) => {
         if (/[.!?]\s/.test(c) || Date.now() - lastFeed > 1500) {
           lastFeed = Date.now();
           set({ speakingId: reply.id });
-          void api.speechFeed(reply.id, text, false).catch(() => undefined);
+          void api.speechFeed(reply.id, text, false, isPrivate).catch(() => undefined);
         }
       }
     };
@@ -758,12 +765,12 @@ export const useStore = create<State>((set, get) => {
       const ok = answer?.status === "done" && !!answer.content.trim();
       set({ lastAnswer: { id: reply.id, ok, at: Date.now() } });
       // Read it aloud (setting, or hands-free conversation). Only the main answer of a chat, on a Mac.
-      if (ok && answer && !answer.alt && (get().settings?.readAloud || get().talk) && canSpeak()) {
-        if (get().voicesReady) {
-          set({ speakingId: reply.id });
-          void api.speechFeed(reply.id, answer.content, true).catch(() => set({ speakingId: null }));
-        } else void get().speak(reply.id, answer.content);
+      if (ok && answer && !answer.alt && spokenTurn()) {
+        // Rust picks the voice: BYTE's own, the cloud's, or the Mac's.
+        set({ speakingId: reply.id });
+        void api.speechFeed(reply.id, answer.content, true, isPrivate).catch(() => set({ speakingId: null }));
       } else if (get().speakingId === reply.id) get().stopSpeaking();
+      set({ voiceTurn: false });
       if (done && inTauri) {
         scheduleSave(done, 100);
         maybeAutotitle(done);
@@ -843,6 +850,7 @@ export const useStore = create<State>((set, get) => {
     running: [],
     speakingId: null,
     talk: false,
+    voiceTurn: false,
     lastAnswer: null,
     voicesReady: false,
     loaded: [],
@@ -899,7 +907,7 @@ export const useStore = create<State>((set, get) => {
       });
       await events.onDownload((e) => handleDownload(e));
       await api.onSpeechDone(() => set({ speakingId: null }));
-      void api.ttsStatus().then((t) => set({ voicesReady: t.ready }), () => undefined);
+      void api.voicesStatus().then((t) => set({ voicesReady: t.ready.length > 0 }), () => undefined);
       void get().refreshKb();
       await events.onKbProgress((p) => {
         set({ kbProgress: p.phase === "done" ? null : p });
@@ -1103,6 +1111,7 @@ export const useStore = create<State>((set, get) => {
     async send(text, opts) {
       const content = text.trim();
       if (!content || get().generating) return;
+      set({ voiceTurn: !!opts?.spoken });
       let convId = get().currentId;
       if (!convId || !get().conversations.some((c) => c.id === convId)) {
         const conv: Conversation = { id: newId(workspaceOf(get().settings)), title: "New chat", createdAt: Date.now(), updatedAt: Date.now(), messages: [], loaded: true };

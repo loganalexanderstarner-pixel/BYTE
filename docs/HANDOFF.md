@@ -479,8 +479,8 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 (with the loaded model's recommended sampling), assistants in Cloud mode. **Phase 8 is complete.**
 **Next:** **Phase 10 is complete** (v0.10.0–v0.10.6, all released). Phase 11 (input & windows) has started: v0.11.0
 Quick Ask + menu bar + ⌘K palette + custom shortcuts, v0.11.1 voice input and v0.11.2 speaker labels + videos without
-captions v0.11.3 spoken answers + hands-free + "Hey BYTE" and v0.11.4 BYTE's own natural voices (Kokoro) are done; next
-v0.11.5 notes, web clipper, mind maps
+captions v0.11.3 spoken answers + hands-free + "Hey BYTE" and v0.11.4 BYTE's own natural voices (Kokoro) and v0.11.5 the voice catalog + human speech are done;
+next v0.11.6 notes, web clipper, mind maps
 (see the Phase 11 section). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
@@ -683,6 +683,13 @@ resamples to the device rate and appends to one queue; a single cpal output stre
 when generation is done and the queue is empty. Without the voices, `say` is used. Note: our local Linux static build
 of sherpa-tts crashes (onnxruntime static `std::regex`); local tests use the official prebuilt binary; macOS builds
 with libc++ (checked by the Mac test).
+**Done in v0.11.5:** `voices.rs` + `catalog/voices.json` (built by `scripts/build-voices.mjs`, which streams each release
+archive once for its SHA-256; cache in `scripts/voices-cache.json`): Kokoro, Piper, Kitten, Supertonic, Pocket via one
+sidecar with per-engine args. `byteVoice` = "<package>/<speaker>" (old Kokoro ids map; Kokoro keeps its v0.11.4
+folder). Speech shaping in `tts.rs` (`pieces`, `chunks`, `pause_ms`, `chunk_speed`, `shape`); `prompt::SPOKEN` when
+`ChatRequest.spoken`; cloud voice `cloud/voice.rs` (cluster request 7; 404 → Mac voice). Wake turns always speak and
+then listen 8 s for a follow-up (Composer `followUp`). Sizes measured on Linux x86 with the prebuilt tool: Piper
+~170 MB, Kitten nano ~140 MB, Supertonic ~270 MB, Kokoro ~500 MB, Pocket ~570 MB while speaking.
 Later: the Finder "Ask BYTE" Quick Action (a Shortcut or Service that opens `byte://ask`), a floating desktop
 widget.
 1. **Voice**: whisper (sidecar `whisper-cli`, small/base models) push-to-talk / hold Space; hands-free

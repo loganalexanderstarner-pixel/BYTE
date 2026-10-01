@@ -448,6 +448,7 @@ pub async fn ask_unattended(state: &AppState, question: &str) -> Answer {
         assistant_id: None,
         cloud: None,
         fresh: true,
+        spoken: false,
         task: None,
     };
     let (ch, seen) = collector();
