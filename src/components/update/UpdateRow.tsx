@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api, errorText, inTauri } from "../../lib/api";
 import type { UpdateInfo } from "../../lib/types";
 import { useStore } from "../../state/store";
+import { updateSummary } from "../../lib/updateNotes";
 
 /** Settings → About: check for a newer BYTE and install it in one click (updater.rs). */
 export function UpdateRow() {
@@ -74,7 +75,7 @@ export function UpdateRow() {
       <label className="row small" style={{ gap: 6, marginTop: 6 }}>
         <input type="checkbox" checked={settings?.updateCheck !== false} onChange={(e) => void update({ updateCheck: e.target.checked })} /> Check once a day and tell me
       </label>
-      {found?.notes && <p className="faint small update-notes">{found.notes.split("\n").find((l) => l.trim() && !l.startsWith("#"))}</p>}
+      {found?.notes && <p className="faint small update-notes">{updateSummary(found.notes)}</p>}
       {error && <div className="banner danger">{error}</div>}
     </div>
   );

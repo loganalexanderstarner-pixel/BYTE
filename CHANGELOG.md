@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.5 — Texting in plain words, and updates that explain themselves
+
+- `macctl.rs`: `plain_text()` / `after_first()`: "text Mom I'm on my way" routes to a Messages draft without
+  "that"/"saying". `prompt::MAC_CONTROL` when Mac control is on.
+- `updater.rs`: `unwritable_place()` (App Translocation, /Volumes) and os error 30 → plain fix steps. UI:
+  `lib/updateNotes.ts` (first paragraph, no Markdown). README/release footer/help: run `xattr -cr` before the
+  first launch so updates can install.
+
 ## 0.12.4 — Polish for 1.0, and the first one-click update
 
 - Welcome guide (`runnable()`): 4-bit-and-up versions first, community/uncensored remixes last. 23 placeholder model

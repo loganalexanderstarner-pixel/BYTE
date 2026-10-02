@@ -14,3 +14,5 @@ Check free disk space and memory in [Settings → Engine](byte-setting:engine). 
 
 **A download stopped**
 Downloads resume where they left off: press **Resume**.
+
+**An update fails with "Read-only file system".** macOS is running a read-only copy of BYTE because it was downloaded and isn't signed by Apple. Quit BYTE, make sure it's in Applications (not the .dmg window), run `xattr -cr /Applications/BYTE.app` once in Terminal, open BYTE again and install the update.

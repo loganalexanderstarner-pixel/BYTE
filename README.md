@@ -70,13 +70,16 @@ brew install --cask byte
 
 1. Download the latest `BYTE_…_aarch64.dmg` from [Releases](../../releases).
 2. Open the `.dmg` and drag **BYTE** into **Applications**.
-3. **First launch.** BYTE isn't signed with a paid Apple Developer ID yet, so macOS blocks it the first time:
-   - **macOS 15 Sequoia and later:** open BYTE, click **Done** on the warning, then open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. Confirm with your password or Touch ID.
-   - **macOS 13–14:** right-click (or Control-click) BYTE in Applications, choose **Open**, then **Open** again.
-   - If macOS says BYTE **"is damaged and can't be opened"**, run this once in Terminal, then open it normally:
-     ```sh
-     xattr -cr /Applications/BYTE.app
-     ```
+3. **Before the first launch, run this once in Terminal** (Applications → Utilities → Terminal):
+   ```sh
+   xattr -cr /Applications/BYTE.app
+   ```
+   BYTE isn't signed with a paid Apple Developer ID, so macOS marks it as "downloaded" and blocks it. This command
+   removes that mark: macOS then opens BYTE normally, and BYTE can **update itself** (without it, macOS runs a
+   read-only copy and updates fail with "Read-only file system").
+   - Prefer not to use Terminal? macOS 15+: open BYTE, click **Done**, then **System Settings → Privacy & Security
+     → Open Anyway**. macOS 13–14: right-click BYTE → **Open** → **Open**. You'll still need the command above
+     before the first update.
 4. Follow the welcome guide. It downloads your model (about 9 GB for the recommended one) and you're ready.
 
 **Updates:** BYTE checks for new versions once a day and installs them in one click (Settings → About), after

@@ -55,6 +55,23 @@ fn info(u: &tauri_plugin_updater::Update) -> UpdateInfo {
     UpdateInfo { current: u.current_version.clone(), version: u.version.clone(), notes: u.body.clone().unwrap_or_default() }
 }
 
+/// Why BYTE can't replace itself where it's running, if it can't: macOS runs a downloaded, unsigned app from a
+/// hidden read-only copy ("App Translocation") until its quarantine mark is removed, and a disk image is
+/// read-only too.
+fn unwritable_place(exe: &str) -> Option<&'static str> {
+    if exe.contains("/AppTranslocation/") {
+        Some(MOVE_HELP)
+    } else if exe.starts_with("/Volumes/") {
+        Some("BYTE is running from the disk image (.dmg), which can't be changed. Quit BYTE, drag it into Applications, eject the disk image, then open BYTE from Applications and install the update.")
+    } else {
+        None
+    }
+}
+
+const MOVE_HELP: &str = "macOS is running BYTE from a hidden read-only copy, because it was downloaded and isn't signed by Apple. \
+To fix it once: quit BYTE, make sure it's in Applications, then run this in Terminal: \
+xattr -dr com.apple.quarantine /Applications/BYTE.app — and open BYTE again. (Installing with Homebrew avoids this.)";
+
 /// Whether this build can update itself (it was built with the owner's public key).
 #[tauri::command]
 pub fn update_configured(app: AppHandle) -> bool {
@@ -73,6 +90,9 @@ pub async fn update_check(app: AppHandle) -> AppResult<Option<UpdateInfo>> {
 pub async fn update_install(app: AppHandle, state: State<'_, AppState>) -> AppResult<()> {
     crate::lock::ensure(&state)?;
     ready(&app)?;
+    if let Some(help) = std::env::current_exe().ok().and_then(|p| unwritable_place(&p.to_string_lossy())) {
+        return Err(AppError::msg(help));
+    }
     let update = find(&app).await?.ok_or_else(|| AppError::msg("BYTE is already up to date."))?;
     let mut got = 0u64;
     let progress = app.clone();
@@ -85,7 +105,15 @@ pub async fn update_install(app: AppHandle, state: State<'_, AppState>) -> AppRe
             || {},
         )
         .await
-        .map_err(|e| AppError::msg(format!("The update couldn't be installed: {e}")))?;
+        .map_err(|e| {
+            let e = e.to_string();
+            // Missed by the path check (another read-only place): the same plain help.
+            if e.contains("Read-only file system") || e.contains("os error 30") {
+                AppError::msg(MOVE_HELP)
+            } else {
+                AppError::msg(format!("The update couldn't be installed: {e}"))
+            }
+        })?;
     state.engine.stop().await;
     for e in state.extras.all().await {
         e.stop().await;
@@ -112,6 +140,13 @@ pub async fn daily(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn spots_read_only_places() {
+        assert!(unwritable_place("/private/var/folders/x/T/AppTranslocation/ABC/d/BYTE.app/Contents/MacOS/byte").is_some());
+        assert!(unwritable_place("/Volumes/BYTE/BYTE.app/Contents/MacOS/byte").is_some());
+        assert!(unwritable_place("/Applications/BYTE.app/Contents/MacOS/byte").is_none());
+    }
 
     #[test]
     fn needs_a_public_key() {

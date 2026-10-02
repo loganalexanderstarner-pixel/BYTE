@@ -17,6 +17,16 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — v0.12.5: read-only updates explained, clean notes, install steps
+- **Why:** owner's one-click update from v0.12.3 failed: "Read-only file system (os error 30)". macOS runs an
+  unsigned, quarantined app from a read-only App Translocation copy (or the .dmg). The notes also showed raw `**`.
+- **What:** `updater::unwritable_place` + mapping of os error 30 to `MOVE_HELP` (tests); `lib/updateNotes.ts`
+  (+ test) in `UpdateRow`; README, `release.yml` footer and help 14 say to run `xattr -cr /Applications/BYTE.app`
+  before the first launch; release notes v0.12.5, VERSIONS, CHANGELOG; version 0.12.5.
+- **Verify:** `cargo test updater`; owner: xattr once, then v0.12.3 → Install 0.12.5 works.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — "text Mom I'm on my way" works without "saying"; BYTE never says it can't text
 - **Why:** owner tried "Text mom this is ai sending this message": no Messages card (routing needed "that"/"saying"/":"),
   and the model answered "I can't actually send text messages".

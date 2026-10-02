@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.12.4** | Phase 12 · Polish for 1.0, and the first one-click update | Better first run and model descriptions, grown-up models kept out of kids mode, faster start, documents marked Beta, BYTE Cloud key steps, README pictures | Installing an update in one click |
+| **v0.12.5** | Phase 12 · Texting in plain words, and updates that explain themselves | "text Mom I'm on my way" works; BYTE no longer says it can't text; a clear fix when macOS runs BYTE read-only; clean update notes | Texting someone from BYTE |
+| v0.12.4 | Phase 12 · Polish for 1.0, and the first one-click update | Better first run and model descriptions, grown-up models kept out of kids mode, faster start, documents marked Beta, BYTE Cloud key steps, README pictures | Installing an update in one click |
 | v0.12.3 | Phase 12 · One-click updates and Homebrew | BYTE updates itself (checked daily, installed in one click, only when signed with BYTE's key), installs with Homebrew, and a new README | Never downloading BYTE by hand again |
 | v0.12.2 | Phase 12 · Your own themes, smoother motion and accessibility | A theme editor with live preview, readability checks and .bytetheme import/export, springy panels and a thinking glow, Reduce motion, optional chimes, and every button readable by VoiceOver | Making BYTE look and feel just right |
 | v0.12.1 | Phase 12 · Kids mode, backups and erasing | A kids mode with a PIN (no web or Mac actions, only the kids' own chats), encrypted backups to iCloud Drive with weekly backups and restore, automatic deletion of old chats, and Erase everything | Sharing the Mac with kids, and never losing your chats |

@@ -95,10 +95,10 @@ jobs:
             echo "## Install"
             echo "**Apple Silicon Macs (M1 or newer), macOS 13.3+.** Download the \`.dmg\`, open it, and drag BYTE to Applications."
             echo
-            echo "**First launch:** BYTE isn't signed with an Apple Developer ID yet, so macOS will block it the first time."
-            echo "- macOS 15 (Sequoia) or later: open BYTE once, click **Done**, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**."
-            echo "- macOS 13–14: right-click BYTE in Applications → **Open** → **Open**."
-            echo "- If macOS says the app is \"damaged\", run this in Terminal: \`xattr -cr /Applications/BYTE.app\`"
+            echo "**Before the first launch, run this once in Terminal:** \`xattr -cr /Applications/BYTE.app\`"
+            echo "BYTE isn't signed with a paid Apple Developer ID, so macOS marks it as downloaded and blocks it; the command removes that mark, so BYTE opens normally and can update itself in one click."
+            echo "- Without Terminal: macOS 15+ open BYTE, click **Done**, then **System Settings → Privacy & Security → Open Anyway**; macOS 13–14 right-click BYTE → **Open** → **Open**. Run the command before the first update, or it fails with \"Read-only file system\"."
+            echo "- Or install with Homebrew, which does this for you: \`brew tap loganalexanderstarner-pixel/byte https://github.com/loganalexanderstarner-pixel/BYTE && brew install --cask byte\`"
             echo "BYTE_NOTES_END"
           } >> "$GITHUB_OUTPUT"
 
