@@ -25,6 +25,19 @@ anything the Mac app does, Windows and Linux can usually do too, often with more
 each of those gets the closest real alternative, explained in plain words. "Not on Windows yet" is a temporary
 state to report, never a final answer.
 
+**Reuse first, don't rewrite.** Most of BYTE is already cross-platform: the whole React UI and most of the Rust
+core (chat, models, research, documents, memory, voice, notes, tasks, cloud, updates…). Build the Windows and
+Linux apps **from this same codebase**, changing only what touches the OS:
+- add a Windows/Linux branch beside the Mac one (`#[cfg(target_os = …)]`) inside the existing module, with the
+  same function names and types;
+- **extend** shared logic instead of copying it: grow `system.rs`'s planner and `chip.rs`'s estimate to know about
+  VRAM and PC hardware, and teach `tune.rs` the extra settings;
+- keep one UI: only small, OS-aware wording ("File Explorer" instead of "Finder", "Windows Hello" instead of
+  "Touch ID") through a shared helper, not separate screens.
+
+A new file is only for genuinely new things (for example `gpu.rs` for PC graphics detection, `winctl.rs` for
+Windows control). If you're about to duplicate a module, stop and extend it instead.
+
 **Parity checklist**: the PC session ticks each one on Windows, then Linux. Most is shared code (the React UI and
 the Rust core), so "check it works" is the job. The OS-touching rows have their replacements in the feature map
 below.

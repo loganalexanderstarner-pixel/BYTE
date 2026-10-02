@@ -17,6 +17,13 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — port brief: reuse first, don't rewrite
+- **Why:** owner: most of the Mac app can be reused; it needs a few changes, not a rewrite.
+- **What:** `PORTING-WINDOWS-LINUX.md` rule: same codebase, platform branches inside existing modules, extend the
+  planner/estimates/tuner instead of copying, one UI with OS-aware wording; new files only for new things.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — port brief: speeds per model, like the Mac
 - **Why:** owner: the PC apps must know each model's speed like the Mac does.
 - **What:** `PORTING-WINDOWS-LINUX.md` "Speeds per model": the Mac's `chip::estimate` method, the split formula
