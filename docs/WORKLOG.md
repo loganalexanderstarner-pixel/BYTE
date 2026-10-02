@@ -17,6 +17,15 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — v0.12.1 and v0.12.2 ship inside v0.12.3
+- **Why:** the v0.12.1 release failed twice at "create release" ("Resource not accessible by integration"), the
+  second time with nothing pushed during the run. The pattern across v0.10.0, v0.11.2 and v0.12.1: the commit being
+  released wasn't the branch head anymore. Releasing the head works.
+- **What:** release notes for v0.12.1 and v0.12.3 say so; HANDOFF records the rule (release only the branch head).
+  v0.12.1's .dmg stays available as the run artifact `BYTE-v0.12.1-dmg` (run 36960000939).
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — v0.12.3: the owner's update key, one-click updates on
 - **Why:** the owner made the signing key on their own machine, added the private half and its password as GitHub
   secrets, and sent the public half. With it in the app, BYTE can verify and install its own updates.
