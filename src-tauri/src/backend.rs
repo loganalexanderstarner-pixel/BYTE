@@ -247,6 +247,12 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
             .await
             .ok_or_else(|| AppError::msg("The AI engine isn't ready yet. It usually takes a few seconds after launch."))?,
     };
+    if state.settings.lock().await.kids_mode {
+        let key = request.model.clone().or(main_key);
+        if key.is_some_and(|k| crate::kids::grown_up_model(&state.catalog.get(), &k)) {
+            return Err(AppError::msg(crate::kids::GROWN_UP_MODEL));
+        }
+    }
     if reuse_earlier_answer(state, request, &ep, on_event).await {
         return Ok(());
     }

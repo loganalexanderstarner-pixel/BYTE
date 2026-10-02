@@ -20,7 +20,7 @@ Base URL: `https://byteai.bytebylogan.xyz`
 A key authenticates **as its owner** and inherits that account's tier limits
 and quota — it is a way in without a browser, not a way around limits.
 
-Users create one at byteai.bytebylogan.xyz → ⚙ Settings → API keys. It is
+Users make an account at byteai.bytebylogan.xyz (invite link), then open ⚙ Settings and scroll to the bottom for the key. It is
 shown once; only a SHA-256 hash is stored, so it cannot be displayed again.
 
 **Validate the moment it is pasted:** `GET /api/auth/me` → 200 with tier,

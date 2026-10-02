@@ -1,3 +1,4 @@
+import { CloudKeySteps } from "./CloudKeySteps";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { Cloud, Download, KeyRound, LogOut, RefreshCw } from "lucide-react";
 import { useState } from "react";
@@ -20,7 +21,8 @@ export function CloudTab() {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
-  const reloadSettings = async () => useStore.setState({ settings: await api.settingsGet() });
+  const reloadSettings = async () =>
+    useStore.setState({ settings: await api.settingsGet() });
   const run = async (label: string, fn: () => Promise<void>) => {
     setError(null);
     setNote(null);
@@ -44,9 +46,10 @@ export function CloudTab() {
 
   const disconnect = () =>
     run("disconnect", async () => {
-      const yes = await ask("Remove your BYTE cloud key from this Mac? Chats already here stay.", { title: "Disconnect BYTE Cloud", kind: "warning" }).catch(
-        () => true,
-      );
+      const yes = await ask(
+        "Remove your BYTE cloud key from this Mac? Chats already here stay.",
+        { title: "Disconnect BYTE Cloud", kind: "warning" },
+      ).catch(() => true);
       if (!yes) return;
       await api.cloudDisconnect();
       await Promise.all([reloadSettings(), refreshCloud()]);
@@ -73,7 +76,11 @@ export function CloudTab() {
         setNote(`Importing… ${n} of ${list.length}`);
       }
       await reloadChats();
-      setNote(n ? `Imported ${n} cloud chat${n === 1 ? "" : "s"}. They're in the sidebar.` : "No chats on your BYTE cloud yet.");
+      setNote(
+        n
+          ? `Imported ${n} cloud chat${n === 1 ? "" : "s"}. They're in the sidebar.`
+          : "No chats on your BYTE cloud yet.",
+      );
     });
 
   if (!settings) return null;
@@ -85,8 +92,9 @@ export function CloudTab() {
     <>
       <h3>Cloud</h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        Use your own BYTE cluster when this Mac is too small or you want its bigger models. Answers stream from the cloud; if it can't be
-        reached, BYTE answers on this Mac instead. Private chats never leave this Mac.
+        Use your own BYTE cluster when this Mac is too small or you want its
+        bigger models. Answers stream from the cloud; if it can't be reached,
+        BYTE answers on this Mac instead. Private chats never leave this Mac.
       </p>
       {error && <div className="banner danger">{error}</div>}
       {note && <div className="banner">{note}</div>}
@@ -97,14 +105,12 @@ export function CloudTab() {
           <div className="field">
             <label>
               <span className="row" style={{ gap: 6 }}>
-                <KeyRound size={14} style={{ color: "var(--accent)" }} /> API key
+                <KeyRound size={14} style={{ color: "var(--accent)" }} /> API
+                key
               </span>
-              <small>
-                Create one at byteai.bytebylogan.xyz → Settings → API keys. BYTE checks it with your cloud first, then keeps it in the macOS
-                Keychain — never in a file.
-              </small>
             </label>
           </div>
+          <CloudKeySteps />
           <div className="row" style={{ gap: 8 }}>
             <input
               className="text-input key-input"
@@ -114,14 +120,24 @@ export function CloudTab() {
               placeholder="byte_…"
               value={key}
               onChange={(e) => setKey(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && key.trim() && void connect()}
+              onKeyDown={(e) =>
+                e.key === "Enter" && key.trim() && void connect()
+              }
               aria-label="BYTE cloud API key"
             />
-            <button className="btn primary" disabled={!key.trim() || !!busy} onClick={() => void connect()}>
+            <button
+              className="btn primary"
+              disabled={!key.trim() || !!busy}
+              onClick={() => void connect()}
+            >
               <Cloud size={14} /> {busy === "connect" ? "Checking…" : "Connect"}
             </button>
           </div>
-          <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => setShowAddress(!showAddress)}>
+          <button
+            className="btn sm ghost"
+            style={{ marginTop: 8 }}
+            onClick={() => setShowAddress(!showAddress)}
+          >
             {showAddress ? "Hide address" : "Use a different address"}
           </button>
           {showAddress && (
@@ -139,7 +155,11 @@ export function CloudTab() {
         <>
           <div className="cloud-account">
             <b>
-              <Cloud size={14} style={{ verticalAlign: -2, color: "var(--accent)" }} /> {me?.name ?? me?.email ?? "Connected"}
+              <Cloud
+                size={14}
+                style={{ verticalAlign: -2, color: "var(--accent)" }}
+              />{" "}
+              {me?.name ?? me?.email ?? "Connected"}
               {me?.tier && <span className="model-label">{me.tier}</span>}
             </b>
             {me?.email && me.name && <span className="faint">{me.email}</span>}
@@ -167,12 +187,28 @@ export function CloudTab() {
             <div className="field">
               <label>
                 Where BYTE answers
-                <small>Also switchable at the top of the sidebar. Both asks this Mac and the cloud at once so you can keep the better answer.</small>
+                <small>
+                  Also switchable at the top of the sidebar. Both asks this Mac
+                  and the cloud at once so you can keep the better answer.
+                </small>
               </label>
-              <div className="segmented" role="tablist" aria-label="Where BYTE answers">
+              <div
+                className="segmented"
+                role="tablist"
+                aria-label="Where BYTE answers"
+              >
                 {(["local", "cloud", "both"] as const).map((ws) => (
-                  <button key={ws} role="tab" aria-selected={workspaceOf(settings) === ws} onClick={() => void setWorkspace(ws)}>
-                    {ws === "local" ? "This Mac" : ws === "cloud" ? "Cloud" : "Both"}
+                  <button
+                    key={ws}
+                    role="tab"
+                    aria-selected={workspaceOf(settings) === ws}
+                    onClick={() => void setWorkspace(ws)}
+                  >
+                    {ws === "local"
+                      ? "This Mac"
+                      : ws === "cloud"
+                        ? "Cloud"
+                        : "Both"}
                   </button>
                 ))}
               </div>
@@ -180,22 +216,45 @@ export function CloudTab() {
             <div className="field">
               <label>
                 Cloud chats
-                <small>Copy the conversations from your BYTE cloud into this Mac's sidebar (and search).</small>
+                <small>
+                  Copy the conversations from your BYTE cloud into this Mac's
+                  sidebar (and search).
+                </small>
               </label>
-              <button className="btn sm" disabled={!!busy} onClick={() => void importChats()}>
-                <Download size={14} /> {busy === "import" ? "Importing…" : "Import"}
+              <button
+                className="btn sm"
+                disabled={!!busy}
+                onClick={() => void importChats()}
+              >
+                <Download size={14} />{" "}
+                {busy === "import" ? "Importing…" : "Import"}
               </button>
             </div>
             <div className="field">
               <label>
                 Account
-                <small>Refresh after changing your plan. Disconnecting removes the key from this Mac's Keychain.</small>
+                <small>
+                  Refresh after changing your plan. Disconnecting removes the
+                  key from this Mac's Keychain.
+                </small>
               </label>
               <div className="row" style={{ gap: 6 }}>
-                <button className="btn sm" disabled={!!busy} onClick={() => void refresh()}>
-                  <RefreshCw size={14} className={busy === "refresh" ? "spin" : undefined} /> Refresh
+                <button
+                  className="btn sm"
+                  disabled={!!busy}
+                  onClick={() => void refresh()}
+                >
+                  <RefreshCw
+                    size={14}
+                    className={busy === "refresh" ? "spin" : undefined}
+                  />{" "}
+                  Refresh
                 </button>
-                <button className="btn sm danger" disabled={!!busy} onClick={() => void disconnect()}>
+                <button
+                  className="btn sm danger"
+                  disabled={!!busy}
+                  onClick={() => void disconnect()}
+                >
                   <LogOut size={14} /> Disconnect
                 </button>
               </div>

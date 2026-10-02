@@ -113,10 +113,24 @@ fn note_attempt(ok: bool, at: i64) {
     }
 }
 
+/// Uncensored and "obliterated" models, and every other community remix (role-play and dark-story fine-tunes
+/// among them), never run in kids mode: kids get the makers' own models. They all stay in the catalog for
+/// grown-ups.
+pub fn grown_up_model(catalog: &crate::models::Catalog, key: &str) -> bool {
+    catalog.resolve(key).is_ok_and(|(m, _)| m.is_community() || m.tags.iter().any(|t| t == "uncensored"))
+}
+
+pub const GROWN_UP_MODEL: &str = "This model is for grown-ups only, so it can't answer in kids mode. A grown-up can pick a regular model in Settings → Models.";
+
 /// Turns kids mode on with a PIN (needed to turn it off again).
 #[tauri::command]
 pub async fn kids_enter(state: State<'_, AppState>, pin: String) -> AppResult<Settings> {
     crate::lock::ensure(&state)?;
+    if let Some(l) = state.engine.loaded().await {
+        if grown_up_model(&state.catalog.get(), &l.key) {
+            return Err(AppError::msg("The model in use is for grown-ups only (an uncensored or community model). Pick a regular model in Settings → Models first, then turn on kids mode."));
+        }
+    }
     let mut s = state.settings.lock().await;
     s.kids_pin = Some(hash_pin(pin.trim())?);
     s.kids_mode = true;
@@ -149,6 +163,20 @@ pub async fn kids_exit(state: State<'_, AppState>, pin: String) -> AppResult<Set
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn uncensored_models_are_grown_ups_only() {
+        let catalog = crate::models::Catalog::embedded();
+        let adult = catalog.models.iter().find(|m| m.tags.iter().any(|t| t == "uncensored")).expect("an uncensored model");
+        let key = format!("{}:{}", adult.id, adult.variants[0].quant);
+        assert!(super::grown_up_model(&catalog, &key));
+        let regular = catalog.models.iter().find(|m| m.id == "qwen3.5-9b").unwrap();
+        assert!(!super::grown_up_model(&catalog, &format!("qwen3.5-9b:{}", regular.variants[0].quant)));
+        assert!(!super::grown_up_model(&catalog, "not-a-model:Q4"));
+        // Role-play and dark-story remixes too, though not tagged uncensored.
+        let remix = catalog.models.iter().find(|m| m.id == "community-l3-dark-planet-8b").unwrap();
+        assert!(super::grown_up_model(&catalog, &format!("{}:{}", remix.id, remix.variants[0].quant)));
+    }
+
     use super::*;
 
     #[test]

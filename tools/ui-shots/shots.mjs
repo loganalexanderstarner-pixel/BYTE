@@ -1459,9 +1459,9 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(150);
   await shot(p, "10f-cloud-account");
   await p.getByRole("button", { name: "Close settings" }).click();
-  await p.getByTitle(/Documents: PDFs/).click();
+  await p.getByTitle(/Documents \(beta\): PDFs/).click();
   await p.waitForTimeout(250);
-  await p.getByRole("button", { name: "Slides", exact: true }).click();
+  await p.getByRole("button", { name: /^Slides/ }).click();
   await p.getByLabel("What the document is about").fill("Solar power for beginners, 10 slides for a high-school class");
   await shot(p, "11-docs-create");
   await p.getByRole("button", { name: /Plan it/ }).click();
@@ -1543,7 +1543,7 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
 // Documents made on this Mac: outline, then the written document
 {
   const { p, ctx, errors } = await page(true, "midnight");
-  await p.getByTitle(/Documents: PDFs/).click();
+  await p.getByTitle(/Documents \(beta\): PDFs/).click();
   await p.waitForTimeout(400);
   await p.getByLabel("What the document is about").fill("A plan to save for a first home in three years");
   await shot(p, "15-docs-local");

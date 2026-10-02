@@ -17,6 +17,20 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — owner asks: grown-up models out of kids mode, documents marked Beta, BYTE key steps
+- **Why:** owner: keep the uncensored/"obliterated" models (they stay in the catalog) but exclude them from kids
+  mode; mark file making Beta (PowerPoint needs work); explain where the BYTE key is (make an account on the
+  website, Settings, bottom of the page).
+- **What:** `kids::grown_up_model` (community remixes and anything tagged uncensored: role-play and dark-story
+  remixes aren't always tagged) refused in `backend::local_turn` while kids mode is on, and `kids_enter` refuses
+  while one is loaded (test). `documents/BetaTag.tsx` on both document panels' titles and the Slides choice,
+  a beta note, "Save as PowerPoint (beta)", "Documents (beta)" in the top bar and palette.
+  `settings/CloudKeySteps.tsx` (link to byteai.bytebylogan.xyz + 3 steps) in Settings → Cloud and the welcome
+  guide; help article and CLOUD-MODE.md updated. Screenshot script follows the new labels.
+- **Verify:** `cargo test kids`; screenshots `10-cloud-connect`, `11-docs-create`, `15-docs-local`.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — v1.0 polish, part 3: panels load on first use (startup code 985 → 695 KB)
 - **Why:** the startup script held every panel (Settings, Notes, Board, Help with its articles, Study, Writing,
   Documents, Tasks, Reader …) though most are opened rarely.

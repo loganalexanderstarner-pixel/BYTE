@@ -1,15 +1,58 @@
+import { BETA_NOTE, BetaTag } from "./BetaTag";
 import { documentDir, join } from "@tauri-apps/api/path";
-import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
+import {
+  open as openDialog,
+  save as saveDialog,
+} from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { ArrowDown, ArrowLeft, ArrowUp, Check, Download, FilePlus2, FileText, Loader2, Paperclip, Plus, RefreshCw, Trash2, Wand2, X } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  Check,
+  Download,
+  FilePlus2,
+  FileText,
+  Loader2,
+  Paperclip,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Wand2,
+  X,
+} from "lucide-react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { api, errorText } from "../../lib/api";
-import { DOC_KINDS, idOf, jobState, listOf, readOutline, str, titleOf, writeOutline, type DocKind, type OutlineItem, type Row } from "../../lib/cloudDocs";
+import {
+  DOC_KINDS,
+  idOf,
+  jobState,
+  listOf,
+  readOutline,
+  str,
+  titleOf,
+  writeOutline,
+  type DocKind,
+  type OutlineItem,
+  type Row,
+} from "../../lib/cloudDocs";
 import { useStore } from "../../state/store";
 import { CloudThumb, cloudImageCached } from "../chat/Attachments";
 
-type View = { kind: "create" } | { kind: "jobs" } | { kind: "docs" } | { kind: "job"; id: string } | { kind: "doc"; id: string };
+type View =
+  | { kind: "create" }
+  | { kind: "jobs" }
+  | { kind: "docs" }
+  | { kind: "job"; id: string }
+  | { kind: "doc"; id: string };
 
 /**
  * Documents made on the BYTE cloud (docs/CLOUD-MODE.md → Documents): a job is
@@ -20,7 +63,9 @@ type View = { kind: "create" } | { kind: "jobs" } | { kind: "docs" } | { kind: "
 export function DocumentsPanel({ onClose }: { onClose(): void }) {
   const cloudConnected = useStore((s) => !!s.settings?.cloudConnected);
   // The cloud makes the best documents; this Mac works offline and privately.
-  const [where, setWhere] = useState<"local" | "cloud">(cloudConnected ? "cloud" : "local");
+  const [where, setWhere] = useState<"local" | "cloud">(
+    cloudConnected ? "cloud" : "local",
+  );
   const [view, setView] = useState<View>({ kind: "create" });
 
   useEffect(() => {
@@ -34,35 +79,69 @@ export function DocumentsPanel({ onClose }: { onClose(): void }) {
     { id: "jobs", label: "In progress" },
     { id: "docs", label: "Documents" },
   ];
-  const current = view.kind === "job" ? "jobs" : view.kind === "doc" ? "docs" : view.kind;
+  const current =
+    view.kind === "job" ? "jobs" : view.kind === "doc" ? "docs" : view.kind;
 
   return (
-    <div className="scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal docs-modal" role="dialog" aria-modal="true" aria-label="Documents">
+    <div
+      className="scrim"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        className="modal docs-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Documents"
+      >
         <nav className="modal-nav">
           <h2>Documents</h2>
           {cloudConnected && (
-            <div className="segmented workspace-switch" role="tablist" aria-label="Where documents are made">
-              <button role="tab" aria-selected={where === "cloud"} onClick={() => setWhere("cloud")}>
+            <div
+              className="segmented workspace-switch"
+              role="tablist"
+              aria-label="Where documents are made"
+            >
+              <button
+                role="tab"
+                aria-selected={where === "cloud"}
+                onClick={() => setWhere("cloud")}
+              >
                 BYTE Cloud
               </button>
-              <button role="tab" aria-selected={where === "local"} onClick={() => setWhere("local")}>
+              <button
+                role="tab"
+                aria-selected={where === "local"}
+                onClick={() => setWhere("local")}
+              >
                 This Mac
               </button>
             </div>
           )}
           {where === "cloud" &&
             tabs.map((t) => (
-              <button key={t.id} aria-current={current === t.id} onClick={() => setView({ kind: t.id })}>
+              <button
+                key={t.id}
+                aria-current={current === t.id}
+                onClick={() => setView({ kind: t.id })}
+              >
                 {t.label}
               </button>
             ))}
-          <p className="faint" style={{ fontSize: "0.78em", marginTop: "auto" }}>
-            {where === "cloud" ? "Made on your BYTE cloud." : "Made by the model on this Mac. Private, works offline."}
+          <p
+            className="faint"
+            style={{ fontSize: "0.78em", marginTop: "auto" }}
+          >
+            {where === "cloud"
+              ? "Made on your BYTE cloud."
+              : "Made by the model on this Mac. Private, works offline."}
           </p>
         </nav>
         <section className="modal-body">
-          <button className="icon-btn modal-close" onClick={onClose} aria-label="Close documents">
+          <button
+            className="icon-btn modal-close"
+            onClick={onClose}
+            aria-label="Close documents"
+          >
             <X size={18} />
           </button>
           {where === "local" && (
@@ -70,13 +149,29 @@ export function DocumentsPanel({ onClose }: { onClose(): void }) {
               <LocalDocs />
             </Suspense>
           )}
-          {where === "cloud" && view.kind === "create" && <CreateDoc onCreated={(id) => setView({ kind: "job", id })} />}
-          {where === "cloud" && view.kind === "jobs" && <JobList onOpen={(id) => setView({ kind: "job", id })} />}
-          {where === "cloud" && view.kind === "docs" && <DocList onOpen={(id) => setView({ kind: "doc", id })} />}
-          {where === "cloud" && view.kind === "job" && (
-            <JobView id={view.id} onBack={() => setView({ kind: "jobs" })} onDocument={(id) => setView({ kind: "doc", id })} />
+          {where === "cloud" && view.kind === "create" && (
+            <CreateDoc onCreated={(id) => setView({ kind: "job", id })} />
           )}
-          {where === "cloud" && view.kind === "doc" && <DocView id={view.id} onBack={() => setView({ kind: "docs" })} onJob={(id) => setView({ kind: "job", id })} />}
+          {where === "cloud" && view.kind === "jobs" && (
+            <JobList onOpen={(id) => setView({ kind: "job", id })} />
+          )}
+          {where === "cloud" && view.kind === "docs" && (
+            <DocList onOpen={(id) => setView({ kind: "doc", id })} />
+          )}
+          {where === "cloud" && view.kind === "job" && (
+            <JobView
+              id={view.id}
+              onBack={() => setView({ kind: "jobs" })}
+              onDocument={(id) => setView({ kind: "doc", id })}
+            />
+          )}
+          {where === "cloud" && view.kind === "doc" && (
+            <DocView
+              id={view.id}
+              onBack={() => setView({ kind: "docs" })}
+              onJob={(id) => setView({ kind: "job", id })}
+            />
+          )}
         </section>
       </div>
     </div>
@@ -84,24 +179,40 @@ export function DocumentsPanel({ onClose }: { onClose(): void }) {
 }
 
 /** Loaded on first use (charts and document writers are large). */
-const LocalDocs = lazy(() => import("./LocalDocs").then((m) => ({ default: m.LocalDocs })));
+const LocalDocs = lazy(() =>
+  import("./LocalDocs").then((m) => ({ default: m.LocalDocs })),
+);
 
 function CreateDoc({ onCreated }: { onCreated(jobId: string): void }) {
   const [kind, setKind] = useState<DocKind>("pdf");
   const [prompt, setPrompt] = useState("");
-  const [reference, setReference] = useState<{ name: string; text: string } | null>(null);
+  const [reference, setReference] = useState<{
+    name: string;
+    text: string;
+  } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const addReference = async () => {
-    const file = await openDialog({ title: "Use a document as source material", filters: [{ name: "Documents", extensions: ["pdf", "docx", "pptx", "txt", "md"] }] });
+    const file = await openDialog({
+      title: "Use a document as source material",
+      filters: [
+        { name: "Documents", extensions: ["pdf", "docx", "pptx", "txt", "md"] },
+      ],
+    });
     if (typeof file !== "string") return;
     setBusy("reference");
     setError(null);
     try {
       // The cloud turns it into text, so only what matters goes into the document.
-      const v = await api.cloudUpload<Row | string>("/api/documents/extract-reference", file);
-      const text = typeof v === "string" ? v : (str(v.text) ?? str(v.content) ?? JSON.stringify(v));
+      const v = await api.cloudUpload<Row | string>(
+        "/api/documents/extract-reference",
+        file,
+      );
+      const text =
+        typeof v === "string"
+          ? v
+          : (str(v.text) ?? str(v.content) ?? JSON.stringify(v));
       setReference({ name: file.split(/[\\/]/).pop() ?? "reference", text });
     } catch (e) {
       setError(errorText(e));
@@ -129,15 +240,30 @@ function CreateDoc({ onCreated }: { onCreated(jobId: string): void }) {
 
   return (
     <>
-      <h3>Create a document</h3>
+      <h3>
+        Create a document
+        <BetaTag />
+      </h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        BYTE plans an outline first. You review it and pick a design before anything is written.
+        BYTE plans an outline first. You review it and pick a design before
+        anything is written.
+      </p>
+      <p className="faint small" style={{ marginTop: 0 }}>
+        {BETA_NOTE}
       </p>
       {error && <div className="banner danger">{error}</div>}
       <div className="doc-kinds" role="group" aria-label="Document type">
         {DOC_KINDS.map((k) => (
-          <button key={k.id} className={`pill ${kind === k.id ? "accent" : ""}`} aria-pressed={kind === k.id} onClick={() => setKind(k.id)}>
+          <button
+            key={k.id}
+            className={`pill ${kind === k.id ? "accent" : ""}`}
+            aria-pressed={kind === k.id}
+            onClick={() => setKind(k.id)}
+          >
             {k.label}
+            {k.id === "pptx" && (
+              <BetaTag title="PowerPoint slides still need work: check them before you share them." />
+            )}
           </button>
         ))}
       </div>
@@ -150,19 +276,37 @@ function CreateDoc({ onCreated }: { onCreated(jobId: string): void }) {
         aria-label="What the document is about"
       />
       <div className="row" style={{ gap: 8, marginTop: 10 }}>
-        <button className="btn sm" onClick={() => void addReference()} disabled={!!busy}>
-          {busy === "reference" ? <Loader2 size={14} className="spin" /> : <Paperclip size={14} />} Source document
+        <button
+          className="btn sm"
+          onClick={() => void addReference()}
+          disabled={!!busy}
+        >
+          {busy === "reference" ? (
+            <Loader2 size={14} className="spin" />
+          ) : (
+            <Paperclip size={14} />
+          )}{" "}
+          Source document
         </button>
         {reference && (
           <span className="pill">
-            {reference.name} · {reference.text.split(/\s+/).length.toLocaleString()} words
-            <button className="icon-btn" onClick={() => setReference(null)} aria-label="Remove source document">
+            {reference.name} ·{" "}
+            {reference.text.split(/\s+/).length.toLocaleString()} words
+            <button
+              className="icon-btn"
+              onClick={() => setReference(null)}
+              aria-label="Remove source document"
+            >
               <X size={12} />
             </button>
           </span>
         )}
         <span className="spacer" />
-        <button className="btn primary" disabled={!prompt.trim() || !!busy} onClick={() => void create()}>
+        <button
+          className="btn primary"
+          disabled={!prompt.trim() || !!busy}
+          onClick={() => void create()}
+        >
           <FilePlus2 size={14} /> {busy === "create" ? "Starting…" : "Plan it"}
         </button>
       </div>
@@ -202,13 +346,19 @@ function JobList({ onOpen }: { onOpen(id: string): void }) {
           const st = jobState(r);
           const id = idOf(r);
           return (
-            <button key={id} className="doc-row" onClick={() => id && onOpen(id)}>
+            <button
+              key={id}
+              className="doc-row"
+              onClick={() => id && onOpen(id)}
+            >
               <FileText size={16} />
               <span className="grow">
                 <b>{titleOf(r)}</b>
                 <span className={`faint job-${st.phase}`}>{st.label}</span>
               </span>
-              {st.phase === "approval" && <span className="pill accent">Review</span>}
+              {st.phase === "approval" && (
+                <span className="pill accent">Review</span>
+              )}
             </button>
           );
         })}
@@ -217,7 +367,15 @@ function JobList({ onOpen }: { onOpen(id: string): void }) {
   );
 }
 
-function JobView({ id, onBack, onDocument }: { id: string; onBack(): void; onDocument(id: string): void }) {
+function JobView({
+  id,
+  onBack,
+  onDocument,
+}: {
+  id: string;
+  onBack(): void;
+  onDocument(id: string): void;
+}) {
   const [job, setJob] = useState<Row | null>(null);
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -228,7 +386,8 @@ function JobView({ id, onBack, onDocument }: { id: string; onBack(): void; onDoc
       setJob(j);
       setError(null);
       const st = jobState(j);
-      if (st.phase === "working") timer.current = setTimeout(() => void poll(), 2000);
+      if (st.phase === "working")
+        timer.current = setTimeout(() => void poll(), 2000);
     } catch (e) {
       setError(errorText(e));
       timer.current = setTimeout(() => void poll(), 5000);
@@ -253,17 +412,35 @@ function JobView({ id, onBack, onDocument }: { id: string; onBack(): void; onDoc
         <div className="job-progress">
           <span>{st.label}…</span>
           <div className="progress">
-            <span className={st.progress === undefined ? "indeterminate" : undefined} style={{ width: `${Math.round((st.progress ?? 0.3) * 100)}%` }} />
+            <span
+              className={
+                st.progress === undefined ? "indeterminate" : undefined
+              }
+              style={{ width: `${Math.round((st.progress ?? 0.3) * 100)}%` }}
+            />
           </div>
-          <span className="faint">This runs on your cloud; you can close this and come back.</span>
+          <span className="faint">
+            This runs on your cloud; you can close this and come back.
+          </span>
         </div>
       )}
-      {st?.phase === "approval" && job && <OutlineReview job={job} id={id} onDone={() => void poll()} onRejected={onBack} />}
+      {st?.phase === "approval" && job && (
+        <OutlineReview
+          job={job}
+          id={id}
+          onDone={() => void poll()}
+          onRejected={onBack}
+        />
+      )}
       {st?.phase === "done" && (
         <div className="banner">
-          <Check size={16} /> <span className="grow">Your document is ready.</span>
+          <Check size={16} />{" "}
+          <span className="grow">Your document is ready.</span>
           {st.documentId ? (
-            <button className="btn sm primary" onClick={() => onDocument(st.documentId!)}>
+            <button
+              className="btn sm primary"
+              onClick={() => onDocument(st.documentId!)}
+            >
               Open
             </button>
           ) : (
@@ -271,14 +448,28 @@ function JobView({ id, onBack, onDocument }: { id: string; onBack(): void; onDoc
           )}
         </div>
       )}
-      {st?.phase === "failed" && <div className="banner danger">{st.label}</div>}
-      {st?.phase === "rejected" && <div className="banner">This outline was thrown away.</div>}
+      {st?.phase === "failed" && (
+        <div className="banner danger">{st.label}</div>
+      )}
+      {st?.phase === "rejected" && (
+        <div className="banner">This outline was thrown away.</div>
+      )}
     </>
   );
 }
 
 /** The approval step: edit the outline, pick a design, then write — or throw it away. */
-function OutlineReview({ job, id, onDone, onRejected }: { job: Row; id: string; onDone(): void; onRejected(): void }) {
+function OutlineReview({
+  job,
+  id,
+  onDone,
+  onRejected,
+}: {
+  job: Row;
+  id: string;
+  onDone(): void;
+  onRejected(): void;
+}) {
   const [items, setItems] = useState<OutlineItem[] | null>(null);
   const [template, setTemplate] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -293,7 +484,8 @@ function OutlineReview({ job, id, onDone, onRejected }: { job: Row; id: string; 
       .catch((e) => setError(errorText(e)));
   }, [id]);
 
-  const edit = (i: number, title: string) => setItems((xs) => xs && xs.map((x, j) => (j === i ? { ...x, title } : x)));
+  const edit = (i: number, title: string) =>
+    setItems((xs) => xs && xs.map((x, j) => (j === i ? { ...x, title } : x)));
   const move = (i: number, d: -1 | 1) =>
     setItems((xs) => {
       if (!xs || i + d < 0 || i + d >= xs.length) return xs;
@@ -307,7 +499,9 @@ function OutlineReview({ job, id, onDone, onRejected }: { job: Row; id: string; 
     setBusy("approve");
     setError(null);
     try {
-      const body: Row = { outline: writeOutline(items.filter((x) => x.title.trim())) };
+      const body: Row = {
+        outline: writeOutline(items.filter((x) => x.title.trim())),
+      };
       if (template) body.library_template = template;
       await api.cloudPost(`/api/jobs/${id}/approve`, body);
       onDone();
@@ -333,7 +527,8 @@ function OutlineReview({ job, id, onDone, onRejected }: { job: Row; id: string; 
   return (
     <div className="outline-review">
       <p className="muted" style={{ marginTop: 0 }}>
-        Here's the plan. Rename, reorder, add or remove sections, pick a design, then write it. Throwing it away costs nothing.
+        Here's the plan. Rename, reorder, add or remove sections, pick a design,
+        then write it. Throwing it away costs nothing.
       </p>
       {error && <div className="banner danger">{error}</div>}
       {!items && !error && <Loader2 className="spin" size={16} />}
@@ -341,14 +536,33 @@ function OutlineReview({ job, id, onDone, onRejected }: { job: Row; id: string; 
         <ol className="outline-list">
           {items.map((it, i) => (
             <li key={it.key}>
-              <input className="text-input" value={it.title} onChange={(e) => edit(i, e.target.value)} aria-label={`Section ${i + 1}`} />
-              <button className="icon-btn" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">
+              <input
+                className="text-input"
+                value={it.title}
+                onChange={(e) => edit(i, e.target.value)}
+                aria-label={`Section ${i + 1}`}
+              />
+              <button
+                className="icon-btn"
+                onClick={() => move(i, -1)}
+                disabled={i === 0}
+                aria-label="Move up"
+              >
                 <ArrowUp size={14} />
               </button>
-              <button className="icon-btn" onClick={() => move(i, 1)} disabled={i === items.length - 1} aria-label="Move down">
+              <button
+                className="icon-btn"
+                onClick={() => move(i, 1)}
+                disabled={i === items.length - 1}
+                aria-label="Move down"
+              >
                 <ArrowDown size={14} />
               </button>
-              <button className="icon-btn" onClick={() => setItems(items.filter((_, j) => j !== i))} aria-label="Remove section">
+              <button
+                className="icon-btn"
+                onClick={() => setItems(items.filter((_, j) => j !== i))}
+                aria-label="Remove section"
+              >
                 <Trash2 size={14} />
               </button>
             </li>
@@ -356,32 +570,70 @@ function OutlineReview({ job, id, onDone, onRejected }: { job: Row; id: string; 
         </ol>
       )}
       {items && (
-        <button className="btn sm ghost" onClick={() => setItems([...items, { title: "", raw: null, key: `n${Date.now()}` }])}>
+        <button
+          className="btn sm ghost"
+          onClick={() =>
+            setItems([
+              ...items,
+              { title: "", raw: null, key: `n${Date.now()}` },
+            ])
+          }
+        >
           <Plus size={14} /> Add section
         </button>
       )}
-      <TemplatePicker kind={kind} topic={topic} value={template} onChange={setTemplate} />
+      <TemplatePicker
+        kind={kind}
+        topic={topic}
+        value={template}
+        onChange={setTemplate}
+      />
       <div className="row" style={{ gap: 8, marginTop: 14 }}>
-        <button className="btn danger" disabled={!!busy} onClick={() => void reject()}>
+        <button
+          className="btn danger"
+          disabled={!!busy}
+          onClick={() => void reject()}
+        >
           <X size={14} /> Throw away
         </button>
         <span className="spacer" />
-        <button className="btn primary" disabled={!items?.some((x) => x.title.trim()) || !!busy} onClick={() => void approve()}>
-          <Wand2 size={14} /> {busy === "approve" ? "Starting…" : "Approve and write"}
+        <button
+          className="btn primary"
+          disabled={!items?.some((x) => x.title.trim()) || !!busy}
+          onClick={() => void approve()}
+        >
+          <Wand2 size={14} />{" "}
+          {busy === "approve" ? "Starting…" : "Approve and write"}
         </button>
       </div>
     </div>
   );
 }
 
-function TemplatePicker({ kind, topic, value, onChange }: { kind: string; topic: string; value: string | null; onChange(id: string | null): void }) {
-  const { rows } = useList(`/api/templates?kind=${encodeURIComponent(kind)}&topic=${encodeURIComponent(topic.slice(0, 200))}`);
+function TemplatePicker({
+  kind,
+  topic,
+  value,
+  onChange,
+}: {
+  kind: string;
+  topic: string;
+  value: string | null;
+  onChange(id: string | null): void;
+}) {
+  const { rows } = useList(
+    `/api/templates?kind=${encodeURIComponent(kind)}&topic=${encodeURIComponent(topic.slice(0, 200))}`,
+  );
   if (!rows?.length) return null;
   return (
     <div className="template-picker">
       <h4>Design</h4>
       <div className="template-grid">
-        <button className={`template-card ${value === null ? "on" : ""}`} onClick={() => onChange(null)} aria-pressed={value === null}>
+        <button
+          className={`template-card ${value === null ? "on" : ""}`}
+          onClick={() => onChange(null)}
+          aria-pressed={value === null}
+        >
           <span className="thumb builtin">Aa</span>
           <span className="name">Built-in designs</span>
         </button>
@@ -389,8 +641,18 @@ function TemplatePicker({ kind, topic, value, onChange }: { kind: string; topic:
           const id = idOf(t);
           if (!id) return null;
           return (
-            <button key={id} className={`template-card ${value === id ? "on" : ""}`} onClick={() => onChange(id)} aria-pressed={value === id} title={titleOf(t)}>
-              <CloudThumb className="thumb" path={`/api/templates/${id}/thumb`} alt={titleOf(t)} />
+            <button
+              key={id}
+              className={`template-card ${value === id ? "on" : ""}`}
+              onClick={() => onChange(id)}
+              aria-pressed={value === id}
+              title={titleOf(t)}
+            >
+              <CloudThumb
+                className="thumb"
+                path={`/api/templates/${id}/thumb`}
+                alt={titleOf(t)}
+              />
               <span className="name">{titleOf(t)}</span>
             </button>
           );
@@ -412,16 +674,24 @@ function DocList({ onOpen }: { onOpen(id: string): void }) {
       </div>
       {error && <div className="banner danger">{error}</div>}
       {!rows && !error && <Loader2 className="spin" size={16} />}
-      {rows?.length === 0 && <p className="faint">No documents yet. Create one to get started.</p>}
+      {rows?.length === 0 && (
+        <p className="faint">No documents yet. Create one to get started.</p>
+      )}
       <div className="doc-list">
         {rows?.map((r) => {
           const id = idOf(r);
           return (
-            <button key={id} className="doc-row" onClick={() => id && onOpen(id)}>
+            <button
+              key={id}
+              className="doc-row"
+              onClick={() => id && onOpen(id)}
+            >
               <FileText size={16} />
               <span className="grow">
                 <b>{titleOf(r)}</b>
-                <span className="faint">{(str(r.format) ?? str(r.kind) ?? "").toUpperCase()}</span>
+                <span className="faint">
+                  {(str(r.format) ?? str(r.kind) ?? "").toUpperCase()}
+                </span>
               </span>
             </button>
           );
@@ -433,7 +703,15 @@ function DocList({ onOpen }: { onOpen(id: string): void }) {
 
 const FORMATS = ["pdf", "docx", "pptx"];
 
-function DocView({ id, onBack, onJob }: { id: string; onBack(): void; onJob(id: string): void }) {
+function DocView({
+  id,
+  onBack,
+  onJob,
+}: {
+  id: string;
+  onBack(): void;
+  onJob(id: string): void;
+}) {
   const [doc, setDoc] = useState<Row | null>(null);
   const [pages, setPages] = useState<number | null>(null);
   const [base, setBase] = useState(1);
@@ -451,14 +729,19 @@ function DocView({ id, onBack, onJob }: { id: string; onBack(): void; onJob(id: 
     api
       .cloudGet<Row | number>(`/api/documents/${id}/preview`)
       .then(async (v) => {
-        const n = typeof v === "number" ? v : Number(v.pages ?? v.page_count ?? v.count ?? 0);
+        const n =
+          typeof v === "number"
+            ? v
+            : Number(v.pages ?? v.page_count ?? v.count ?? 0);
         setPages(n || 0);
         // Pages are numbered from 1 unless the cloud says otherwise.
         // The probe goes through the image cache, so page 1 isn't downloaded twice.
-        await cloudImageCached(`/api/documents/${id}/preview/1`).catch(async () => {
-          await cloudImageCached(`/api/documents/${id}/preview/0`);
-          setBase(0);
-        });
+        await cloudImageCached(`/api/documents/${id}/preview/1`).catch(
+          async () => {
+            await cloudImageCached(`/api/documents/${id}/preview/0`);
+            setBase(0);
+          },
+        );
       })
       .catch(() => setPages(0));
   }, [id]);
@@ -470,7 +753,12 @@ function DocView({ id, onBack, onJob }: { id: string; onBack(): void; onJob(id: 
     setError(null);
     try {
       const dir = await join(await documentDir(), "BYTE");
-      const dest = await saveDialog({ defaultPath: await join(dir, `${title.replace(/[/\\:*?"<>|]/g, "-")}.${format}`) });
+      const dest = await saveDialog({
+        defaultPath: await join(
+          dir,
+          `${title.replace(/[/\\:*?"<>|]/g, "-")}.${format}`,
+        ),
+      });
       if (!dest) return;
       setBusy("download");
       await api.cloudDownload(`/api/documents/${id}/download`, dest);
@@ -504,15 +792,23 @@ function DocView({ id, onBack, onJob }: { id: string; onBack(): void; onJob(id: 
       </button>
       <div className="row" style={{ justifyContent: "space-between", gap: 8 }}>
         <h3>{title}</h3>
-        <button className="btn primary" onClick={() => void download()} disabled={!!busy}>
-          <Download size={14} /> {busy === "download" ? "Saving…" : `Download .${format}`}
+        <button
+          className="btn primary"
+          onClick={() => void download()}
+          disabled={!!busy}
+        >
+          <Download size={14} />{" "}
+          {busy === "download" ? "Saving…" : `Download .${format}`}
         </button>
       </div>
       {error && <div className="banner danger">{error}</div>}
       {saved && (
         <div className="banner">
           <span className="grow">Saved to {saved}</span>
-          <button className="btn sm" onClick={() => void revealItemInDir(saved)}>
+          <button
+            className="btn sm"
+            onClick={() => void revealItemInDir(saved)}
+          >
             Show in Finder
           </button>
         </div>
@@ -522,11 +818,19 @@ function DocView({ id, onBack, onJob }: { id: string; onBack(): void; onJob(id: 
         <>
           <div className="page-grid">
             {Array.from({ length: Math.min(pages, shown) }, (_, i) => (
-              <CloudThumb key={i} className={`page ${format === "pptx" ? "slide" : ""}`} path={`/api/documents/${id}/preview/${i + base}`} alt={`Page ${i + 1}`} />
+              <CloudThumb
+                key={i}
+                className={`page ${format === "pptx" ? "slide" : ""}`}
+                path={`/api/documents/${id}/preview/${i + base}`}
+                alt={`Page ${i + 1}`}
+              />
             ))}
           </div>
           {pages > shown && (
-            <button className="btn sm ghost" onClick={() => setShown(shown + 12)}>
+            <button
+              className="btn sm ghost"
+              onClick={() => setShown(shown + 12)}
+            >
               Show more pages ({pages - shown} more)
             </button>
           )}
@@ -543,14 +847,31 @@ function DocView({ id, onBack, onJob }: { id: string; onBack(): void; onJob(id: 
             placeholder="e.g. “Make it shorter and add a summary slide”"
             aria-label="What to change"
           />
-          <button className="btn" disabled={!instruction.trim() || !!busy} onClick={() => void followUp("revise", `/api/documents/${id}/revise`, { instruction: instruction.trim() })}>
+          <button
+            className="btn"
+            disabled={!instruction.trim() || !!busy}
+            onClick={() =>
+              void followUp("revise", `/api/documents/${id}/revise`, {
+                instruction: instruction.trim(),
+              })
+            }
+          >
             <Wand2 size={14} /> Revise
           </button>
         </div>
         <div className="row" style={{ gap: 8, marginTop: 10 }}>
           <span className="faint">Same content as</span>
           {FORMATS.filter((f) => f !== format).map((f) => (
-            <button key={f} className="btn sm" disabled={!!busy} onClick={() => void followUp(`render-${f}`, `/api/documents/${id}/render`, { format: f })}>
+            <button
+              key={f}
+              className="btn sm"
+              disabled={!!busy}
+              onClick={() =>
+                void followUp(`render-${f}`, `/api/documents/${id}/render`, {
+                  format: f,
+                })
+              }
+            >
               .{f}
             </button>
           ))}

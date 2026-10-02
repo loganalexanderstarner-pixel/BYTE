@@ -275,7 +275,7 @@ export function Shell() {
       },
       {
         id: "docs",
-        label: "Documents: PDFs, slides and Word files",
+        label: "Documents (beta): PDFs, slides and Word files",
         keywords: "pdf pptx docx report deck",
         group: "Actions",
       },
@@ -526,8 +526,8 @@ export function Shell() {
                 onClick={() => setDocsOpen(true)}
                 title={
                   cloudConnected
-                    ? "Documents: PDFs, slides and Word files, made on your BYTE cloud or this Mac"
-                    : "Documents: PDFs, slides and Word files, made on this Mac"
+                    ? "Documents (beta): PDFs, slides and Word files, made on your BYTE cloud or this Mac"
+                    : "Documents (beta): PDFs, slides and Word files, made on this Mac"
                 }
               >
                 <FileText size={18} />
