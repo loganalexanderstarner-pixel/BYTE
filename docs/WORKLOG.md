@@ -17,6 +17,15 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — v1.0 polish, part 3: panels load on first use (startup code 985 → 695 KB)
+- **Why:** the startup script held every panel (Settings, Notes, Board, Help with its articles, Study, Writing,
+  Documents, Tasks, Reader …) though most are opened rarely.
+- **What:** `Shell.tsx` loads 14 panels with `React.lazy` inside one `Suspense` (fallback none); the Settings tab
+  list moved to `components/settings/tabs.ts` so the palette needn't load Settings.
+- **Verify:** `npm run build` (index chunk ~695 KB); all 146 `tools/ui-shots` screens render with no errors.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — v1.0 polish, part 2: model descriptions, welcome-guide order, README screenshots
 - **Why:** the welcome guide showed "Ornith models." as a model's description; 23 chat models had placeholder
   family blurbs ("Zhipu's GLM models.", "Ornith models."). Community remixes (uncensored etc.) could rank in the

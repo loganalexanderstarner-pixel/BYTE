@@ -3,7 +3,7 @@ import { VoiceModels } from "../chat/VoiceModels";
 import { KeyboardSection } from "./KeyboardSection";
 import { prettyKeys } from "../../lib/keys";
 import { open as openDialog, ask } from "@tauri-apps/plugin-dialog";
-import { Brain, Cloud, Cpu, Download, FolderSearch, Gauge, HardDrive, Info, Palette, Plug, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X, Zap, Shield, Pencil } from "lucide-react";
+import { Download, Gauge, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X, Zap, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { THEMES } from "../../design/themes";
@@ -16,7 +16,8 @@ import { bytes, contextLabel, ramSize } from "../../lib/format";
 import { displayName } from "../../lib/models";
 import type { BoostInfo, GpuShare, LookerStatus, Memory, Profiles, Settings, Usage } from "../../lib/types";
 import { bars } from "../../lib/dashboard";
-import { useStore, type SettingsTab } from "../../state/store";
+import { useStore } from "../../state/store";
+import { TABS } from "./tabs";
 import { CatalogBrowser } from "../models/CatalogBrowser";
 import { CloudTab } from "./CloudTab";
 import { PrivacyTab } from "./PrivacyTab";
@@ -28,17 +29,7 @@ import { KnowledgeTab } from "./KnowledgeTab";
 import { ModelLab } from "./ModelLab";
 import { TuningPanel } from "./TuningPanel";
 
-export const TABS: { id: SettingsTab; label: string; icon: typeof Cpu }[] = [
-  { id: "models", label: "Models", icon: HardDrive },
-  { id: "memory", label: "Memory & chats", icon: Brain },
-  { id: "knowledge", label: "Knowledge base", icon: FolderSearch },
-  { id: "connectors", label: "Connectors", icon: Plug },
-  { id: "appearance", label: "Appearance", icon: Palette },
-  { id: "engine", label: "Engine", icon: Cpu },
-  { id: "cloud", label: "Cloud", icon: Cloud },
-  { id: "privacy", label: "Privacy", icon: Shield },
-  { id: "about", label: "About", icon: Info },
-];
+
 
 export function SettingsModal() {
   const tab = useStore((s) => s.settingsTab)!;
