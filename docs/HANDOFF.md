@@ -21,6 +21,20 @@ can also use the owner's **BYTE cloud** (a self-hosted cluster, `https://byteai.
 backend through an API key. Target machine: MacBook Air M4, 16 GB. The assistant is always called **BYTE**,
 talks in a normal friendly tone; the *visuals* are neon/cyberpunk. No paid Apple Developer account, ever.
 
+## 1b. Owner decisions, 2026-10-02 (after 1.0)
+
+Order: **v1.0** (owner's update test + `docs/CHECKLIST-1.0.md`) → **Windows** → **Linux** → **v1.1.0 image generation**.
+
+- **Windows first.** The owner has a Windows PC for testing; the plan is a Claude session running on that PC
+  (Claude Desktop or `claude remote-control`) to build and run BYTE there. Not a self-hosted GitHub runner (the repo
+  is public). Each OS should feel native to itself (decision of 2026-09-27).
+- **Image generation (v1.1.0):** image models join the model catalog as their own kind. Each card says what the
+  model is best at (realism, cartoon, anime, …) and how long one image takes on this hardware. An image model
+  loads only when making images, never sits in memory by default. BYTE runs the chat model **or** the image model;
+  both at once only when the pair the person chose fits in memory (same fit planning as chat models).
+- Uncensored/"obliterated" chat models stay in the catalog; kids mode excludes them (done in v0.12.4).
+- Documents are Beta until PowerPoint output is improved.
+
 ## 2. Where things stand
 
 | Area | State |
