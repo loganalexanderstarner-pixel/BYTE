@@ -125,5 +125,10 @@ mod tests {
         let conf: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
         let endpoints = conf["plugins"]["updater"]["endpoints"].as_array().unwrap();
         assert_eq!(endpoints[0], "https://github.com/loganalexanderstarner-pixel/BYTE/releases/latest/download/latest.json");
+        // The owner's minisign public key (key id 360A24738B9BC87B); updates signed with anything else are refused.
+        let key = conf["plugins"]["updater"]["pubkey"].as_str().unwrap();
+        use base64::Engine as _;
+        let text = String::from_utf8(base64::engine::general_purpose::STANDARD.decode(key).unwrap()).unwrap();
+        assert!(text.starts_with("untrusted comment: minisign public key: 360A24738B9BC87B"), "{text}");
     }
 }

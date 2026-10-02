@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.3 — One-click updates and Homebrew
+
+- **Updates** (`updater.rs`, `tauri-plugin-updater`): the owner's minisign public key (id 360A24738B9BC87B) in
+  `tauri.conf.json`; `update_check` / `update_install` (signature checked before installing, then restart), a daily
+  check that raises `update://available` (setting `updateCheck`), refused when offline or in kids mode. `release.yml`
+  signs and publishes `latest.json` + the `.app.tar.gz` when the `TAURI_SIGNING_PRIVATE_KEY` secret exists. UI: Settings
+  → About → Updates, a top banner.
+- **Homebrew:** `Casks/byte.rb` (this repo is its own tap; postflight clears the quarantine flag), version kept by
+  `scripts/bump.mjs`.
+- **README** rewritten for what BYTE does today.
+
 ## 0.12.2 — Your own themes, smoother motion and accessibility
 
 - **Theme editor** (`components/settings/ThemeEditor.tsx`, `lib/customTheme.ts` + test, `lib/color.ts`): five colors

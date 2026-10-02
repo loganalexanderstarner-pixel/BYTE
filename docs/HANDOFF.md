@@ -480,7 +480,7 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 **Next:** **Phase 10 is complete** (v0.10.0–v0.10.6, all released). Phase 11 (input & windows) has started: v0.11.0
 Quick Ask + menu bar + ⌘K palette + custom shortcuts, v0.11.1 voice input and v0.11.2 speaker labels + videos without
 captions v0.11.3 spoken answers + hands-free + "Hey BYTE" and v0.11.4 BYTE's own natural voices (Kokoro) and v0.11.5 the voice catalog + human speech and v0.11.6 notes, web clipper and mind maps and v0.11.7 personality, help, examples and the board are done:
-**Phase 11 is complete.** Phase 12 (privacy & polish) has started: v0.12.0 offline switch, Touch ID lock and the Privacy tab and v0.12.1 kids mode, encrypted backups, auto-delete and erase and v0.12.2 theme editor, motion and accessibility are done; next v0.12.3 auto-update + README + Homebrew, then v1.0.0
+**Phase 11 is complete.** Phase 12 (privacy & polish) has started: v0.12.0 offline switch, Touch ID lock and the Privacy tab and v0.12.1 kids mode, encrypted backups, auto-delete and erase and v0.12.2 theme editor, motion and accessibility and v0.12.3 signed one-click updates + Homebrew + README are done; next v1.0.0. Releases: never push while a release run is in progress (pushes during a run made "create release" fail with "Resource not accessible by integration").
 (see the Phase 11 section). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.

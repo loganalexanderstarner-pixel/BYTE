@@ -17,6 +17,16 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — v0.12.3: the owner's update key, one-click updates on
+- **Why:** the owner made the signing key on their own machine, added the private half and its password as GitHub
+  secrets, and sent the public half. With it in the app, BYTE can verify and install its own updates.
+- **What:** `tauri.conf.json` `plugins.updater.pubkey` (minisign key id 360A24738B9BC87B), a test that pins it,
+  `docs/releases/v0.12.3.md`, VERSIONS, CHANGELOG, PROJECT_GUIDE, HANDOFF, help article 01; version 0.12.3.
+- **Verify:** the v0.12.3 release has `latest.json` and `BYTE.app.tar.gz(.sig)`; the next release shows up in
+  Settings → About → Updates on a Mac with v0.12.3 and installs.
+- **Undo:** `git revert` this commit (builds without the key hide the Updates row).
+
+
 ### (this commit) — updates, Homebrew and the README, ahead of v0.12.3 (not released yet)
 - **Why:** Phase 12's distribution items. Owner chose one-click signed updates; the signing key is created on the
   owner's Mac (private half only as GitHub secrets `TAURI_SIGNING_PRIVATE_KEY` / `_PASSWORD`, never here), and the
