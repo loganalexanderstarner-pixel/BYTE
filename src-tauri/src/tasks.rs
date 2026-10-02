@@ -425,6 +425,7 @@ fn done_card(title: &str, detail: &str) -> ChatEvent {
 #[tauri::command]
 pub fn tasks_list(state: State<'_, AppState>, include_done: Option<bool>) -> AppResult<Vec<Task>> {
     crate::lock::ensure(&state)?;
+    crate::kids::grownups_only()?;
     list(&state.db, include_done.unwrap_or(true))
 }
 

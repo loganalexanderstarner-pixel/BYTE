@@ -258,6 +258,14 @@ pub fn clip_body(url: &str, title: &str, selection: &str, text: &str, summary: &
 
 // ------------------------------------------------------------------ app glue
 
+/// The notes folder for these settings, without creating it (backups).
+pub fn dir_for(s: &crate::settings::Settings) -> PathBuf {
+    match s.notes_dir.as_deref().filter(|d| !d.trim().is_empty()) {
+        Some(d) => PathBuf::from(d),
+        None => std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default().join("Documents").join("BYTE").join("Notes"),
+    }
+}
+
 /// The notes folder: the one chosen in Settings, else ~/Documents/BYTE/Notes.
 pub async fn root(app: &AppHandle) -> AppResult<PathBuf> {
     let state = app.state::<AppState>();
@@ -306,6 +314,7 @@ pub async fn clip(app: &AppHandle, url: &str, selection: &str) -> AppResult<Note
 #[tauri::command]
 pub async fn notes_list(app: AppHandle, query: Option<String>) -> AppResult<Vec<Note>> {
     crate::lock::ensure(&app.state::<crate::state::AppState>())?;
+    crate::kids::grownups_only()?;
     let r = root(&app).await?;
     let all = list(&r);
     Ok(match query.filter(|q| !q.trim().is_empty()) {
@@ -317,6 +326,7 @@ pub async fn notes_list(app: AppHandle, query: Option<String>) -> AppResult<Vec<
 #[tauri::command]
 pub async fn note_get(app: AppHandle, id: String) -> AppResult<Note> {
     crate::lock::ensure(&app.state::<crate::state::AppState>())?;
+    crate::kids::grownups_only()?;
     let r = root(&app).await?;
     read(&r, &resolve(&r, &id)?).ok_or_else(|| AppError::msg("That note isn't there any more."))
 }

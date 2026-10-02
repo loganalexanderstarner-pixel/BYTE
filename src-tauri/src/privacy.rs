@@ -170,12 +170,14 @@ pub fn privacy_permissions() -> Vec<Permission> {
 #[tauri::command]
 pub fn actions_list(state: State<'_, AppState>, limit: Option<usize>, query: Option<String>, kind: Option<String>) -> AppResult<Vec<Activity>> {
     crate::lock::ensure(&state)?;
+    crate::kids::grownups_only()?;
     Ok(read(&state.paths.data.join("actions.jsonl"), limit.unwrap_or(300).min(5000), query.as_deref().unwrap_or(""), kind.as_deref()))
 }
 
 #[tauri::command]
 pub fn actions_clear(state: State<'_, AppState>) -> AppResult<()> {
     crate::lock::ensure(&state)?;
+    crate::kids::grownups_only()?;
     let log = state.paths.data.join("actions.jsonl");
     for p in [log.clone(), log.with_extension("jsonl.1")] {
         match std::fs::remove_file(&p) {

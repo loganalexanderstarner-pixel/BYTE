@@ -2,7 +2,7 @@ import { Lightbulb, MessageCircle, Rocket, Sparkles, Telescope } from "lucide-re
 import { useEffect, useState } from "react";
 
 import { api } from "../../lib/api";
-import { availableExamples, todaysPicks } from "../../lib/examples";
+import { availableExamples, KID_EXAMPLES, todaysPicks } from "../../lib/examples";
 import type { Assistant } from "../../lib/types";
 
 import { Logo } from "../../design/Logo";
@@ -33,7 +33,7 @@ export function EmptyState() {
   const userName = useStore((s) => s.settings?.userName);
   const settings = useStore((s) => s.settings);
   // Today's ideas, from what works with the modules that are on (rotates daily).
-  const picks = todaysPicks(availableExamples(settings as unknown as Record<string, unknown>, { web: settings?.webSearch !== false, mac: canSpeak() }), 4);
+  const picks = settings?.kidsMode ? todaysPicks(KID_EXAMPLES, 4) : todaysPicks(availableExamples(settings as unknown as Record<string, unknown>, { web: settings?.webSearch !== false, mac: canSpeak() }), 4);
   const SUGGESTIONS = picks.length === 4 ? picks.map((e, i) => ({ icon: ICONS[i], title: e.group, prompt: e.text.replace("…", ""), hint: e.text.length > 60 ? `${e.text.slice(0, 58)}…` : e.text, fill: e.text.includes("…") })) : DEFAULT_SUGGESTIONS.map((x) => ({ ...x, fill: false }));
   const space = useStore((s) => {
     const c = s.conversations.find((x) => x.id === s.currentId);
@@ -75,7 +75,7 @@ export function EmptyState() {
       <Logo size={64} />
       <h1>{greeting(userName)}</h1>
       <p className="muted">What can I help you with? {where}</p>
-      {space !== "cloud" && <Deck />}
+      {space !== "cloud" && !settings?.kidsMode && <Deck />}
       <div className="suggestions">
         {SUGGESTIONS.map(({ icon: Icon, title, prompt, hint, fill }) => (
           <button key={prompt} className="suggestion" disabled={!ready} onClick={() => (fill ? useStore.setState({ prefill: prompt }) : void send(prompt))} title={prompt}>
@@ -87,7 +87,7 @@ export function EmptyState() {
           </button>
         ))}
       </div>
-      <button className="linklike faint small" style={{ marginTop: 10 }} onClick={() => useStore.getState().openHelp("ideas")}>
+      <button className="linklike faint small" style={{ marginTop: 10, display: settings?.kidsMode ? "none" : undefined }} onClick={() => useStore.getState().openHelp("ideas")}>
         More ideas to try
       </button>
     </div>

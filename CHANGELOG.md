@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.12.1 — Kids mode, backups and erasing
+
+- **Kids mode** (`kids.rs`, settings `kidsMode`, `kidsPin`): PIN hashed with PBKDF2 (salted), wrong-PIN backoff;
+  `kids_enter` / `kids_exit`. Enforced in `backend` (web, web agent, cloud, memory, knowledge base and the Mac,
+  upkeep, tasks, watch, automations, trackers and connectors modules off; `kids::PROMPT` added), in
+  `settings_update` (only looks may change), and in the chat commands (`kids::is_on`, `may_touch`: only chats in the
+  "Kids" folder are listed, opened, searched, saved or changed; new ones go there). Grown-up data commands refuse
+  (`kids::grownups_only`). UI: Shell's Kids mode badge and Grown-ups (`KidsExit.tsx`), a simpler composer and
+  sidebar, `KID_EXAMPLES` on the home screen, no palette or settings keys.
+- **Backups** (`backup.rs`): a zip of the profile's data folder (database checkpointed first) plus the notes folder,
+  sealed with a passphrase (PBKDF2-HMAC-SHA256 600k rounds → ChaCha20-Poly1305, via `ring`); saved to iCloud Drive's
+  BYTE Backups (or Documents/BYTE/Backups, or a chosen folder), newest 5 kept; weekly with the passphrase in the
+  Keychain. Restore stages the files (`restore-pending/`) and `apply_pending` swaps them in at the next launch
+  before the database opens, keeping the old ones in `before-restore-<time>/`; notes come back into
+  `Restored <date>/`.
+- **Old chats and erasing:** `autoDeleteDays` (unpinned chats, daily via the scheduler); `erase_everything` (typed
+  ERASE, Touch ID when the lock is on) marks the folder and the next launch empties it.
+
 ## 0.12.0 — Offline switch, Touch ID lock and a Privacy tab (Phase 12 starts)
 
 - **Offline switch** (`offline.rs`, setting `offline`): a global flag checked by a connector layer

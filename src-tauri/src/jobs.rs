@@ -153,6 +153,7 @@ pub fn prep_prompt(job: &Job) -> String {
 #[tauri::command]
 pub fn jobs_list(state: State<'_, AppState>) -> AppResult<Vec<Job>> {
     crate::lock::ensure(&state)?;
+    crate::kids::grownups_only()?;
     list(&state.db)
 }
 

@@ -17,6 +17,23 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — v0.12.1: kids mode, encrypted backups, auto-delete, erase everything
+- **Why:** the rest of Phase 12's privacy items.
+- **What:** `kids.rs` (PIN hashing, backoff, `PROMPT`, `harmless`, `is_on`/`may_touch`/`grownups_only`, commands,
+  tests), `backup.rs` (seal/open, archive, stage/apply restore, erase, list/prune, auto-delete, daily, commands,
+  tests including a real SQLCipher backup → restore), `backend.rs` (kids enforcement), `commands.rs` (kids checks in
+  chat commands and `settings_update`), grown-up-only gates in notes/board/clipboard/jobs/tasks/trackers/dashboard/
+  privacy, `scheduler.rs` (daily chores), `lib.rs` (apply_pending before the DB opens, commands), `notes::dir_for`,
+  `lock::verify`, settings (kids, backup, autoDeleteDays), Cargo `ring` + `walkdir` (already in the lockfile). UI:
+  `PrivacyTab.tsx` (Kids mode, Backups, Old chats, Erase everything), `components/kids/KidsExit.tsx`, Shell (kids top
+  bar, keys), Sidebar (no projects in kids mode), EmptyState + `KID_EXAMPLES`, `lib/privacy.ts` (+ test), CSS, help
+  article 11; screenshots `41-*`.
+- **Verify:** `cargo test backup kids`; `npx vitest run src/lib/privacy.test.ts`; on a Mac: Back up now (file appears in
+  iCloud Drive → BYTE Backups), Restore… it (BYTE restarts with the same chats); turn on kids mode (only Kids chats,
+  "how do I hack…" gets a gentle answer, Grown-ups + PIN turns it off).
+- **Undo:** `git revert` this commit (old builds ignore the new settings; a "Kids" folder may remain).
+
+
 ### (this commit) — v0.12.0: offline switch, Touch ID lock, Privacy tab (Phase 12 starts)
 - **Why:** Phase 12's first items: one switch that keeps BYTE off the internet, a lock, and a permissions dashboard
   with the action log (`ActionLog` was written since Phase 2 but never shown).

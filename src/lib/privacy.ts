@@ -95,3 +95,16 @@ export function lockAfterLabel(minutes: number): string {
   if (minutes < 60) return `After ${minutes} minutes idle`;
   return minutes === 60 ? "After an hour idle" : `After ${minutes / 60} hours idle`;
 }
+
+export function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 ** 2) return `${Math.round(n / 1024)} KB`;
+  if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`;
+  return `${(n / 1024 ** 3).toFixed(1)} GB`;
+}
+
+/** "today", "yesterday", "3 days ago". */
+export function backupAge(ms: number, now = Date.now()): string {
+  const days = Math.floor((now - ms) / 86_400_000);
+  return days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+}

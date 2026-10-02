@@ -530,10 +530,17 @@ fn strip_md(s: &str) -> String {
     s.replace("**", "").replace('*', "").replace('`', "").trim_start_matches(['-', '>', ' ']).to_string()
 }
 
+/// The day the daily chores (old-chat cleanup, the weekly backup) last ran.
+static DAILY: std::sync::Mutex<Option<chrono::NaiveDate>> = std::sync::Mutex::new(None);
+
 /// Checks for due reminders and schedules once.
 pub async fn tick(app: &AppHandle) {
     let state = app.state::<AppState>();
     let now = chrono::Local::now();
+    let first_today = DAILY.lock().map(|mut d| d.replace(now.date_naive()) != Some(now.date_naive())).unwrap_or(false);
+    if first_today {
+        crate::backup::daily(&state).await;
+    }
     match crate::tasks::take_due_reminders(&state.db, &now) {
         Ok(due) => {
             for t in due {

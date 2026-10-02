@@ -157,7 +157,8 @@ export function Sidebar() {
   }, [workspace, refreshCloudChats]);
 
   // Projects add instructions to this Mac's prompt, so they live in the This Mac workspace.
-  const shownProjects = workspace === "local" ? projects : [];
+  const kids = useStore((s) => !!s.settings?.kidsMode);
+  const shownProjects = workspace === "local" && !kids ? projects : [];
   const sections = useMemo(() => sidebarSections(conversations, shownProjects), [conversations, shownProjects]);
   const folderNames = sections.folders.map((f) => f.name);
   const empty = !sections.pinned.length && !sections.folders.length && !sections.dated.length && !shownProjects.length && !remoteOnly.length;

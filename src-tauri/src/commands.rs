@@ -168,6 +168,7 @@ pub async fn card_delete(state: State<'_, AppState>, id: i64) -> AppResult<()> {
 #[tauri::command]
 pub async fn deck_export(state: State<'_, AppState>, id: i64) -> AppResult<String> {
     crate::lock::ensure(&state)?;
+    crate::kids::grownups_only()?;
     crate::study::deck_export(&state.db, id)
 }
 
@@ -176,6 +177,7 @@ pub async fn deck_export(state: State<'_, AppState>, id: i64) -> AppResult<Strin
 #[tauri::command]
 pub async fn recipes_list(state: State<'_, AppState>, query: Option<String>) -> AppResult<Vec<crate::kitchen::SavedRecipe>> {
     crate::lock::ensure(&state)?;
+    crate::kids::grownups_only()?;
     crate::kitchen::recipes_list(&state.db, query.as_deref())
 }
 
@@ -269,6 +271,7 @@ pub async fn kb_reindex(app: AppHandle, id: Option<i64>) -> AppResult<()> {
 #[tauri::command]
 pub async fn kb_search(app: AppHandle, query: String, limit: Option<usize>) -> AppResult<Vec<crate::kb::Hit>> {
     crate::lock::ensure(&app.state::<crate::state::AppState>())?;
+    crate::kids::grownups_only()?;
     crate::kb::search(&app, &query, limit.unwrap_or(8).min(30)).await
 }
 
@@ -307,7 +310,13 @@ pub async fn settings_get(state: State<'_, AppState>) -> AppResult<Settings> {
 #[tauri::command]
 pub async fn settings_update(app: AppHandle, state: State<'_, AppState>, patch: serde_json::Value) -> AppResult<Settings> {
     crate::lock::ensure(&state)?;
+    if patch.get("kidsMode").is_some() || patch.get("kidsPin").is_some() {
+        return Err(AppError::msg("Kids mode is turned on and off with its PIN."));
+    }
     let mut s = state.settings.lock().await;
+    if s.kids_mode && !crate::kids::harmless(&patch) {
+        return Err(AppError::msg("Kids mode is on: settings can't be changed. A grown-up can turn it off with the PIN."));
+    }
     let next = s.merged(patch)?;
     if next.lock_enabled && !crate::lock::AVAILABLE {
         return Err(AppError::msg("Locking BYTE needs a Mac for now."));
@@ -678,34 +687,54 @@ pub async fn chat_cancel(state: State<'_, AppState>, request_id: String) -> AppR
 #[tauri::command]
 pub fn chats_list(state: State<'_, AppState>) -> AppResult<Vec<ConversationMeta>> {
     crate::lock::ensure(&state)?;
-    state.db.list()
+    let all = state.db.list()?;
+    // Kids mode lists only the kids' own chats.
+    Ok(if crate::kids::is_on() { all.into_iter().filter(|c| c.folder.as_deref() == Some(crate::kids::FOLDER)).collect() } else { all })
 }
 
 #[tauri::command]
 pub fn chat_load(state: State<'_, AppState>, id: String) -> AppResult<Option<serde_json::Value>> {
     crate::lock::ensure(&state)?;
+    crate::kids::may_touch(&state.db, &id)?;
     state.db.load(&id)
 }
 
 #[tauri::command]
 pub fn chat_save(state: State<'_, AppState>, conversation: serde_json::Value) -> AppResult<()> {
+    if crate::kids::is_on() {
+        let id = conversation.get("id").and_then(serde_json::Value::as_str).unwrap_or_default().to_string();
+        crate::kids::may_touch(&state.db, &id)?;
+        state.db.save(&conversation)?;
+        // New chats made in kids mode go in the Kids folder.
+        return state.db.update_meta(&id, &MetaPatch { folder: Some(crate::kids::FOLDER.into()), title: None, pinned: None, project_id: None });
+    }
     state.db.save(&conversation)
 }
 
 #[tauri::command]
 pub fn chat_delete(state: State<'_, AppState>, id: String) -> AppResult<()> {
+    crate::kids::may_touch(&state.db, &id)?;
     state.db.delete(&id)
 }
 
 #[tauri::command]
 pub fn chat_update(state: State<'_, AppState>, id: String, patch: MetaPatch) -> AppResult<()> {
+    crate::kids::may_touch(&state.db, &id)?;
+    if crate::kids::is_on() && patch.folder.is_some() {
+        return Err(AppError::msg("Chats stay in the Kids folder in kids mode."));
+    }
     state.db.update_meta(&id, &patch)
 }
 
 #[tauri::command]
 pub fn chats_search(state: State<'_, AppState>, query: String) -> AppResult<Vec<SearchHit>> {
     crate::lock::ensure(&state)?;
-    state.db.search(&query, 30)
+    let hits = state.db.search(&query, 30)?;
+    if !crate::kids::is_on() {
+        return Ok(hits);
+    }
+    let kids: std::collections::HashSet<String> = state.db.list()?.into_iter().filter(|c| c.folder.as_deref() == Some(crate::kids::FOLDER)).map(|c| c.id).collect();
+    Ok(hits.into_iter().filter(|h| kids.contains(&h.conversation_id)).collect())
 }
 
 /// One-time move of chats kept in the old in-browser storage into the database.
@@ -729,6 +758,7 @@ pub fn chats_import(state: State<'_, AppState>, conversations: Vec<serde_json::V
 #[tauri::command]
 pub fn chats_export(state: State<'_, AppState>, dir: String) -> AppResult<String> {
     crate::lock::ensure(&state)?;
+    crate::kids::grownups_only()?;
     let chats = state.db.export_all()?;
     let out = crate::export::export_chats(std::path::Path::new(&dir), &chats)?;
     Ok(out.to_string_lossy().into_owned())
@@ -737,6 +767,7 @@ pub fn chats_export(state: State<'_, AppState>, dir: String) -> AppResult<String
 #[tauri::command]
 pub fn memories_list(state: State<'_, AppState>) -> AppResult<Vec<Memory>> {
     crate::lock::ensure(&state)?;
+    crate::kids::grownups_only()?;
     state.db.memories()
 }
 
@@ -783,6 +814,7 @@ pub async fn chat_autotitle(state: State<'_, AppState>, id: String) -> AppResult
 #[tauri::command]
 pub fn projects_list(state: State<'_, AppState>) -> AppResult<Vec<Project>> {
     crate::lock::ensure(&state)?;
+    crate::kids::grownups_only()?;
     state.db.projects()
 }
 

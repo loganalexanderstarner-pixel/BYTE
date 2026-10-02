@@ -6090,3 +6090,84 @@ kbd {
   min-width: 150px;
   justify-content: center;
 }
+
+/* Kids mode (kids.rs): bigger text, and only the basics in the composer. */
+.app.kids {
+  font-size: 1.12em;
+}
+.app.kids .composer-bar .segmented,
+.app.kids .composer-bar .pill,
+.app.kids .composer-bar [aria-label="Attach"],
+.app.kids .composer-bar [aria-label="Library"] {
+  display: none;
+}
+.kids-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.82em;
+  font-weight: 700;
+}
+.writing-panel.kids-exit {
+  max-width: 380px;
+  height: auto;
+  max-height: none;
+  padding-bottom: 16px;
+}
+.kids-exit > p,
+.kids-exit > form,
+.kids-exit > .banner {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+.kids-exit form {
+  display: flex;
+  gap: 8px;
+  margin: 8px 16px;
+}
+.pin-input {
+  width: 9ch;
+  font-size: 1.4em;
+  letter-spacing: 0.4em;
+  text-align: center;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.backup-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+}
+.backup-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.danger-zone {
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.danger-zone h3 {
+  color: var(--danger);
+  margin-top: 0;
+}
+.privacy-tab .text-input {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  user-select: text;
+  -webkit-user-select: text;
+}

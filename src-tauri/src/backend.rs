@@ -94,13 +94,17 @@ pub async fn answer(state: &AppState, mut request: ChatRequest, on_event: &Chann
         local.mode = crate::cloud::cmd::local_mode(&turn.mode);
         local
     });
-    // Offline: don't try the cloud at all.
-    if crate::offline::is_offline() {
+    // Offline or kids mode: don't try the cloud at all.
+    let kids = state.settings.lock().await.kids_mode;
+    if crate::offline::is_offline() || kids {
         return match fallback {
             Some(local) => {
-                let _ = on_event.send(ChatEvent::Notice { text: "BYTE is offline, so this answer was written on this Mac.".into() });
+                if !kids {
+                    let _ = on_event.send(ChatEvent::Notice { text: "BYTE is offline, so this answer was written on this Mac.".into() });
+                }
                 finish(LocalLlama.answer(state, &local, on_event).await)
             }
+            None if kids => Err(AppError::msg("Kids mode answers on this Mac only.")),
             None => Err(AppError::msg(crate::offline::MESSAGE)),
         };
     }
@@ -321,10 +325,12 @@ impl Setup {
             o.apply(&mut plan);
         }
         // The offline switch turns the web off for this turn: no tools, no prompt text.
-        let offline = crate::offline::is_offline();
+        // So does kids mode, which also turns off everything that acts on the Mac or reads files.
+        let kids = state.settings.lock().await.kids_mode;
+        let offline = crate::offline::is_offline() || kids;
         let (web, user_name, memory, about_me, home, depth, web_always, kitchen, metric, web_agent, modules, kb_on, cloud_on) = {
             let s = state.settings.lock().await;
-            (s.web_search && !offline, s.user_name.clone(), s.memory_enabled && !request.private, s.about_me.clone(), s.home_place.clone(), s.research_depth, s.web_mode == "always", s.kitchen_enabled, s.measure_units == "metric", s.web_agent_enabled && !offline, agent::Modules {
+            (s.web_search && !offline, s.user_name.clone(), s.memory_enabled && !request.private && !kids, s.about_me.clone(), s.home_place.clone(), s.research_depth, s.web_mode == "always", s.kitchen_enabled, s.measure_units == "metric", s.web_agent_enabled && !offline, agent::Modules {
                 reviews: s.reviews_enabled,
                 prices: s.prices_enabled,
                 game_hints: s.game_hints_enabled,
@@ -340,10 +346,24 @@ impl Setup {
                 automations: s.automations_enabled,
                 trackers: s.trackers_enabled,
                 connectors: s.connectors_enabled,
-            }, s.kb_enabled, s.cloud_connected)
+            }, s.kb_enabled && !kids, s.cloud_connected && !kids)
         };
+        let mut modules = modules;
+        if kids {
+            // Nothing that acts on the Mac, reads files or reaches out.
+            modules.mac = false;
+            modules.upkeep = false;
+            modules.tasks = false;
+            modules.watch = false;
+            modules.automations = false;
+            modules.trackers = false;
+            modules.connectors = false;
+        }
         let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());
         system.push_str(&prompt::personality_section(&state.settings.lock().await.personality));
+        if kids {
+            system.push_str(crate::kids::PROMPT);
+        }
         if let Some(q) = request.messages.iter().rev().find(|m| m.role == "user") {
             system.push_str(&crate::help::section(chat::question_text(&q.content)));
         }

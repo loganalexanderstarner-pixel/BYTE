@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { argsLine, byDay, kindLabel, lockAfterLabel, toolLabel } from "./privacy";
+import { argsLine, backupAge, byDay, formatBytes, kindLabel, lockAfterLabel, toolLabel } from "./privacy";
 import type { Activity } from "./types";
 
 const at = (ts: string, tool = "web_search"): Activity => ({ ts, tool, kind: "web", ok: true, summary: "", args: {} });
@@ -38,5 +38,15 @@ describe("activity log", () => {
     expect(lockAfterLabel(0)).toBe("Only when BYTE opens");
     expect(lockAfterLabel(15)).toBe("After 15 minutes idle");
     expect(lockAfterLabel(60)).toBe("After an hour idle");
+  });
+
+  it("formats backup sizes and ages", () => {
+    expect(formatBytes(512)).toBe("512 B");
+    expect(formatBytes(48_000)).toBe("47 KB");
+    expect(formatBytes(12_500_000)).toBe("11.9 MB");
+    const now = Date.UTC(2026, 9, 2, 12);
+    expect(backupAge(now - 3600_000, now)).toBe("today");
+    expect(backupAge(now - 30 * 3600_000, now)).toBe("yesterday");
+    expect(backupAge(now - 4 * 86_400_000, now)).toBe("4 days ago");
   });
 });

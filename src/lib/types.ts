@@ -97,6 +97,16 @@ export interface Settings {
   /** "calm" | "natural" | "lively" */
   speechStyle?: string;
   notesEnabled?: boolean;
+  /** Kids mode (kids.rs): a simple BYTE; turning it off needs the PIN. */
+  kidsMode?: boolean;
+  /** Backups (backup.rs): a folder other than iCloud Drive's BYTE Backups. */
+  backupDir?: string | null;
+  backupAuto?: boolean;
+  backupIncludeNotes?: boolean;
+  /** Unix ms of the last backup. */
+  lastBackup?: number | null;
+  /** Delete unpinned chats unused for this many days (0 = never). */
+  autoDeleteDays?: number;
   /** The offline switch (offline.rs): nothing reaches the internet. */
   offline?: boolean;
   /** Lock BYTE with Touch ID or the Mac password (lock.rs). */
@@ -1331,4 +1341,21 @@ export interface Activity {
   ok: boolean;
   summary: string;
   args: unknown;
+}
+
+/** backup.rs */
+export interface BackupFile {
+  path: string;
+  name: string;
+  size: number;
+  modified: number;
+}
+
+export interface BackupInfo {
+  dir: string;
+  /** The folder is in iCloud Drive. */
+  icloud: boolean;
+  files: BackupFile[];
+  /** A passphrase is saved in the Keychain (weekly backups can run). */
+  remembered: boolean;
 }

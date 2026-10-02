@@ -1018,6 +1018,7 @@ pub async fn run(turn: &Turn<'_>, db: &Db, question: &str, send: Emit<'_>) -> Ap
 #[tauri::command]
 pub fn trackers_list(state: State<'_, AppState>) -> AppResult<Vec<Tracker>> {
     crate::lock::ensure(&state)?;
+    crate::kids::grownups_only()?;
     list(&state.db)
 }
 

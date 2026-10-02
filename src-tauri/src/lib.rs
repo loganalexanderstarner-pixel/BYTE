@@ -34,6 +34,8 @@ mod error;
 mod offline;
 mod lock;
 mod privacy;
+mod kids;
+mod backup;
 mod modelcfg;
 mod models;
 mod paths;
@@ -132,6 +134,10 @@ pub fn run() {
         )
         .setup(|app| {
             let paths = paths::Paths::resolve(app.handle())?;
+            // A restore or "erase everything" from last time finishes before the database opens.
+            if let Err(e) = backup::apply_pending(&paths.data) {
+                log::error!("couldn't finish the restore/erase: {e}");
+            }
             let state = AppState::new(paths);
             let active = {
                 let s = state.settings.blocking_lock();
@@ -147,6 +153,7 @@ pub fn run() {
             let _ = state.app.set(app.handle().clone());
             let settings_now = state.settings.blocking_lock().clone();
             offline::set(settings_now.offline);
+            kids::set(settings_now.kids_mode);
             let catalog = state.catalog.get();
             let models_dir = state.paths.models.clone();
             app.manage(state);
@@ -453,6 +460,13 @@ pub fn run() {
             privacy::privacy_permissions,
             privacy::actions_list,
             privacy::actions_clear,
+            kids::kids_enter,
+            kids::kids_exit,
+            backup::backup_info,
+            backup::backup_now,
+            backup::backup_forget,
+            backup::backup_restore,
+            backup::erase_everything,
             commands::chat_cancel,
         ])
         .build(tauri::generate_context!())

@@ -184,12 +184,14 @@ pub async fn assist_with(http: &reqwest::Client, ep: &crate::engine::Endpoint, k
 #[tauri::command]
 pub async fn boards_list(state: State<'_, AppState>) -> AppResult<Vec<BoardInfo>> {
     crate::lock::ensure(&state)?;
+    crate::kids::grownups_only()?;
     list(&state.db)
 }
 
 #[tauri::command]
 pub async fn board_get(state: State<'_, AppState>, id: i64) -> AppResult<Board> {
     crate::lock::ensure(&state)?;
+    crate::kids::grownups_only()?;
     get(&state.db, id)?.ok_or_else(|| AppError::msg("That board isn't there any more."))
 }
 

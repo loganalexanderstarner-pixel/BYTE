@@ -104,6 +104,11 @@ pub fn start(app: AppHandle, enabled: bool) {
     });
 }
 
+/// Asks the Mac to confirm it's the owner (for erasing everything and the like).
+pub async fn verify(reason: &str) -> AppResult<()> {
+    authenticate(reason.into()).await
+}
+
 /// Asks the Mac to confirm it's the owner: Touch ID, or the password.
 async fn authenticate(reason: String) -> AppResult<()> {
     #[cfg(target_os = "macos")]

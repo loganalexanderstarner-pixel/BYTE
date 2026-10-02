@@ -231,6 +231,27 @@ pub struct Settings {
     /// Notes (notes.rs) and the web clipper.
     #[serde(default = "yes")]
     pub notes_enabled: bool,
+    /// Kids mode (kids.rs): a simple BYTE with no web, Mac control or files; leaving needs the PIN.
+    #[serde(default)]
+    pub kids_mode: bool,
+    /// The kids-mode PIN, salted and hashed (kids.rs). Never the PIN itself.
+    #[serde(default)]
+    pub kids_pin: Option<String>,
+    /// Backups (backup.rs): a folder other than iCloud Drive's BYTE Backups.
+    #[serde(default)]
+    pub backup_dir: Option<String>,
+    /// Back up every week (with the passphrase remembered in the Keychain).
+    #[serde(default)]
+    pub backup_auto: bool,
+    /// Include the notes folder in backups.
+    #[serde(default = "yes")]
+    pub backup_include_notes: bool,
+    /// When the last backup was made (Unix ms).
+    #[serde(default)]
+    pub last_backup: Option<i64>,
+    /// Delete unpinned chats not used for this many days (0 = keep them).
+    #[serde(default)]
+    pub auto_delete_days: u32,
     /// The offline switch (offline.rs): nothing reaches the internet while on.
     #[serde(default)]
     pub offline: bool,
@@ -376,6 +397,13 @@ impl Default for Settings {
             personality: Default::default(),
             notes_enabled: true,
             offline: false,
+            kids_mode: false,
+            kids_pin: None,
+            backup_dir: None,
+            backup_auto: false,
+            backup_include_notes: true,
+            last_backup: None,
+            auto_delete_days: 0,
             lock_enabled: false,
             lock_after_minutes: default_lock_after(),
             notes_dir: None,

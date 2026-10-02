@@ -1,4 +1,4 @@
-import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot, ClipboardList, ListTodo, NotebookPen, LifeBuoy, Shapes, WifiOff } from "lucide-react";
+import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot, ClipboardList, ListTodo, NotebookPen, LifeBuoy, Shapes, WifiOff, KeyRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { ChatView } from "../components/chat/ChatView";
@@ -24,6 +24,7 @@ import { THEMES } from "../design/themes";
 import { prettyKeys } from "../lib/keys";
 import type { PaletteItem } from "../lib/palette";
 import { Sidebar } from "../components/Sidebar";
+import { KidsExit } from "../components/kids/KidsExit";
 import { useStore, type SettingsTab } from "../state/store";
 
 export function Shell() {
@@ -61,6 +62,8 @@ export function Shell() {
   const addNewChats = useStore((s) => s.addNewChats);
   const openFresh = useStore((s) => s.openFresh);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const kids = useStore((s) => !!s.settings?.kidsMode);
+  const [kidsExit, setKidsExit] = useState(false);
 
   // Quick Ask: its chats join the list, and "Open in BYTE" opens one here.
   useEffect(() => {
@@ -99,6 +102,11 @@ export function Shell() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const cmd = e.metaKey || e.ctrlKey;
+      // Kids mode: no palette, settings or panels from the keyboard.
+      if (useStore.getState().settings?.kidsMode && cmd && ["k", ",", "?", "/"].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        return;
+      }
       if (cmd && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen((o) => !o);
@@ -216,7 +224,7 @@ export function Shell() {
   };
 
   return (
-    <div className={`app ${sidebarOpen ? "" : "sidebar-hidden"} ${reading ? "reading" : ""}`}>
+    <div className={`app ${sidebarOpen ? "" : "sidebar-hidden"} ${reading ? "reading" : ""} ${kids ? "kids" : ""}`}>
       <Sidebar />
       <main className="main">
         <header className="titlebar" data-tauri-drag-region>
@@ -232,6 +240,14 @@ export function Shell() {
               </>
             )}
           </div>
+          {kids ? (
+            <div className="row no-drag">
+              <span className="kids-badge">Kids mode</span>
+              <button className="btn sm ghost" onClick={() => setKidsExit(true)} title="Turn off kids mode (needs the PIN)">
+                <KeyRound size={14} /> Grown-ups
+              </button>
+            </div>
+          ) : (
           <div className="row no-drag">
             {offline && (
               <button className="offline-pill" onClick={() => void useStore.getState().updateSettings({ offline: false })} title="BYTE is offline: nothing reaches the internet. Click to go back online.">
@@ -296,6 +312,7 @@ export function Shell() {
               <SettingsIcon size={18} />
             </button>
           </div>
+          )}
         </header>
         <ChatView />
         <Composer />
@@ -314,7 +331,8 @@ export function Shell() {
       {tasksOpen && <TasksPanel onClose={() => setTasksOpen(false)} />}
       {jobsOpen && <JobsPanel onClose={() => setJobsOpen(false)} />}
       {assistantsOpen && <AssistantsPanel onClose={() => setAssistantsOpen(false)} />}
-      {paletteOpen && <Palette items={paletteItems} onRun={runItem} onClose={() => setPaletteOpen(false)} />}
+      {kidsExit && <KidsExit onClose={() => setKidsExit(false)} />}
+      {paletteOpen && !kids && <Palette items={paletteItems} onRun={runItem} onClose={() => setPaletteOpen(false)} />}
     </div>
   );
 }

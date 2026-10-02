@@ -53,6 +53,23 @@ export const EXAMPLES: Example[] = [
   { group: "Ideas", text: "Give me 10 weekend project ideas for a rainy day" },
 ];
 
+/** Home-screen ideas in kids mode (kids.rs): fun, learning, no web or Mac actions. */
+export const KID_EXAMPLES: Example[] = [
+  { group: "Wonder", text: "Why is the sky blue?" },
+  { group: "Wonder", text: "How do volcanoes work?" },
+  { group: "Wonder", text: "What's the biggest animal that ever lived?" },
+  { group: "Wonder", text: "How far away is the Moon?" },
+  { group: "Stories", text: "Tell me a short story about a dragon who's afraid of the dark" },
+  { group: "Stories", text: "Help me write a poem about my cat" },
+  { group: "Stories", text: "Let's make up a story together. You start!" },
+  { group: "Learning", text: "Quiz me on times tables, 5 questions" },
+  { group: "Learning", text: "Help me understand fractions with pizza" },
+  { group: "Learning", text: "Teach me 5 words in Spanish" },
+  { group: "Fun", text: "Tell me a funny joke" },
+  { group: "Fun", text: "Give me a riddle to solve" },
+  { group: "Fun", text: "What's a fun science experiment I can do with a grown-up?" },
+];
+
 /** Examples that work here: their module is on, web is on if needed, and Mac-only ones only on a Mac. */
 export function availableExamples(settings: Record<string, unknown> | null | undefined, opts: { web: boolean; mac: boolean }, all: Example[] = EXAMPLES): Example[] {
   return all.filter((e) => {

@@ -149,7 +149,7 @@ function initScript({ data }) {
         case "engine_tune":
           return data.settings.tuning["qwen3.5-9b:Q6_K"];
         case "chats_list":
-          return data.chats;
+          return data.settings?.kidsMode ? data.chats.filter((c) => c.folder === "Kids") : data.chats;
         case "chat_load": {
           const c = data.chats.find((x) => x.id === args.id);
           if (!c) return null;
@@ -368,6 +368,29 @@ function initScript({ data }) {
           return null;
         case "lock_unlock":
           return new Promise(() => {});
+        case "backup_info":
+          return {
+            dir: "/Users/logan/Library/Mobile Documents/com~apple~CloudDocs/BYTE Backups",
+            icloud: true,
+            remembered: true,
+            files: [
+              { path: "/b/BYTE backup 2026-10-02 0215.bytebackup", name: "BYTE backup 2026-10-02 0215.bytebackup", size: 48_200_000, modified: Date.now() - 3600000 },
+              { path: "/b/BYTE backup 2026-09-25 0215.bytebackup", name: "BYTE backup 2026-09-25 0215.bytebackup", size: 45_900_000, modified: Date.now() - 7 * 86400000 },
+            ],
+          };
+        case "backup_now":
+          return "/Users/logan/Library/Mobile Documents/com~apple~CloudDocs/BYTE Backups/BYTE backup 2026-10-02 0300.bytebackup";
+        case "backup_forget":
+        case "backup_restore":
+        case "erase_everything":
+          return null;
+        case "kids_enter":
+          data.settings = { ...data.settings, kidsMode: true };
+          return { ...data.settings };
+        case "kids_exit":
+          if (args.pin !== "4821") throw "That PIN isn't right.";
+          data.settings = { ...data.settings, kidsMode: false };
+          return { ...data.settings };
         case "privacy_permissions": {
           const P = "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?";
           return [
@@ -1953,6 +1976,31 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(200);
   await shot(p, "40b-activity");
   console.log("privacy errors:", errors);
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await page(true, "midnight", { settingsPatch: { lastBackup: Date.now() - 3600000, backupAuto: true, autoDeleteDays: 90 } });
+  await p.keyboard.press("Meta+Comma");
+  await p.getByRole("button", { name: "Privacy", exact: true }).click();
+  await p.waitForTimeout(400);
+  await p.getByRole("heading", { name: "Backups" }).scrollIntoViewIfNeeded();
+  await shot(p, "41-backups");
+  await p.getByRole("heading", { name: "Erase everything" }).scrollIntoViewIfNeeded();
+  await shot(p, "41d-erase");
+  await p.getByRole("heading", { name: "Kids mode" }).scrollIntoViewIfNeeded();
+  await p.getByLabel("Kids mode PIN", { exact: true }).fill("4821");
+  await p.getByLabel("Kids mode PIN again").fill("4821");
+  await p.getByRole("button", { name: "Turn on kids mode" }).click();
+  await p.waitForTimeout(300);
+  await p.getByRole("button", { name: /New chat/ }).first().click().catch(() => {});
+  await p.waitForTimeout(300);
+  await shot(p, "41b-kids");
+  await p.getByRole("button", { name: /Grown-ups/ }).click();
+  await p.getByLabel("PIN", { exact: true }).fill("1111");
+  await p.getByRole("button", { name: "Turn off kids mode" }).click();
+  await p.waitForTimeout(200);
+  await shot(p, "41c-kids-exit");
+  console.log("backup/kids errors:", errors);
   await ctx.close();
 }
 {

@@ -65,6 +65,8 @@ src-tauri/                Rust core (Tauri 2)
   src/offline.rs          the offline switch: a connector layer on every internet client (holds through proxies)
   src/lock.rs             Touch ID lock (LocalAuthentication), idle timer, `ensure` gate on data commands
   src/privacy.rs          Settings → Privacy: Mac permission status, activity log (actions.jsonl)
+  src/kids.rs             kids mode: PIN (PBKDF2), kid-safe prompt, enforced in backend + chat commands (Kids folder)
+  src/backup.rs           encrypted backups (ring PBKDF2 + ChaCha20-Poly1305) to iCloud Drive, restore at next launch, auto-delete, erase
   src/speech.rs           answers read aloud (macOS `say`, text via a temp file), speakable(), voices
   src/wake.rs             "Hey BYTE": native mic (cpal, macOS), voice-burst detector, whisper check, opens Quick Ask
   src/quick.rs            Quick Ask window, menu-bar icon, global shortcuts from settings

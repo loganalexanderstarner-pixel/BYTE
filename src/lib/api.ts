@@ -7,6 +7,7 @@ import type { DocEvent, DocKind, DocOutline, DocSpec } from "./docs/spec";
 
 import type {
   Activity,
+  BackupInfo,
   ActivityKind,
   LockStatus,
   Permission,
@@ -342,6 +343,14 @@ export const api = {
   privacyPermissions: () => invoke<Permission[]>("privacy_permissions"),
   actionsList: (query?: string, kind?: ActivityKind, limit?: number) => invoke<Activity[]>("actions_list", { query: query ?? null, kind: kind ?? null, limit: limit ?? null }),
   actionsClear: () => invoke<void>("actions_clear"),
+  // Kids mode (kids.rs) and backups (backup.rs).
+  kidsEnter: (pin: string) => invoke<Settings>("kids_enter", { pin }),
+  kidsExit: (pin: string) => invoke<Settings>("kids_exit", { pin }),
+  backupInfo: () => invoke<BackupInfo>("backup_info"),
+  backupNow: (passphrase: string | null, remember: boolean) => invoke<string>("backup_now", { passphrase, remember }),
+  backupForget: () => invoke<void>("backup_forget"),
+  backupRestore: (path: string, passphrase: string) => invoke<void>("backup_restore", { path, passphrase }),
+  eraseEverything: (confirm: string) => invoke<void>("erase_everything", { confirm }),
   selectionPaste: (appName: string, text: string) => invoke<void>("selection_paste", { appName, text }),
   onSelection: (cb: (c: Captured) => void): Promise<UnlistenFn> => listen<Captured>("selection://captured", (e) => cb(e.payload)),
   onSelectionError: (cb: (message: string) => void): Promise<UnlistenFn> => listen<string>("selection://error", (e) => cb(e.payload)),
