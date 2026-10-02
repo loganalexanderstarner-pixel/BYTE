@@ -17,6 +17,43 @@ the same repo. Read this file, then `CLAUDE.md`, `docs/HANDOFF.md` (§1b has the
 This PC is far faster than the target Mac for anything that fits in 16 GB of VRAM. Use it to test the
 "any hardware" planner: models that fit in VRAM, models split between VRAM and RAM, and CPU-only.
 
+## The goal: every Mac feature, and more (owner's rule)
+
+**Windows and Linux get every feature the Mac app has, and more.** macOS is the most locked-down of the three, so
+anything the Mac app does, Windows and Linux can usually do too, often with more access. Feature parity is the
+**floor**, not the goal. The only allowed gaps are things that truly can't exist off Apple hardware (iMessage);
+each of those gets the closest real alternative, explained in plain words. "Not on Windows yet" is a temporary
+state to report, never a final answer.
+
+**Parity checklist**: the PC session ticks each one on Windows, then Linux. Most is shared code (the React UI and
+the Rust core), so "check it works" is the job. The OS-touching rows have their replacements in the feature map
+below.
+
+| Area (Mac module) | Shared code? | Windows | Linux |
+|---|---|---|---|
+| Chat, modes (Fast/Auto/Deep/Extended), thinking, answer cache, compare models (`chat.rs`, `router.rs`, `backend.rs`) | yes | ☐ | ☐ |
+| Model catalog, downloads, fit planning, recommendations, model lab (`models.rs`, `system.rs`) | mostly, plus a VRAM-aware planner | ☐ | ☐ |
+| Speed: Speed boost, tuning, measured speed, several models loaded (`tune.rs`, `speed.rs`, pool) | mostly, plus a PC tuner | ☐ | ☐ |
+| Web search and reading, the agent browser, deep research, fact-check, compare, trips, reviews, prices, YouTube (`tools/`, `web_agent/`) | yes (the browser path differs) | ☐ | ☐ |
+| Memory, encrypted chats, projects, profiles, export (`db.rs`, `profiles.rs`, `export.rs`) | yes | ☐ | ☐ |
+| Files, photos, OCR, knowledge base (`files.rs`, `ocr.rs`, `kb.rs`, `embed.rs`) | yes, except OCR | ☐ | ☐ |
+| Documents: PDF, Word, PowerPoint (beta), HTML (`documents/`) | yes | ☐ | ☐ |
+| Writing studio, long-form, translation, flashcards, quizzes, tutor, job search (`writing/`, `study/`, `jobs/`) | yes | ☐ | ☐ |
+| Kitchen, recipes, meal plans (`kitchen/`) | yes | ☐ | ☐ |
+| Tasks, schedules, briefing, feeds, watched pages, automations, trackers, connectors (`tasks/`, `scheduler.rs`, `automations.rs`, `connectors/`) | yes (plus OS scheduling) | ☐ | ☐ |
+| Voice: dictation, speaker labels, spoken answers, 2,000+ voices, Talk mode, "Hey BYTE" (`voice.rs`, `speakers.rs`, `tts.rs`, `wake.rs`) | yes (audio conversion and system voices differ) | ☐ | ☐ |
+| Quick Ask, tray, command palette, global shortcuts, selection, clipboard history (`quick.rs`, `selection.rs`, `clipboard.rs`) | partly | ☐ | ☐ |
+| Notes, web clipper, mind maps, brainstorm board, help center, personality, examples (`notes.rs`, `board.rs`, `help.rs`) | yes | ☐ | ☐ |
+| Computer control with approval and Undo (`macctl.rs`, `filectl.rs`, `terminal.rs`) | no: native per OS | ☐ | ☐ |
+| Upkeep: storage, health, battery, uninstaller (`upkeep.rs`, `dashboard.rs`) | no: native per OS | ☐ | ☐ |
+| Privacy: offline switch, lock, Privacy tab, activity log, kids mode, encrypted backups, erase (`offline.rs`, `lock.rs`, `privacy.rs`, `kids.rs`, `backup.rs`) | yes, except the lock and backup location | ☐ | ☐ |
+| Themes, your own themes, motion, sounds, accessibility | yes (check screen-reader names with Narrator / Orca) | ☐ | ☐ |
+| BYTE Cloud, Both workspaces, fallback (`cloud/`) | yes (key store differs) | ☐ | ☐ |
+| One-click signed updates (`updater.rs`) | yes (installer type differs) | ☐ | ☐ |
+
+**Then the "more" list:** the Windows-only and Linux-only extras under the feature map, plus anything else the OS
+allows that macOS doesn't. Propose new ones to Logan as you find them.
+
 ## Ground rules
 
 - **Branches.** Don't push to `claude/new-session-tu1a5x` (the Mac session releases from it, and a push during a

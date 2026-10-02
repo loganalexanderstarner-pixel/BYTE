@@ -64,7 +64,9 @@ RTX 5080). The owner has asked it to build BYTE's **Windows** app first, then **
 **[`docs/PORTING-WINDOWS-LINUX.md`](PORTING-WINDOWS-LINUX.md)**: the machine, the ground rules (its own branch
 `claude/windows-port`, never break the Mac app, no secrets in this public repo), setup, what's Mac-only today, the
 feature map (Mac feature → Windows → Linux, and what each can do that the Mac can't), and milestones W1–W4 then
-L1–L4. Report to Logan after each milestone. Start with W1: BYTE builds, runs and answers on the RTX 5080.
+L1–L4. **The rule: every Mac feature, and more** (macOS is the most locked-down; Windows and Linux allow more), on NVIDIA,
+AMD and Intel graphics or CPU only. Report to Logan after each milestone. Start with W1: BYTE builds, runs and
+answers on the RTX 5080.
 
 
 ### 1. Structured replies without a conversation (`POST /api/complete`)

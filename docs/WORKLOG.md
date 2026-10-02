@@ -17,6 +17,14 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — port brief: every Mac feature, and more
+- **Why:** owner: Windows and Linux should have almost every Mac feature if not all, and more, since macOS is the
+  most locked down.
+- **What:** `PORTING-WINDOWS-LINUX.md` opens with that rule and a parity checklist of every feature area (shared
+  code vs native, a box per OS); CLUSTER-REQUESTS item 0 states the rule.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — port brief: any GPU vendor, hardware smarts, memory modes
 - **Why:** owner: Windows/Linux must work on AMD and Intel graphics too, be as hardware-aware as the Mac app
   (detection, estimates, measured speed, per-model tuning), and run bigger models across GPU + CPU + RAM + VRAM,
