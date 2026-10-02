@@ -90,7 +90,7 @@
    "name": "GLM 5.3",
    "family": "GLM",
    "released": "2026-08",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -147,7 +147,7 @@
    "name": "Ornith 1.0 9B",
    "family": "Ornith",
    "released": "2026-07",
-   "tagline": "Ornith models.",
+   "tagline": "Built for coding agents and step-by-step reasoning",
    "usedFor": "math, analysis, planning and research questions",
    "tags": [
     "reasoning"
@@ -374,7 +374,7 @@
    "name": "GLM 5.2",
    "family": "GLM",
    "released": "2026-06",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -844,7 +844,7 @@
    "name": "GLM 4.7 Flash",
    "family": "GLM",
    "released": "2026-01",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -1415,7 +1415,7 @@
    "name": "Ornith 1.5 35B A3B",
    "family": "Ornith",
    "released": "2026-08",
-   "tagline": "Ornith models.",
+   "tagline": "Built for coding agents and step-by-step reasoning",
    "usedFor": "math, analysis, planning and research questions; quick answers on smaller or older Macs",
    "tags": [
     "reasoning",
@@ -2202,7 +2202,7 @@
    "name": "Ornith 1.0 35B",
    "family": "Ornith",
    "released": "2026-07",
-   "tagline": "Ornith models.",
+   "tagline": "Built for coding agents and step-by-step reasoning",
    "usedFor": "math, analysis, planning and research questions",
    "tags": [
     "reasoning"
@@ -2480,7 +2480,7 @@
    "name": "Ornith 1.5 9B",
    "family": "Ornith",
    "released": "2026-08",
-   "tagline": "Ornith models.",
+   "tagline": "Built for coding agents and step-by-step reasoning",
    "usedFor": "math, analysis, planning and research questions",
    "tags": [
     "reasoning"
@@ -2594,7 +2594,7 @@
    "name": "GLM 4.5 Air",
    "family": "GLM",
    "released": "2025-08",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -3444,7 +3444,7 @@
    "name": "GLM 4 32B 0414",
    "family": "GLM",
    "released": "2025-04",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -3693,7 +3693,7 @@
    "name": "GLM 4.6",
    "family": "GLM",
    "released": "2025-09",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -3750,7 +3750,7 @@
    "name": "GLM 4 9B 0414",
    "family": "GLM",
    "released": "2025-04",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -4023,7 +4023,7 @@
    "name": "GLM 4.7",
    "family": "GLM",
    "released": "2025-12",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -5165,7 +5165,7 @@
    "name": "GLM Z1 Rumination 32B 0414",
    "family": "GLM",
    "released": "2025-04",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -5500,7 +5500,7 @@
    "name": "GLM 5",
    "family": "GLM",
    "released": "2026-02",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -5585,7 +5585,7 @@
    "name": "GLM 4.5",
    "family": "GLM",
    "released": "2025-08",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -5750,7 +5750,7 @@
    "name": "GLM Z1 9B 0414",
    "family": "GLM",
    "released": "2025-05",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -6193,7 +6193,7 @@
    "name": "GLM 5.1",
    "family": "GLM",
    "released": "2026-04",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -6356,7 +6356,7 @@
    "name": "glm 4 9b chat",
    "family": "GLM",
    "released": "2024-08",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -6547,7 +6547,7 @@
    "name": "Ornith 1.5 397B",
    "family": "Ornith",
    "released": "2026-08",
-   "tagline": "Ornith models.",
+   "tagline": "Built for coding agents and step-by-step reasoning",
    "usedFor": "math, analysis, planning and research questions",
    "tags": [
     "reasoning"
@@ -7224,7 +7224,7 @@
    "name": "GLM Z1 32B 0414",
    "family": "GLM",
    "released": "2025-07",
-   "tagline": "Zhipu's GLM models.",
+   "tagline": "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese",
    "usedFor": "math, analysis, planning and research questions; translation and chatting in many languages",
    "tags": [
     "reasoning",
@@ -7775,7 +7775,7 @@
    "name": "Ornith 1.0 397B",
    "family": "Ornith",
    "released": "2026-07",
-   "tagline": "Ornith models.",
+   "tagline": "Built for coding agents and step-by-step reasoning",
    "usedFor": "math, analysis, planning and research questions",
    "tags": [
     "reasoning"

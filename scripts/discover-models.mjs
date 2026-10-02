@@ -116,7 +116,7 @@ const FAMILIES = [
   [/hunyuan/, "Hunyuan", "Tencent's Hunyuan models.", ["multilingual"]],
   [/minimax/, "MiniMax", "MiniMax's large mixture-of-experts models.", ["reasoning"]],
   [/kimi/, "Kimi", "Moonshot's Kimi models.", ["reasoning"]],
-  [/ornith/, "Ornith", "Ornith models.", ["reasoning"]],
+  [/ornith/, "Ornith", "Built for coding agents and step-by-step reasoning", ["reasoning"]],
   [/command|aya|cohere/, "Cohere", "Cohere's Command and Aya models: retrieval and many languages.", ["multilingual"]],
   [/falcon/, "Falcon", "TII's Falcon models.", ["writing"]],
   [/internlm/, "InternLM", "Shanghai AI Lab's InternLM models.", ["reasoning"]],
@@ -128,7 +128,7 @@ const FAMILIES = [
   [/minicpm/, "MiniCPM", "OpenBMB's MiniCPM: small models that punch above their size.", ["fast"]],
   [/arcee|afm/, "Arcee", "Arcee AI's efficient general models.", ["writing"]],
   [/apriel/, "Apriel", "ServiceNow's Apriel reasoning models.", ["reasoning"]],
-  [/glm/, "GLM", "Zhipu's GLM models.", ["reasoning", "multilingual"]],
+  [/glm/, "GLM", "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese", ["reasoning", "multilingual"]],
 ];
 
 function family(name) {

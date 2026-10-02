@@ -24,6 +24,30 @@ No account. No subscription. Your conversations never leave your computer.</p>
 
 Every feature is a module you can turn off. See [docs/VERSIONS.md](docs/VERSIONS.md) for what each version added.
 
+## A look inside
+
+| | |
+|---|---|
+| ![The home screen: today's events, to-dos and ideas to try](docs/images/home.png) | ![An answer with web sources and numbered citations](docs/images/chat-with-sources.png) |
+| **Home:** your day at a glance, and ideas to try. | **Answers with sources** you can click and check. |
+| ![Deep research reading many pages and papers](docs/images/deep-research.png) | ![A finished document ready to save as PDF, PowerPoint or Word](docs/images/documents.png) |
+| **Deep research** across pages and papers. | **Documents** saved as PDF, PowerPoint or Word. |
+| ![The welcome guide recommending a model for this Mac](docs/images/choose-model.png) | ![Settings → Privacy with the offline switch and Touch ID lock](docs/images/privacy.png) |
+| **Setup** picks the right model for your Mac. | **Privacy:** an offline switch, Touch ID lock and activity log. |
+
+## What it can't do (yet)
+
+- **It isn't as smart as the biggest online assistants.** A model that fits on a 16 GB Mac is very good at
+  everyday questions, writing, research with sources and documents, but it reasons less deeply than the largest
+  cloud models. Bigger Macs can run bigger models; BYTE Cloud (invite only) can help too.
+- **Speed depends on your Mac.** An M4 MacBook Air writes about 15 words a second with the recommended model (faster than most people read);
+  Pro and Max chips are about twice as fast.
+- **It needs Apple Silicon** (M1 or newer). Intel Macs aren't supported, and Windows and Linux versions are planned
+  but not built yet.
+- **It isn't signed by Apple.** That's why the first launch needs "Open Anyway" (or Homebrew, which skips it).
+- **Web answers are only as good as the pages it finds.** It shows its sources so you can check them.
+- **Mac control asks first.** BYTE never sends, deletes or buys anything without your OK, and most actions have Undo.
+
 ## Requirements
 
 | | Minimum | Recommended |

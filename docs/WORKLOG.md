@@ -17,6 +17,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — v1.0 polish, part 2: model descriptions, welcome-guide order, README screenshots
+- **Why:** the welcome guide showed "Ornith models." as a model's description; 23 chat models had placeholder
+  family blurbs ("Zhipu's GLM models.", "Ornith models."). Community remixes (uncensored etc.) could rank in the
+  guide's top four. The README had no pictures and no honest limits.
+- **What:** real blurbs in `scripts/discover-models.mjs` (source) and the generated catalogs; `runnable()` ranks
+  community/uncensored models after squeezed ones (test); README "A look inside" (six screens in `docs/images/`,
+  256-colour PNGs, ~75 KB each) and "What it can't do (yet)".
+- **Verify:** check-all (487 Rust, 211 vitest); `tools/ui-shots` `03-choose-model`.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — v1.0 bug hunt, part 1: welcome guide picks, kids-mode sidebar, screenshots
 - **Why:** owner chose a polish pass (bug hunt, first run, speed/memory, README) before v1.0. All 146 mocked
   screens render with no console errors; these are the problems found by looking at them.
