@@ -64,5 +64,6 @@ describe("accessibility", () => {
   it("every button has a name VoiceOver can read", () => {
     const missing = files(ROOT).flatMap((f) => unnamedButtons(f));
     expect(missing).toEqual([]);
-  });
+    // Parses every component file, which can pass the 5 s default when the machine is busy.
+  }, 30_000);
 });
