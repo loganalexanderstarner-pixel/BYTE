@@ -17,6 +17,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — v1.0 bug hunt, part 1: welcome guide picks, kids-mode sidebar, screenshots
+- **Why:** owner chose a polish pass (bug hunt, first run, speed/memory, README) before v1.0. All 146 mocked
+  screens render with no console errors; these are the problems found by looking at them.
+- **What:** `Onboarding.tsx` `runnable()` lists versions of 4+ bits before squeezed ones (the guide's #2 pick was a
+  2-bit 27B, "Low quality"), with `runnable.test.ts`; `Sidebar.tsx` hides Projects and the private-chat button in
+  kids mode; `tools/ui-shots/shots.mjs`: download mock matches the 7.5 GB card, the chat shot asks the question its
+  answer is about, update mocks + shot `43-update-found`.
+- **Verify:** `npx vitest run src/components/onboarding`; `node tools/ui-shots/shots.mjs` → `03-choose-model`, `41b-kids`.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — releases check the updater key before using it
 - **Why:** the v0.12.3 release (run 37000452819) built the app, then failed: "failed to decode secret key …
   Invalid padding". The `TAURI_SIGNING_PRIVATE_KEY` secret was damaged when copied from a terminal.

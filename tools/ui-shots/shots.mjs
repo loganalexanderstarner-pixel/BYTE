@@ -195,7 +195,7 @@ function initScript({ data }) {
         case "engine_log":
           return ["main: server is listening on http://127.0.0.1:52811", "srv  update_slots: all slots are idle"];
         case "model_download":
-          setTimeout(() => window.__emit("models://download", { kind: "progress", id: args.key ?? args.id, bytes: 3.87e9, total: 9.0e9, bytesPerSec: 48.2e6 }), 50);
+          setTimeout(() => window.__emit("models://download", { kind: "progress", id: args.key ?? args.id, bytes: 3.22e9, total: 7.5e9, bytesPerSec: 48.2e6 }), 50);
           return null;
         case "cloud_status":
           return data.cloud;
@@ -359,6 +359,10 @@ function initScript({ data }) {
           return null;
         case "boards_list":
           return [{ id: 1, title: "Food truck ideas", count: 9, updated: Date.now() - 3600000 }];
+        case "update_configured":
+          return true;
+        case "update_check":
+          return { current: "0.12.3", version: "0.12.4", notes: "# v0.12.4\nA smoother first run, fixes from the v1.0 bug hunt, and a lighter app." };
         case "lock_status":
           return { available: true, enabled: !!data.locked || !!data.settings?.lockEnabled, locked: !!data.locked };
         case "lock_touch":
@@ -1309,7 +1313,9 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.evaluate(() => window.__emit("engine://tune", { model: "qwen3.5-9b:Q6_K", step: 4, total: 4, label: "Done", done: true }));
   await p.waitForTimeout(200);
   await shot(p, "05-empty");
-  await p.locator(".suggestion").first().click();
+  // Ask the question the canned answer is about (an example card would send a different one).
+  await p.getByPlaceholder(/Ask BYTE anything/).fill("Is the new M5 MacBook Air worth it over my M4?");
+  await p.keyboard.press("Enter");
   await p.waitForTimeout(1200);
   await p.getByRole("button", { name: /Searched the web/ }).click();
   await p.waitForTimeout(200);
@@ -2045,6 +2051,9 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.keyboard.press("Meta+Comma");
   await p.getByRole("button", { name: "About", exact: true }).click();
   await p.waitForTimeout(300);
+  await p.getByRole("button", { name: /Check for updates/ }).click();
+  await p.waitForTimeout(300);
+  await shot(p, "43-update-found");
   await p.getByRole("heading", { name: "Your usage" }).scrollIntoViewIfNeeded();
   await shot(p, "31c-usage");
   console.log("dashboard errors:", errors);

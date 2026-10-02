@@ -176,7 +176,7 @@ export function Sidebar() {
         <button className="icon-btn" onClick={toggleSidebar} title="Hide sidebar (⌘\)">
           <PanelLeft size={18} />
         </button>
-        {workspace === "local" && (
+        {workspace === "local" && !kids && (
           <button className="icon-btn" onClick={() => newChat(true)} title="New private chat: not saved, doesn't use memory">
             <EyeOff size={17} />
           </button>
@@ -249,7 +249,7 @@ export function Sidebar() {
                 ))}
               </div>
             )}
-            {workspace === "local" && (
+            {workspace === "local" && !kids && (
             <div className="sidebar-label with-action">
               <span>Projects</span>
               <button

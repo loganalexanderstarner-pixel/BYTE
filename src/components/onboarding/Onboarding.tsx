@@ -28,12 +28,14 @@ import { DownloadProgress, FitPill } from "../models/ModelCard";
 
 const STEPS = 5;
 
-/** Chat models with a version that runs on this Mac, best first. */
+/** Chat models with a version that runs on this Mac, best first. Versions squeezed below 4 bits (a big model
+ *  made to fit) come after the good-quality ones, so a new user isn't steered to a "Low quality" pick. */
 export function runnable(models: ModelStatus[]): { model: ModelStatus; variant: VariantStatus }[] {
+  const squeezed = (v: VariantStatus) => (v.bits < 4 ? 1 : 0);
   return models
     .filter((m) => m.role === "chat" && m.best)
     .map((m) => ({ model: m, variant: m.variants.find((v) => v.key === m.best)! }))
-    .sort((a, b) => b.variant.quality - a.variant.quality || a.variant.sizeBytes - b.variant.sizeBytes);
+    .sort((a, b) => squeezed(a.variant) - squeezed(b.variant) || b.variant.quality - a.variant.quality || a.variant.sizeBytes - b.variant.sizeBytes);
 }
 
 export function Onboarding() {
