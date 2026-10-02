@@ -34,6 +34,7 @@ Order: **v1.0** (owner's update test + `docs/CHECKLIST-1.0.md`) → **Windows** 
   both at once only when the pair the person chose fits in memory (same fit planning as chat models).
 - Uncensored/"obliterated" chat models stay in the catalog; kids mode excludes them (done in v0.12.4).
 - Documents are Beta until PowerPoint output is improved.
+- **Separate apps per OS.** No linking the PC and the Mac (shared models, chats or engines) unless the owner asks later.
 
 ## 2. Where things stand
 

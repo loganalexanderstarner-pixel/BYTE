@@ -17,6 +17,12 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — drop the "BYTE Home" idea: separate apps per OS
+- **Why:** owner: no linking the Mac and the PC for now; separate OS apps only.
+- **What:** `PORTING-WINDOWS-LINUX.md` replaces the idea with "Not in scope: linking devices"; HANDOFF §1b notes it.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — port brief: every Mac feature, and more
 - **Why:** owner: Windows and Linux should have almost every Mac feature if not all, and more, since macOS is the
   most locked down.

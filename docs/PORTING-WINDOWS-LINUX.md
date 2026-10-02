@@ -243,11 +243,10 @@ Calendar API) is an optional connector for later; ask Logan before adding one.
 - **Any media player** through MPRIS, and deeper settings control through D-Bus.
 - **Scheduled tasks while BYTE is closed** through systemd user timers.
 
-### Idea to ask Logan about first (not in scope yet)
+### Not in scope: linking devices
 
-- **"BYTE Home":** the PC serves its models to his other devices on the home network, so the Mac can use the
-  5080 like a private cloud. It would reuse the existing cloud-mode client. This needs his OK and a security
-  design: pairing and an encrypted connection, never open to the internet.
+Each OS gets its **own separate app**. Don't build anything that links the PC and the Mac (sharing models, chats
+or engines between machines) unless Logan asks for it later.
 
 ## The work, in milestones
 
