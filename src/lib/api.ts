@@ -6,6 +6,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { DocEvent, DocKind, DocOutline, DocSpec } from "./docs/spec";
 
 import type {
+  UpdateInfo,
   Activity,
   BackupInfo,
   ActivityKind,
@@ -351,6 +352,12 @@ export const api = {
   backupForget: () => invoke<void>("backup_forget"),
   backupRestore: (path: string, passphrase: string) => invoke<void>("backup_restore", { path, passphrase }),
   eraseEverything: (confirm: string) => invoke<void>("erase_everything", { confirm }),
+  // One-click updates (updater.rs).
+  updateConfigured: () => invoke<boolean>("update_configured"),
+  updateCheck: () => invoke<UpdateInfo | null>("update_check"),
+  updateInstall: () => invoke<void>("update_install"),
+  onUpdateAvailable: (cb: (u: UpdateInfo) => void): Promise<UnlistenFn> => listen<UpdateInfo>("update://available", (e) => cb(e.payload)),
+  onUpdateProgress: (cb: (p: { got: number; total: number | null }) => void): Promise<UnlistenFn> => listen<{ got: number; total: number | null }>("update://progress", (e) => cb(e.payload)),
   selectionPaste: (appName: string, text: string) => invoke<void>("selection_paste", { appName, text }),
   onSelection: (cb: (c: Captured) => void): Promise<UnlistenFn> => listen<Captured>("selection://captured", (e) => cb(e.payload)),
   onSelectionError: (cb: (message: string) => void): Promise<UnlistenFn> => listen<string>("selection://error", (e) => cb(e.payload)),

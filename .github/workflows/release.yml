@@ -102,10 +102,26 @@ jobs:
             echo "BYTE_NOTES_END"
           } >> "$GITHUB_OUTPUT"
 
+      # One-click updates (updater.rs) need the owner's signing key as a secret. Without it the
+      # release is built as before, just without the signed update files.
+      - name: Signed updates (when the signing key is set up)
+        id: updater
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo "args=--config '{\"bundle\":{\"createUpdaterArtifacts\":true}}'" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+            echo "::notice::No TAURI_SIGNING_PRIVATE_KEY secret, so this release has no one-click update files."
+          fi
+
       - name: Build and publish
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ env.TAG }}
           releaseCommitish: ${{ github.sha }}
@@ -113,7 +129,7 @@ jobs:
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           prerelease: ${{ contains(env.TAG, '-') }}
-          args: --target aarch64-apple-darwin
+          args: --target aarch64-apple-darwin ${{ steps.updater.outputs.args }}
 
       - name: Verify the bundle contains the engine
         run: |

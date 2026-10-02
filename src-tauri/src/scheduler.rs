@@ -540,6 +540,7 @@ pub async fn tick(app: &AppHandle) {
     let first_today = DAILY.lock().map(|mut d| d.replace(now.date_naive()) != Some(now.date_naive())).unwrap_or(false);
     if first_today {
         crate::backup::daily(&state).await;
+        crate::updater::daily(app).await;
     }
     match crate::tasks::take_due_reminders(&state.db, &now) {
         Ok(due) => {

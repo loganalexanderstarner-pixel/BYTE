@@ -79,6 +79,12 @@
           "byte"
         ]
       }
+    },
+    "updater": {
+      "pubkey": "",
+      "endpoints": [
+        "https://github.com/loganalexanderstarner-pixel/BYTE/releases/latest/download/latest.json"
+      ]
     }
   }
 }

@@ -36,6 +36,7 @@ mod lock;
 mod privacy;
 mod kids;
 mod backup;
+mod updater;
 mod modelcfg;
 mod models;
 mod paths;
@@ -106,6 +107,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         // byte:// links (Shortcuts start automations) and opening at login (background.rs).
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::Builder::new().args(["--background"]).build())
         // Keep running (macOS): closing the window hides it; ⌘Q quits.
         .on_window_event(|window, event| {
@@ -467,6 +469,9 @@ pub fn run() {
             backup::backup_forget,
             backup::backup_restore,
             backup::erase_everything,
+            updater::update_configured,
+            updater::update_check,
+            updater::update_install,
             commands::chat_cancel,
         ])
         .build(tauri::generate_context!())

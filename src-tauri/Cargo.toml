@@ -26,6 +26,8 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-deep-link = "2"
 tauri-plugin-autostart = "2"
+# One-click updates, signed with the owner's key (updater.rs).
+tauri-plugin-updater = "2"
 plist = "1"
 
 serde = { version = "1", features = ["derive"] }

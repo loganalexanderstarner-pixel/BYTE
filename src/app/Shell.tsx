@@ -80,6 +80,13 @@ export function Shell() {
     return () => offs.forEach((p) => void p.then((off) => off()));
   }, [openSettings]);
 
+  // A newer BYTE is out (the daily check): a quiet banner with Install.
+  const [newVersion, setNewVersion] = useState<string | null>(null);
+  useEffect(() => {
+    const off = api.onUpdateAvailable((u) => setNewVersion(u.version));
+    return () => void off.then((f) => f());
+  }, []);
+
   // A scheduled run (briefing, scheduled question) saved a new chat: show it in the list.
   useEffect(() => {
     const off = api.onScheduleRan(() => void reloadChats());
@@ -314,6 +321,17 @@ export function Shell() {
           </div>
           )}
         </header>
+        {newVersion && !kids && (
+          <div className="banner update-banner" role="status">
+            <span className="grow">BYTE {newVersion} is out.</span>
+            <button className="btn sm primary" onClick={() => openSettings("about")}>
+              See what's new
+            </button>
+            <button className="icon-btn sm" onClick={() => setNewVersion(null)} aria-label="Dismiss">
+              ×
+            </button>
+          </div>
+        )}
         <ChatView />
         <Composer />
       </main>

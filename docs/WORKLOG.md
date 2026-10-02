@@ -17,6 +17,21 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — updates, Homebrew and the README, ahead of v0.12.3 (not released yet)
+- **Why:** Phase 12's distribution items. Owner chose one-click signed updates; the signing key is created on the
+  owner's Mac (private half only as GitHub secrets `TAURI_SIGNING_PRIVATE_KEY` / `_PASSWORD`, never here), and the
+  public half goes into `tauri.conf.json` → `plugins.updater.pubkey` before v0.12.3 is released.
+- **What:** `updater.rs` (`update_configured`, `update_check`, `update_install`, daily check → `update://available`,
+  tests), `tauri-plugin-updater`, `plugins.updater` endpoint (latest release's `latest.json`, empty pubkey for now),
+  setting `updateCheck`, scheduler daily hook; `release.yml` builds signed update files only when the secret exists;
+  UI `components/update/UpdateRow.tsx` (hidden until the build has a key), Shell banner, types/api; `Casks/byte.rb`
+  (this repo is its own tap; postflight clears quarantine) kept in step by `scripts/bump.mjs`; README rewritten
+  (features, Homebrew, updates, roadmap).
+- **Verify:** `cargo test updater`; `node scripts/bump.mjs --check 0.12.2`; after the key is set: a release has
+  `latest.json`, and Settings → About → Check for updates finds the next one.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — v0.12.2: theme editor, smoother motion, Reduce motion, sounds, accessibility check
 - **Why:** Phase 12's looks items (owner's list: theme editor with import/export, 60 fps animations that respect
   reduced motion, optional sounds, accessibility pass).

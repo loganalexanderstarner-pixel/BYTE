@@ -237,6 +237,9 @@ pub struct Settings {
     /// "auto" follows macOS's Reduce motion; "reduce" turns animations down everywhere.
     #[serde(default = "default_motion")]
     pub reduce_motion: String,
+    /// Check once a day whether a newer BYTE is out (updater.rs).
+    #[serde(default = "yes")]
+    pub update_check: bool,
     /// Soft sounds when an answer is ready and for reminders.
     #[serde(default)]
     pub sounds: bool,
@@ -424,6 +427,7 @@ impl Default for Settings {
             custom_themes: Vec::new(),
             reduce_motion: default_motion(),
             sounds: false,
+            update_check: true,
             kids_mode: false,
             kids_pin: None,
             backup_dir: None,

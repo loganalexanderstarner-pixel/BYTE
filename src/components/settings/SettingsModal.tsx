@@ -20,6 +20,7 @@ import { useStore, type SettingsTab } from "../../state/store";
 import { CatalogBrowser } from "../models/CatalogBrowser";
 import { CloudTab } from "./CloudTab";
 import { PrivacyTab } from "./PrivacyTab";
+import { UpdateRow } from "../update/UpdateRow";
 import { customThemes, ThemeEditor } from "./ThemeEditor";
 import type { CustomTheme } from "../../lib/customTheme";
 import { ConnectorsTab } from "./ConnectorsTab";
@@ -819,9 +820,10 @@ function AboutTab() {
         <Logo size={56} />
         <div>
           <h3 style={{ margin: 0, letterSpacing: "0.14em" }}>BYTE</h3>
-          <div className="muted">Version {__APP_VERSION__} · test build</div>
+          <div className="muted">Version {__APP_VERSION__}</div>
         </div>
       </div>
+      <UpdateRow />
       <div className="section">
         <h4>You</h4>
         <div className="field">

@@ -8,18 +8,21 @@ No account. No subscription. Your conversations never leave your computer.</p>
 
 ---
 
-## What it does today
+## What it does
 
-- **Chats with a capable AI model running on your Mac's GPU** (Apple Silicon + Metal), even offline.
-- **Four modes:** ⚡ Fast · 🎚 Auto · 🔭 Deep · 🚀 Extended. They set how long BYTE thinks and how thorough the answer is.
-- **Visible thinking:** turn reasoning on or off per message and open "Thought for…" to see how BYTE worked it out.
-- **Up to date with sources:** BYTE searches and reads the web when a question needs current information, and shows numbered, clickable citations and source cards. No account or API key needed.
-- **Exact math:** a built-in calculator handles arithmetic, percentages and unit conversions.
-- **Guided setup:** checks your Mac, recommends the right model, and downloads it with pause and resume. Every file is checksum-verified.
-- **Memory-aware:** BYTE works out how much memory each model needs and won't run one that doesn't fit. It shrinks the context window automatically when memory is tight.
-- **11 themes**, adjustable text size and density, keyboard shortcuts, and saved chat history with search.
+- **Chat with a capable AI model running on your Mac's GPU** (Apple Silicon + Metal), even offline. Four modes: ⚡ Fast · 🎚 Auto · 🔭 Deep · 🚀 Extended.
+- **Research with sources:** web search and reading with numbered citations, deep research with papers, fact-checks, comparisons, trip plans, reviews, prices and YouTube summaries. No account or API key needed.
+- **Your files and documents:** reads PDFs, Office files, scans and photos; searches your folders (knowledge base); writes real PDF, PowerPoint and Word documents.
+- **Writing and learning:** a writing studio, long-form writer, translation, flashcards, quizzes and a tutor.
+- **Your Mac:** reminders, calendar, notes, Mail and Messages drafts, music, settings, files and storage cleanup, always with your OK and an Undo.
+- **Everyday helpers:** to-dos, schedules, a daily briefing, news feeds, page watchers, automations, trackers, Notion/Obsidian/calendar connectors.
+- **Voice:** dictation, "Hey BYTE", spoken answers in 2,000+ free natural voices, hands-free talking.
+- **Notes, mind maps and a brainstorm board**, Quick Ask (⌥Space), a menu-bar icon and a command palette (⌘K).
+- **Private by design:** an offline switch, a Touch ID lock, an activity log of everything BYTE did, kids mode, encrypted backups to iCloud Drive, and erasing everything in one step.
+- **Yours:** 20 themes or your own, personality settings, Reduce motion, and a help center that works offline.
+- **Optional BYTE Cloud** (invite only) for bigger models, with your Mac as the fallback.
 
-BYTE is being built in phases. PDF/PowerPoint/Word export, file and knowledge-base reading, Mac app control, voice, and more arrive in upcoming test builds, delivered by auto-update. See [the roadmap](#roadmap).
+Every feature is a module you can turn off. See [docs/VERSIONS.md](docs/VERSIONS.md) for what each version added.
 
 ## Requirements
 
@@ -32,6 +35,15 @@ BYTE is being built in phases. PDF/PowerPoint/Word export, file and knowledge-ba
 
 ## Install
 
+**With Homebrew** (skips the "Open Anyway" step below):
+
+```sh
+brew tap loganalexanderstarner-pixel/byte https://github.com/loganalexanderstarner-pixel/BYTE
+brew install --cask byte
+```
+
+**Or by hand:**
+
 1. Download the latest `BYTE_…_aarch64.dmg` from [Releases](../../releases).
 2. Open the `.dmg` and drag **BYTE** into **Applications**.
 3. **First launch.** BYTE isn't signed with a paid Apple Developer ID yet, so macOS blocks it the first time:
@@ -42,6 +54,9 @@ BYTE is being built in phases. PDF/PowerPoint/Word export, file and knowledge-ba
      xattr -cr /Applications/BYTE.app
      ```
 4. Follow the welcome guide. It downloads your model (about 9 GB for the recommended one) and you're ready.
+
+**Updates:** BYTE checks for new versions once a day and installs them in one click (Settings → About), after
+checking that the update was signed by BYTE's maker. Homebrew users can also run `brew upgrade --cask byte`.
 
 > Versions follow the build plan: **v0.5.0 is Phase 5**, v0.5.1 a Phase 5 improvement, and so on up to v1.0.0. Each release says what it has, and [docs/VERSIONS.md](docs/VERSIONS.md) lists them all, so you can pick an older, simpler version if you want fewer features.
 
@@ -105,16 +120,16 @@ reasoning. Deep and Extended answers can take a minute or more, especially on a 
 
 1. ✅ Foundation: built-in engine, model manager, chat, thinking, onboarding, themes
 2. ✅ Web search and reading with citations, tool use, calculator
-3. Encrypted chat database, memory, projects, profiles, export
-4. File drop (PDF, Word, images with OCR) and personal knowledge base
-5. PDF / PowerPoint / Word / web-page documents with themes and charts
-6. Deep and Extended research, academic search, fact-check, compare, trip planner, YouTube
-7. Writing studio, long-form writer, flashcards, quizzes, tutor, translate
-8. Speed: speculative decoding, smart routing, model lab (add any GGUF)
-9. Mac control: Notes, Reminders, Calendar, Mail, Messages, Music, Safari, Shortcuts, files
-10. Automation: tasks, scheduler, daily briefing, page watchers, storage and battery tools
-11. Voice, vision, Quick Ask, menu-bar mini chat, command palette, notes, mind maps
-12. Offline switch, Touch ID lock, permission dashboard, kids mode, iCloud backup, **v1.0**
+3. ✅ Encrypted chat database, memory, projects, profiles, export
+4. ✅ File drop (PDF, Word, images with OCR) and personal knowledge base
+5. ✅ PDF / PowerPoint / Word / web-page documents with themes and charts
+6. ✅ Deep and Extended research, academic search, fact-check, compare, trip planner, YouTube
+7. ✅ Writing studio, long-form writer, flashcards, quizzes, tutor, translate
+8. ✅ Speed: speculative decoding, smart routing, model lab (add any GGUF)
+9. ✅ Mac control: Notes, Reminders, Calendar, Mail, Messages, Music, Safari, Shortcuts, files
+10. ✅ Automation: tasks, scheduler, daily briefing, page watchers, storage and battery tools
+11. ✅ Voice, vision, Quick Ask, menu-bar mini chat, command palette, notes, mind maps
+12. 🔄 Offline switch, Touch ID lock, permission dashboard, kids mode, iCloud backup, your own themes and auto-update are done; **v1.0** is next
 
 ## Development
 

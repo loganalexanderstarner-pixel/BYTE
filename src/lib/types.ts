@@ -101,6 +101,8 @@ export interface Settings {
   customThemes?: unknown[];
   /** "auto" follows macOS; "reduce" turns animations down. */
   reduceMotion?: "auto" | "reduce";
+  /** Check daily for a newer BYTE (updater.rs). */
+  updateCheck?: boolean;
   /** Soft sounds when an answer is ready. */
   sounds?: boolean;
   /** Kids mode (kids.rs): a simple BYTE; turning it off needs the PIN. */
@@ -1364,4 +1366,11 @@ export interface BackupInfo {
   files: BackupFile[];
   /** A passphrase is saved in the Keychain (weekly backups can run). */
   remembered: boolean;
+}
+
+/** updater.rs */
+export interface UpdateInfo {
+  current: string;
+  version: string;
+  notes: string;
 }
