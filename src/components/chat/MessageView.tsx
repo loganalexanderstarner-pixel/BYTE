@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Brain, Check, ChevronLeft, ChevronRight, Copy, Lightbulb, Pencil, RefreshCw, TriangleAlert } from "lucide-react";
+import { Brain, Check, Network, NotebookPen, ChevronLeft, ChevronRight, Cloud, Copy, FastForward, HelpCircle, Layers, Lightbulb, Pencil, PenLine, RefreshCw, ShieldCheck, Square, ThumbsDown, ThumbsUp, TriangleAlert, Volume2 } from "lucide-react";
 import { memo, useMemo, useState, type MouseEvent } from "react";
 
 import { versionInfo } from "../../lib/branches";
@@ -7,9 +7,24 @@ import { versionInfo } from "../../lib/branches";
 import { Logo } from "../../design/Logo";
 import { duration, tokensPerSec } from "../../lib/format";
 import { displayName } from "../../lib/models";
+import { noteFromAnswer } from "../../lib/notes";
 import { closeOpenFences, renderMarkdown } from "../../lib/markdown";
-import { useStore, type Message, type Step } from "../../state/store";
+import { useThrottled } from "../../lib/throttle";
+import { AttachmentChips, LocalFileChips } from "./Attachments";
+import { canSpeak, useStore, type Message, type Step } from "../../state/store";
 import { Activity, Sources } from "./Activity";
+import { DecisionTable } from "./Decision";
+import { PlacesCards } from "./Places";
+import { TripCard } from "./Trip";
+import { MealPlanCard, RecipeIdeasCards } from "../kitchen/KitchenCards";
+import { RecipeCard } from "../kitchen/RecipeCard";
+import { VideoCard } from "./VideoCard";
+import { ApprovalCard, BrowsingBar, SavedFiles } from "./AgentCards";
+import { MacCard } from "./MacCard";
+import { RunCard } from "./RunCard";
+import { HealthCard, StorageCard } from "./UpkeepCards";
+import { HintsCard, PricesCard, ReviewsCard, SelfCheckNote } from "./ShopCards";
+import { FlashcardsCard, QuizCard } from "../study/StudyCards";
 
 function openLinksExternally(e: MouseEvent<HTMLDivElement>) {
   const a = (e.target as HTMLElement).closest("a");
@@ -119,6 +134,8 @@ function UserMessage({ message }: { message: Message }) {
   }
   return (
     <div className="msg user">
+      {message.attachments && <AttachmentChips items={message.attachments} />}
+      {message.files && <LocalFileChips files={message.files} />}
       <div className="bubble">{message.content}</div>
       <div className={`msg-actions user-actions ${versionInfo(message).count > 1 ? "visible" : ""}`}>
         <VersionSwitcher message={message} />
@@ -139,22 +156,45 @@ function UserMessage({ message }: { message: Message }) {
   );
 }
 
+/** What the Fact-check button sends: the answer's text, without citation marks. */
+export function factCheckPrompt(answer: string): string {
+  const text = answer
+    .replace(/\[\d{1,3}\]/g, "")
+    .replace(/^\s*\*\*Confidence:?\*\*.*$/gim, "")
+    .trim();
+  return `Fact-check this:\n\n${text.length > 4000 ? `${text.slice(0, 4000)}…` : text}`;
+}
+
 function AssistantMessage({ message, isLast, generating }: { message: Message; isLast: boolean; generating: boolean }) {
   const regenerate = useStore((s) => s.regenerate);
+  const writingOn = useStore((s) => s.settings?.writingEnabled !== false);
+  const openWriting = useStore((s) => s.openWriting);
+  const notesOn = useStore((s) => s.settings?.notesEnabled !== false);
+  const openNotes = useStore((s) => s.openNotes);
+  const openMindmap = useStore((s) => s.openMindmap);
+  const chat = useStore((s) => s.conversations.find((c) => c.id === s.currentId));
+  const send = useStore((s) => s.send);
+  const webOn = useStore((s) => s.settings?.webSearch ?? false);
+  const cloudAct = useStore((s) => s.cloudAct);
+  const cloudModes = useStore((s) => s.cloud?.account?.modes);
+  const cloudModeLabel = message.cloudMode ? (cloudModes?.find((m) => m.id === message.cloudMode)?.label ?? message.cloudMode) : null;
   const showStats = useStore((s) => s.settings?.showStats ?? true);
   const models = useStore((s) => s.models);
   // Name the model when it isn't simply the main one.
   const modelLabel = message.model && (message.group || message.picked) ? displayName(models, message.model, true) : null;
   const [copied, setCopied] = useState(false);
+  // While streaming, formatting is redone ~12 times a second, not every frame (long answers stay smooth).
+  const content = useThrottled(message.content, generating ? 80 : 0);
   const html = useMemo(
-    () => renderMarkdown(generating ? closeOpenFences(message.content) : message.content, message.sources ?? []),
-    [message.content, generating, message.sources],
+    () => renderMarkdown(generating ? closeOpenFences(content) : content, message.sources ?? []),
+    [content, generating, message.sources],
   );
   const toolSteps = (message.steps ?? []).filter((st) => st.name !== "remember");
   const memorySteps = (message.steps ?? []).filter((st) => st.name === "remember");
   const toolRunning = !!message.steps?.some((st) => st.status === "running");
   const thinkingLive = generating && !!message.reasoning && message.content.length === 0 && !toolRunning;
   const waiting = generating && !message.reasoning && message.content.length === 0 && !message.steps?.length;
+  const onCloud = !!message.cloud && !!message.remoteId;
   const s = message.stats;
 
   const copy = async () => {
@@ -164,12 +204,18 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
   };
 
   return (
-    <div className="msg assistant">
+    <div className={`msg assistant ${generating ? "streaming" : ""}`}>
       <div className="head">
         <Logo size={16} glow={false} />
         BYTE
         {modelLabel && <span className="model-label">{modelLabel}</span>}
+        {message.cloud && (
+          <span className="model-label cloud-label" title="Written on your BYTE cloud">
+            <Cloud size={12} /> Cloud{cloudModeLabel ? ` · ${cloudModeLabel}` : ""}
+          </span>
+        )}
       </div>
+      {message.notice && <div className="banner notice-banner">{message.notice}</div>}
       {message.reasoning && message.reasoning.trim().length > 0 && (
         <Thinking text={message.reasoning} live={thinkingLive} ms={s?.thinkingMs} />
       )}
@@ -179,8 +225,34 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
           <i />
           <i />
           <i />
+          {message.cloud && <span className="phase">{message.phase ?? "Waiting in line on your BYTE cloud…"}</span>}
         </div>
       )}
+      {generating && message.phase && !waiting && <div className="phase live">{message.phase}</div>}
+      {generating && onCloud && (
+        <button className="btn sm answer-now" onClick={() => void cloudAct(message.id, "answer-now")} title="Stop thinking and answer with what BYTE has so far">
+          <FastForward size={13} /> Answer now
+        </button>
+      )}
+      {message.decision && <DecisionTable decision={message.decision} sources={message.sources} />}
+      {message.trip && <TripCard plan={message.trip} sources={message.sources} />}
+      {message.places && <PlacesCards found={message.places} />}
+      {message.recipe && <RecipeCard recipe={message.recipe} />}
+      {message.recipeIdeas && <RecipeIdeasCards ideas={message.recipeIdeas} />}
+      {message.mealPlan && <MealPlanCard plan={message.mealPlan} />}
+      {message.video && <VideoCard video={message.video} />}
+      {message.reviews && <ReviewsCard reviews={message.reviews} />}
+      {message.prices && <PricesCard prices={message.prices} />}
+      {message.hints && <HintsCard hints={message.hints} />}
+      {message.flashcards && <FlashcardsCard set={message.flashcards} />}
+      {message.quiz && <QuizCard quiz={message.quiz} />}
+      {generating && message.browsing && <BrowsingBar />}
+      {message.approvals?.map((a) => <ApprovalCard key={a.id} card={a} />)}
+      {message.storage && <StorageCard storage={message.storage} />}
+      {message.health && <HealthCard health={message.health} />}
+      {message.mac?.map((d, i) => <MacCard key={i} done={d} />)}
+      {message.automationRun && <RunCard card={message.automationRun} />}
+      {message.saved && message.saved.length > 0 && <SavedFiles files={message.saved} />}
       {message.content && (
         <div
           className={`prose ${generating ? "cursor" : ""}`}
@@ -188,6 +260,7 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
           dangerouslySetInnerHTML={{ __html: html }}
         />
       )}
+      {message.selfCheck && <SelfCheckNote check={message.selfCheck} />}
       {!generating && message.sources && message.sources.length > 0 && message.content && <Sources sources={message.sources} />}
       {!generating && memorySteps.map((st) => <MemorySuggestion key={st.id} messageId={message.id} step={st} />)}
       {message.status === "error" && (
@@ -220,19 +293,93 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
               {copied ? <Check size={15} /> : <Copy size={15} />}
             </button>
           )}
+          {message.content.trim() && canSpeak() && <ReadAloudButton id={message.id} text={message.content} />}
+          {writingOn && message.content.trim().length > 20 && (
+            <button className="icon-btn" onClick={() => openWriting(message.content.replace(/\[\d{1,3}\]/g, ""))} title="Edit in the writing studio">
+              <PenLine size={15} />
+            </button>
+          )}
+          {notesOn && message.content.trim().length > 20 && (
+            <button className="icon-btn" onClick={() => openNotes({ draft: { ...noteFromAnswer(message.content, chat?.title ?? "", chat?.tags ?? []), chat: chat?.title ?? "" } })} title="Save as a note">
+              <NotebookPen size={15} />
+            </button>
+          )}
+          {message.content.trim().length > 120 && (
+            <button className="icon-btn" onClick={() => openMindmap(message.content, chat?.title ?? "Answer", chat?.title)} title="Mind map of this answer">
+              <Network size={15} />
+            </button>
+          )}
           {isLast && (
             <button className="icon-btn" onClick={() => void regenerate()} title="Regenerate (keeps this answer as another version)">
               <RefreshCw size={15} />
             </button>
           )}
+          {isLast && webOn && !message.cloud && message.content.trim().length > 40 && (
+            <button
+              className="icon-btn"
+              onClick={() => void send(factCheckPrompt(message.content), { task: "factCheck" })}
+              title="Fact-check this answer against sources on the web"
+            >
+              <ShieldCheck size={15} />
+            </button>
+          )}
+          {onCloud && message.content && (
+            <>
+              <button className="icon-btn" onClick={() => void cloudAct(message.id, "deepen")} title="Go deeper: expand this answer">
+                <Layers size={15} />
+              </button>
+              <button className="icon-btn" onClick={() => void cloudAct(message.id, "justify")} title="Explain the reasoning behind this answer">
+                <HelpCircle size={15} />
+              </button>
+              <button
+                className={`icon-btn ${message.feedback === "up" ? "on" : ""}`}
+                onClick={() => void cloudAct(message.id, "feedback", "up")}
+                title="Good answer"
+                aria-pressed={message.feedback === "up"}
+              >
+                <ThumbsUp size={15} />
+              </button>
+              <button
+                className={`icon-btn ${message.feedback === "down" ? "on" : ""}`}
+                onClick={() => void cloudAct(message.id, "feedback", "down")}
+                title="Bad answer"
+                aria-pressed={message.feedback === "down"}
+              >
+                <ThumbsDown size={15} />
+              </button>
+            </>
+          )}
           {showStats && s && s.completionTokens > 0 && (
-            <span className="stats" title={`${s.promptTokens} prompt tokens · ${s.completionTokens} generated`}>
+            <span
+              className="stats"
+              title={
+                `${s.promptTokens} prompt tokens · ${s.completionTokens} generated` +
+                (s.draftTokens > 0 ? ` · Speed boost: ${s.draftAccepted} of ${s.draftTokens} drafted words kept` : "")
+              }
+            >
+              {s.draftTokens > 0 && "⚡ "}
               {tokensPerSec(s.tokensPerSecond)} · {duration(s.totalMs / 1000)}
             </span>
           )}
         </div>
       )}
     </div>
+  );
+}
+
+/** 🔊 Reads the answer aloud with the Mac's voice (or stops it). */
+function ReadAloudButton({ id, text }: { id: string; text: string }) {
+  const speaking = useStore((s) => s.speakingId === id);
+  const speak = useStore((s) => s.speak);
+  const stop = useStore((s) => s.stopSpeaking);
+  return speaking ? (
+    <button className="icon-btn" onClick={stop} title="Stop reading aloud" aria-label="Stop reading aloud">
+      <Square size={14} />
+    </button>
+  ) : (
+    <button className="icon-btn" onClick={() => void speak(id, text)} title="Read aloud" aria-label="Read aloud">
+      <Volume2 size={15} />
+    </button>
   );
 }
 

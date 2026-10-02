@@ -33,10 +33,102 @@ pub async fn fetch_page(client: &reqwest::Client, raw_url: &str) -> AppResult<Pa
     if let Some(p) = cache_get(url.as_str()).await {
         return Ok(p);
     }
+    let (final_url, body, html_like) = fetch_body(client, url.as_str()).await?;
+    let page = page_from(&final_url, &body, html_like)?;
+    cache_put(url.as_str(), page.clone()).await;
+    Ok(page)
+}
+
+/// A page and its raw HTML (for structured data such as recipes). Not cached.
+pub async fn fetch_html(client: &reqwest::Client, raw_url: &str) -> AppResult<(Page, String)> {
+    let (final_url, body, html_like) = fetch_body(client, raw_url).await?;
+    let page = page_from(&final_url, &body, html_like)?;
+    Ok((page, if html_like { body } else { String::new() }))
+}
+
+/// A page's final address and raw body (HTML, RSS/Atom XML or text), fetched
+/// with the same safety checks. `true` when the body is HTML. Not cached.
+pub async fn fetch_raw(client: &reqwest::Client, raw_url: &str) -> AppResult<(String, String, bool)> {
+    let (final_url, body, html_like) = fetch_body(client, raw_url).await?;
+    // Some servers send feeds as text/html; a body that starts like XML is XML.
+    let xml = body.trim_start_matches('\u{feff}').trim_start().starts_with("<?xml") || body.trim_start().starts_with("<rss") || body.trim_start().starts_with("<feed");
+    Ok((final_url.to_string(), body, html_like && !xml))
+}
+
+/// Every schema.org JSON-LD object a page publishes (`@graph` and lists
+/// flattened), for products, offers and ratings.
+pub fn json_ld(html: &str) -> Vec<serde_json::Value> {
+    use serde_json::Value;
+    fn flatten(v: Value, out: &mut Vec<Value>) {
+        match v {
+            Value::Array(a) => a.into_iter().for_each(|x| flatten(x, out)),
+            Value::Object(mut o) => {
+                if let Some(g) = o.remove("@graph") {
+                    flatten(g, out);
+                }
+                if !o.is_empty() {
+                    out.push(Value::Object(o));
+                }
+            }
+            _ => {}
+        }
+    }
+    let doc = scraper::Html::parse_document(html);
+    let Ok(sel) = scraper::Selector::parse(r#"script[type="application/ld+json"]"#) else { return Vec::new() };
+    let mut out = Vec::new();
+    for script in doc.select(&sel) {
+        let raw: String = script.text().collect();
+        if let Ok(v) = serde_json::from_str::<Value>(raw.trim()) {
+            flatten(v, &mut out);
+        }
+    }
+    out
+}
+
+/// True when a JSON-LD object's `@type` is (or includes) `ty`.
+pub fn ld_is(v: &serde_json::Value, ty: &str) -> bool {
+    match &v["@type"] {
+        serde_json::Value::String(s) => s.eq_ignore_ascii_case(ty),
+        serde_json::Value::Array(a) => a.iter().any(|t| t.as_str().is_some_and(|s| s.eq_ignore_ascii_case(ty))),
+        _ => false,
+    }
+}
+
+/// The first `<meta property|name|itemprop="…" content="…">` value for any of `names`.
+pub fn meta_content(html: &str, names: &[&str]) -> Option<String> {
+    let doc = scraper::Html::parse_document(html);
+    let sel = scraper::Selector::parse("meta").ok()?;
+    for name in names {
+        for m in doc.select(&sel) {
+            let e = m.value();
+            let key = e.attr("property").or_else(|| e.attr("name")).or_else(|| e.attr("itemprop")).unwrap_or("");
+            if key.eq_ignore_ascii_case(name) {
+                if let Some(c) = e.attr("content").map(str::trim).filter(|c| !c.is_empty()) {
+                    return Some(c.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn page_from(final_url: &url::Url, body: &str, html_like: bool) -> AppResult<Page> {
+    let page = if html_like { extract(body, final_url.as_str()) } else { Page { url: final_url.to_string(), title: final_url.to_string(), text: body.to_string() } };
+    // Pages that are an app shell (their content arrives by JavaScript) leave
+    // almost no text; treat them as unreadable so another result is read instead.
+    if page.text.trim().len() < 300 {
+        return Err(AppError::msg("couldn't find readable text on that page"));
+    }
+    Ok(page)
+}
+
+/// Downloads a public page: (final address, body text, whether it's HTML).
+async fn fetch_body(client: &reqwest::Client, raw_url: &str) -> AppResult<(url::Url, String, bool)> {
+    let url = check_url(raw_url).await?;
     let resp = client
         .get(url.clone())
         .header(reqwest::header::USER_AGENT, BROWSER_UA)
-        .header(reqwest::header::ACCEPT, "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5")
+        .header(reqwest::header::ACCEPT, "text/html,application/xhtml+xml,application/rss+xml,application/atom+xml,application/xml;q=0.9,text/plain;q=0.9,*/*;q=0.5")
         .header(reqwest::header::ACCEPT_LANGUAGE, "en-US,en;q=0.9")
         .timeout(TIMEOUT)
         .send()
@@ -68,17 +160,28 @@ pub async fn fetch_page(client: &reqwest::Client, raw_url: &str) -> AppResult<Pa
             break;
         }
     }
-    let html = String::from_utf8_lossy(&body).into_owned();
-    let page = if ctype.contains("html") || ctype.is_empty() {
-        extract(&html, final_url.as_str())
-    } else {
-        Page { url: final_url.to_string(), title: final_url.to_string(), text: html }
-    };
-    if page.text.trim().len() < 80 {
-        return Err(AppError::msg("couldn't find readable text on that page"));
+    let html_like = ctype.contains("html") || ctype.is_empty();
+    Ok((final_url, String::from_utf8_lossy(&body).into_owned(), html_like))
+}
+
+/// Sites whose pages can't be read without signing in or running their app
+/// (BYTE would get a login wall or an empty shell).
+const UNREADABLE_HOSTS: &[&str] = &[
+    "whatsapp.com", "facebook.com", "instagram.com", "x.com", "twitter.com", "tiktok.com", "linkedin.com",
+    "pinterest.com", "youtube.com", "youtu.be", "threads.net", "snapchat.com", "discord.com", "apps.apple.com",
+    "play.google.com", "quora.com",
+];
+
+/// Whether a search result is worth reading (not a login wall, app, video or file).
+pub fn worth_reading(url: &str) -> bool {
+    let Ok(u) = url::Url::parse(url) else { return false };
+    if !matches!(u.scheme(), "http" | "https") {
+        return false; // e.g. passages from the user's files (file://)
     }
-    cache_put(url.as_str(), page.clone()).await;
-    Ok(page)
+    let host = u.host_str().unwrap_or("").to_ascii_lowercase();
+    let path = u.path().to_ascii_lowercase();
+    !UNREADABLE_HOSTS.iter().any(|h| host == *h || host.ends_with(&format!(".{h}")))
+        && ![".pdf", ".zip", ".mp4", ".mp3", ".dmg", ".exe"].iter().any(|x| path.ends_with(x))
 }
 
 /// Extracts the main article with a Readability port, falling back to all
@@ -94,7 +197,33 @@ pub fn extract(html: &str, url: &str) -> Page {
             (other.map(|a| a.title).unwrap_or_default(), text)
         }
     };
-    Page { url: url.to_string(), title: clean_ws(&title), text: tidy(&text) }
+    Page { url: url.to_string(), title: clean_ws(&title), text: without_ref_marks(&tidy(&text)) }
+}
+
+/// Removes a page's own footnote markers ("[12]", "[citation needed]"),
+/// which models otherwise mistake for BYTE's source numbers.
+pub fn without_ref_marks(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(i) = rest.find('[') {
+        out.push_str(&rest[..i]);
+        let after = &rest[i + 1..];
+        match after.find(']') {
+            Some(j) if is_ref_mark(&after[..j]) => rest = &after[j + 1..],
+            _ => {
+                out.push('[');
+                rest = after;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+fn is_ref_mark(inner: &str) -> bool {
+    let t = inner.trim();
+    (!t.is_empty() && t.len() <= 3 && t.chars().all(|c| c.is_ascii_digit()))
+        || matches!(t, "citation needed" | "clarification needed" | "when?" | "who?" | "according to whom?" | "dubious – discuss" | "better source needed" | "edit")
 }
 
 fn clean_ws(s: &str) -> String {
@@ -254,6 +383,23 @@ mod tests {
     use super::*;
 
     #[test]
+    fn page_footnote_marks_are_removed() {
+        assert_eq!(without_ref_marks("Fasting cut weight 4%.[12][13] Also this[citation needed]."), "Fasting cut weight 4%. Also this.");
+        // Real brackets stay.
+        assert_eq!(without_ref_marks("arr[i] = [1, 2] and [see below] [2024 study]"), "arr[i] = [1, 2] and [see below] [2024 study]");
+    }
+
+    #[test]
+    fn skips_results_that_cannot_be_read() {
+        assert!(!worth_reading("https://web.whatsapp.com/"));
+        assert!(!worth_reading("https://www.youtube.com/watch?v=x"));
+        assert!(!worth_reading("https://example.com/report.pdf"));
+        assert!(worth_reading("https://www.weather.gov/pbz/"));
+        assert!(worth_reading("https://www.steelers.com/schedule/"));
+        assert!(!worth_reading("not a url"));
+    }
+
+    #[test]
     fn extracts_article_from_real_page() {
         let html = std::fs::read_to_string(format!("{}/tests/fixtures/article.html", env!("CARGO_MANIFEST_DIR"))).unwrap();
         let p = extract(&html, "https://v2.tauri.app/blog/tauri-20/");
@@ -308,6 +454,9 @@ struct PublicOnlyResolver;
 impl reqwest::dns::Resolve for PublicOnlyResolver {
     fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
         Box::pin(async move {
+            if crate::offline::is_offline() {
+                return Err(crate::offline::MESSAGE.into());
+            }
             let host = name.as_str().to_string();
             let addrs: Vec<std::net::SocketAddr> =
                 tokio::net::lookup_host((host.as_str(), 0)).await?.filter(|a| is_public(&a.ip())).collect();
@@ -321,7 +470,7 @@ impl reqwest::dns::Resolve for PublicOnlyResolver {
 
 /// HTTP client for the internet (search, pages, model downloads).
 pub fn web_client() -> reqwest::Client {
-    reqwest::Client::builder()
+    crate::offline::guarded(reqwest::Client::builder())
         .user_agent(concat!("BYTE/", env!("CARGO_PKG_VERSION"), " (macOS; local AI assistant)"))
         .dns_resolver(std::sync::Arc::new(PublicOnlyResolver))
         .redirect(reqwest::redirect::Policy::limited(8))

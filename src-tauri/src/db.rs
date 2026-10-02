@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
 
-const SCHEMA_VERSION: i32 = 2;
+const SCHEMA_VERSION: i32 = 15;
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {
@@ -42,6 +42,10 @@ pub struct ConversationMeta {
     pub summary: Option<String>,
     pub tags: Vec<String>,
     pub project_id: Option<String>,
+    /// Conversation id on the BYTE cloud when the chat runs there.
+    pub cloud_id: Option<String>,
+    /// The custom assistant the chat was started with.
+    pub assistant_id: Option<String>,
 }
 
 /// Changes to a chat's sidebar properties (only the fields present change).
@@ -123,7 +127,7 @@ impl Db {
         Ok(Db { conn: Mutex::new(conn) })
     }
 
-    fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
+    pub(crate) fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
         self.conn.lock().unwrap_or_else(|p| p.into_inner())
     }
 
@@ -135,7 +139,7 @@ impl Db {
         let mut st = conn.prepare(
             "SELECT c.id, c.title, c.created_at, c.updated_at, c.pinned, c.folder,
                     (SELECT count(*) FROM messages m WHERE m.conversation_id = c.id),
-                    c.summary, c.tags, c.project_id
+                    c.summary, c.tags, c.project_id, c.cloud_id, c.assistant_id
              FROM conversations c ORDER BY c.pinned DESC, c.updated_at DESC",
         )?;
         let rows = st.query_map([], |r| {
@@ -150,6 +154,8 @@ impl Db {
                 summary: r.get(7)?,
                 tags: split_tags(r.get::<_, Option<String>>(8)?),
                 project_id: r.get(9)?,
+                cloud_id: r.get(10)?,
+                assistant_id: r.get(11)?,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
@@ -160,7 +166,7 @@ impl Db {
         let conn = self.conn();
         let meta = conn
             .query_row(
-                "SELECT title, created_at, updated_at, pinned, folder, summary, tags, project_id FROM conversations WHERE id = ?1",
+                "SELECT title, created_at, updated_at, pinned, folder, summary, tags, project_id, cloud_id, assistant_id FROM conversations WHERE id = ?1",
                 [id],
                 |r| {
                     Ok(serde_json::json!({
@@ -173,6 +179,8 @@ impl Db {
                         "summary": r.get::<_, Option<String>>(5)?,
                         "tags": split_tags(r.get::<_, Option<String>>(6)?),
                         "projectId": r.get::<_, Option<String>>(7)?,
+                        "cloudId": r.get::<_, Option<String>>(8)?,
+                        "assistantId": r.get::<_, Option<String>>(9)?,
                     }))
                 },
             )
@@ -198,17 +206,21 @@ impl Db {
         let messages = conv.get("messages").and_then(Value::as_array).cloned().unwrap_or_default();
 
         let project = conv.get("projectId").and_then(Value::as_str).filter(|p| !p.is_empty());
+        let cloud = conv.get("cloudId").and_then(Value::as_str).filter(|p| !p.is_empty());
+        let assistant = conv.get("assistantId").and_then(Value::as_str).filter(|p| !p.is_empty());
         let mut conn = self.conn();
         let tx = conn.transaction()?;
         // Pinned/folder/project/summary are changed through `update_meta` and
         // `set_summary`, so an upsert keeps them. Once the user renamed the chat
         // or BYTE titled it, the UI's first-message title no longer applies.
         tx.execute(
-            "INSERT INTO conversations (id, title, created_at, updated_at, project_id) VALUES (?1, ?2, ?3, ?4, ?5)
+            "INSERT INTO conversations (id, title, created_at, updated_at, project_id, cloud_id, assistant_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
              ON CONFLICT(id) DO UPDATE SET
                  title = CASE WHEN conversations.title_locked = 1 OR conversations.summary IS NOT NULL THEN conversations.title ELSE excluded.title END,
-                 updated_at = excluded.updated_at",
-            params![id, title, created, updated, project],
+                 updated_at = excluded.updated_at,
+                 cloud_id = COALESCE(excluded.cloud_id, conversations.cloud_id),
+                 assistant_id = COALESCE(excluded.assistant_id, conversations.assistant_id)",
+            params![id, title, created, updated, project, cloud, assistant],
         )?;
         let search_title: String = tx.query_row("SELECT title, summary, tags FROM conversations WHERE id = ?1", [id], |r| {
             Ok(search_label(&r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?.as_deref(), r.get::<_, Option<String>>(2)?.as_deref()))
@@ -507,7 +519,324 @@ fn migrate(conn: &Connection) -> AppResult<()> {
              COMMIT;",
         )?;
     }
-    debug_assert_eq!(SCHEMA_VERSION, 2);
+    if version < 3 {
+        // Chats that run on the BYTE cloud remember their remote id.
+        conn.execute_batch(
+            "BEGIN;
+             ALTER TABLE conversations ADD COLUMN cloud_id TEXT;
+             PRAGMA user_version = 3;
+             COMMIT;",
+        )?;
+    }
+    if version < 4 {
+        // Knowledge base: folders the user chose, their files, and passages
+        // (text + embedding) with a full-text index (see kb.rs).
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE kb_sources (
+                 id INTEGER PRIMARY KEY,
+                 path TEXT NOT NULL UNIQUE,
+                 added_at INTEGER NOT NULL,
+                 last_scan INTEGER,
+                 error TEXT
+             );
+             CREATE TABLE kb_files (
+                 id INTEGER PRIMARY KEY,
+                 source_id INTEGER NOT NULL REFERENCES kb_sources(id) ON DELETE CASCADE,
+                 path TEXT NOT NULL UNIQUE,
+                 mtime INTEGER NOT NULL,
+                 size INTEGER NOT NULL,
+                 kind TEXT NOT NULL,
+                 pages INTEGER,
+                 error TEXT
+             );
+             CREATE INDEX kb_files_by_source ON kb_files(source_id);
+             CREATE TABLE kb_chunks (
+                 id INTEGER PRIMARY KEY,
+                 file_id INTEGER NOT NULL REFERENCES kb_files(id) ON DELETE CASCADE,
+                 ord INTEGER NOT NULL,
+                 page INTEGER,
+                 text TEXT NOT NULL,
+                 embedding BLOB
+             );
+             CREATE INDEX kb_chunks_by_file ON kb_chunks(file_id);
+             CREATE VIRTUAL TABLE kb_fts USING fts5(text, tokenize = 'porter unicode61');
+             PRAGMA user_version = 4;
+             COMMIT;",
+        )?;
+    }
+    if version < 5 {
+        // Instant answers (answer_cache.rs): earlier answers to first questions, by meaning.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE answer_cache (
+                 id INTEGER PRIMARY KEY,
+                 question TEXT NOT NULL,
+                 mode TEXT NOT NULL,
+                 embedding BLOB NOT NULL,
+                 answer TEXT NOT NULL,
+                 sources TEXT NOT NULL DEFAULT '[]',
+                 created_at INTEGER NOT NULL
+             );
+             CREATE INDEX answer_cache_by_mode ON answer_cache(mode, created_at);
+             PRAGMA user_version = 5;
+             COMMIT;",
+        )?;
+    }
+    if version < 6 {
+        // The recipe box (kitchen.rs): saved recipes as JSON.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE recipes (
+                 id INTEGER PRIMARY KEY,
+                 title TEXT NOT NULL,
+                 category TEXT NOT NULL DEFAULT '',
+                 image TEXT NOT NULL DEFAULT '',
+                 source_url TEXT NOT NULL DEFAULT '',
+                 data TEXT NOT NULL,
+                 saved_at INTEGER NOT NULL
+             );
+             CREATE INDEX recipes_by_time ON recipes(saved_at);
+             PRAGMA user_version = 6;
+             COMMIT;",
+        )?;
+    }
+    if version < 7 {
+        // Study decks with spaced repetition (study.rs).
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE decks (
+                 id INTEGER PRIMARY KEY,
+                 name TEXT NOT NULL UNIQUE,
+                 created INTEGER NOT NULL
+             );
+             CREATE TABLE cards (
+                 id INTEGER PRIMARY KEY,
+                 deck_id INTEGER NOT NULL REFERENCES decks(id),
+                 front TEXT NOT NULL,
+                 back TEXT NOT NULL,
+                 ease REAL NOT NULL DEFAULT 2.5,
+                 interval INTEGER NOT NULL DEFAULT 0,
+                 reps INTEGER NOT NULL DEFAULT 0,
+                 lapses INTEGER NOT NULL DEFAULT 0,
+                 due INTEGER NOT NULL,
+                 created INTEGER NOT NULL
+             );
+             CREATE INDEX cards_by_deck_due ON cards(deck_id, due);
+             CREATE TABLE card_reviews (
+                 card_id INTEGER NOT NULL,
+                 at INTEGER NOT NULL,
+                 grade INTEGER NOT NULL
+             );
+             PRAGMA user_version = 7;
+             COMMIT;",
+        )?;
+    }
+    if version < 8 {
+        // Job search tracker (jobs.rs).
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE jobs (
+                 id INTEGER PRIMARY KEY,
+                 company TEXT NOT NULL DEFAULT '',
+                 role TEXT NOT NULL DEFAULT '',
+                 location TEXT NOT NULL DEFAULT '',
+                 pay TEXT NOT NULL DEFAULT '',
+                 url TEXT NOT NULL DEFAULT '',
+                 status TEXT NOT NULL DEFAULT 'saved',
+                 deadline TEXT NOT NULL DEFAULT '',
+                 applied TEXT NOT NULL DEFAULT '',
+                 summary TEXT NOT NULL DEFAULT '',
+                 requirements TEXT NOT NULL DEFAULT '[]',
+                 notes TEXT NOT NULL DEFAULT '',
+                 updated INTEGER NOT NULL
+             );
+             PRAGMA user_version = 8;
+             COMMIT;",
+        )?;
+    }
+    if version < 9 {
+        // Custom assistants (assistants.rs); a chat remembers the one it was started with.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE assistants (
+                 id TEXT PRIMARY KEY,
+                 name TEXT NOT NULL,
+                 emoji TEXT NOT NULL DEFAULT '',
+                 instructions TEXT NOT NULL DEFAULT '',
+                 starters TEXT NOT NULL DEFAULT '[]',
+                 mode TEXT NOT NULL DEFAULT '',
+                 created INTEGER NOT NULL
+             );
+             ALTER TABLE conversations ADD COLUMN assistant_id TEXT;
+             PRAGMA user_version = 9;
+             COMMIT;",
+        )?;
+    }
+    if version < 10 {
+        // Clipboard history (clipboard.rs), off until the user switches it on.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE clip_history (
+                 id INTEGER PRIMARY KEY,
+                 text TEXT NOT NULL,
+                 at INTEGER NOT NULL
+             );
+             CREATE INDEX clip_history_at ON clip_history(at);
+             PRAGMA user_version = 10;
+             COMMIT;",
+        )?;
+    }
+    if version < 11 {
+        // Tasks, scheduled runs and their history (tasks.rs, scheduler.rs, briefing.rs).
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE tasks (
+                 id INTEGER PRIMARY KEY,
+                 title TEXT NOT NULL,
+                 notes TEXT NOT NULL DEFAULT '',
+                 due INTEGER,
+                 remind_at INTEGER,
+                 repeat TEXT NOT NULL DEFAULT '',
+                 done_at INTEGER,
+                 created INTEGER NOT NULL
+             );
+             CREATE INDEX tasks_remind ON tasks(remind_at);
+             CREATE TABLE schedules (
+                 id INTEGER PRIMARY KEY,
+                 kind TEXT NOT NULL,
+                 name TEXT NOT NULL,
+                 spec TEXT NOT NULL,
+                 prompt TEXT NOT NULL DEFAULT '',
+                 enabled INTEGER NOT NULL DEFAULT 1,
+                 last_run INTEGER,
+                 next_run INTEGER
+             );
+             CREATE TABLE runs (
+                 id INTEGER PRIMARY KEY,
+                 schedule_id INTEGER REFERENCES schedules(id) ON DELETE CASCADE,
+                 started INTEGER NOT NULL,
+                 finished INTEGER,
+                 ok INTEGER NOT NULL DEFAULT 0,
+                 summary TEXT NOT NULL DEFAULT '',
+                 conversation_id TEXT
+             );
+             CREATE INDEX runs_schedule ON runs(schedule_id, started);
+             PRAGMA user_version = 11;
+             COMMIT;",
+        )?;
+    }
+    if version < 12 {
+        // News feeds and page watchers (feeds.rs, watchers.rs).
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE feeds (
+                 id INTEGER PRIMARY KEY,
+                 url TEXT NOT NULL UNIQUE,
+                 title TEXT NOT NULL,
+                 site TEXT NOT NULL DEFAULT '',
+                 added INTEGER NOT NULL,
+                 last_checked INTEGER,
+                 last_error TEXT NOT NULL DEFAULT ''
+             );
+             CREATE TABLE feed_items (
+                 id INTEGER PRIMARY KEY,
+                 feed_id INTEGER NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+                 guid TEXT NOT NULL,
+                 title TEXT NOT NULL,
+                 link TEXT NOT NULL,
+                 published INTEGER,
+                 summary TEXT NOT NULL DEFAULT '',
+                 seen INTEGER NOT NULL DEFAULT 0,
+                 fetched INTEGER NOT NULL,
+                 UNIQUE(feed_id, guid)
+             );
+             CREATE INDEX feed_items_unseen ON feed_items(seen, feed_id);
+             CREATE TABLE watchers (
+                 id INTEGER PRIMARY KEY,
+                 url TEXT NOT NULL,
+                 name TEXT NOT NULL,
+                 kind TEXT NOT NULL,
+                 target REAL,
+                 every_hours INTEGER NOT NULL DEFAULT 6,
+                 enabled INTEGER NOT NULL DEFAULT 1,
+                 created INTEGER NOT NULL,
+                 last_checked INTEGER,
+                 next_check INTEGER,
+                 last_hash TEXT NOT NULL DEFAULT '',
+                 last_text TEXT NOT NULL DEFAULT '',
+                 last_price REAL,
+                 currency TEXT NOT NULL DEFAULT '',
+                 last_change INTEGER,
+                 last_note TEXT NOT NULL DEFAULT '',
+                 last_error TEXT NOT NULL DEFAULT ''
+             );
+             CREATE TABLE watch_events (
+                 id INTEGER PRIMARY KEY,
+                 watcher_id INTEGER NOT NULL REFERENCES watchers(id) ON DELETE CASCADE,
+                 at INTEGER NOT NULL,
+                 note TEXT NOT NULL
+             );
+             CREATE INDEX watch_events_watcher ON watch_events(watcher_id, at);
+             PRAGMA user_version = 12;
+             COMMIT;",
+        )?;
+    }
+    if version < 13 {
+        // Automations: a trigger and steps (automations.rs); runs gain their steps.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE automations (
+                 id INTEGER PRIMARY KEY,
+                 name TEXT NOT NULL,
+                 trigger TEXT NOT NULL,
+                 steps TEXT NOT NULL,
+                 enabled INTEGER NOT NULL DEFAULT 1,
+                 created INTEGER NOT NULL,
+                 last_run INTEGER,
+                 next_run INTEGER,
+                 link_key TEXT NOT NULL DEFAULT ''
+             );
+             ALTER TABLE runs ADD COLUMN automation_id INTEGER REFERENCES automations(id) ON DELETE CASCADE;
+             ALTER TABLE runs ADD COLUMN steps TEXT NOT NULL DEFAULT '[]';
+             CREATE INDEX runs_automation ON runs(automation_id, started);
+             PRAGMA user_version = 13;
+             COMMIT;",
+        )?;
+    }
+    if version < 14 {
+        // Trackers: packages, bills, yearly dates, maintenance (trackers.rs). The record is JSON;
+        // the columns are what lists sort by.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE trackers (
+                 id INTEGER PRIMARY KEY,
+                 kind TEXT NOT NULL,
+                 next TEXT,
+                 done INTEGER NOT NULL DEFAULT 0,
+                 data TEXT NOT NULL,
+                 created INTEGER NOT NULL
+             );
+             CREATE INDEX trackers_next ON trackers(done, next);
+             PRAGMA user_version = 14;
+             COMMIT;",
+        )?;
+    }
+    if version < 15 {
+        // Brainstorm boards (board.rs): the stickies and groups are one JSON document per board.
+        conn.execute_batch(
+            "BEGIN;
+             CREATE TABLE boards (
+                 id INTEGER PRIMARY KEY,
+                 title TEXT NOT NULL,
+                 data TEXT NOT NULL,
+                 updated INTEGER NOT NULL
+             );
+             PRAGMA user_version = 15;
+             COMMIT;",
+        )?;
+    }
+    debug_assert_eq!(SCHEMA_VERSION, 15);
     Ok(())
 }
 

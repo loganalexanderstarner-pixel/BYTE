@@ -1,5 +1,682 @@
 # Changelog
 
+## 0.12.5 — Texting in plain words, and updates that explain themselves
+
+- `macctl.rs`: `plain_text()` / `after_first()`: "text Mom I'm on my way" routes to a Messages draft without
+  "that"/"saying". `prompt::MAC_CONTROL` when Mac control is on.
+- `updater.rs`: `unwritable_place()` (App Translocation, /Volumes) and os error 30 → plain fix steps. UI:
+  `lib/updateNotes.ts` (first paragraph, no Markdown). README/release footer/help: run `xattr -cr` before the
+  first launch so updates can install.
+
+## 0.12.4 — Polish for 1.0, and the first one-click update
+
+- Welcome guide (`runnable()`): 4-bit-and-up versions first, community/uncensored remixes last. 23 placeholder model
+  blurbs replaced (`discover-models.mjs` + catalogs).
+- Kids mode: `kids::grown_up_model` (community remixes, uncensored) refused per turn and when entering kids mode;
+  sidebar hides Projects and private chats.
+- 14 panels lazy-loaded (`Shell.tsx`; tab list in `settings/tabs.ts`): startup JS 985 → 695 KB.
+- Documents marked Beta (`documents/BetaTag.tsx`; PowerPoint especially). `settings/CloudKeySteps.tsx`: website link
+  and where the key is.
+- README screenshots (`docs/images/`) and limits. Releases check the updater key and password
+  (`scripts/updater-key.sh`).
+
+## 0.12.3 — One-click updates and Homebrew
+
+- **Updates** (`updater.rs`, `tauri-plugin-updater`): the owner's minisign public key (id 360A24738B9BC87B) in
+  `tauri.conf.json`; `update_check` / `update_install` (signature checked before installing, then restart), a daily
+  check that raises `update://available` (setting `updateCheck`), refused when offline or in kids mode. `release.yml`
+  signs and publishes `latest.json` + the `.app.tar.gz` when the `TAURI_SIGNING_PRIVATE_KEY` secret exists. UI: Settings
+  → About → Updates, a top banner.
+- **Homebrew:** `Casks/byte.rb` (this repo is its own tap; postflight clears the quarantine flag), version kept by
+  `scripts/bump.mjs`.
+- **README** rewritten for what BYTE does today.
+
+## 0.12.2 — Your own themes, smoother motion and accessibility
+
+- **Theme editor** (`components/settings/ThemeEditor.tsx`, `lib/customTheme.ts` + test, `lib/color.ts`): five colors
+  on a light/dark base (`applyCustom` sets the tokens inline; tokens.css derives the rest), the same readability
+  checks as the built-in themes' test, up to 10 saved (setting `customThemes`, validated in Rust: hex colors only),
+  `.bytetheme` export/import.
+- **Motion:** scrims fade, dialogs and panels spring in, the logo glows while answering, all only with
+  `prefers-reduced-motion: no-preference`; setting `reduceMotion` ("auto" | "reduce") sets `data-motion="reduce"`,
+  which turns animations and transitions down everywhere.
+- **Sounds** (`lib/sounds.ts`, setting `sounds`, off): a WebAudio chime when an answer finishes.
+- **Accessibility:** `src/a11y.test.ts` parses every component with the TypeScript compiler and fails on a button
+  without visible text, `aria-label`, `aria-labelledby` or `title` (all pass; a self-check proves it catches one).
+
+## 0.12.1 — Kids mode, backups and erasing
+
+- **Kids mode** (`kids.rs`, settings `kidsMode`, `kidsPin`): PIN hashed with PBKDF2 (salted), wrong-PIN backoff;
+  `kids_enter` / `kids_exit`. Enforced in `backend` (web, web agent, cloud, memory, knowledge base and the Mac,
+  upkeep, tasks, watch, automations, trackers and connectors modules off; `kids::PROMPT` added), in
+  `settings_update` (only looks may change), and in the chat commands (`kids::is_on`, `may_touch`: only chats in the
+  "Kids" folder are listed, opened, searched, saved or changed; new ones go there). Grown-up data commands refuse
+  (`kids::grownups_only`). UI: Shell's Kids mode badge and Grown-ups (`KidsExit.tsx`), a simpler composer and
+  sidebar, `KID_EXAMPLES` on the home screen, no palette or settings keys.
+- **Backups** (`backup.rs`): a zip of the profile's data folder (database checkpointed first) plus the notes folder,
+  sealed with a passphrase (PBKDF2-HMAC-SHA256 600k rounds → ChaCha20-Poly1305, via `ring`); saved to iCloud Drive's
+  BYTE Backups (or Documents/BYTE/Backups, or a chosen folder), newest 5 kept; weekly with the passphrase in the
+  Keychain. Restore stages the files (`restore-pending/`) and `apply_pending` swaps them in at the next launch
+  before the database opens, keeping the old ones in `before-restore-<time>/`; notes come back into
+  `Restored <date>/`.
+- **Old chats and erasing:** `autoDeleteDays` (unpinned chats, daily via the scheduler); `erase_everything` (typed
+  ERASE, Touch ID when the lock is on) marks the folder and the next launch empties it.
+
+## 0.12.0 — Offline switch, Touch ID lock and a Privacy tab (Phase 12 starts)
+
+- **Offline switch** (`offline.rs`, setting `offline`): a global flag checked by a connector layer
+  (`offline::guarded`, tower `Layer` on every internet client: `tools::fetch::web_client`, `cloud::http_client`, the
+  lab's HEAD client), so it holds through proxies too, plus the DNS resolvers. While offline: `backend` turns web
+  tools off for the turn, cloud turns answer on this Mac (Both's cloud half says it's offline), downloads, the
+  catalog refresh and watcher ticks refuse or skip, the web agent can't navigate. UI: Offline pill, Web: Offline in
+  the composer, ⌘K, the tray's Offline tick (`quick::sync_offline_item`, `privacy://offline`).
+- **Lock** (`lock.rs`, settings `lockEnabled`, `lockAfterMinutes`): LocalAuthentication `DeviceOwnerAuthentication`
+  (Touch ID or the password; `objc2-local-authentication`), locked at launch and after the idle time (UI pings
+  `lock_touch`), `lock_verify` before turning it on. While locked, `lock::ensure` makes the data commands refuse
+  (chats, search, export, memories, notes, boards, clipboard, KB search, recipes, projects, jobs, tasks, trackers,
+  research library, activity, `chat_send`, `settings_update`). UI: `LockScreen.tsx` replaces the app (main window and
+  Quick Ask), ⌘K and tray "Lock BYTE".
+- **Settings → Privacy** (`privacy.rs`, `PrivacyTab.tsx`, `lib/privacy.ts` + test): what reaches the internet, Mac
+  permissions with live status for Microphone (AVCaptureDevice) and Accessibility (`AXIsProcessTrusted`) and
+  System Settings links, the activity log (`actions_list` reads `actions.jsonl` + the rotated file, kinds, search,
+  `actions_clear`, Copy as JSON). Help article 11 rewritten.
+
+## 0.11.7 — Personality, help, ideas and the brainstorm board (Phase 11 complete)
+
+- **Personality** (`prompt::Personality`, `personality_section`, setting `personality`): five 1–5 sliders, only
+  non-default ones add instructions (Balanced adds nothing); also sent with cloud messages. Presets in
+  `lib/personality.ts` (+ test); Settings → About → Personality.
+- **Help center** (`src/help/*.md`, `lib/help.ts` + test, `components/help/HelpCenter.tsx`): 14 offline articles,
+  search, `help:` / `byte-setting:` links, Ideas to try; ⌘?, top-bar button, palette. `help.rs` (`include_str!` of the
+  same files) adds the best 2 articles to the system prompt for "how do I … in BYTE" questions (`wants_app_help`).
+- **Example prompts** (`lib/examples.ts`): ~37 examples filtered by enabled modules, web and platform;
+  `todaysPicks` rotates the home screen's 4 daily, one per group; composer `prefill` for examples to complete.
+- **Brainstorm board** (`board.rs`, DB v15 `boards`; `lib/board.ts` + test; `BoardPanel.tsx`): stickies (drag, edit,
+  colors), Add ideas / Expand this / Group into themes via `complete_json` (`clean_ideas` dedupes, `clean_groups`
+  validates), outline → mind map or note, autosave. Sticky colors are tokens (`--sticky-*`).
+
+## 0.11.6 — Notes, web clipper and mind maps
+
+- **Notes** (`notes.rs`): Markdown files in `~/Documents/BYTE/Notes/<folder>/<title>.md` (setting `notesDir`) with
+  front matter (title, tags, created, source, chat); list, search, save (renames move the file), delete to the Trash;
+  ids that leave the folder are refused. The folder joins the knowledge base when it's on (re-indexed after saves).
+  UI: `NotesPanel.tsx`, `lib/notes.ts` (+ test), 📝 under answers, ⌘K Notes / New note. Module toggle `notesEnabled`.
+- **Web clipper:** `byte://clip?url=&sel=` (`background::Link::Clip`, http/https only), `notes::clip` reads the page
+  with `fetch_page` and saves it in Clips with the source and the selection quoted; notification + `notes://clipped`.
+  The bookmarklet is in Settings → About.
+- **Mind maps** (`mindmap.rs`): the tree from Markdown structure (headings, nested bullets, numbered lists; no model),
+  else one `complete_json` outline; clamped to 7 branches × 6 children, depth 3. `MindMapView.tsx` + `lib/mindmap.ts`
+  (radial layout weighted by leaves, + test): fold branches, zoom, PNG/SVG (theme colours resolved), outline, save as
+  note. Branch colours are theme tokens (`--branch-0…6`).
+
+## 0.11.5 — A voice catalog and more human speech
+
+- **Voice catalog** (`voices.rs`, `catalog/voices.json` from `scripts/build-voices.mjs`): 167 packages / 2,346 voices
+  from sherpa-onnx's `tts-models` release, each with a pinned size and SHA-256 (archives streamed and hashed once,
+  cached in `scripts/voices-cache.json`). Engines: Kokoro, Piper (VITS), Kitten, Supertonic 3, Pocket TTS, all run by
+  the same `sherpa-tts` sidecar with per-engine arguments; at most half the CPU cores. The setting is
+  `"<package>/<speaker>"`; v0.11.4's Kokoro-only value still works and its download is kept.
+- **Voice browser** (`VoiceBrowser.tsx`, `lib/voices.ts`): filters, provider samples (`public/voices/*.wav`), download /
+  unpack / delete, ▶ per voice (`speech_say` with a voice), memory while speaking.
+- **More human speech:** `ChatRequest.spoken` adds a talk-like-a-person rule (`prompt::SPOKEN`); `speakable()` keeps
+  paragraphs and says numbered steps as "First… Second…"; chunks never cross a paragraph, are trimmed and faded, and
+  are followed by a pause (longer after a paragraph); questions slightly slower; setting `speechStyle`
+  (calm/natural/lively).
+- **Cloud voice** (`cloud/voice.rs`, setting `voiceWhere`/`cloudVoice`): `GET /api/tts/voices`, `POST /api/tts` into the
+  same queue; 404 = no cloud voices (remembered 10 minutes); falls back to the Mac's voice; never for private chats.
+  Cluster request 7.
+- **“Hey BYTE”:** a wake turn's answer is always spoken, then BYTE listens 8 s for a follow-up (`isDone` ends it); the
+  Wake row offers "also open BYTE at login".
+
+## 0.11.4 — BYTE's own natural voices
+
+- **BYTE's voices** (`tts.rs`): Kokoro v1.0 (sherpa-onnx `sherpa-onnx-offline-tts` as a fourth sidecar, `sherpa-tts`,
+  built by `scripts/build-sherpa.sh`); the 350 MB model archive from sherpa-onnx's release, SHA-256-checked and
+  unpacked on request; 28 English voices (American/British, female/male), picked in Settings → Models → Voice.
+- **Smooth, streaming speech**: finished sentences are fed while the answer streams (`speech_feed`); a short first
+  chunk starts speech quickly, later chunks are about 320 characters; one sequential maker; audio goes into one queue
+  played by a single continuous output stream (cpal), so there are no gaps. `speech://done` when the queue drains.
+- Falls back to the Mac's `say` when the voices aren't downloaded. `Downloads::start_from` downloads from any URL.
+- **Fix (“Hey BYTE”):** the voice detector subtracted a full 200 ms pre-roll even when speech started the audio, so a
+  quick “Hey BYTE” measured under the minimum and was dropped (found by the Mac test with `say`). It now counts the
+  pre-roll it kept, the minimum is 0.3 s, and bursts are padded with silence for whisper. v0.11.3 ships inside 0.11.4.
+
+## 0.11.3 — BYTE talks back, and “Hey BYTE”
+
+- **Spoken answers** (`speech.rs`): macOS `say` with the text in a temp file, one reply at a time, Stop; `speakable()`
+  drops code, tables, links, citation marks and the confidence line, and cuts long answers at a sentence. 🔊 on every
+  answer, "Read answers aloud", voice and speed, Try it.
+- **Hands-free conversation** (Talk button): automatic end of a spoken turn on a pause (`lib/handsfree.ts`), send,
+  answer read aloud, listen again; "stop" / "that's all" / Esc / 20 s of quiet end it.
+- **“Hey BYTE”** (`wake.rs`, opt-in): native mic (cpal), energy voice detector for 0.4–2.5 s bursts, whisper on each
+  burst, fuzzy phrase match; opens Quick Ask listening, with a chime. Pauses while BYTE talks or records.
+
+## 0.11.2 — Who said what, and videos without captions
+
+- **Speaker labels** in transcripts of attached recordings (`Speaker 1 [0:00]: …`): sherpa-onnx's diarization tool as a
+  third sidecar (`sherpa-diarize`, `scripts/build-sherpa.sh`), pyannote segmentation + an English speaker-embedding
+  model (32 MB, downloaded on request), matched to whisper's timed segments. Falls back to the plain transcript.
+- **YouTube videos without captions**: the video helper (yt-dlp from its official release, SHA-256-checked, downloaded
+  only on request, Update button) gets the audio; whisper transcribes it; the usual chapters and summary follow. Up
+  to 3 hours.
+- Settings → Models → Voice: "Label who's speaking in recordings" and "Video helper".
+
+## 0.11.1 — Voice input
+
+- **🎤 / hold Space** in the message box (main window and Quick Ask): speech is typed out for you to check and send.
+- **On-device speech to text**: whisper.cpp (`whisper-cli`, Metal) as a second sidecar; speech models Best (large-v3
+  turbo, 574 MB, any language) or Quick (base.en, 148 MB), downloaded on first use with the resumable,
+  SHA-256-checked downloader.
+- **Audio files become transcripts** when attached or dropped (WAV, MP3, FLAC, OGG directly; M4A, AAC, AIFF, CAF via
+  macOS `afconvert`), up to 500 MB.
+- **Settings → Models → Voice**: on/off, models, spoken language.
+
+## 0.11.0 — Quick Ask, menu bar and command palette (Phase 11 starts)
+
+- **Quick Ask** (⌥Space from any app): a small window on top that answers right there. Esc or clicking elsewhere hides
+  it; "Open in BYTE" continues the chat in the main window. Its chats are saved like any other.
+- **Menu-bar icon**: click for Quick Ask; menu: Ask BYTE, Show BYTE, Quit.
+- **Command palette (⌘K)**: chats, settings pages, modes, themes and panels, by typing a few letters.
+- **Custom shortcuts** (Settings → About → Keyboard and menu bar) for Quick Ask and the selected-text hotkey, which
+  are checked so they don't block typing or clash with each other.
+
+## 0.10.6 — Dashboards (Phase 10 complete)
+
+- **Command-deck home**: live tiles on a new chat (today's events, to-dos, coming up, watched pages and news, next
+  automation, research library), each hidden when empty; a click asks BYTE about it.
+- **Research library**: chats with cited sources, newest first, searchable.
+- **Your usage** (Settings → About): local counts, average speed, most-used modes, a 14-day chart.
+
+## 0.10.5 — Connectors: Obsidian, Notion and calendar links
+
+- **Settings → Connectors**, each connector off until set up; secrets only in the macOS Keychain.
+- **Obsidian**: search the vault (cited, opens in Obsidian); add notes to its BYTE folder after an OK, with Undo.
+- **Notion** (your own integration secret): search and read shared pages as sources; add pages after an OK.
+- **Calendar links** (iCal addresses): events in the daily briefing, and in "what's on my calendar" when Mac control
+  is off; repeats, all-day and cancelled events handled.
+
+## 0.10.4 — Trackers
+
+- **Bills and subscriptions** with exact monthly and yearly totals and a notification 3 days before each payment.
+- **Birthdays and yearly dates** with saved gift ideas (and suggestions), a notification 2 weeks ahead.
+- **Car and home maintenance** every N days, weeks, months or years; "I did it today" moves the next date on.
+- **Packages**: the carrier is recognized from the tracking number (UPS, USPS, FedEx, DHL, Amazon), with a link to
+  its tracking page (BYTE doesn't read the status itself).
+- Asked for in chat (read by rules; lists and totals are written by BYTE, not a model) or managed in the ✅ panel.
+
+## 0.10.3 — Automations, Shortcuts and opening at login
+
+- **Automations**: a trigger (when you run it, on a schedule, or when BYTE opens) and up to 8 steps: ask BYTE,
+  the daily briefing, a notification, a to-do, save to a file (Documents → BYTE → Automations), or run one of your
+  Shortcuts. Each step gets the text from the one before. Built in the ✅ panel or asked for in chat ("every
+  weekday at 8am, find AI news, then summarize it, then save it to a file"), after an approval card.
+- **Multi-step requests** ("research X, then write a guide from it and save it to a file") run in the background
+  with a live card: each step as it goes, the result saved as a chat, a notification. A failed step stops the run;
+  "Run again from step N" keeps what worked.
+- **Add to Shortcuts**: makes a real Shortcut that starts the automation (menu bar, Dock, Siri), through a
+  `byte://` link with its own secret key. `byte://ask?q=…` puts a question in BYTE's message box (never sends it).
+- **Open at login** (starts quietly, no window) and **keep running when the window is closed** (⌘Q quits), so
+  schedules and watchers work all day.
+- Anything that needs your OK is declined at once when nobody is watching (a schedule or automation), instead of
+  waiting.
+- Tests: a terminal command split before a pipe is joined; the streaming test no longer relies on a tiny model's
+  sums.
+
+## 0.10.2 — News feeds and page watchers
+
+- **News feeds**: follow a site or feed address (RSS, Atom; a site's page is enough) and ask "what's new in my
+  feeds?" for a digest BYTE puts together from the feeds (only what's new since the last one, with sources).
+- **Watched pages**: notifications when a page's content changes, or when a product's price drops (below a target,
+  if given). Prices come from the page's own product data. Approval card first; checks run while BYTE is open.
+- ✅ panel sections for both; Settings → Features → News feeds and watched pages.
+- Fixed: the scheduled daily briefing ignored the web-access switch.
+
+## 0.10.1 — Tasks, schedules and a daily briefing
+
+- **✅ Tasks**: to-dos with due dates, reminders (Mac notifications) and repeats; add, list and check off in chat.
+- **Daily briefing** ("brief me"): calendar, reminders, to-dos, weather and followed news, put together by BYTE from
+  what it read (nothing invented; no model needed).
+- **Schedules**: "every weekday at 8am, …" runs on its own while BYTE is open, saves the answer as a chat and
+  notifies you; managed in the ✅ panel.
+- Translation uses a low temperature, so small models keep the right words.
+
+## 0.10.0 — Mac upkeep (Phase 10 starts)
+
+- **Storage**: a chart of your biggest folders and what could safely go (old installers, exact duplicates,
+  developer caches), moved to the Trash through Finder from the card, with Undo.
+- **Slowness and battery**: memory, processor, sleep blockers, battery health and uptime, with Quit buttons for
+  busy apps. **Check my Mac** adds Time Machine, FileVault, firewall and macOS version, with settings buttons.
+- **Uninstall apps** with their Library files (asks first, Undo puts them back); **login items** listed and
+  removed with Undo.
+
+## 0.9.3 — Files and a terminal helper (Phase 9 complete)
+
+- **Files**: find them with Spotlight, tidy a folder by kind or month (preview first, Undo puts it back), convert or
+  shrink the photos selected in Finder (originals kept), and ask about the files selected in Finder.
+- **Terminal helper**: BYTE proposes one command, explains it, and runs it after your OK; dangerous commands are
+  refused outright.
+- Fixed before release: the Mail check script didn't compile on macOS (a reserved word as a variable).
+
+## 0.9.2 — Selected text anywhere, clipboard history
+
+- **⌥⌘B**: select text in any app and it opens in the writing studio; new **Reply** and **Explain** actions;
+  **Paste into <app>** puts the result back. Your clipboard is left as it was.
+- **Clipboard history** (opt-in): the last 200 copies, searchable, encrypted; password-manager items and
+  password-like text are never kept.
+- Replies are checked: if a small model only repeats the message, BYTE asks it again.
+
+## 0.9.1 — Mail and Messages
+
+- "Any new emails?", "summarize my inbox", "did Sam email me?": BYTE reads Mail and says what needs a reply first.
+- "Reply to Sam's email saying…" and "email Jen about…": BYTE writes it (addresses from Contacts; asks which one if
+  several match), shows it, and opens it in Mail for you to send. Undo removes the draft.
+- "Text Mom that I'm running late": Messages opens with the text filled in. BYTE never sends email or texts itself.
+
+## 0.9.0 — Mac control, part 1
+
+- Ask BYTE to add **reminders**, **calendar events** and **notes**, read your reminders, schedule and notes, play and
+  control **Music**, run **Shortcuts**, read Safari's current tab, and change **dark mode, volume, Wi-Fi** and open
+  any **System Settings** page.
+- BYTE asks before adding or changing anything, shows exactly what it will do, and can **undo** notes, reminders and
+  events it added. It runs only fixed actions; your words are passed as plain text and can't become commands.
+- Settings → About → Features → **Mac control** switches it off.
+
+## 0.8.0 — Model lab, advanced tuning and battery saver (Phase 8 complete)
+
+- **Model lab** (Settings → Models): add any GGUF model from a file on your Mac or a Hugging Face link. BYTE reads
+  its header first and shows the architecture, size, quantization, longest context and whether it fits this Mac.
+- **Advanced tuning** (Settings → Engine): temperature, top-p, thinking budget and extra instructions per model,
+  starting from each model's recommended values; live memory, GPU and battery meters.
+- **Battery saver**: below 20% and unplugged, Deep and Extended answer like Auto with short thinking.
+- Custom assistants work in Cloud mode.
+- Fixed: error messages in the writing studio, jobs and assistants panels now show in the error colour.
+
+## 0.7.7 — Long-form writing, "Write like me", poems and speeches (Phase 7 complete)
+
+- **Write something new** (writing studio): essays, stories, blog posts, reports, speeches and poems. BYTE plans
+  it, you adjust the plan, and it writes it part by part, keeping the voice consistent. Save it, copy it, or keep
+  editing it in the studio.
+- **Write like me**: paste a few things you wrote and BYTE learns your style (you can read and edit what it
+  learned). Rewrites, expansions and new pieces then sound like you.
+
+## 0.7.6 — Custom assistants
+
+- **Assistants** (🤖): BYTE set up for one job, with your instructions, starter prompts and a default mode. Start
+  from a preset (Email helper, Study coach, Coding buddy, Fitness planner) or write your own; its chats follow its
+  instructions every time.
+
+## 0.7.5 — Translate and a job search tracker
+
+- **Translate**: "translate this into Spanish", "translate the attached file to German", "translate <link> to
+  English", "translate 'good morning' to Japanese". Long texts are translated part by part as you watch. The writing
+  studio has Translate too.
+- **Job search** (💼): paste a posting's link and BYTE fills in the company, role, place, pay, deadline and
+  requirements; track each job from saved to offer with notes and deadline countdowns; "Prepare for the interview"
+  asks BYTE in the chat.
+
+## 0.7.4 — The writing studio
+
+- **Writing studio** (✍️ in the top bar, or the pen on any answer): rewrite, shorten, expand, change the tone of,
+  or fix the grammar of any text. The new version appears beside yours with the changes highlighted; select a part
+  to change only that part. Works with the model on your Mac, or your BYTE cloud.
+- When you use a small model and your Mac can run a clearly better one, BYTE says so once (Settings → Models).
+
+## 0.7.3 — Better cards from small models, and a photo helper
+
+- **Card checks for small models.** When a small model's card has an obvious problem (flashcard fronts that just
+  repeat the topic, a recipe for a different dish, the same dinner every night, identical compare scores, missing
+  trip days), BYTE asks once for a fix and keeps it only if it's better.
+- **Photo helper.** When the model you use can't see images, a small model that can (740 MB download, Settings →
+  About → Features) describes your photo so you can still ask about it.
+
+## 0.7.2 — More models, and cards everywhere in Cloud mode
+
+- **Cards in Cloud mode even with no model on your Mac.** BYTE asks your cloud to fill in the card behind the scenes
+  (in a short "BYTE card helper" chat that it deletes afterwards), then shows the card and the cloud's answer.
+- Chat titles stay short (at most 8 words).
+- Flashcards and quizzes are more reliable with small models: BYTE now sends its answer formats to the model in the
+  intended order (question before answer), retries once when a set comes back unusable, and keeps the finished
+  cards when a reply is cut off. Repeated quiz questions are dropped.
+- More models work with every feature: Gemma models (whose chat format has no tool messages), models whose tool calls
+  the engine can't read (BYTE answers without tools instead of failing), and models that always reason first like
+  DeepSeek-R1 (they get room to think before filling in a card or a chat title).
+
+## 0.7.1 — Cards in Cloud mode, and a steadier tutor
+
+- **The cards now work in Cloud mode** when a model is loaded on your Mac: recipes and meal plans, compare tables,
+  trips, reviews, prices, game hints, YouTube summaries, fact-checks, flashcards and quizzes. BYTE makes the card on
+  your Mac (it searches, reads pages and fills in the card), then your BYTE cloud writes the answer from what BYTE
+  found, citing the same sources. Flashcards and quizzes need no cloud answer at all. With no model on your Mac,
+  Cloud mode works as before. (Your cloud chat shows your question with BYTE's notes under it.)
+- **Tutor mode** no longer gives the answer away with small models: hints are checked against the solved problem,
+  and if a model can't help without solving it, BYTE asks a first question instead.
+
+## 0.7.0 — Phase 7: study tools (flashcards, quizzes, tutor)
+
+- **Flashcards**: "make flashcards about the French Revolution", "20 flashcards on photosynthesis", or attach your
+  notes and say "flashcards from this" (also "from this" for the answer above). Flip them in the chat, then
+  **Save deck** or **Study now**.
+- **The Study panel** (🎓 in the top bar): your decks with what's due and what's new. Study one card at a time,
+  Space to show the answer, 1–4 (Again / Hard / Good / Easy) to grade; each button shows when the card comes back.
+  Spaced repetition (SM-2) brings every card back right before you'd forget it. See or delete cards, delete decks,
+  and **export to Anki** (File → Import in Anki).
+- **Quizzes**: "quiz me on the periodic table", "give me a 10 question quiz about World War 2". Multiple choice that
+  scores itself and explains every answer; **save the ones you missed** as flashcards.
+- **Tutor mode**: the **Tutor** button in the chat box. BYTE teaches step by step: one small step or hint at a time
+  and a question for you, instead of the whole solution ("just tell me the answer" still works).
+- Settings → About → Features → Study tools turns it all off. Database schema v7 (decks, cards, reviews).
+
+## 0.6.8 — Phase 6 improvements: recipes in cups and spoons
+
+- **Recipes use US measures by default**: teaspoons, tablespoons, cups, fluid ounces, ounces, pounds and °F. Web
+  recipes written in grams and millilitres are converted (flour, sugar, butter and other baking staples by their
+  real weight per cup; butter in tablespoons), with the original metric amount kept in the note for anyone who
+  weighs. Oven temperatures in the steps are converted too ("180°C" → "350°F").
+- **Switch any recipe card between US and Metric** with the new toggle next to the servings, and pick the default in
+  Settings → About → Features → Recipe measures.
+
+## 0.6.7 — Phase 6 finished: reviews, prices, game hints, self-check, best of 3
+
+- **Reviews** ("reviews of the Sony WH-1000XM6", "is the Kindle Colorsoft worth it", "… pros and cons"): BYTE reads
+  review sites and owner discussions and shows a card: the verdict, the star ratings sites publish, pros and cons
+  with the sources behind each (the ones most sources agree on first), who it's best for and who should skip it.
+- **Price compare** ("cheapest place to buy AirPods Pro 3", "price of a Dyson V15"): prices read from the stores'
+  own pages (their product data), never guessed; cheapest first, with in stock / out of stock, refurbished or used
+  marked, how much more each costs, links, and when it was checked.
+- **Game hints** ("I'm stuck on the Water Temple in Ocarina of Time"): hints that get stronger one tap at a time,
+  then the full solution behind a spoiler button. The written answer only gives the first nudge.
+- **Self-check**: after Deep, Extended and fact-check answers, BYTE checks each cited claim against the passage it
+  cites and flags the ones the source doesn't clearly back ("2 of 8 checked claims aren't clearly backed").
+- **Best of 3** for maths, logic and puzzles in Deep and Extended: three drafts; the answer most of them reach
+  wins; when all three differ, one more pass works out which is right.
+- Each can be switched off in Settings → About → Features. Video-to-slides moves to Phase 11 (it needs the
+  voice/video tools).
+
+## 0.6.6 — Phase 6: the web agent
+
+- **BYTE can use a browser for you.** "Go to carnegielibrary.org and find when the Squirrel Hill branch opens",
+  "fill out the contact form on example.com for Ada", "download the manual from <link>", "save this page as a
+  PDF: <link>", or press **Agent** in the chat box for any message. BYTE opens a private, hidden browser, reads
+  the page, clicks links, types into forms, picks from lists and round buttons, scrolls, goes back, and tells
+  you what it did and found, citing the pages. Every step shows in the activity list.
+- **It asks first.** Before anything is submitted, bought, booked, sent or deleted, and before every download,
+  an approval card shows the site and every field it filled in: **Submit** or **Don't**. If you say no (or
+  don't answer in 10 minutes) nothing is sent and BYTE stops there.
+- **It never types passwords, card numbers or other private details.** When a page needs a login, a payment or
+  a CAPTCHA, BYTE stops and says so; press **Show browser** to see the page and do that part yourself.
+- **Downloads and saved pages** go to Downloads/BYTE (downloads up to 200 MB). On a Mac, pages can be saved as
+  a PDF of the whole page, a full-page picture or a Safari web archive. Chips on the answer open the file or
+  show it in Finder (programs and installers are only shown, never opened).
+- Only public websites (no files on your Mac, nothing on your home network); the browser keeps nothing
+  (private session) and closes when the answer ends; at most 25 steps per answer. Page text is treated as
+  information, never as instructions. Turn it off in Settings → About → Features → Web agent.
+
+## 0.6.5 — Phase 6 improvements: YouTube summaries
+
+- **Summarize a YouTube video.** Paste a link ("Summarize https://youtu.be/…", or just the link). BYTE reads the
+  video's captions (no account or key), then shows a card: thumbnail, a two-sentence TL;DR, key points and
+  chapters, each with a timestamp that opens the video at that moment. Long videos are summarized in parts, then
+  put together. **Copy summary** or save it as a **PDF**.
+- **Ask about a video.** "What does he say about X in <link>?", or a follow-up in the same chat ("what does she
+  recommend at the end?"): BYTE finds the moments in the transcript that answer it and links each one.
+- Picks the captions in your language when there are several (human-made before auto-generated), and says when
+  the captions were auto-generated, since names and numbers may be misheard. Videos without captions can't be
+  read yet (that needs the voice model, Phase 11).
+
+## 0.6.4 — Phase 6 improvements: the Kitchen, and Web Auto
+
+- **Web: Off / Auto / Always.** The Web button in the chat box now has three settings. **Auto** (the default)
+  searches when a question needs current or specific information, as before. **Always** searches and reads
+  sources for every real question. **Off** never goes online.
+- **Kitchen.** BYTE cooks like a professional chef teaching a home cook: exact amounts (cups and grams; grams for
+  baking), temperatures in °F and °C, a doneness cue on every step ("golden at the edges, smells nutty"), timers,
+  chef's tips, swaps and storage. Coffee drinks get the dose, ratio, grind, water temperature and brew time.
+  - **"What can I make with eggs, spinach and feta?"**: dish cards to pick from, each saying what else it
+    needs; tap one for the full recipe.
+  - **"How do I make a flat white?" / "Recipe for banana bread"**: a recipe card. With the web on, BYTE reads
+    real recipe pages (their structured recipe data and **photo**) and writes the best version for you, credited.
+    Change the servings and every amount rescales; tick off ingredients (what you have is marked); tap a step's
+    timer.
+  - **"Plan dinners for the week, we have chicken and rice"**: a week card and a grocery list by aisle that
+    leaves out what you have; tap a meal for its recipe; copy the list.
+  - **Recipe box** (📖, top right): **Save recipe** on any card; search and filter by category (coffee, baking,
+    breakfast…); open, copy, save as PDF, delete. "Make my saved lasagne for 8" uses your saved recipe.
+  - Settings → About → Features: turn the Kitchen off to hide it.
+
+## 0.6.3 — Phase 6 improvements: faster research
+
+- **Searches start sooner.** Deep and Extended research now run your own search while BYTE is still planning
+  the others, instead of waiting for the plan first.
+- **No needless waiting between searches.** BYTE only spaces out searches to DuckDuckGo and Bing (which block
+  apps that search too fast), and each on its own, so a Bing fallback no longer waits on DuckDuckGo. Your BYTE
+  Cloud's search, Wikipedia, the paper services and the map aren't slowed down at all.
+- **Nothing searched twice.** Searches are remembered for an hour, and papers and places too (pages were already
+  kept for a day), so follow-up questions and Regenerate reuse what BYTE already found. Memory only; nothing is
+  saved to disk.
+- **Research depth setting.** Settings → Engine → Research: **Normal** (as before), **More** (20 pages in Deep,
+  32 in Extended, 8 read at once) or **Max** (32 and 48 pages, 10 at once, an extra gap-check round in
+  Extended). Fact-checks, comparisons and trips read more too. Better answers, longer waits.
+
+## 0.6.2 — Phase 6 improvements: places nearby and a trip planner
+
+- **Places nearby.** Ask "coffee near me", "pharmacies open now in Shadyside, Pittsburgh" or "best sushi in
+  Lisbon". BYTE looks the places up on OpenStreetMap (no account) and shows cards: distance, an **Open now /
+  Closed** badge from the listed hours, address, hours, and buttons for Maps and the website. For "near me",
+  set **Your town** in Settings → About; BYTE never works out where you are by itself.
+- **Trip planner.** Ask "plan 3 days in Lisbon in May for 2 people, $1,500". BYTE reads the trip, checks the
+  weather (the forecast for trips this week, otherwise last year's weather for those dates), researches what
+  to do, where to stay, food, transport and costs, finds sights on the map, and shows a **trip card**: a tab per
+  day (times, places, costs, sources), the **budget** against yours, a **packing checklist**, tips. **Save as
+  PDF** makes a travel document; **Add to Calendar** opens the plan in Calendar (a standard .ics file).
+
+## 0.6.1 — Phase 6 improvements: fact-check and compare & decide
+
+- **Fact-check.** Ask "is it true that…", "fact-check this: …", "true or false: …", or press the new shield
+  button under an answer. BYTE picks out the claims (one for a short question, up to five for longer text),
+  searches each one twice (for it and for rebuttals: "… myth OR false OR debunked"), adds papers for research
+  claims, reads a few pages per claim, and answers with a table: each claim gets a verdict badge (**True**,
+  **Mostly true**, **Mixed**, **Mostly false**, **False** or **Unproven**) and the exact quote that settles
+  it, with its source. Ends with a confidence line.
+- **Compare & decide.** Ask "X vs Y", "should I get X or Y", "which is better…" or "compare X, Y and Z". BYTE
+  reads the options from your question, picks the criteria that matter (weighted from what you said),
+  researches each option and scores it on each criterion (1–10, with the reason and sources on hover). The
+  score table appears above the answer with a **slider per criterion**: move them and the totals re-rank
+  live. Copy the table as Markdown. The written recommendation says which to pick and what would change it.
+- Research answers' confidence line now always gives a real reason.
+
+## 0.6.0 — Phase 6: deep research with papers and citations
+
+- **Deep and Extended research.** In Deep or Extended mode, a question about the world gets real research:
+  BYTE plans 3–6 searches that cover it from different angles, runs them all, reads 12 pages (Deep) or 24
+  (Extended) six at a time, and keeps the most relevant passages (by meaning when the search-by-meaning model
+  from the knowledge base is downloaded, otherwise by matching words), at most three per source. Extended
+  also checks what's still missing and searches for that. The answer is a sectioned, cited report with a
+  TL;DR, and every step shows in the activity list.
+- **Research papers.** Questions about studies, evidence, health or science also search published papers
+  (Crossref, Europe PMC and arXiv, no account needed). Paper sources show their year and journal.
+- **Confidence line.** Research answers end with **Verified**, **Likely** or **Unsure** and the reason, shown
+  as a coloured badge.
+- **Cite sources.** A **Cite** button under the sources gives each one in APA, MLA, Chicago, Harvard, IEEE or
+  BibTeX, with Copy and Copy all.
+- Web pages' own footnote numbers ("[12]") are removed before the model reads them, so they can't be mistaken
+  for BYTE's source numbers.
+
+## 0.5.0 — Phase 5: documents made on this Mac
+
+Versions now follow the phases: v0.5.0 = Phase 5 (see docs/VERSIONS.md). Earlier builds were 1.0.0-test.1…14.
+
+- **Make documents without the cloud**: the 📄 Documents button now works for everyone. Choose **This Mac** (or
+  BYTE Cloud when connected), pick PDF report, Slides or Word document, say what it's about, optionally add a
+  source file and "research the web and cite sources". BYTE plans an outline you can edit (rename, reorder, add,
+  remove sections), then writes it section by section on your Mac: private and offline.
+- **Save as PDF, PowerPoint or Word** from the same written document, in four designs (Midnight, Clean, Paper,
+  Academic): PDFs get a cover, table of contents, page numbers and sources; slides get native PowerPoint charts
+  and split long lists across slides; Word files get a table of contents and real headings and lists. A preview
+  shows the document before you save. The cloud stays the choice for its bigger template library.
+
+## 1.0.0-test.14 — Your files, scans and photos
+
+- **Attach files to local chats**: click the paperclip or drop files on the window. BYTE reads PDFs, Word,
+  PowerPoint, Excel (and OpenDocument), web pages, text, CSV/JSON and code on your Mac and gives the model the
+  parts that matter for your question (long files are cut down to the best passages). Chips on the message show
+  the file name and page, slide or sheet count.
+- **Models that can see photos**: 128 models are marked **Sees images**. Download a model's image reader from
+  its card and you can attach photos (HEIC and WebP photos are converted automatically). With a model that
+  can't see, the photo option is hidden and BYTE says so if you drop one.
+- **Scanned PDFs and photos of text are read**: when a PDF has no text layer (a scan), BYTE reads its pages with
+  macOS's built-in text recognition (up to 60 pages), and the words in attached photos (receipts, screenshots,
+  pages) are read too, so even models that can't see get the text. Chips say "scan: text read".
+- **Knowledge base: BYTE answers from your own files.** Settings → Knowledge base → Add folder (Documents,
+  notes, PDFs…). BYTE reads the folder on your Mac, keeps it up to date (at launch and every 15 minutes, only
+  changed files), and searches it when a question may be answered by it: "what does my lease say about…" searches
+  your files first. Answers cite the file and page. A **My files** switch sits next to Web in the chat box.
+- **Search by meaning**: an optional 146 MB model lets BYTE find passages worded differently from your question
+  (it runs only while searching and stops after 5 idle minutes). Without it, BYTE finds passages by their words.
+- **Instant answers**: when a new chat asks almost exactly what you asked in the last week (any wording: "whats a
+  roth ira" matches "What is a Roth IRA?"), BYTE shows that answer at once, marked, with Regenerate for a fresh
+  one. Never for news, prices, weather or anything else that changes, never in private chats. Settings →
+  Knowledge base (on by default once search by meaning is downloaded; Clear forgets them).
+- **Reader**: click a file source (or a file you sent) to open its text in a side panel with the cited passage
+  highlighted; "Show in Finder" opens its folder.
+
+## 1.0.0-test.13 — Big models that load, a smoother cloud, 713 models
+
+- **Big mixture-of-experts models load reliably** (Qwen3.6 35B-A3B, gpt-oss 20B on 16 GB Macs): BYTE now
+  leaves enough memory for macOS and the GPU's working buffers when part of a model runs on the CPU, and no
+  longer offers versions that can't really fit (it said Qwen3.6 35B-A3B IQ3_XXS would run on 16 GB; it can't).
+- **If a model fails to load, BYTE tries safer settings by itself** (smaller context, more of the model on the
+  CPU) before showing an error, and remembers what worked.
+- **Cloud answers stream smoothly**: the connection to your cloud is kept open between messages, and when the
+  cloud closes the answer stream mid-answer BYTE reconnects instantly (it used to wait longer each time and
+  give up after five).
+- **713 models to choose from** (was 334), and **every model has a Details dropdown**: what it is (from its
+  model card), who made it, how strong it is at conversation, writing, coding, reasoning, math, other languages
+  and speed, and ideas for using it.
+- **Community models**: popular fine-tunes people make (Dolphin, story and role-play models like Cydonia and
+  Rocinante, uncensored versions), each with its creator and a plain note on what's different. They sit under
+  the Community, Stories and Uncensored filters and are never picked automatically.
+- **"Quit these apps" help**: when a model can't load, BYTE lists the apps using the most memory with a Quit
+  button for each, and "Try loading again".
+- **Cloud documents load faster** (pages aren't downloaded twice, and the cloud connection is reused).
+- **Smoother long answers everywhere**: formatting is redrawn about 12 times a second while streaming instead
+  of every frame, and the sidebar no longer redraws with every word.
+
+## 1.0.0-test.12 — Web search that works
+
+- **Web search through your BYTE cloud**: with a cloud key saved, every search (including the ones this Mac's
+  model makes) goes to the cloud's search first, which asks Google, Bing, DuckDuckGo and Brave at once. Without
+  a key, or if the cloud can't help, BYTE searches by itself as before. Private chats never use the cloud.
+- **BYTE searches before answering any question about the world**, not only news-like ones, and reads the best
+  pages itself after every search instead of hoping the model will.
+- **No more raw tool code in answers**, no endless re-searching, and no answers made up from memory when the
+  search came back empty.
+- **Junk results are thrown away** (a search engine that serves unrelated pages is skipped), login walls and
+  empty app pages are skipped, and **Wikipedia** is searched alongside.
+- **Weather** comes from a real forecast (Open-Meteo): current conditions and 7 days, °F in the US.
+- Follow-up questions ("how much does it cost?") search with the earlier topic.
+
+## 1.0.0-test.11 — Cloud and Both workspaces, byte-ai colors, new logo
+
+- **This Mac · Cloud · Both** at the top of the sidebar (once BYTE Cloud is connected) replaces the Cloud /
+  This Mac switch in the chat box. Each chat stays in the workspace it was started in; private chats are
+  always on this Mac.
+- **Cloud workspace**: lists the conversations on your BYTE cloud (refreshed when you come back to the app),
+  opens them, starts new ones and deletes them on the cloud. The chat box shows your plan's modes and how much
+  of today's allowance is left.
+- **Both workspace**: every question goes to this Mac and your cloud at once. The Mac's answer streams right
+  away, the cloud's appears beside it; the cloud's answer continues the chat when it finishes, or pick the
+  other with **Keep this one**.
+- **byte-ai's colors**: every theme is now five colors (background, panel, border, text, accent) with the rest
+  worked out from them. **Midnight** is the new default (existing installs keep their theme), byte-ai's
+  Steelers, Ocean, Terminal, Light and Paper are in, and there are **20 themes** in all (new: Aurora,
+  Graphite, Fjord, Lavender, Rose, Ember, Mocha, Sand, Mint). Every theme passes a contrast check.
+- **New logo**: BYTE's eight-bit mark (one byte, two bits lit) in the app, drawn in the theme's accent, and as
+  the app icon.
+- **First launch** offers "Use BYTE Cloud instead (invite only)" next to the model list, suggested when no
+  model fits the Mac well.
+- A spent daily allowance (429) now says so plainly instead of looking like an error. If a cloud answer's
+  stream drops and won't come back, BYTE re-reads the conversation and shows the saved answer.
+
+## 1.0.0-test.10 — BYTE Cloud: chat, photos and documents
+
+- **BYTE Cloud**: connect your own BYTE cluster in Settings → Cloud with an API key from
+  byteai.bytebylogan.xyz. BYTE checks the key with the cloud first, then keeps it in the macOS Keychain (never
+  in a file). Your tier, modes and limits show there.
+- **Chat on the cloud**: a Cloud / This Mac switch in the chat box. On the cloud, the mode buttons are the ones
+  your account has (Fast, Auto, Extended, Extended+ — whatever your plan includes), answers stream in live, what
+  the cloud is doing shows as it works ("searching: …"), and sources appear while the answer is written. Works
+  even on Macs with no model downloaded.
+- **Cloud answers** carry a small cloud tag and get extra actions: go deeper, explain the reasoning, thumbs
+  up/down, and "Answer now" while it's thinking. Edits and regenerate fork the conversation on the cloud too.
+- **Import cloud chats** into the sidebar and search.
+- **Photos and files** (cloud chats): attach with the paperclip or drop them on the window; **Library** reuses
+  photos you've already uploaded without sending them again.
+- **Documents on the cloud** (the page icon at the top): PDF reports, slides, Word documents, flyers, worksheets
+  and projects. BYTE plans an outline first; you rename, reorder, add or remove sections and pick a design
+  (built-in or your own templates) before anything is written — or throw it away at no cost. Progress shows while
+  it's made; finished documents preview page by page, download to Documents/BYTE, can be revised with an
+  instruction, or turned into another format. A source document (PDF, Word, slides, text) can be used as
+  material.
+- **Your cloud account on the Mac** (Settings → Cloud): memories, knowledge (text or uploaded files), saved
+  prompts, recipes, "about you" and the default mode, search across cloud chats (opens them here), and export
+  everything as a .zip.
+- **Saved prompts as / commands**: type / in the chat box to pick one.
+- **If the cloud can't be reached**, BYTE answers on this Mac instead and says so. A slow start is normal (the
+  cluster may be busy) and is never retried into the queue. Private chats never leave this Mac.
+
+## 1.0.0-test.9 — Fastest possible on every Mac, without losing accuracy
+
+- **Models' own speed-up heads**: Gemma 4 (E2B, E4B, 12B, 26B-A4B, 31B), Qwen3.8 27B and Flash-Next,
+  gpt-oss 20B/120B and DeepSeek V4 Flash ship a small "multi-token prediction" (or EAGLE-3/DSpark) file
+  trained with the model. Speed boost now uses it instead of a separate model: more guesses are right and
+  it's a smaller download. In a CPU test Gemma 4 E2B went from ~14.5 to ~22 tokens/sec on an edit.
+- **Repeated-text guessing** for every model (no download): when an answer repeats text from the chat —
+  code you pasted, a paragraph being fixed — BYTE guesses it ahead. Edits were ~20% faster in tests. Tuning
+  keeps it only if it helps on your Mac. Answers never change: your model still checks every word.
+- **Recommendations use real measured speed** from tuning on your Mac, count Speed boost, and prefer the
+  faster model when quality is equal (big Macs now get gpt-oss 120B at ~60–150 tokens/sec instead of a
+  27B at ~10–20). Unless you choose *Faster*, BYTE never picks a model more than a few points less capable
+  just to be quicker. Model cards show "measured on this Mac".
+- **More models fit**: mixture-of-experts models slightly bigger than the GPU's memory share now run with
+  some expert layers on the CPU (a little slower). On 16 GB that adds gpt-oss 20B and Qwen3.6 35B-A3B.
+  Dense models a bit too big run in "stretch mode" (noticeably slower; never suggested automatically).
+- **Bigger GPU memory share** (Settings → Engine, needs your Mac password, resets on restart): lets the GPU
+  use all but 4 GB, so bigger models run fully on it.
+- **Thinking is accuracy-first**: in Auto mode BYTE now thinks unless the message is clearly simple
+  (hi/thanks, rewrite or translate this, a plain sum the calculator answers), with a short budget for short
+  questions and the full budget for reasoning questions.
+- If a speed-up helper ever stops the engine from starting, BYTE starts again without it.
+
+## 1.0.0-test.8 — Every model tuned for its best quality and speed
+
+- **Each model family now uses its publisher's recommended settings.** Until now every model used Qwen's
+  sampling, which hurt other families. Gemma uses temperature 1.0 with top-k 64, Llama 0.6 / top-p 0.9,
+  Mistral Small 0.15, DeepSeek-R1 distills 0.6 / 0.95, LFM min-p 0.15, gpt-oss 1.0, and so on.
+- **Thinking works the right way for each model**: switched on/off per question for Qwen-style models,
+  always on for reasoning models (R1, QwQ, Phi-4 reasoning…), never forced on models that can't think,
+  and gpt-oss gets reasoning effort low / medium / high from the mode.
+- **Automatic tuning for this Mac**: the first time a model loads, BYTE spends 1–2 minutes measuring a few
+  engine settings on your Mac and keeps the fastest for that model: Speed boost on/off (its helper is
+  downloaded automatically), full-precision vs compact conversation memory, and a bigger batch for
+  reading long prompts. A banner shows progress; chat waits until it's done. Results and *Tune again* are
+  in Settings → Engine; turn automatic tuning off there. Tuning is redone on a different Mac.
+- **Thorough tune** (about 5 minutes) also tries the Speed boost look-ahead (8/16/24 words) and confidence,
+  flash attention on/off and reading batches of 256–2048. **Tune all** runs it on every downloaded model.
+- Fixed: turning flash attention off with Speed boost made the engine exit at startup (the helper's
+  memory must be full precision too).
+
+## 1.0.0-test.7 — Speed boost
+
+- **Speed boost (speculative decoding)**: a tiny model from the same family (e.g. Qwen3.5 0.8B for
+  Qwen3.5 9B) writes a few words ahead and your model checks them all at once. Your model still decides
+  every word, so answers are the same, just faster when the guesses are right. In tests the helper's
+  guesses were kept 70–97% of the time. Settings → Engine → Speed; the helper is a one-time download
+  (under 1 GB). Only used when it fits in memory next to your model.
+- **Test speed on this Mac**: measures real tokens/sec with and without Speed boost and keeps the faster.
+  Boosted answers show ⚡ next to their speed.
+- **"BYTE's pick favours: Faster / Balanced / Smarter"** in Settings → Models. On a 16 GB M4, *Faster*
+  picks Qwen3.5 4B (~27 tokens/sec estimated) instead of Qwen3.5 9B (~13).
+
 ## 1.0.0-test.6 — Phase 3 (part 2): edit & versions, projects, profiles
 
 - **Edit any message you sent** (pencil icon): BYTE answers the new version, and the old one is kept.

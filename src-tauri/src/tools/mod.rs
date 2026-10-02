@@ -2,17 +2,21 @@
 //! schemas sent to the engine, numbered sources for citations, and an
 //! action log of every call.
 
+pub mod academic;
+pub mod cache;
 pub mod calc;
 pub mod fetch;
+pub mod places;
 pub mod search;
+pub mod weather;
 
 use std::path::PathBuf;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 /// A citable source. `n` is the number the model uses in `[n]`.
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Source {
     pub n: u32,
@@ -21,6 +25,20 @@ pub struct Source {
     pub snippet: String,
     /// True once BYTE actually read the page (not just saw it in results).
     pub read: bool,
+    /// Bibliographic details for papers, used for citation styles in the UI.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub meta: Option<SourceMeta>,
+}
+
+/// Who wrote a paper, when and where it appeared.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceMeta {
+    pub authors: Vec<String>,
+    pub year: Option<i32>,
+    /// Journal, conference, or "arXiv".
+    pub venue: String,
+    pub doi: Option<String>,
 }
 
 /// Sources gathered during one answer, numbered in order of discovery.
@@ -30,6 +48,17 @@ pub struct SourceBook {
 }
 
 impl SourceBook {
+    /// Adds a paper with its citation details; its abstract counts as read.
+    pub fn add_paper(&mut self, p: &academic::Paper) -> u32 {
+        let snippet: String = p.abstract_text.chars().take(240).collect();
+        let n = self.add(&p.title, &p.url, &snippet);
+        if let Some(s) = self.sources.iter_mut().find(|s| s.n == n) {
+            s.read |= !p.abstract_text.is_empty();
+            s.meta = Some(SourceMeta { authors: p.authors.clone(), year: p.year, venue: p.venue.clone(), doi: p.doi.clone() });
+        }
+        n
+    }
+
     fn key(url: &str) -> String {
         url.trim_end_matches('/').to_lowercase()
     }
@@ -41,7 +70,7 @@ impl SourceBook {
             return s.n;
         }
         let n = self.sources.len() as u32 + 1;
-        self.sources.push(Source { n, title: title.to_string(), url: url.to_string(), snippet: snippet.to_string(), read: false });
+        self.sources.push(Source { n, title: title.to_string(), url: url.to_string(), snippet: snippet.to_string(), read: false, meta: None });
         n
     }
 
@@ -60,12 +89,18 @@ impl SourceBook {
 /// Per-answer limits and context for tool execution.
 pub struct ToolContext<'a> {
     pub net: &'a reqwest::Client,
+    /// The BYTE cloud, whose search answers first when a key is saved (not for private chats).
+    pub cloud: Option<&'a crate::cloud::CloudClient>,
     /// The user's question, used to pick relevant passages from pages.
     pub question: &'a str,
     pub max_results: usize,
     /// Characters of page text returned to the model per page.
     pub page_chars: usize,
     pub log: &'a ActionLog,
+    /// The app, when the user's knowledge base can be searched ("My files").
+    pub files: Option<&'a tauri::AppHandle>,
+    /// The user's town for "near me" (Settings), if given.
+    pub home: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -77,17 +112,65 @@ pub struct ToolOutput {
     /// What the model sees.
     #[serde(skip)]
     pub content: String,
+    /// Places found (`find_places`), shown as cards.
+    #[serde(skip)]
+    pub places: Option<PlacesFound>,
+}
+
+/// Places found near somewhere, for the UI's place cards.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlacesFound {
+    /// "Pittsburgh, Pennsylvania, United States".
+    pub near: String,
+    pub what: String,
+    pub imperial: bool,
+    pub spots: Vec<places::Spot>,
 }
 
 pub const WEB_SEARCH: &str = "web_search";
 pub const READ_PAGE: &str = "read_page";
 pub const CALCULATE: &str = "calculate";
+pub const WEATHER: &str = "weather";
 /// Suggests saving a fact about the user; the UI asks before saving it.
 pub const REMEMBER: &str = "remember";
+/// Searches the folders the user added to the knowledge base.
+pub const SEARCH_FILES: &str = "search_my_files";
+/// Places nearby from OpenStreetMap.
+pub const FIND_PLACES: &str = "find_places";
+/// Searches scholarly papers (Crossref, Europe PMC, arXiv).
+pub const ACADEMIC_SEARCH: &str = "academic_search";
+
+/// Passages returned per knowledge base search.
+const FILE_HITS: usize = 6;
+
+/// `file://` link for a passage (with its page), used as its source URL.
+pub fn file_url(path: &str, page: Option<u32>) -> String {
+    let mut u = url::Url::from_file_path(path).map(|u| u.to_string()).unwrap_or_else(|_| format!("file://{path}"));
+    if let Some(p) = page {
+        u.push_str(&format!("#page={p}"));
+    }
+    u
+}
 
 /// OpenAI-style tool definitions for the engine.
-pub fn specs(web: bool, memory: bool) -> Vec<Value> {
+/// `papers` adds the scholarly search (Deep and Extended modes).
+pub fn specs(web: bool, memory: bool, files: bool, papers: bool) -> Vec<Value> {
     let mut v = Vec::new();
+    if files {
+        v.push(json!({
+            "type": "function",
+            "function": {
+                "name": SEARCH_FILES,
+                "description": "Search the user's own files (the folders they added to BYTE: documents, notes, PDFs). Use it whenever the question may be answered by their files. Returns numbered passages with file names and pages.",
+                "parameters": {
+                    "type": "object",
+                    "properties": { "query": { "type": "string", "description": "What to look for, in a few words." } },
+                    "required": ["query"]
+                }
+            }
+        }));
+    }
     if web {
         v.push(json!({
             "type": "function",
@@ -98,6 +181,47 @@ pub fn specs(web: bool, memory: bool) -> Vec<Value> {
                     "type": "object",
                     "properties": { "query": { "type": "string", "description": "A concise search query, like you would type into a search engine." } },
                     "required": ["query"]
+                }
+            }
+        }));
+        if papers {
+            v.push(json!({
+                "type": "function",
+                "function": {
+                    "name": ACADEMIC_SEARCH,
+                    "description": "Search published research papers (journals, conferences, preprints) for scientific, medical or technical questions. Returns numbered papers with authors, year and abstract.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": { "query": { "type": "string", "description": "Key terms of the research topic, e.g. 'intermittent fasting weight loss trial'." } },
+                        "required": ["query"]
+                    }
+                }
+            }));
+        }
+        v.push(json!({
+            "type": "function",
+            "function": {
+                "name": FIND_PLACES,
+                "description": "Find places near somewhere from the map: cafes, restaurants, pharmacies, gas stations, parks, museums, hotels, a store by name. Returns names, addresses, opening hours and distances. Use it for 'near me', 'nearby', 'closest' or 'X in <neighborhood>' questions.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "what": { "type": "string", "description": "What to find, e.g. 'coffee', 'pharmacy', 'sushi', 'Trader Joe's'." },
+                        "near": { "type": "string", "description": "Where: a town or neighborhood with its city, e.g. 'Shadyside, Pittsburgh'. Leave empty for the user's own town." }
+                    },
+                    "required": ["what"]
+                }
+            }
+        }));
+        v.push(json!({
+            "type": "function",
+            "function": {
+                "name": WEATHER,
+                "description": "Current weather and a 7-day forecast for a place. Use this for any weather question instead of searching.",
+                "parameters": {
+                    "type": "object",
+                    "properties": { "place": { "type": "string", "description": "City, with state or country if it helps, e.g. 'Pittsburgh, PA' or 'Paris, France'." } },
+                    "required": ["place"]
                 }
             }
         }));
@@ -148,17 +272,67 @@ pub async fn run(ctx: &ToolContext<'_>, book: &mut SourceBook, name: &str, args:
     let out = match name {
         WEB_SEARCH => {
             let q = arg("query");
-            match search::search(ctx.net, &q, ctx.max_results).await {
-                Ok(results) => {
+            match search::search(ctx.net, ctx.cloud, &q, ctx.max_results).await {
+                Ok(search::Searched { results, source }) => {
                     let mut content = format!("Search results for \"{q}\":\n");
                     for r in &results {
                         let n = book.add(&r.title, &r.url, &r.snippet);
                         content.push_str(&format!("\n[{n}] {}\n{}\n{}\n", r.title, r.url, r.snippet));
                     }
                     content.push_str("\nAnswer only from these results and pages you read, citing them as [n]. If they don't clearly contain the answer, use read_page on the most relevant link, or say you couldn't confirm it.");
-                    ToolOutput { ok: true, summary: format!("{} results", results.len()), content }
+                    let via = if source == "your BYTE cloud" { " via your BYTE cloud" } else { "" };
+                    ToolOutput { ok: true, summary: format!("{} results{via}", results.len()), content, places: None }
                 }
-                Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Search failed: {e}") },
+                Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Search failed: {e}"), places: None },
+            }
+        }
+        ACADEMIC_SEARCH => {
+            let q = arg("query");
+            match academic::search(ctx.net, &q, ctx.max_results).await {
+                Ok(papers) if papers.is_empty() => ToolOutput { ok: true, summary: "No papers found".into(), content: format!("No papers found for \"{q}\"."), places: None },
+                Ok(papers) => {
+                    let content = papers_text(book, &papers, &q);
+                    ToolOutput { ok: true, summary: format!("{} papers", papers.len()), content, places: None }
+                }
+                Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Paper search failed: {e}"), places: None },
+            }
+        }
+        FIND_PLACES => {
+            let what = arg("what");
+            let near = match arg("near") {
+                n if n.is_empty() || ["me", "here", "near me", "my location", "my town"].contains(&n.to_lowercase().as_str()) => ctx.home.map(str::to_string).unwrap_or_default(),
+                n => n,
+            };
+            if near.is_empty() {
+                ToolOutput {
+                    ok: false,
+                    summary: "Your town isn't set".into(),
+                    content: "The user's location isn't known (BYTE never looks it up by itself). Ask which town or neighborhood to search, and mention they can set their town in Settings → About for 'near me' questions.".into(),
+                    places: None,
+                }
+            } else {
+                match places::find(ctx.net, &what, &near).await {
+                    Ok((_, spots)) if spots.is_empty() => ToolOutput { ok: true, summary: "Nothing found nearby".into(), content: format!("OpenStreetMap lists no {what} near {near}. Say so and suggest a wider search or a map app."), places: None },
+                    Ok((place, spots)) => {
+                        let numbers: Vec<u32> = spots
+                            .iter()
+                            .map(|s| {
+                                let snippet = [s.address.as_str(), s.hours.as_str()].iter().filter(|x| !x.is_empty()).cloned().collect::<Vec<_>>().join(" · ");
+                                book.add(&s.name, &s.osm_url, &snippet);
+                                book.mark_read(&s.osm_url, &s.name)
+                            })
+                            .collect();
+                        let content = places::spots_text(&spots, &numbers, &what, &place);
+                        let open = spots.iter().filter(|s| s.open_now == Some(true)).count();
+                        ToolOutput {
+                            ok: true,
+                            summary: format!("{} places{}", spots.len(), if open > 0 { format!(", {open} open now") } else { String::new() }),
+                            content,
+                            places: Some(PlacesFound { near: place.label(), what: places::category_for(&what).map(|c| c.label.to_string()).unwrap_or(what.clone()), imperial: weather::uses_imperial(&place), spots }),
+                        }
+                    }
+                    Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Couldn't look up places: {e}"), places: None },
+                }
             }
         }
         READ_PAGE => {
@@ -172,28 +346,83 @@ pub async fn run(ctx: &ToolContext<'_>, book: &mut SourceBook, name: &str, args:
                         ok: true,
                         summary: if title.is_empty() { host_of(&page.url) } else { title },
                         content: format!("[{n}] {}\n{}\n\n{text}", page.title, page.url),
+                        places: None,
                     }
                 }
-                Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Couldn't read {url}: {e}") },
+                Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Couldn't read {url}: {e}"), places: None },
             }
         }
-        CALCULATE => match calc::calculate(&arg("expression")) {
-            Ok(r) => ToolOutput { ok: true, summary: format!("= {r}"), content: r },
-            Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Error: {e}") },
+        WEATHER => match weather::forecast(ctx.net, &arg("place")).await {
+            Ok((place, text)) => {
+                let n = book.add(&format!("Weather forecast for {}", place.label()), &weather::source_url(&place), "");
+                book.mark_read(&weather::source_url(&place), &format!("Weather forecast for {}", place.label()));
+                ToolOutput { ok: true, summary: place.label(), content: format!("[{n}] {text}"), places: None }
+            }
+            Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Couldn't get the weather: {e}"), places: None },
         },
+        CALCULATE => match calc::calculate(&arg("expression")) {
+            Ok(r) => ToolOutput { ok: true, summary: format!("= {r}"), content: r, places: None },
+            Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Error: {e}"), places: None },
+        },
+        SEARCH_FILES => {
+            let q = arg("query");
+            match ctx.files {
+                None => ToolOutput { ok: false, summary: "My files is off".into(), content: "The user's files can't be searched right now.".into(), places: None },
+                Some(app) => match crate::kb::search(app, if q.is_empty() { ctx.question } else { &q }, FILE_HITS).await {
+                    Ok(hits) if hits.is_empty() => ToolOutput { ok: true, summary: "Nothing found in your files".into(), content: "No passages in the user's files match. Say so; don't guess what their files contain.".into(), places: None },
+                    Ok(hits) => {
+                        let mut content = format!("Passages from the user's files for \"{q}\":\n");
+                        for h in &hits {
+                            let title = match h.page {
+                                Some(p) => format!("{} (p. {p})", h.name),
+                                None => h.name.clone(),
+                            };
+                            let url = file_url(&h.path, h.page);
+                            let snippet: String = h.text.chars().take(240).collect();
+                            let n = book.add(&title, &url, &snippet);
+                            book.mark_read(&url, &title);
+                            content.push_str(&format!("\n[{n}] {title}\n{}\n", h.text));
+                        }
+                        content.push_str("\nAnswer from these passages, citing them as [n]. If they don't answer the question, say so.");
+                        let files: std::collections::BTreeSet<&str> = hits.iter().map(|h| h.name.as_str()).collect();
+                        ToolOutput { ok: true, summary: format!("{} passages from {} file{}", hits.len(), files.len(), if files.len() == 1 { "" } else { "s" }), content, places: None }
+                    }
+                    Err(e) => ToolOutput { ok: false, summary: e.to_string(), content: format!("Searching the user's files failed: {e}"), places: None },
+                },
+            }
+        }
         REMEMBER => {
             let note = arg("note");
             if note.is_empty() {
-                ToolOutput { ok: false, summary: "empty note".into(), content: "Error: the note is empty.".into() }
+                ToolOutput { ok: false, summary: "empty note".into(), content: "Error: the note is empty.".into(), places: None }
             } else {
                 // Nothing is saved here: the UI shows the note with Save / Dismiss.
-                ToolOutput { ok: true, summary: note.chars().take(200).collect(), content: "Suggested to the user; it's saved only if they confirm. Continue your answer normally without mentioning this.".into() }
+                ToolOutput { ok: true, summary: note.chars().take(200).collect(), content: "Suggested to the user; it's saved only if they confirm. Continue your answer normally without mentioning this.".into(), places: None }
             }
         }
-        other => ToolOutput { ok: false, summary: format!("unknown tool {other}"), content: format!("Unknown tool {other}.") },
+        other => ToolOutput { ok: false, summary: format!("unknown tool {other}"), content: format!("Unknown tool {other}."), places: None },
     };
     ctx.log.record(name, args, out.ok, &out.summary);
     out
+}
+
+/// Numbered papers with their abstracts, as the model sees them.
+pub fn papers_text(book: &mut SourceBook, papers: &[academic::Paper], query: &str) -> String {
+    let mut content = format!("Research papers for \"{query}\":\n");
+    for p in papers {
+        let n = book.add_paper(p);
+        let who = match p.authors.len() {
+            0 => String::new(),
+            1 => p.authors[0].clone(),
+            _ => format!("{} et al.", p.authors[0]),
+        };
+        let when = p.year.map(|y| format!(" ({y})")).unwrap_or_default();
+        let venue = if p.venue.is_empty() { String::new() } else { format!(", {}", p.venue) };
+        let abs: String = p.abstract_text.chars().take(1200).collect();
+        content.push_str(&format!("\n[{n}] {}. {who}{when}{venue}\n{}\n{}\n", p.title, p.url, if abs.is_empty() { "(no abstract)".into() } else { abs }));
+    }
+    content.push_str("\nThese are abstracts, not full papers: say what a study found, its kind (trial, review, preprint) when clear, and cite it as [n].");
+    content
 }
 
 pub fn host_of(url: &str) -> String {
@@ -245,9 +474,14 @@ mod tests {
     #[test]
     fn specs_respect_web_toggle() {
         let names = |v: Vec<Value>| v.iter().map(|t| t["function"]["name"].as_str().unwrap().to_string()).collect::<Vec<_>>();
-        assert_eq!(names(specs(true, false)), vec![WEB_SEARCH, READ_PAGE, CALCULATE]);
-        assert_eq!(names(specs(false, false)), vec![CALCULATE]);
-        assert_eq!(names(specs(false, true)), vec![CALCULATE, REMEMBER]);
+        assert_eq!(names(specs(true, false, false, false)), vec![WEB_SEARCH, FIND_PLACES, WEATHER, READ_PAGE, CALCULATE]);
+        assert_eq!(names(specs(false, false, false, false)), vec![CALCULATE]);
+        assert_eq!(names(specs(false, true, false, false)), vec![CALCULATE, REMEMBER]);
+        assert_eq!(names(specs(false, false, true, false)), vec![SEARCH_FILES, CALCULATE]);
+        assert_eq!(names(specs(true, false, false, true)), vec![WEB_SEARCH, ACADEMIC_SEARCH, FIND_PLACES, WEATHER, READ_PAGE, CALCULATE]);
+        // Papers need the web.
+        assert_eq!(names(specs(false, false, false, true)), vec![CALCULATE]);
+        assert_eq!(file_url("/Users/me/My Lease.pdf", Some(3)), "file:///Users/me/My%20Lease.pdf#page=3");
     }
 
     #[tokio::test]
@@ -255,7 +489,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let log = ActionLog::new(dir.path().join("actions.jsonl"));
         let net = reqwest::Client::new();
-        let ctx = ToolContext { net: &net, question: "", max_results: 5, page_chars: 1000, log: &log };
+        let ctx = ToolContext { net: &net, cloud: None, question: "", max_results: 5, page_chars: 1000, log: &log, files: None, home: None };
         let out = run(&ctx, &mut SourceBook::default(), CALCULATE, &json!({"expression": "6*7"})).await;
         assert!(out.ok);
         assert_eq!(out.content, "42");
@@ -268,7 +502,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let net = reqwest::Client::new();
-        let ctx = ToolContext { net: &net, question: "", max_results: 5, page_chars: 1000, log: &log };
+        let ctx = ToolContext { net: &net, cloud: None, question: "", max_results: 5, page_chars: 1000, log: &log, files: None, home: None };
         let out = run(&ctx, &mut SourceBook::default(), READ_PAGE, &json!({"url": "http://127.0.0.1:8080/"})).await;
         assert!(!out.ok);
     }
@@ -281,12 +515,28 @@ mod tests {
             return;
         }
         let net = fetch::web_client();
-        let results = search::search(&net, "rust programming language", 5).await.expect("search");
-        eprintln!("results: {:#?}", results.iter().map(|r| (&r.title, &r.url)).collect::<Vec<_>>());
-        assert!(!results.is_empty());
+        let found = search::search(&net, None, "rust programming language", 5).await.expect("search");
+        eprintln!("results from {}: {:#?}", found.source, found.results.iter().map(|r| (&r.title, &r.url)).collect::<Vec<_>>());
+        assert!(!found.results.is_empty());
         let page = fetch::fetch_page(&net, "https://www.rust-lang.org/").await.expect("read");
         eprintln!("page: {} ({} chars)", page.title, page.text.len());
         assert!(page.text.to_lowercase().contains("rust"));
+    }
+
+    #[test]
+    fn papers_carry_citation_details() {
+        let mut b = SourceBook::default();
+        let p = academic::Paper { title: "T".into(), authors: vec!["Ada Lovelace".into(), "B C".into()], year: Some(1843), venue: "Notes".into(), doi: Some("10.1/x".into()), url: "https://doi.org/10.1/x".into(), abstract_text: "Found things.".into(), from: "Crossref" };
+        let text = papers_text(&mut b, &[p], "q");
+        assert!(text.contains("[1] T. Ada Lovelace et al. (1843), Notes"), "{text}");
+        let s = &b.sources[0];
+        assert!(s.read);
+        assert_eq!(s.meta.as_ref().unwrap().doi.as_deref(), Some("10.1/x"));
+        let json = serde_json::to_value(s).unwrap();
+        assert_eq!(json["meta"]["authors"][0], "Ada Lovelace");
+        // Web sources don't carry an empty meta field.
+        b.add("W", "https://w.com", "");
+        assert!(serde_json::to_value(&b.sources[1]).unwrap().get("meta").is_none());
     }
 
     #[test]

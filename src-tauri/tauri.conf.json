@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "BYTE",
-  "version": "1.0.0-test.6",
+  "version": "0.12.5",
   "identifier": "com.loganstarner.byte",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -21,7 +21,8 @@
         "center": true,
         "resizable": true,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true
+        "hiddenTitle": true,
+        "visible": false
       }
     ],
     "security": {
@@ -42,10 +43,14 @@
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
+      "icons/icon.ico",
       "icons/icon.png"
     ],
     "externalBin": [
-      "binaries/llama-server"
+      "binaries/llama-server",
+      "binaries/whisper-cli",
+      "binaries/sherpa-diarize",
+      "binaries/sherpa-tts"
     ],
     "createUpdaterArtifacts": false,
     "macOS": {
@@ -65,6 +70,21 @@
           "height": 400
         }
       }
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "byte"
+        ]
+      }
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM2MEEyNDczOEI5QkM4N0IKUldSN3lKdUxjeVFLTmo3SWg2S0pLTG1PdW84Tmtvc0w3VzZqQk1OQlZjaVBTMUtCa3FQZ2ZVd1MK",
+      "endpoints": [
+        "https://github.com/loganalexanderstarner-pixel/BYTE/releases/latest/download/latest.json"
+      ]
     }
   }
 }

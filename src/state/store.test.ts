@@ -29,3 +29,14 @@ describe("toWire", () => {
   });
 });
 
+
+describe("toWire with files", () => {
+  it("sends files read on this Mac with their user message only", () => {
+    const file = { name: "notes.pdf", kind: "pdf" as const, pages: 3, text: "[Page 1]\nhello", truncated: false };
+    const wire = toWire([{ ...msg("user", "summarise"), files: [file] }, { ...msg("assistant", "ok"), files: [file] }]);
+    expect(wire).toEqual([
+      { role: "user", content: "summarise", files: [file] },
+      { role: "assistant", content: "ok" },
+    ]);
+  });
+});

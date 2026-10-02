@@ -25,3 +25,7 @@ dist-ssr
 
 # Local build caches
 .cache/
+
+# UI screenshot output
+tools/ui-shots/out/
+scripts/catalog-cards.json

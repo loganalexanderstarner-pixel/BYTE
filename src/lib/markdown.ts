@@ -10,7 +10,44 @@ const marked = new Marked({ gfm: true, breaks: false, async: false });
  */
 export function renderMarkdown(src: string, sources?: CiteSource[]): string {
   const html = marked.parse(sources ? linkCitations(src, sources) : src) as string;
-  return sanitize(html);
+  return markVerdicts(markConfidence(sanitize(html)));
+}
+
+const VERDICT_CLASS: Record<string, string> = {
+  "true": "true",
+  "mostly true": "mostly-true",
+  "mixed": "mixed",
+  "mostly false": "mostly-false",
+  "false": "false",
+  "unproven": "unproven",
+};
+
+/**
+ * Fact-check tables: a cell that is just a verdict ("Mostly false", maybe
+ * bold) becomes a coloured badge. Runs on sanitized HTML.
+ */
+export function markVerdicts(html: string): string {
+  return html.replace(/<td([^>]*)>\s*(?:<strong>)?\s*(True|Mostly true|Mixed|Mostly false|False|Unproven)\s*(?:<\/strong>)?\s*<\/td>/gi, (whole, attrs: string, v: string) => {
+    const cls = VERDICT_CLASS[v.toLowerCase()];
+    if (!cls) return whole;
+    const label = v[0].toUpperCase() + v.slice(1).toLowerCase();
+    return `<td${attrs}><span class="verdict verdict-${cls}">${label}</span></td>`;
+  });
+}
+
+/**
+ * Research answers end with "**Confidence:** Verified — reason" (Likely,
+ * Unsure). That paragraph gets a class so it shows as a colored badge line.
+ * Runs on sanitized HTML and only adds a fixed class and span.
+ */
+export function markConfidence(html: string): string {
+  return html.replace(
+    /<p><strong>Confidence:?<\/strong>:?\s*(Verified|Likely|Unsure)\b/gi,
+    (_m, level: string) => {
+      const l = level[0].toUpperCase() + level.slice(1).toLowerCase();
+      return `<p class="confidence confidence-${l.toLowerCase()}"><strong>Confidence</strong> <span class="level">${l}</span>`;
+    },
+  );
 }
 
 export interface CiteSource {

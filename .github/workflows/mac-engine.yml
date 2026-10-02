@@ -1,8 +1,7 @@
 name: Mac engine test
 
 # Builds llama-server with Metal and runs the end-to-end tests against a real
-# model. Runs only when engine-related code changes (or by hand) because
-# macOS minutes are expensive on private repositories.
+# model, when engine-related code changes (or by hand).
 on:
   push:
     branches: ["**"]
@@ -11,9 +10,59 @@ on:
       - "src-tauri/src/chat.rs"
       - "src-tauri/src/agent.rs"
       - "src-tauri/src/tools/**"
+      - "src-tauri/src/speed.rs"
+      - "src-tauri/src/tune.rs"
+      - "src-tauri/src/summarize.rs"
+      # Mac-only code (Apple Vision text recognition) compiles and is tested only here.
+      - "src-tauri/src/ocr.rs"
+      - "src-tauri/src/macctl.rs"
+      - "src-tauri/src/macctl_tests.rs"
+      - "src-tauri/src/selection.rs"
+      - "src-tauri/src/clipboard.rs"
+      - "src-tauri/src/filectl.rs"
+      - "src-tauri/src/terminal.rs"
+      - "src-tauri/src/upkeep.rs"
+      - "src-tauri/src/upkeep_tests.rs"
+      - "src-tauri/src/files.rs"
+      - "src-tauri/src/embed.rs"
+      - "src-tauri/src/kb.rs"
+      - "src-tauri/src/study.rs"
+      - "src-tauri/src/translate.rs"
+      - "src-tauri/src/briefing.rs"
+      - "src-tauri/src/scheduler.rs"
+      - "src-tauri/src/tasks.rs"
+      # Automations, Shortcuts made by BYTE (plutil + shortcuts sign), the Dock reopen handler.
+      - "src-tauri/src/automations.rs"
+      - "src-tauri/src/shortcut_make.rs"
+      - "src-tauri/src/background.rs"
+      - "src-tauri/src/quick.rs"
+      - "src-tauri/src/lib.rs"
+      # The lock (Touch ID) and Settings → Privacy (permission status) are macOS-only code.
+      - "src-tauri/src/lock.rs"
+      - "src-tauri/src/privacy.rs"
+      - "src-tauri/src/offline.rs"
+      # Connector secrets use the macOS Keychain (compiled only on macOS).
+      - "src-tauri/src/connectors/**"
+      # The web agent saves pages with WKWebView (web_agent/capture_mac.rs).
+      - "src-tauri/src/web_agent/**"
+      - "src-tauri/Cargo.toml"
       - "src-tauri/Cargo.lock"
       - "scripts/LLAMA_TAG"
       - "scripts/build-llama-server.sh"
+      - "scripts/build-whisper.sh"
+      - "scripts/WHISPER_TAG"
+      - "src-tauri/src/voice.rs"
+      - "src-tauri/src/speakers.rs"
+      - "src-tauri/src/media.rs"
+      - "src-tauri/src/speech.rs"
+      - "src-tauri/src/wake.rs"
+      - "src-tauri/src/tts.rs"
+      - "src-tauri/src/voices.rs"
+      - "src-tauri/src/mindmap.rs"
+      - "src-tauri/src/cloud/voice.rs"
+      - "src-tauri/catalog/voices.json"
+      - "scripts/build-sherpa.sh"
+      - "scripts/SHERPA_TAG"
       - ".github/workflows/mac-engine.yml"
   workflow_dispatch:
 
@@ -47,6 +96,20 @@ jobs:
           key: llama-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/LLAMA_TAG', 'scripts/build-llama-server.sh') }}
       - name: Build engine (llama-server, Metal)
         run: scripts/build-llama-server.sh
+      - name: Cache whisper.cpp build
+        uses: actions/cache@v4
+        with:
+          path: .cache/whisper.cpp
+          key: whisper-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/WHISPER_TAG', 'scripts/build-whisper.sh') }}
+      - name: Build voice engine (whisper-cli, Metal)
+        run: scripts/build-whisper.sh
+      - name: Cache sherpa-onnx build
+        uses: actions/cache@v4
+        with:
+          path: .cache/sherpa-onnx
+          key: sherpa-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/SHERPA_TAG', 'scripts/build-sherpa.sh') }}
+      - name: Build speaker-label and voice tools (sherpa-onnx)
+        run: scripts/build-sherpa.sh
       - name: Build frontend (embedded into the app)
         run: npm ci && npm run build
       - name: Unit tests
@@ -63,9 +126,113 @@ jobs:
           f=.cache/models/Qwen3-0.6B-Q8_0.gguf
           [ -f "$f" ] || curl -fsSL -o "$f" "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf?download=true"
           echo "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031  $f" | shasum -a 256 -c
+      - name: Cache Speed boost test models
+        uses: actions/cache@v4
+        with:
+          path: .cache/boost
+          key: boost-qwen3.5-2b-0.8b-q4km
+      - name: Download Speed boost test models (Qwen3.5 2B + 0.8B helper)
+        run: |
+          mkdir -p .cache/boost
+          for m in Qwen3.5-2B Qwen3.5-0.8B; do
+            f=.cache/boost/$m-Q4_K_M.gguf
+            [ -f "$f" ] || curl -fsSL -o "$f" "https://huggingface.co/unsloth/$m-GGUF/resolve/main/$m-Q4_K_M.gguf?download=true"
+          done
+      - name: Cache speed-up head test models
+        uses: actions/cache@v4
+        with:
+          path: .cache/head
+          key: head-gemma-4-e2b-q3km-mtp
+      - name: Download speed-up head test models (Gemma 4 E2B + its MTP head)
+        run: |
+          mkdir -p .cache/head
+          for f in gemma-4-E2B-it-Q3_K_M.gguf mtp-gemma-4-E2B-it.gguf; do
+            [ -f ".cache/head/$f" ] || curl -fsSL -o ".cache/head/$f" "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/$f?download=true"
+          done
+      - name: Cache embedding test model
+        uses: actions/cache@v4
+        with:
+          path: .cache/embed
+          key: embed-nomic-v1.5-q8
+      - name: Download embedding test model (nomic-embed-text v1.5)
+        run: |
+          mkdir -p .cache/embed
+          f=.cache/embed/nomic-embed-text-v1.5.Q8_0.gguf
+          [ -f "$f" ] || curl -fsSL -o "$f" "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q8_0.gguf?download=true"
+          echo "3e24342164b3d94991ba9692fdc0dd08e3fd7362e0aacc396a9a5c54a544c3b7  $f" | shasum -a 256 -c
+      - name: Cache speech test model
+        uses: actions/cache@v4
+        with:
+          path: .cache/voice
+          key: voice-whisper-base-en
+      - name: Download speech test model (whisper base.en)
+        run: |
+          mkdir -p .cache/voice
+          f=.cache/voice/ggml-base.en.bin
+          [ -f "$f" ] || curl -fsSL -o "$f" "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin?download=true"
+          echo "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002  $f" | shasum -a 256 -c
+          # whisper.cpp's own speech sample, from the source the build step fetched.
+          echo "BYTE_TEST_WHISPER_AUDIO=$(ls "$GITHUB_WORKSPACE"/.cache/whisper.cpp/src-*/samples/jfk.wav | head -n1)" >> "$GITHUB_ENV"
+      - name: Cache speaker-label test models
+        uses: actions/cache@v4
+        with:
+          path: .cache/speakers
+          key: speakers-pyannote3-eres2net-en-v1
+      - name: Download speaker-label test models and audio
+        run: |
+          mkdir -p .cache/speakers && cd .cache/speakers
+          [ -f seg.onnx ] || curl -fsSL -o seg.onnx "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/main/model.onnx?download=true"
+          [ -f emb.onnx ] || curl -fsSL -o emb.onnx "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx?download=true"
+          [ -f four.wav ] || curl -fsSL -o four.wav "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/0-four-speakers-zh.wav"
+          echo "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079  seg.onnx" | shasum -a 256 -c
+          echo "c59158379255ad66e161679cca6af8d52d51e389e3224ab7d7a7baae295c2db5  emb.onnx" | shasum -a 256 -c
+      - name: Cache voice test model (Kokoro)
+        uses: actions/cache@v4
+        with:
+          path: .cache/kokoro
+          key: kokoro-multi-lang-v1_0
+      - name: Download voice test model (Kokoro v1.0)
+        run: |
+          mkdir -p .cache/kokoro && cd .cache/kokoro
+          if [ ! -f kokoro-multi-lang-v1_0/model.onnx ]; then
+            curl -fsSL -o k.tar.bz2 "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2"
+            echo "c5f7e2d2caf082bc1d20fb70334a61d99d20b484500aad32e7cf84c128ea3298  k.tar.bz2" | shasum -a 256 -c
+            tar xjf k.tar.bz2 && rm k.tar.bz2
+          fi
+      - name: Cache voice catalog test models (Kitten, Piper, Supertonic, Pocket)
+        uses: actions/cache@v4
+        with:
+          path: .cache/voices
+          key: voices-${{ hashFiles('src-tauri/catalog/voices.json') }}
+      - name: Download voice catalog test models
+        run: |
+          mkdir -p .cache/voices && cd .cache/voices
+          for id in kitten-nano-v0_8 piper-en_US-amy-medium supertonic-3 pocket-tts; do
+            read -r archive folder sha <<<"$(node -e 'const p=require(process.argv[1]).packages.find(x=>x.id===process.argv[2]);console.log(p.archive,p.folder,p.sha256)' "$GITHUB_WORKSPACE/src-tauri/catalog/voices.json" "$id")"
+            if [ ! -d "$folder" ]; then
+              curl -fsSL -o v.tar.bz2 "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/$archive"
+              echo "$sha  v.tar.bz2" | shasum -a 256 -c
+              tar xjf v.tar.bz2 && rm v.tar.bz2
+            fi
+          done
+          ln -sfn "$GITHUB_WORKSPACE/.cache/kokoro/kokoro-multi-lang-v1_0" kokoro-multi-lang-v1_0
       - name: End-to-end test against the real engine
         working-directory: src-tauri
         env:
           BYTE_TEST_LLAMA_SERVER: ${{ github.workspace }}/src-tauri/binaries/llama-server-aarch64-apple-darwin
           BYTE_TEST_MODEL: ${{ github.workspace }}/.cache/models/Qwen3-0.6B-Q8_0.gguf
+          BYTE_TEST_MAIN_MODEL: ${{ github.workspace }}/.cache/boost/Qwen3.5-2B-Q4_K_M.gguf
+          BYTE_TEST_DRAFT_MODEL: ${{ github.workspace }}/.cache/boost/Qwen3.5-0.8B-Q4_K_M.gguf
+          BYTE_TEST_HEAD_MAIN: ${{ github.workspace }}/.cache/head/gemma-4-E2B-it-Q3_K_M.gguf
+          BYTE_TEST_HEAD: ${{ github.workspace }}/.cache/head/mtp-gemma-4-E2B-it.gguf
+          BYTE_TEST_EMBED_MODEL: ${{ github.workspace }}/.cache/embed/nomic-embed-text-v1.5.Q8_0.gguf
+          BYTE_TEST_WHISPER: ${{ github.workspace }}/src-tauri/binaries/whisper-cli-aarch64-apple-darwin
+          BYTE_TEST_WHISPER_MODEL: ${{ github.workspace }}/.cache/voice/ggml-base.en.bin
+          BYTE_TEST_SHERPA: ${{ github.workspace }}/src-tauri/binaries/sherpa-diarize-aarch64-apple-darwin
+          BYTE_TEST_SPEAKER_SEG: ${{ github.workspace }}/.cache/speakers/seg.onnx
+          BYTE_TEST_SPEAKER_EMB: ${{ github.workspace }}/.cache/speakers/emb.onnx
+          BYTE_TEST_SPEAKERS_AUDIO: ${{ github.workspace }}/.cache/speakers/four.wav
+          BYTE_TEST_SHERPA_TTS: ${{ github.workspace }}/src-tauri/binaries/sherpa-tts-aarch64-apple-darwin
+          BYTE_TEST_KOKORO: ${{ github.workspace }}/.cache/kokoro/kokoro-multi-lang-v1_0
+          BYTE_TEST_VOICES: ${{ github.workspace }}/.cache/voices
         run: cargo test --locked e2e -- --ignored --nocapture --test-threads=1

@@ -16,7 +16,7 @@ So this is **not** "make it look like the web app".
 | **Layout, button arrangement, command-deck home** | **Keep.** He likes it. Do not restyle toward the web app. |
 | **Having many themes** | **Keep.** The 20-theme plan stands. |
 | **Colour palette** | **Adopt byte-ai's**, as the default/base theme and as the model for how tokens are structured. |
-| **Logo** | **Replace the letter-B mark** (`src/design/Logo.tsx`, currently a drawn `B`) with byte-ai's bolt-in-rounded-square below. |
+| **Logo** | **Replace the letter-B mark** (`src/design/Logo.tsx`, currently a drawn `B`) with the eight-bit mark below (done). |
 
 In short: **byte-ai's skin on the app's bones.** The structure you have is
 right; the palette and the mark are what should come across.
@@ -50,6 +50,13 @@ Other shipped themes — same five tokens, different values:
 | ocean | `#071a1f` | `#0d2830` | `#164048` | `#e0f5f8` | `#2dd4bf` |
 | paper | `#faf6ee` | `#ffffff` | `#e0d5c0` | `#2b2418` | `#b8763f` |
 
+**In BYTE (done 2026-09-28):** `src/styles/tokens.css` follows this: `:root` holds Midnight's five values and
+every derived token; each theme block sets only the five (+ optional `--accent-2`, and the few exact overrides
+High Contrast needs). 20 themes; `src/styles/tokens.test.ts` checks text ≥ 4.5:1 on bg/panel/surface-2,
+secondary text ≥ 4.5, faint text and the accent ≥ 3.0, and button labels on the accent ≥ 4.5. To pass that,
+Paper's accent is `#96592a` (byte-ai's `#b8763f` gave white labels only 3.4:1). Light themes use white
+labels on the accent.
+
 ### Derived values — don't hardcode these
 
 Everything else is computed from the five, which is why a new theme is five
@@ -68,22 +75,30 @@ lines rather than fifty:
 
 ### The logo
 
-A rounded square with a bolt cut through it, filled with an accent gradient.
+**Eight bits: one byte.** Two rows of four rounded squares; two are lit (top
+row second, bottom row third), the other six are the same colour at about 30%
+opacity. It sits to the left of the `BYTE` wordmark. (An earlier version of
+this doc described a lightning bolt; that was wrong, corrected by the owner
+2026-09-28 with a screenshot of the real mark.)
+
 It is drawn in the **live theme's accent**, so it recolours with the theme
-instead of being a fixed asset that clashes in half of them.
+instead of being a fixed asset that clashes in half of them. In the app:
+`src/design/Logo.tsx` (`LIT_BITS = [1, 6]`). The app icon
+(`src-tauri/icons/app-icon.svg`, rendered with `npx tauri icon`) uses the same
+grid in gold (`#f5bd3c`) on a near-black rounded square, since an icon can't
+follow the theme.
 
 ```svg
-<svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-  <defs>
-    <linearGradient id="bm" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="var(--accent)"/>
-      <stop offset="1" stop-color="var(--accent)" stop-opacity="0.55"/>
-    </linearGradient>
-  </defs>
-  <rect x="3.2" y="3.2" width="25.6" height="25.6" rx="8" fill="url(#bm)"/>
-  <path d="M17.9 7.6 10.4 17.6h4.4l-1.2 6.9 7.6-10.1h-4.4z" fill="#fff" fill-opacity="0.96"/>
-  <rect x="3.2" y="3.2" width="25.6" height="25.6" rx="8"
-        stroke="#fff" stroke-opacity="0.16" stroke-width="1.1"/>
+<svg viewBox="0 0 50.5 23.5" aria-label="BYTE">
+  <!-- cell 10, gap 3.5, rx 2.6; lit cells at full opacity, the rest 0.32 -->
+  <rect x="0"    y="0"    width="10" height="10" rx="2.6" fill="var(--accent)" fill-opacity="0.32"/>
+  <rect x="13.5" y="0"    width="10" height="10" rx="2.6" fill="var(--accent)"/>
+  <rect x="27"   y="0"    width="10" height="10" rx="2.6" fill="var(--accent)" fill-opacity="0.32"/>
+  <rect x="40.5" y="0"    width="10" height="10" rx="2.6" fill="var(--accent)" fill-opacity="0.32"/>
+  <rect x="0"    y="13.5" width="10" height="10" rx="2.6" fill="var(--accent)" fill-opacity="0.32"/>
+  <rect x="13.5" y="13.5" width="10" height="10" rx="2.6" fill="var(--accent)" fill-opacity="0.32"/>
+  <rect x="27"   y="13.5" width="10" height="10" rx="2.6" fill="var(--accent)"/>
+  <rect x="40.5" y="13.5" width="10" height="10" rx="2.6" fill="var(--accent)" fill-opacity="0.32"/>
 </svg>
 ```
 
@@ -116,6 +131,35 @@ across all three.
 **iOS/iPadOS is not a target.** Considered and dropped on 2026-09-27;
 `PROJECT_GUIDE.md`'s original "no iPhone app" line stands. Don't design for
 it, don't leave hooks for it.
+
+### Owner decisions, 2026-09-28: one native app per OS, and any hardware
+
+**Order and testing (2026-09-28):** finish the Mac phases first, not all three in parallel. Meanwhile CI
+compiles the Rust core for Windows too, so Mac-only code can't creep into shared modules (anything
+Mac-specific stays behind `#[cfg(target_os = "macos")]` with a clear fallback, like `ocr.rs`). The owner will
+give access to their gaming PC for real GPU testing when the Windows phase starts (CI runners have no GPUs).
+Rough size: Windows ≈ 40–50% of the Mac effort (GPU/VRAM planner, CUDA/Vulkan engine builds, Phase 9–10
+integrations rebuilt natively), Linux ≈ 30–40% after that.
+
+**Separate apps, each built around its own OS.** Windows and Linux get the same BYTE (layout, look, name,
+chat, cloud, modules, everything the Mac app has), but each is its own app that does things the way that OS
+allows, and does *more* where the OS gives more access. Nothing should be "macOS-shaped" on Windows or Linux.
+Examples to plan from when those phases start (the owner will add ideas then):
+
+| | macOS (today's plan) | Windows | Linux |
+|---|---|---|---|
+| App control | AppleScript / JXA, Shortcuts | UI Automation, COM (Office, Outlook), PowerShell | D-Bus, xdotool/ydotool, desktop scripting |
+| System | EventKit, Keychain, Vision OCR | Windows Credential Manager, Windows.Media.Ocr, WinRT APIs | Secret Service (libsecret), Tesseract, freedesktop portals |
+| Widgets / quick access | menu-bar popover, floating widget | taskbar + Windows widgets board, jump lists, toast actions | tray, GNOME Shell / KDE Plasma widgets |
+| Automation | launchd, Shortcuts | Task Scheduler, Power Automate hand-off | systemd timers, cron |
+| Engine | llama.cpp Metal | llama.cpp CUDA / Vulkan / CPU | llama.cpp CUDA / ROCm / Vulkan / CPU |
+
+**Any hardware, the user's choice.** PCs vary: system RAM, one or more GPUs with their own VRAM (NVIDIA, AMD,
+Intel), different CPUs. BYTE must use all of it well and let the user choose: **"Best automatically"**
+(default: fill VRAM, put the rest in RAM), **"GPU only"**, **"System RAM / CPU only"**, or **"Use both"** with a
+split they can adjust. The planner grows from `system::plan_offload` (already splits MoE experts and dense
+layers between GPU and CPU) into a per-device plan (llama.cpp `--tensor-split`, `--main-gpu`, `-ngl`,
+`--n-cpu-moe`), with the same honesty rules: never say a model runs when it won't.
 
 ### Do the abstraction now, the ports later
 

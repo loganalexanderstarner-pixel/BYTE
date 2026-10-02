@@ -2,7 +2,6 @@
 //! model after the first answer. One short non-streaming request with thinking
 //! off; the output is forced to JSON by llama-server's grammar support.
 
-use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -19,14 +18,14 @@ pub struct ChatSummary {
     pub tags: Vec<String>,
 }
 
-/// The example in the instructions; a reply that copies it is rejected.
+/// The example older prompts used; a reply that copies it is still rejected.
 const EXAMPLE_TITLE: &str = "Fixing a slipping bike chain";
 /// Small models sometimes copy these from the example; kept only if the chat mentions them.
 const EXAMPLE_TAGS: [&str; 2] = ["cycling", "repair"];
 
-const INSTRUCTIONS: &str = "You label conversations for a chat list. Reply with JSON only, in this shape: \
-{\"title\": \"Fixing a slipping bike chain\", \"summary\": \"How to diagnose and fix a bike chain that slips when pedaling.\", \"tags\": [\"cycling\", \"repair\"]}. \
-Describe the conversation below, not this example. \
+// No example in the prompt: the reply format is enforced by a schema, and small
+// models copied the example ("Fixing a slipping bike chain") instead of labelling the chat.
+const INSTRUCTIONS: &str = "You label conversations for a chat list. Reply with JSON only (title, summary, tags) describing the conversation below. \
 title: 2 to 6 words, no quotes or trailing period. summary: one sentence, under 20 words, about what the user wanted. \
 tags: 1 to 3 short lowercase topic words.";
 
@@ -54,7 +53,7 @@ pub fn parse(reply: &str) -> Option<ChatSummary> {
     let start = reply.find('{')?;
     let end = reply.rfind('}')?;
     let mut s: ChatSummary = serde_json::from_str(reply.get(start..=end)?).ok()?;
-    s.title = s.title.trim().trim_matches(|c| c == '"' || c == '.').chars().take(60).collect::<String>().trim().to_string();
+    s.title = short_title(s.title.trim().trim_matches(|c| c == '"' || c == '.'));
     s.summary = s.summary.trim().chars().take(200).collect();
     s.tags = s
         .tags
@@ -66,30 +65,27 @@ pub fn parse(reply: &str) -> Option<ChatSummary> {
     (!s.title.is_empty() && !s.summary.is_empty() && !s.title.eq_ignore_ascii_case(EXAMPLE_TITLE)).then_some(s)
 }
 
-pub async fn summarize(http: &reqwest::Client, ep: &Endpoint, transcript: &str) -> AppResult<ChatSummary> {
-    let body = json!({
-        "messages": [
-            { "role": "system", "content": INSTRUCTIONS },
-            { "role": "user", "content": format!("Conversation:\n\n{transcript}\nLabel it.") },
-        ],
-        "max_tokens": 160,
-        "temperature": 0.2,
-        "stream": false,
-        "response_format": { "type": "json_object" },
-        "chat_template_kwargs": { "enable_thinking": false },
-    });
-    let resp = http
-        .post(format!("{}/v1/chat/completions", ep.base_url))
-        .bearer_auth(&ep.api_key)
-        .timeout(Duration::from_secs(90))
-        .json(&body)
-        .send()
-        .await?;
-    if !resp.status().is_success() {
-        return Err(AppError::msg(format!("engine returned {}", resp.status())));
+/// At most 8 words and 60 characters, not ending on a small word ("… taxes as a").
+fn short_title(t: &str) -> String {
+    let mut words: Vec<&str> = t.split_whitespace().take(8).collect();
+    while words.len() > 2 && words.iter().map(|w| w.len() + 1).sum::<usize>() > 61 {
+        words.pop();
     }
-    let v: Value = resp.json().await?;
-    let text = v["choices"][0]["message"]["content"].as_str().unwrap_or("");
+    let small = ["a", "an", "the", "as", "to", "of", "for", "and", "or", "in", "on", "with", "at", "by", "from"];
+    while words.len() > 2 && words.last().is_some_and(|w| small.contains(&w.to_lowercase().as_str())) {
+        words.pop();
+    }
+    words.join(" ").trim_end_matches([',', ':', ';', '-']).to_string()
+}
+
+pub async fn summarize(http: &reqwest::Client, ep: &Endpoint, transcript: &str) -> AppResult<ChatSummary> {
+    let schema = json!({
+        "type": "object",
+        "properties": { "title": { "type": "string" }, "summary": { "type": "string" }, "tags": { "type": "array", "maxItems": 3, "items": { "type": "string" } } },
+        "required": ["title", "summary", "tags"]
+    });
+    let text = crate::chat::complete_json(http, ep, INSTRUCTIONS, &format!("Conversation:\n\n{transcript}\nLabel it."), schema, 160).await?;
+    let text = text.as_str();
     let mut s = parse(text).ok_or_else(|| AppError::msg("the model didn't return a usable title"))?;
     let lower = transcript.to_lowercase();
     s.tags.retain(|t| !EXAMPLE_TAGS.contains(&t.as_str()) || lower.contains(t.as_str()));
@@ -104,6 +100,7 @@ mod tests {
     fn parses_and_tidies_replies() {
         let s = parse("Sure! {\"title\": \"\\\"Lisbon weekend plan.\\\"\", \"summary\": \" A 3-day Lisbon plan. \", \"tags\": [\"#Travel\", \"Portugal\", \"food\", \"extra\"]}").unwrap();
         assert_eq!(s.title, "Lisbon weekend plan");
+        assert_eq!(short_title("How to file quarterly estimated taxes as a freelancer"), "How to file quarterly estimated taxes");
         assert_eq!(s.summary, "A 3-day Lisbon plan.");
         assert_eq!(s.tags, vec!["travel", "portugal", "food"]);
         assert!(parse("no json here").is_none());

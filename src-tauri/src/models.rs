@@ -94,6 +94,177 @@ pub struct CatalogModel {
     pub used_for: Option<String>,
     pub arch: ModelArch,
     pub variants: Vec<Variant>,
+    /// A speed-up head published with the model (see `Helper`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub speed_head: Option<SpeedHead>,
+    /// The image adapter of a model that can see photos (`--mmproj`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vision: Option<Vision>,
+    /// Details for the model's dropdown (scripts/enrich-catalog.mjs).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub details: Option<ModelDetails>,
+}
+
+impl CatalogModel {
+    /// A community fine-tune or merge (not from the model's original maker).
+    pub fn is_community(&self) -> bool {
+        self.tags.iter().any(|t| t == "community") || self.details.as_ref().is_some_and(|d| d.community)
+    }
+}
+
+/// What the model list shows when a model is opened: a longer description
+/// from its model card, who made it, how strong it is at different things
+/// (BYTE's estimate from size, family and card), and ideas for using it.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelDetails {
+    #[serde(default)]
+    pub about: String,
+    /// Who made the model (the original creator, not the uploader of the GGUF files).
+    #[serde(default)]
+    pub author: Option<String>,
+    /// The original model's page.
+    #[serde(default)]
+    pub source_url: Option<String>,
+    /// Chat, writing, coding, reasoning, math, languages, speed: 1–5 each.
+    #[serde(default)]
+    pub strengths: std::collections::BTreeMap<String, u8>,
+    #[serde(default)]
+    pub ideas: Vec<String>,
+    /// A community fine-tune or merge (not from the model's original maker).
+    #[serde(default)]
+    pub community: bool,
+    /// Plain notes shown with community models ("fewer refusals: no safety tuning").
+    #[serde(default)]
+    pub caution: Option<String>,
+}
+
+/// How a Speed boost helper guesses ahead (llama.cpp `--spec-type`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum HelperKind {
+    /// A separate small model from the same family.
+    #[default]
+    Draft,
+    /// Multi-token prediction layers trained with the model itself.
+    Mtp,
+    /// An EAGLE-3 head that reads the model's hidden states.
+    Eagle3,
+    /// A DSpark head that drafts a whole block at once.
+    Dspark,
+}
+
+impl HelperKind {
+    pub fn spec_type(self) -> &'static str {
+        match self {
+            HelperKind::Draft => "draft-simple",
+            HelperKind::Mtp => "draft-mtp",
+            HelperKind::Eagle3 => "draft-eagle3",
+            HelperKind::Dspark => "draft-dspark",
+        }
+    }
+
+    /// How many tokens to guess per step when not tuned. Heads are accurate
+    /// for a few tokens; a separate model can run further ahead.
+    pub fn default_lookahead(self) -> u32 {
+        match self {
+            HelperKind::Draft => 16,
+            HelperKind::Mtp => 3,
+            HelperKind::Eagle3 => 8,
+            HelperKind::Dspark => 7,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SpeedHead {
+    pub kind: HelperKind,
+    pub file: ModelFile,
+}
+
+/// A model's image adapter ("mmproj"): lets it see photos.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Vision {
+    pub file: ModelFile,
+}
+
+/// Version name used in download keys for a model's image adapter
+/// (`"gemma-4-12b:vision"`).
+pub const VISION_QUANT: &str = "vision";
+
+fn vision_variant(v: &Vision) -> Variant {
+    Variant { quant: VISION_QUANT.into(), bits: 16.0, size_bytes: v.file.size, files: vec![v.file.clone()] }
+}
+
+/// Folder for downloads of `key`. Image adapters get one folder per model:
+/// many repos name theirs just `mmproj-F16.gguf`, and models are stored by
+/// file name.
+pub fn download_dir(models_dir: &Path, key: &str) -> PathBuf {
+    match key.strip_suffix(&format!(":{VISION_QUANT}")) {
+        Some(id) => models_dir.join("vision").join(id.replace(['/', '\\', '.'], "_")),
+        None => models_dir.to_path_buf(),
+    }
+}
+
+/// Where `model`'s image adapter lives once downloaded (None if it has none
+/// or it isn't downloaded).
+pub fn vision_path(models_dir: &Path, model: &CatalogModel) -> Option<PathBuf> {
+    let v = vision_variant(model.vision.as_ref()?);
+    let dir = download_dir(models_dir, &format!("{}:{VISION_QUANT}", model.id));
+    is_installed(&dir, &v).then(|| entry_path(&dir, &v))
+}
+
+/// Version name used in download keys for a model's speed-up head
+/// (`"gemma-4-12b:speed-head"`).
+pub const HEAD_QUANT: &str = "speed-head";
+
+/// The Speed boost helper for a model: its own speed-up head when it ships
+/// one (more accurate, smaller), else a small model from the same family.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Helper {
+    pub kind: HelperKind,
+    /// Download key.
+    pub key: String,
+    pub name: String,
+    pub repo: String,
+    pub variant: Variant,
+}
+
+impl Helper {
+    pub fn path(&self, models_dir: &Path) -> PathBuf {
+        entry_path(models_dir, &self.variant)
+    }
+
+    pub fn installed(&self, models_dir: &Path) -> bool {
+        is_installed(models_dir, &self.variant)
+    }
+}
+
+fn head_variant(h: &SpeedHead) -> Variant {
+    Variant { quant: HEAD_QUANT.into(), bits: 8.0, size_bytes: h.file.size, files: vec![h.file.clone()] }
+}
+
+pub fn helper_for(catalog: &Catalog, model: &CatalogModel, models_dir: &Path) -> Option<Helper> {
+    if let Some(h) = &model.speed_head {
+        let name = match h.kind {
+            HelperKind::Mtp => "built-in multi-token head",
+            HelperKind::Eagle3 => "EAGLE-3 head",
+            HelperKind::Dspark => "DSpark head",
+            HelperKind::Draft => "helper",
+        };
+        return Some(Helper {
+            kind: h.kind,
+            key: format!("{}:{HEAD_QUANT}", model.id),
+            name: format!("{}'s {name}", model.name),
+            repo: model.repo.clone(),
+            variant: head_variant(h),
+        });
+    }
+    let d = drafter_for(catalog, model)?;
+    let (v, _) = drafter_variant(d, models_dir);
+    Some(Helper { kind: HelperKind::Draft, key: key(d, v), name: d.name.clone(), repo: d.repo.clone(), variant: v.clone() })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -133,13 +304,32 @@ impl Catalog {
             if m.variants.is_empty() || m.variants.iter().any(|v| v.files.is_empty()) {
                 return Err(AppError::msg(format!("catalog entry {} has no files", m.id)));
             }
-            for f in m.variants.iter().flat_map(|v| &v.files) {
+            let extras = m.speed_head.as_ref().map(|h| &h.file).into_iter().chain(m.vision.as_ref().map(|v| &v.file));
+            for f in m.variants.iter().flat_map(|v| &v.files).chain(extras) {
                 if f.sha256.len() != 64 || f.name.contains("..") || f.name.starts_with('/') {
                     return Err(AppError::msg(format!("catalog entry {} has an invalid file", m.id)));
                 }
             }
         }
         Ok(())
+    }
+
+    /// What to download for a key: a model version, or a model's speed-up
+    /// head (`"<id>:speed-head"`), or its image adapter (`"<id>:vision"`).
+    /// Returns (repo, files, canonical key).
+    pub fn download_target(&self, key: &str) -> AppResult<(String, Variant, String)> {
+        if let Some(id) = key.strip_suffix(&format!(":{HEAD_QUANT}")) {
+            let model = self.model(id).ok_or_else(|| AppError::msg(format!("unknown model '{id}'")))?;
+            let head = model.speed_head.as_ref().ok_or_else(|| AppError::msg(format!("{} has no speed-up head", model.name)))?;
+            return Ok((model.repo.clone(), head_variant(head), key.to_string()));
+        }
+        if let Some(id) = key.strip_suffix(&format!(":{VISION_QUANT}")) {
+            let model = self.model(id).ok_or_else(|| AppError::msg(format!("unknown model '{id}'")))?;
+            let v = model.vision.as_ref().ok_or_else(|| AppError::msg(format!("{} can't see images", model.name)))?;
+            return Ok((model.repo.clone(), vision_variant(v), key.to_string()));
+        }
+        let (model, variant) = self.resolve(key)?;
+        Ok((model.repo.clone(), variant.clone(), self::key(model, variant)))
     }
 
     pub fn model(&self, id: &str) -> Option<&CatalogModel> {
@@ -169,7 +359,11 @@ pub fn key(model: &CatalogModel, variant: &Variant) -> String {
 
 /// Holds the current catalog; replaced when a newer one is fetched.
 pub struct CatalogStore {
+    /// The embedded or fetched catalog.
+    base: RwLock<Arc<Catalog>>,
+    /// `base` plus the models the user added (lab.rs); what `get` returns.
     current: RwLock<Arc<Catalog>>,
+    added: RwLock<Vec<CatalogModel>>,
     cache_file: PathBuf,
 }
 
@@ -182,7 +376,28 @@ impl CatalogStore {
             Some(c) if c.generated > embedded.generated => c,
             _ => embedded,
         };
-        CatalogStore { current: RwLock::new(Arc::new(best)), cache_file }
+        let best = Arc::new(best);
+        CatalogStore { base: RwLock::new(best.clone()), current: RwLock::new(best), added: RwLock::new(Vec::new()), cache_file }
+    }
+
+    /// Sets the models the user added (model lab) and rebuilds the merged list.
+    pub fn set_added(&self, models: Vec<CatalogModel>) {
+        *self.added.write().expect("catalog lock") = models;
+        self.rebuild();
+    }
+
+    fn rebuild(&self) {
+        let base = self.base.read().expect("catalog lock").clone();
+        let added = self.added.read().expect("catalog lock").clone();
+        let merged = if added.is_empty() {
+            base
+        } else {
+            let mut c = (*base).clone();
+            c.models.retain(|m| !added.iter().any(|a| a.id == m.id));
+            c.models.extend(added);
+            Arc::new(c)
+        };
+        *self.current.write().expect("catalog lock") = merged;
     }
 
     pub fn get(&self) -> Arc<Catalog> {
@@ -193,11 +408,12 @@ impl CatalogStore {
     pub async fn refresh(&self, client: &reqwest::Client, url: &str) -> AppResult<bool> {
         let text = client.get(url).timeout(Duration::from_secs(15)).send().await?.error_for_status()?.text().await?;
         let fresh = Catalog::parse(&text)?;
-        if fresh.generated <= self.get().generated {
+        if fresh.generated <= self.base.read().expect("catalog lock").generated {
             return Ok(false);
         }
         let _ = std::fs::write(&self.cache_file, &text);
-        *self.current.write().expect("catalog lock") = Arc::new(fresh);
+        *self.base.write().expect("catalog lock") = Arc::new(fresh);
+        self.rebuild();
         Ok(true)
     }
 }
@@ -256,7 +472,33 @@ pub fn delete(models_dir: &Path, v: &Variant) -> AppResult<()> {
 // ---------- fit & recommendations ----------
 
 pub fn plan(model: &CatalogModel, v: &Variant, info: &SystemInfo, desired_ctx: u32) -> FitPlan {
-    system::plan_fit(v.size_bytes, model.arch, desired_ctx, info.total_ram_bytes, info.gpu_budget_bytes)
+    let p = system::plan_fit(v.size_bytes, model.arch, desired_ctx, info.total_ram_bytes, info.gpu_budget_bytes);
+    if p.fit != Fit::TooBig {
+        return p;
+    }
+    system::plan_offload(v.size_bytes, model.arch, desired_ctx, info.total_ram_bytes, info.gpu_budget_bytes, expert_share(model)).unwrap_or(p)
+}
+
+/// Speed factor when part of the model runs on the CPU: expert layers cost
+/// little (few experts per token), dense layers on the CPU cost more.
+pub fn offload_slowdown(model: &CatalogModel, p: &FitPlan) -> f64 {
+    let layers = model.arch.n_layer.max(1) as f64;
+    if p.cpu_moe_layers > 0 {
+        1.0 / (1.0 + 0.8 * p.cpu_moe_layers as f64 / layers)
+    } else if let Some(on) = p.gpu_layers {
+        1.0 / (1.0 + 2.0 * (layers - on as f64).max(0.0) / layers)
+    } else {
+        1.0
+    }
+}
+
+/// Rough share of a mixture-of-experts model's weights that are experts
+/// (everything not used by every token). 0 for dense models.
+pub fn expert_share(model: &CatalogModel) -> f64 {
+    match (model.params_b, model.active_b) {
+        (Some(t), Some(a)) if t > 0.0 && a > 0.0 && a < t => (1.0 - a as f64 / t as f64).clamp(0.0, 0.95),
+        _ => 0.0,
+    }
 }
 
 /// Quality after quantization: very low-bit versions lose accuracy.
@@ -273,42 +515,170 @@ pub fn effective_quality(model: &CatalogModel, v: &Variant) -> i32 {
     model.quality as i32 - penalty
 }
 
-/// Quality adjusted for speed on this Mac: answers slower than ~8 tokens/sec
-/// feel sluggish, so very slow versions rank lower.
+/// Quality adjusted for speed on this Mac: answers slower than a target feel
+/// sluggish, so slower versions rank lower. The target depends on what the
+/// user prefers: ~8 tokens/sec by default, 22 for "faster", 5 for "smarter".
 pub fn score(model: &CatalogModel, v: &Variant, info: &SystemInfo) -> i32 {
-    let tps = crate::chip::estimate(&info.chip_info, v.size_bytes, model.params_b, model.active_b).tokens_per_sec;
-    let penalty = if tps >= 8.0 { 0.0 } else { ((8.0 - tps) * 2.5).min(20.0) };
+    use crate::settings::SpeedPref;
+    let tps = expected_tps(model, v, info);
+    let (target, per_token, cap) = match info.speed_pref {
+        SpeedPref::Speed => (22.0, 3.0, 40.0),
+        SpeedPref::Balanced => (8.0, 2.5, 20.0),
+        SpeedPref::Quality => (5.0, 2.0, 12.0),
+    };
+    let penalty = if tps >= target { 0.0 } else { ((target - tps) * per_token).min(cap) };
     effective_quality(model, v) - penalty.round() as i32
 }
 
-/// The best version of `model` for this Mac: highest quality that fits
-/// comfortably, else highest that fits at all. Ties go to the smaller file
-/// (faster, same quality).
+/// Writing speed to plan with: measured by tuning on this Mac when available,
+/// else estimated from the chip (a bit higher when Speed boost has a helper
+/// for this model; measured boosts were 1.3–2× on code and lists).
+pub fn expected_tps(model: &CatalogModel, v: &Variant, info: &SystemInfo) -> f64 {
+    if let Some(&m) = info.measured.get(&key(model, v)) {
+        return m;
+    }
+    let raw = |v: &Variant| crate::chip::estimate(&info.chip_info, v.size_bytes, model.params_b, model.active_b).tokens_per_sec;
+    // Another version of this model was measured: scale by how far off the
+    // estimate was for it (same architecture, same Mac).
+    if let Some((other, m)) = model.variants.iter().find_map(|o| info.measured.get(&key(model, o)).map(|m| (o, *m))) {
+        return raw(v) * m / raw(other).max(0.1);
+    }
+    let est = raw(v) * info.calibration.unwrap_or(1.0);
+    if info.boost && has_helper(model) {
+        est * 1.3
+    } else {
+        est
+    }
+}
+
+/// Learns from tuning how far this Mac's real speed is from the estimates
+/// (thermals, other apps, the engine build) and applies it to every model.
+pub fn calibrate(mut info: SystemInfo, catalog: &Catalog) -> SystemInfo {
+    let mut ratios: Vec<f64> = info
+        .measured
+        .iter()
+        .filter_map(|(k, m)| {
+            let (model, v) = catalog.resolve(k).ok()?;
+            let est = crate::chip::estimate(&info.chip_info, v.size_bytes, model.params_b, model.active_b).tokens_per_sec;
+            (est > 0.0).then(|| m / est)
+        })
+        .collect();
+    ratios.sort_by(f64::total_cmp);
+    info.calibration = ratios.get(ratios.len() / 2).map(|r| r.clamp(0.2, 3.0));
+    info
+}
+
+/// Whether Speed boost has a helper for `model` (its own head or a family drafter).
+pub fn has_helper(model: &CatalogModel) -> bool {
+    model.speed_head.is_some() || (drafter_id(model).is_some() && model.params_b.unwrap_or(0.0) >= 3.2)
+}
+
+fn drafter_id(model: &CatalogModel) -> Option<&'static str> {
+    let m = model.id.as_str();
+    let starts = |p: &[&str]| p.iter().any(|x| m.starts_with(x));
+    if starts(&["qwen3.5", "qwen3.6", "qwen3.8-27b", "qwen-agentworld"]) {
+        Some("qwen3.5-0.8b")
+    } else if starts(&["qwen3-"]) {
+        Some("qwen3-0.6b")
+    } else if starts(&["gemma-3-"]) {
+        Some("gemma-3-270m")
+    } else if starts(&["llama-3", "meta-llama-3", "hermes-3-llama-3"]) {
+        Some("llama-3.2-1b")
+    } else {
+        None
+    }
+}
+
+/// A small model from the same family that can draft tokens for `model`
+/// (speculative decoding). It must share the tokenizer and be at most a
+/// quarter of the size, or it wouldn't save time.
+pub fn drafter_for<'a>(catalog: &'a Catalog, model: &CatalogModel) -> Option<&'a CatalogModel> {
+    let d = catalog.model(drafter_id(model)?)?;
+    let big = model.params_b.unwrap_or(0.0);
+    let small = d.params_b.unwrap_or(f32::MAX);
+    (d.id != model.id && small * 4.0 <= big).then_some(d)
+}
+
+/// The drafter version to use: the best one already downloaded, else the
+/// one to offer (Q8_0 is most accurate; drafters are tiny either way).
+pub fn drafter_variant<'a>(d: &'a CatalogModel, models_dir: &Path) -> (&'a Variant, bool) {
+    let rank = |v: &Variant| match v.quant.as_str() {
+        "Q8_0" => 0,
+        "Q4_K_M" => 1,
+        _ => 2,
+    };
+    let mut vs: Vec<&Variant> = d.variants.iter().collect();
+    vs.sort_by_key(|v| rank(v));
+    match vs.iter().find(|v| is_installed(models_dir, v)) {
+        Some(v) => (v, true),
+        None => (vs[0], false),
+    }
+}
+
+/// Orders two choices of equal score: the faster one, then the smaller file.
+fn faster(a: (&CatalogModel, &Variant), b: (&CatalogModel, &Variant), info: &SystemInfo) -> std::cmp::Ordering {
+    expected_tps(a.0, a.1, info)
+        .total_cmp(&expected_tps(b.0, b.1, info))
+        .then(b.1.size_bytes.cmp(&a.1.size_bytes))
+}
+
+/// The best version of `model` for this Mac: highest score that fits
+/// comfortably, else highest that fits at all. Ties go to the faster one.
 pub fn best_variant<'a>(model: &'a CatalogModel, info: &SystemInfo, ctx: u32) -> Option<&'a Variant> {
     let pick = |want: Fit| {
         model
             .variants
             .iter()
-            .filter(|v| plan(model, v, info, ctx).fit == want)
-            .max_by(|a, b| score(model, a, info).cmp(&score(model, b, info)).then(b.size_bytes.cmp(&a.size_bytes)))
+            // Stretch mode (dense layers on the CPU) is never suggested; people can still pick it.
+            .filter(|v| {
+                let p = plan(model, v, info, ctx);
+                p.fit == want && p.gpu_layers.is_none()
+            })
+            .max_by(|a, b| score(model, a, info).cmp(&score(model, b, info)).then(faster((model, a), (model, b), info)))
     };
     pick(Fit::Great).or_else(|| pick(Fit::Tight))
 }
 
+/// How far below the most capable choice a recommendation may be for the
+/// sake of speed, unless the user asked for faster answers.
+const QUALITY_FLOOR: i32 = 8;
+
 /// The recommended chat model + version for this Mac.
 pub fn recommend<'a>(catalog: &'a Catalog, info: &SystemInfo, ctx: u32) -> Option<(&'a CatalogModel, &'a Variant)> {
-    catalog
+    let comfy = |m: &CatalogModel, v: &Variant| plan(m, v, info, ctx).fit == Fit::Great;
+    // Community fine-tunes are there for people who go looking; BYTE never picks one for them.
+    let options: Vec<(&CatalogModel, &Variant)> = catalog
         .models
         .iter()
-        .filter(|m| m.role == Role::Chat)
+        .filter(|m| m.role == Role::Chat && !m.is_community() && !m.tags.iter().any(|t| t == "added"))
         .filter_map(|m| best_variant(m, info, ctx).map(|v| (m, v)))
-        .max_by(|(ma, va), (mb, vb)| {
-            let comfy = |m: &CatalogModel, v: &Variant| plan(m, v, info, ctx).fit == Fit::Great;
+        .collect();
+    // Accuracy first: never trade more than a few quality points for speed
+    // unless the user chose "Faster".
+    let top = options.iter().filter(|(m, v)| comfy(m, v)).map(|(m, v)| effective_quality(m, v)).max();
+    let floor = match (info.speed_pref, top) {
+        (crate::settings::SpeedPref::Speed, _) | (_, None) => i32::MIN,
+        (_, Some(t)) => t - QUALITY_FLOOR,
+    };
+    options
+        .into_iter()
+        .filter(|(m, v)| !comfy(m, v) || effective_quality(m, v) >= floor)
+        .max_by(|&(ma, va), &(mb, vb)| {
             comfy(ma, va)
                 .cmp(&comfy(mb, vb))
                 .then(score(ma, va, info).cmp(&score(mb, vb, info)))
-                .then(vb.size_bytes.cmp(&va.size_bytes))
+                .then(faster((ma, va), (mb, vb), info))
         })
+}
+
+/// A clearly better model this Mac runs comfortably, when the one in use is small:
+/// the recommended model if it's at least twice the size (for the "a better model
+/// fits" hint). `None` for big models, unknown ones, or when nothing better fits.
+pub fn better_model<'a>(catalog: &'a Catalog, info: &SystemInfo, ctx: u32, current: &str) -> Option<&'a CatalogModel> {
+    let (m, _) = catalog.resolve(current).ok()?;
+    let now = m.params_b.filter(|b| *b <= crate::quality::SMALL_B)?;
+    let (best, v) = recommend(catalog, info, ctx)?;
+    (best.id != m.id && best.params_b.is_some_and(|b| b >= now * 2.0) && plan(best, v, info, ctx).fit == Fit::Great).then_some(best)
 }
 
 // ---------- status for the UI ----------
@@ -329,6 +699,8 @@ pub struct VariantStatus {
     pub min_ram_gb: u32,
     /// Expected speed on this Mac's chip.
     pub speed: crate::chip::SpeedEstimate,
+    /// Writing speed measured on this Mac by tuning (tokens/sec).
+    pub measured_tps: Option<f64>,
     /// Fits in the memory left next to the models already running.
     pub fits_alongside: bool,
 }
@@ -358,6 +730,19 @@ pub struct ModelStatus {
     pub best: Option<String>,
     /// Smallest Mac memory size that can run any version.
     pub min_ram_gb: u32,
+    pub details: Option<ModelDetails>,
+    /// The model can see photos once its image adapter is downloaded.
+    pub vision: Option<VisionStatus>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VisionStatus {
+    /// Download key (`"<id>:vision"`).
+    pub key: String,
+    pub size_bytes: u64,
+    pub installed: bool,
+    pub downloading: bool,
 }
 
 pub struct ListContext<'a> {
@@ -384,6 +769,7 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
                     let k = key(m, v);
                     let alongside = plan(m, v, &lc.info.clone().minus(lc.loaded_bytes), crate::engine::EXTRA_CONTEXT);
                     VariantStatus {
+                        measured_tps: lc.info.measured.get(&k).copied(),
                         fits_alongside: lc.loaded_bytes > 0 && alongside.fit != system::Fit::TooBig,
                         downloading: lc.downloading.contains(&k),
                         partial_bytes: if installed { 0 } else { bytes_on_disk(lc.models_dir, v) },
@@ -394,7 +780,14 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
                         installed,
                         quality: effective_quality(m, v),
                         min_ram_gb: system::ram_tier_gb(min_plan.needed_bytes),
-                        speed: crate::chip::estimate(&lc.info.chip_info, v.size_bytes, m.params_b, m.active_b),
+                        speed: {
+                            let mut e = crate::chip::estimate(&lc.info.chip_info, v.size_bytes, m.params_b, m.active_b);
+                            let f = offload_slowdown(m, &fit);
+                            e.tokens_per_sec *= f;
+                            e.reply_secs /= f;
+                            e.reply_thinking_secs /= f;
+                            e
+                        },
                         fit,
                     }
                 })
@@ -419,6 +812,16 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
                 active_b: m.active_b,
                 used_for: m.used_for.clone(),
                 max_context: m.arch.max_ctx,
+                details: m.details.clone(),
+                vision: m.vision.as_ref().map(|v| {
+                    let key = format!("{}:{VISION_QUANT}", m.id);
+                    VisionStatus {
+                        installed: vision_path(lc.models_dir, m).is_some(),
+                        downloading: lc.downloading.contains(&key),
+                        size_bytes: v.file.size,
+                        key,
+                    }
+                }),
                 variants,
             }
         })
@@ -460,7 +863,13 @@ impl Downloads {
 
     /// Starts downloading every file of a variant in the background. Progress
     /// arrives as `models://download` events keyed by the model key.
-    pub async fn start(
+    pub async fn start(&self, app: AppHandle, client: reqwest::Client, models_dir: PathBuf, repo: String, variant: Variant, key: String) -> AppResult<()> {
+        self.start_from(app, client, models_dir, repo, variant, key, hf_url).await
+    }
+
+    /// Like `start`, with the address of each file from `url_for(repo, file)` (files not on Hugging Face).
+    #[allow(clippy::too_many_arguments)]
+    pub async fn start_from(
         &self,
         app: AppHandle,
         client: reqwest::Client,
@@ -468,7 +877,9 @@ impl Downloads {
         repo: String,
         variant: Variant,
         key: String,
+        url_for: fn(&str, &str) -> String,
     ) -> AppResult<()> {
+        crate::offline::guard()?;
         let token = CancellationToken::new();
         {
             let mut active = self.active.lock().await;
@@ -482,7 +893,7 @@ impl Downloads {
             let emit = |ev: DownloadEvent| {
                 let _ = app.emit(DOWNLOAD_EVENT, ev);
             };
-            let result = download_variant(&client, &models_dir, &repo, &variant, &key, &token, &emit, &hf_url).await;
+            let result = download_variant(&client, &models_dir, &repo, &variant, &key, &token, &emit, &url_for).await;
             active.lock().await.remove(&key);
             match result {
                 Ok(()) => emit(DownloadEvent::Finished { id: key }),
@@ -703,14 +1114,23 @@ mod tests {
             cpu_cores: 10,
             apple_silicon: true,
             chip_info: crate::chip::identify("Apple M4", Some(10)),
+            speed_pref: Default::default(),
+            boost: false,
+            measured: Default::default(),
+            calibration: None,
         }
     }
 
     #[test]
     fn embedded_catalog_is_valid_and_small() {
         let c = Catalog::embedded();
-        assert!(c.models.iter().filter(|m| m.role == Role::Chat).count() >= 150, "catalog should offer 150+ chat models");
-        assert!(EMBEDDED_CATALOG.len() < 1024 * 1024, "catalog should stay small (models download separately)");
+        let chat: Vec<_> = c.models.iter().filter(|m| m.role == Role::Chat).collect();
+        assert!(chat.len() >= 600, "catalog should offer 600+ chat models");
+        assert!(EMBEDDED_CATALOG.len() < 2 * 1024 * 1024, "catalog should stay small (models download separately)");
+        // Every chat model has details for its dropdown, most with a description from its card.
+        assert!(chat.iter().all(|m| m.details.as_ref().is_some_and(|d| !d.about.is_empty() && d.strengths.len() == 7)));
+        assert!(chat.iter().filter(|m| m.details.as_ref().is_some_and(|d| d.author.is_some())).count() * 10 >= chat.len() * 8);
+        assert!(chat.iter().filter(|m| m.is_community()).count() >= 50, "community fine-tunes are listed");
         assert!(c.models.iter().filter(|m| m.active_b.is_some()).count() >= 20, "catalog should include MoE models");
         assert!(c.models.iter().any(|m| m.role == Role::Draft));
         assert!(c.models.iter().any(|m| m.role == Role::Embed));
@@ -742,6 +1162,12 @@ mod tests {
     fn recommendations_scale_with_memory() {
         let c = Catalog::embedded();
         let pick = |gb| recommend(&c, &mac(gb), 16384).map(|(m, v)| format!("{}:{}", m.id, v.quant));
+        // A 16 GB Mac running a 0.6B model is told about a much better one; one running the recommended model isn't.
+        let small = c.models.iter().find(|m| m.id == "qwen3-0.6b").map(|m| key(m, &m.variants[0])).unwrap();
+        let better = better_model(&c, &mac(16), 16384, &small).expect("a better model fits 16 GB");
+        assert!(better.params_b.unwrap() >= 1.2);
+        let rec = recommend(&c, &mac(16), 16384).map(|(m, v)| key(m, v)).unwrap();
+        assert!(better_model(&c, &mac(16), 16384, &rec).is_none());
         let r8 = pick(8).unwrap();
         let r16 = pick(16).unwrap();
         let r32 = pick(32).unwrap();
@@ -799,6 +1225,165 @@ mod tests {
         let nine = 8_500_000_000;
         assert!(status(nine, "qwen3.5-0.8b", "Q8_0"));
         assert!(!status(nine, "qwen3.5-9b", "Q6_K"));
+    }
+
+    #[test]
+    fn drafters_come_from_the_same_family_and_are_small() {
+        let c = Catalog::embedded();
+        let d = |id: &str| drafter_for(&c, c.model(id).unwrap()).map(|m| m.id.clone());
+        assert_eq!(d("qwen3.5-9b").as_deref(), Some("qwen3.5-0.8b"));
+        assert_eq!(d("qwen3.8-27b").as_deref(), Some("qwen3.5-0.8b"));
+        assert_eq!(d("gemma-3-27b").as_deref(), Some("gemma-3-270m"));
+        assert_eq!(d("llama-3.1-8b").as_deref(), Some("llama-3.2-1b"));
+        // Too close in size to help, or no same-family helper.
+        assert_eq!(d("qwen3.5-2b"), None);
+        assert_eq!(d("qwen3.5-0.8b"), None);
+        assert_eq!(d("gpt-oss-20b"), None);
+        let dir = tempfile::tempdir().unwrap();
+        let (v, installed) = drafter_variant(c.model("qwen3.5-0.8b").unwrap(), dir.path());
+        assert_eq!((v.quant.as_str(), installed), ("Q8_0", false));
+    }
+
+    #[test]
+    fn preference_changes_the_pick_on_a_16gb_m4() {
+        use crate::settings::SpeedPref;
+        let c = Catalog::embedded();
+        let pick = |pref| recommend(&c, &mac(16).with_pref(pref), 16384).map(|(m, v)| format!("{}:{}", m.id, v.quant)).unwrap();
+        let balanced = pick(SpeedPref::Balanced);
+        let fast = pick(SpeedPref::Speed);
+        let smart = pick(SpeedPref::Quality);
+        let speed = |k: &str| {
+            let (m, v) = c.resolve(k).unwrap();
+            crate::chip::estimate(&mac(16).chip_info, v.size_bytes, m.params_b, m.active_b).tokens_per_sec
+        };
+        eprintln!("balanced {balanced} ({:.0} tok/s), fast {fast} ({:.0}), smart {smart} ({:.0})", speed(&balanced), speed(&fast), speed(&smart));
+        assert!(speed(&fast) > speed(&balanced) * 1.3, "faster pick should be clearly faster");
+        let q = |k: &str| {
+            let (m, v) = c.resolve(k).unwrap();
+            effective_quality(m, v)
+        };
+        assert!(q(&smart) >= q(&balanced));
+    }
+
+    #[test]
+    fn measured_speed_beats_the_estimate() {
+        let c = Catalog::embedded();
+        let pick = |info: &SystemInfo| recommend(&c, info, 16384).map(|(m, v)| key(m, v)).unwrap();
+        assert_eq!(pick(&mac(16)), "qwen3.5-9b:Q6_K");
+        // Tuning found the 6-bit version slow on this Mac: the 4-bit one wins.
+        let mut slow = mac(16);
+        slow.measured.insert("qwen3.5-9b:Q6_K".into(), 6.5);
+        let slow = calibrate(slow, &c);
+        assert!(slow.calibration.is_some_and(|r| r < 0.6));
+        assert_eq!(pick(&slow), "qwen3.5-9b:Q4_K_M");
+        // Estimates for other models are corrected by the same factor.
+        let (m, v) = c.resolve("qwen3.5-4b:Q6_K").unwrap();
+        assert!(expected_tps(m, v, &slow) < expected_tps(m, v, &mac(16)) * 0.6);
+        // Speed boost raises estimates only for models that have a helper.
+        let mut boosted = mac(16);
+        boosted.boost = true;
+        let (m, v) = c.resolve("qwen3.5-9b:Q6_K").unwrap();
+        assert!(expected_tps(m, v, &boosted) > expected_tps(m, v, &mac(16)));
+        let (m, _) = c.resolve("gpt-oss-20b:MXFP4").unwrap();
+        assert!(has_helper(m), "gpt-oss ships an EAGLE-3 head");
+    }
+
+    #[test]
+    fn equal_quality_goes_to_the_faster_model() {
+        let c = Catalog::embedded();
+        let mut big = mac(128);
+        big.chip_info = crate::chip::identify("Apple M4 Max", Some(40));
+        let (m, v) = recommend(&c, &big, 16384).unwrap();
+        let best_q = c
+            .models
+            .iter()
+            .filter(|m| m.role == Role::Chat)
+            .filter_map(|m| best_variant(m, &big, 16384).map(|v| effective_quality(m, v)))
+            .max()
+            .unwrap();
+        assert!(effective_quality(m, v) >= best_q - QUALITY_FLOOR);
+        assert!(expected_tps(m, v, &big) > 50.0, "{} is too slow", key(m, v));
+    }
+
+    #[test]
+    fn image_adapters_download_into_their_own_folder() {
+        let c = Catalog::embedded();
+        let m = c.models.iter().find(|m| m.vision.is_some()).expect("a model that sees images");
+        let key = format!("{}:{VISION_QUANT}", m.id);
+        let (repo, v, k) = c.download_target(&key).unwrap();
+        assert_eq!((repo.as_str(), k.as_str()), (m.repo.as_str(), key.as_str()));
+        assert!(v.files[0].name.to_lowercase().contains("mmproj"));
+        let root = Path::new("/models");
+        assert_eq!(download_dir(root, &key), root.join("vision").join(m.id.replace(['/', '\\', '.'], "_")));
+        assert_eq!(download_dir(root, "qwen3-14b:Q4_K_M"), root);
+        // Not downloaded yet.
+        assert!(vision_path(Path::new("/nowhere"), m).is_none());
+        let no = c.models.iter().find(|m| m.vision.is_none() && m.role == Role::Chat).unwrap();
+        assert!(c.download_target(&format!("{}:{VISION_QUANT}", no.id)).is_err());
+        assert!(c.models.iter().filter(|m| m.vision.is_some()).count() >= 50);
+    }
+
+    #[test]
+    fn speed_heads_download_by_key() {
+        let c = Catalog::embedded();
+        let (repo, v, k) = c.download_target("gemma-4-12b:speed-head").unwrap();
+        assert_eq!((repo.as_str(), k.as_str()), ("unsloth/gemma-4-12b-it-GGUF", "gemma-4-12b:speed-head"));
+        assert!(v.files[0].name.starts_with("mtp-") && v.size_bytes < 1_000_000_000);
+        assert!(c.download_target("qwen3.5-9b:speed-head").is_err());
+        assert_eq!(c.download_target("qwen3.5-9b:Q6_K").unwrap().2, "qwen3.5-9b:Q6_K");
+        let dir = tempfile::tempdir().unwrap();
+        let h = helper_for(&c, c.model("gemma-4-12b").unwrap(), dir.path()).unwrap();
+        assert_eq!((h.kind, h.key.as_str()), (HelperKind::Mtp, "gemma-4-12b:speed-head"));
+        assert!(!h.installed(dir.path()));
+        // Without a head, the family drafter is used.
+        assert_eq!(helper_for(&c, c.model("qwen3.5-9b").unwrap(), dir.path()).unwrap().kind, HelperKind::Draft);
+    }
+
+    #[test]
+    fn big_moe_models_run_partly_on_the_cpu() {
+        let c = Catalog::embedded();
+        let m16 = mac(16);
+        // gpt-oss 20B (12.1 GB) is over a 16 GB Mac's GPU share but fits in RAM:
+        // a few expert layers go to the CPU.
+        let (m, v) = c.resolve("gpt-oss-20b:MXFP4").unwrap();
+        let p = plan(m, v, &m16, 16384);
+        assert_eq!(p.fit, Fit::Tight);
+        assert!(p.cpu_moe_layers > 0 && p.cpu_moe_layers < m.arch.n_layer / 2 && p.gpu_layers.is_none(), "{p:?}");
+        assert!(offload_slowdown(m, &p) > 0.6, "{p:?} {}", offload_slowdown(m, &p));
+        // Dense models slightly too big run in stretch mode but are never recommended.
+        let stretched: Vec<_> = c
+            .models
+            .iter()
+            .flat_map(|m| m.variants.iter().map(move |v| (m, v)))
+            .filter(|(m, v)| plan(m, v, &m16, 16384).gpu_layers.is_some_and(|n| n < m.arch.n_layer))
+            .collect();
+        assert!(!stretched.is_empty());
+        for (m, v) in stretched {
+            assert_ne!(best_variant(m, &m16, 16384).map(|b| b.quant.as_str()), Some(v.quant.as_str()), "{}", m.id);
+        }
+        // Honest about memory: macOS needs its share too (these got killed while loading on a 16 GB Mac).
+        for k in ["qwen3.6-35b-a3b:UD-IQ3_XXS", "qwen3.8-27b:UD-IQ3_XXS"] {
+            let (m, v) = c.resolve(k).unwrap();
+            assert_eq!(plan(m, v, &m16, 16384).fit, Fit::TooBig, "{k}");
+        }
+        let (m, v) = c.resolve("qwen3.6-35b-a3b:UD-IQ2_M").unwrap();
+        let p = plan(m, v, &m16, 16384);
+        assert!(p.fit == Fit::Tight && p.cpu_moe_layers > 0, "{p:?}");
+        assert!(!recommend(&c, &m16, 16384).map(|(m, v)| plan(m, v, &m16, 16384).offloaded()).unwrap());
+        // Far too big stays too big.
+        let (m, v) = c.resolve("qwen3.8-27b:Q8_0").unwrap();
+        assert_eq!(plan(m, v, &m16, 16384).fit, Fit::TooBig);
+    }
+
+    #[test]
+    fn community_models_are_never_recommended() {
+        let mut c = Catalog::embedded();
+        let best = recommend(&c, &mac(16), 16384).map(|(m, _)| m.id.clone()).unwrap();
+        // Make the recommended model a community one: something else must be picked.
+        c.models.iter_mut().find(|m| m.id == best).unwrap().tags.push("community".into());
+        let now = recommend(&c, &mac(16), 16384).map(|(m, _)| m.id.clone()).unwrap();
+        assert_ne!(now, best);
+        assert!(!c.models.iter().find(|m| m.id == now).unwrap().is_community());
     }
 
     #[test]
@@ -979,6 +1564,10 @@ fn dump_models_for_ui() {
         os_version: "macOS 15".into(),
         cpu_cores: 10,
         apple_silicon: true,
+        speed_pref: Default::default(),
+        boost: false,
+        measured: Default::default(),
+        calibration: None,
         chip_info: crate::chip::identify(
             &std::env::var("BYTE_DUMP_CHIP").unwrap_or_else(|_| {
                 match gb {

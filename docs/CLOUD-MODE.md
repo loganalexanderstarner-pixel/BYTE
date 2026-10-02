@@ -6,6 +6,9 @@ VPN, so the app works anywhere.
 
 **Target is parity with the byte-ai web app**, not just chat.
 
+What the app would like the cluster to add next (and the security rules for
+writing about it in this public repo) is in `docs/CLUSTER-REQUESTS.md`.
+
 Base URL: `https://byteai.bytebylogan.xyz`
 
 ---
@@ -17,7 +20,7 @@ Base URL: `https://byteai.bytebylogan.xyz`
 A key authenticates **as its owner** and inherits that account's tier limits
 and quota — it is a way in without a browser, not a way around limits.
 
-Users create one at byteai.bytebylogan.xyz → ⚙ Settings → API keys. It is
+Users make an account at byteai.bytebylogan.xyz (invite link), then open ⚙ Settings and scroll to the bottom for the key. It is
 shown once; only a SHA-256 hash is stored, so it cannot be displayed again.
 
 **Validate the moment it is pasted:** `GET /api/auth/me` → 200 with tier,
@@ -147,6 +150,32 @@ Users can build on their own uploaded .pptx/.docx. Offer the picker at the
 approval step, with "built-in designs" as the default.
 
 ---
+
+## Web search
+
+    GET /api/search?q=<query>&count=5        (&images=1 for image results)
+    Authorization: Bearer <the byte_ key>
+    -> { "engine": "searxng" | "ddgs" | "none",
+         "results": [ { "title": ..., "body": ..., "href": ... }, ... ] }
+
+SearXNG on the cluster (Google, Bing, DuckDuckGo and Brave merged); the server
+falls back to `ddgs` (plain DuckDuckGo) only when SearXNG returns nothing. The
+SearXNG instance itself is cluster-internal and stays that way: its upstream
+engines rate-limit by the server's egress IP, so exposing it would break search
+for the cloud models too. Use this endpoint, never a SearXNG address.
+
+- **Primary source for all of BYTE's web search** when a key is saved, in every
+  workspace (the local model's searches too). The keyless chain on the Mac
+  (DuckDuckGo → Bing with a junk filter, plus Wikipedia) is the fallback.
+- `engine: "ddgs"` is the same DuckDuckGo the Mac scrapes: filter it the same way.
+- **429 = rate limited (60 searches per 5 minutes per user).** Back off; never
+  retry in a loop (the limit protects the upstream engines).
+- Results are raw: apply your own relevance filtering (the server's filter is
+  tuned for conversational messages and would drop most keyword-query results).
+- No quota cost; unauthenticated → 401.
+
+In the app: `CloudClient::search`, `tools::search::cloud_search` (5-minute rest
+after a 429, 10 after a 401, 1 after a failure). Private chats don't use it.
 
 ## The rest of the web app
 

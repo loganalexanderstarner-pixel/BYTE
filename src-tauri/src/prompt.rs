@@ -34,6 +34,8 @@ If a calculator result is already in the conversation, use that exact number.",
             "\n\nYou can search and read the web with tools. Search whenever a question depends on recent events, \
 prices, schedules, versions, people, or anything that may have changed after your training; don't search for \
 timeless knowledge or casual chat. Prefer reading one or two of the best pages over guessing from snippets. \
+When search results or pages are already in the conversation, answer from them: they are newer than your \
+training, so trust them over what you remember, and don't search again for the same thing. \
 Cite facts from the web with the source numbers you were given, like [1] or [2][3], right after the sentence \
 they support. Never cite a number you weren't given, and don't add a separate list of links at the end.",
         );
@@ -57,6 +59,15 @@ out of date.",
 mod tests {
     use super::*;
     use chrono::TimeZone;
+
+    #[test]
+    fn personality_adds_only_what_changed() {
+        assert_eq!(personality_section(&Personality::default()), "");
+        let p = Personality { length: 1, humor: 5, ..Default::default() };
+        let s = personality_section(&p);
+        assert!(s.contains("as brief as possible") && s.contains("playful"), "{s}");
+        assert_eq!(s.matches("\n- ").count(), 2);
+    }
 
     #[test]
     fn includes_date_and_mode() {
@@ -124,6 +135,11 @@ mod memory_tests {
     use super::*;
 
     #[test]
+    fn mac_control_points_to_direct_requests() {
+        assert!(MAC_CONTROL.contains("text Mom") && MAC_CONTROL.contains("Never say you can't text"));
+    }
+
+    #[test]
     fn memory_section_lists_facts_within_budget() {
         let s = memory_section(Some("I'm a nurse in Denver."), &["Prefers metric units".into()], true);
         assert!(s.contains("In their own words: I'm a nurse in Denver."));
@@ -135,6 +151,64 @@ mod memory_tests {
     }
 }
 
+/// How BYTE talks (Settings → About → Personality). Each slider is 1–5; 3 is BYTE's normal voice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Personality {
+    pub warmth: u8,
+    pub length: u8,
+    pub humor: u8,
+    pub formality: u8,
+    pub opinions: u8,
+}
+
+impl Default for Personality {
+    fn default() -> Self {
+        Personality { warmth: 3, length: 3, humor: 3, formality: 3, opinions: 3 }
+    }
+}
+
+/// One instruction per slider that isn't at its middle; nothing at all for the default (Balanced).
+pub fn personality_section(p: &Personality) -> String {
+    let pick = |v: u8, low: [&'static str; 2], high: [&'static str; 2]| -> Option<&'static str> {
+        match v {
+            0 | 1 => Some(low[0]),
+            2 => Some(low[1]),
+            4 => Some(high[0]),
+            5.. => Some(high[1]),
+            _ => None,
+        }
+    };
+    let lines: Vec<&str> = [
+        pick(p.warmth, ["Be matter-of-fact: skip pleasantries and emotional language.", "Keep a calm, neutral tone with few pleasantries."], ["Be a little warmer and more encouraging than usual.", "Be very warm, kind and encouraging, like a supportive friend."]),
+        pick(p.length, ["Be as brief as possible: answer in one or two sentences unless the user asks for more.", "Keep answers shorter than usual; leave out background unless asked."], ["Give somewhat fuller answers, with a bit more context and an example.", "Be thorough: explain the reasoning, give examples, and cover edge cases."]),
+        pick(p.humor, ["Don't use humor or jokes.", "Keep humor rare and subtle."], ["A light touch of humor is welcome when it fits.", "Be playful and witty where it fits, without getting in the way of the answer."]),
+        pick(p.formality, ["Talk casually, like a friend: contractions, plain everyday words.", "Lean casual and conversational."], ["Lean a little more formal and polished.", "Use a formal, professional register."]),
+        pick(p.opinions, ["Stay neutral: lay out the options and let the user decide, without recommending one.", "Be cautious with recommendations; present them as options."], ["When asked, give a clear recommendation and say why.", "Be opinionated: give a clear pick and say plainly what you'd do and why."]),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    if lines.is_empty() {
+        return String::new();
+    }
+    format!("\n\nThe user chose how you talk:\n- {}", lines.join("\n- "))
+}
+
+/// When the answer will be heard rather than read: talk like a person, not a document.
+/// Added when Mac control is on (macOS): so a request the app didn't act on gets a pointer, not "I can't".
+pub const MAC_CONTROL: &str = "\n\nOn this Mac, BYTE can act in apps when the user asks directly: \
+\"text Mom I'm on my way\" opens Messages with the text filled in (the user presses Send), \
+\"email Sam about Friday\" opens a Mail draft, \"remind me to call the bank at 3pm\", \"add lunch with Sam to my calendar tomorrow at noon\", \
+\"play some music\", \"turn on dark mode\". Never say you can't text, email or remind: if a request like that reaches you \
+here, write what they asked for and tell them they can ask it directly, like \"text Mom …\", to have BYTE open it for them.";
+
+pub const SPOKEN: &str = "\n\nThis answer will be spoken aloud to the user, so answer the way a friendly person talks: \
+lead with the answer in the first sentence; short, natural sentences with contractions; a brief, genuine reaction \
+where it fits (\"Oh, nice.\", \"Hmm, good question.\", \"Ah, that's a tricky one.\"); no tables, headings, \
+code or links unless the user asked for them; at most three short steps or points, said in words (\"First… then… \
+finally…\"); keep it under about 120 words unless the user asked for more, and offer to go deeper.";
+
 /// Instructions for every chat in a project.
 pub fn project_section(name: &str, instructions: &str) -> String {
     let i = instructions.trim();
@@ -142,4 +216,5 @@ pub fn project_section(name: &str, instructions: &str) -> String {
         return format!("\n\nThis chat is part of the user's project \"{name}\".");
     }
     format!("\n\nThis chat is part of the user's project \"{name}\". Follow the project's instructions:\n{i}")
+
 }

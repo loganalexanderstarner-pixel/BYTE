@@ -24,5 +24,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // tokens.test.ts reads the theme CSS as text (?raw) to check contrast.
+    css: { include: [/tokens\.css/] },
   },
 });
