@@ -17,6 +17,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — releases check the updater key before using it
+- **Why:** the v0.12.3 release (run 37000452819) built the app, then failed: "failed to decode secret key …
+  Invalid padding". The `TAURI_SIGNING_PRIVATE_KEY` secret was damaged when copied from a terminal.
+- **What:** `scripts/updater-key.sh` (used by `release.yml`): strips spaces and line breaks, checks the key decodes
+  to a minisign secret key and that the password secret unlocks it (signs a scrap file), then passes it to the build
+  through `$GITHUB_ENV` (masked). A missing or unreadable key or a wrong password gives a warning saying what to fix,
+  and the release is built without update files instead of failing.
+- **Verify:** tested with a throwaway key: whole, wrapped, cut-off, empty, right and wrong password.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — v0.12.1 and v0.12.2 ship inside v0.12.3
 - **Why:** the v0.12.1 release failed twice at "create release" ("Resource not accessible by integration"), the
   second time with nothing pushed during the run. The pattern across v0.10.0, v0.11.2 and v0.12.1: the commit being
