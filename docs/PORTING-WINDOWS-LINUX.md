@@ -167,6 +167,30 @@ the Ryzen's integrated Radeon; CPU-only with the GPU switched off).
 7. **Keeps working when things change:** VRAM freed or taken by other apps (games), a laptop on battery, or a
    driver without CUDA. Re-plan instead of crashing, and say what changed.
 
+### Speeds per model, like the Mac
+The Mac shows, on every model card and for every version: an **estimated** writing speed and "Typical answer about
+N s" (with and without thinking) *before* download, then the **measured** speed ("21.4 tokens/sec measured on this
+Mac") once it has run. The welcome guide and recommendations use the same numbers. The PC must do the same, **per
+version and per memory mode**.
+
+- **The Mac formula** (`chip::estimate`): generation is limited by memory bandwidth, because every token reads the
+  model's active weights once. So tokens/s ≈ bandwidth × efficiency (0.8 dense, 0.6 MoE) ÷ bytes read per token
+  (file size × active ÷ total parameters). Prompt reading is limited by compute: tokens/s ≈ TFLOPS × 0.9 ÷
+  (2 × active parameters). Reply time = a typical prompt ÷ prompt speed + a typical answer ÷ writing speed.
+- **On a PC, split across devices:** time per token = (bytes on the GPU ÷ VRAM bandwidth) + (bytes on the CPU ÷
+  RAM bandwidth), each with its own efficiency. Example: the 5080's ~960 GB/s for the layers in VRAM, plus the
+  DDR5-6000 dual channel's ~90 GB/s for the rest. So a model with a third in RAM is much slower than one fully in
+  VRAM, and the cards must say so. Prompt speed comes from the GPU's compute for GPU layers and the CPU's for the
+  rest. Expert offload (MoE) reads only the active experts from RAM: count only those.
+- **Hardware numbers:** a built-in table (GPU model → bandwidth and TFLOPS, for NVIDIA, AMD and Intel), RAM
+  bandwidth from speed × channels (SMBIOS), and CPU throughput by core count and AVX level. Unknown hardware gets
+  a cautious estimate, marked "estimated".
+- **Measured beats estimated:** run `speed.rs`'s measurement after each first load and after tuning, store it per
+  **model version + memory mode + backend**, and show it on the card ("… measured on this PC"). Use measurements to
+  correct the estimates for similar models on this PC.
+- **Everywhere the Mac shows speed, the PC does too:** catalog cards, the version picker, "fits alongside", the
+  welcome guide's picks, the tuning panel, and the battery saver note on laptops.
+
 Test matrix to report: on the 5080 (CUDA, then Vulkan), the Ryzen's integrated graphics (Vulkan), and CPU-only,
 for a small, a medium and a large model (which needs the split), with measured speeds per mode.
 

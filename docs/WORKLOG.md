@@ -17,6 +17,14 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — port brief: speeds per model, like the Mac
+- **Why:** owner: the PC apps must know each model's speed like the Mac does.
+- **What:** `PORTING-WINDOWS-LINUX.md` "Speeds per model": the Mac's `chip::estimate` method, the split formula
+  for VRAM + RAM (per-device bandwidth), MoE expert offload, hardware tables for all vendors, measured speed stored
+  per version + memory mode + backend, and every place the speed must show.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — drop the "BYTE Home" idea: separate apps per OS
 - **Why:** owner: no linking the Mac and the PC for now; separate OS apps only.
 - **What:** `PORTING-WINDOWS-LINUX.md` replaces the idea with "Not in scope: linking devices"; HANDOFF §1b notes it.
