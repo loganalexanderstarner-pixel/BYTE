@@ -17,6 +17,14 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — v0.12.4 release notes and version
+- **Why:** ship the polish pass; it's the first version v0.12.3 installs through the updater.
+- **What:** `docs/releases/v0.12.4.md`, VERSIONS, CHANGELOG, PROJECT_GUIDE, HANDOFF; version 0.12.4 (bump.mjs,
+  incl. `Casks/byte.rb`).
+- **Verify:** release has `latest.json` 0.12.4 signed with key 360A24738B9BC87B; v0.12.3 → About → Install works.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — owner asks: grown-up models out of kids mode, documents marked Beta, BYTE key steps
 - **Why:** owner: keep the uncensored/"obliterated" models (they stay in the catalog) but exclude them from kids
   mode; mark file making Beta (PowerPoint needs work); explain where the BYTE key is (make an account on the

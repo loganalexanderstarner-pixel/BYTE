@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.4 — Polish for 1.0, and the first one-click update
+
+- Welcome guide (`runnable()`): 4-bit-and-up versions first, community/uncensored remixes last. 23 placeholder model
+  blurbs replaced (`discover-models.mjs` + catalogs).
+- Kids mode: `kids::grown_up_model` (community remixes, uncensored) refused per turn and when entering kids mode;
+  sidebar hides Projects and private chats.
+- 14 panels lazy-loaded (`Shell.tsx`; tab list in `settings/tabs.ts`): startup JS 985 → 695 KB.
+- Documents marked Beta (`documents/BetaTag.tsx`; PowerPoint especially). `settings/CloudKeySteps.tsx`: website link
+  and where the key is.
+- README screenshots (`docs/images/`) and limits. Releases check the updater key and password
+  (`scripts/updater-key.sh`).
+
 ## 0.12.3 — One-click updates and Homebrew
 
 - **Updates** (`updater.rs`, `tauri-plugin-updater`): the owner's minisign public key (id 360A24738B9BC87B) in
