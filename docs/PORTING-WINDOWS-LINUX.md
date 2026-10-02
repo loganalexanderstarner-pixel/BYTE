@@ -67,6 +67,72 @@ This PC is far faster than the target Mac for anything that fits in 16 GB of VRA
 - **Shell-outs to macOS tools** (`osascript`, `afconvert`, `afplay`, `say`, `pmset`, `mdfind`, `xattr` …) are mostly
   in `macctl.rs` (16), `system.rs` (11), `terminal.rs`, `upkeep.rs`, `speech.rs`, `wake.rs`, `voice.rs`.
 
+## Any hardware: every GPU vendor, and the user's choice of memory
+
+BYTE on Windows and Linux must work well on **any PC**: NVIDIA, **AMD** and **Intel** graphics (dedicated cards and
+integrated graphics), several GPUs, or no usable GPU at all. It must be **as smart about the hardware as the Mac
+app is**. Logan's 5080 is the test machine, not the target: test the other paths too (Vulkan works on the 5080 and
+the Ryzen's integrated Radeon; CPU-only with the GPU switched off).
+
+### What the Mac app already does (match all of it)
+- **Knows the hardware:** `chip.rs` identifies the exact chip and its memory bandwidth and GPU compute, so BYTE can
+  **estimate speed before a download** (generation is bound by memory bandwidth, reading the prompt by compute).
+- **Plans memory honestly:** `system.rs` works out what each model needs (weights + context cache + overhead),
+  gives every catalog version a fit (great / fits / tight / won't fit), shrinks the context when memory is tight,
+  and never offers a model that won't run (`gpu_budget`, `plan_offload`).
+- **Measures real speed:** `speed.rs` measures writing and prompt-reading speed per model on this machine; cards
+  show measured numbers once known.
+- **Tunes itself per machine and model:** `tune.rs` (quick tune the first time a model loads; thorough tune and
+  "tune all" in Settings → Engine). It tries Speed boost (draft models, MTP/EAGLE heads), KV-cache precision, batch
+  sizes and flash attention, measures each, and keeps the fastest. `modelcfg.rs` sets each model family's
+  recommended sampling and thinking control.
+- **Recommends per machine:** the welcome guide and Settings → Models pick the best model for this hardware.
+  "Fits alongside" says which models can load next to the main one. Battery saver applies on laptops.
+
+### What the PC version adds
+1. **Detects every GPU and its memory:**
+   - **NVIDIA** through NVML: name, VRAM total and free, compute capability, memory bandwidth (from the clock and
+     bus width), temperature.
+   - **AMD** through ROCm-SMI / amdgpu sysfs on Linux, and DXGI + ADL/ADLX on Windows.
+   - **Intel** (Arc and integrated) through DXGI on Windows, and Level Zero / sysfs on Linux.
+   - On every OS, Vulkan device enumeration is a vendor-neutral fallback.
+
+   Also the **CPU** (cores, AVX2/AVX-512, cache) and **system RAM** (size, and speed and channels from SMBIOS where
+   readable, which bounds CPU-offload speed). Keep a small built-in table like `chip.rs` (GPU model → bandwidth /
+   compute) for estimates, and correct it with measurements.
+2. **Picks the best engine backend per device:**
+   - CUDA on NVIDIA;
+   - **ROCm/HIP or Vulkan on AMD** (ROCm where supported, Vulkan everywhere else);
+   - **Vulkan on Intel** (SYCL optional later);
+   - the fastest CPU variant otherwise.
+
+   With dynamic backends (`GGML_BACKEND_DL`), one `llama-server` holds them all. The tuner can also *measure* CUDA
+   vs Vulkan on NVIDIA and keep the faster.
+3. **Memory modes, the user's choice** (Settings → Engine, per model, with "Best automatically" as the default):
+   - **Best automatically:** fill VRAM with as many layers as fit (leaving room for the context cache and the
+     desktop), put the rest in system RAM on the CPU. MoE models keep shared layers on the GPU and push experts to
+     RAM first (`--n-cpu-moe` / `-ot`), which keeps them fast.
+   - **GPU only:** everything in VRAM; models that don't fit are marked "won't fit on the GPU".
+   - **CPU and RAM only:** no GPU (for a busy GPU or a gaming session); speed estimated from RAM bandwidth.
+   - **Use both, my split:** a slider for how much goes on the GPU vs the CPU (`-ngl`), and with several GPUs, how to
+     split between them (`--tensor-split`, `--main-gpu`).
+
+   This is how **bigger models** run: on Logan's PC, 16 GB VRAM + 32 GB RAM together can run models far larger
+   than either alone (for example a 30B–70B model, or a large MoE with experts in RAM). The cards say what each mode
+   means for speed ("about 6 words/s split across GPU and RAM" vs "won't fit on the GPU alone").
+4. **Fit and estimates per mode:** every catalog version shows its fit and an estimated speed **for the chosen
+   mode** on this PC (GPU-only, split, CPU-only), with the same rule as the Mac: never say it runs when it won't.
+   "Fits alongside" counts VRAM and RAM separately.
+5. **Tuning on PC hardware:** the tuner also tries the GPU/CPU split (more or fewer layers on the GPU), the backend
+   (CUDA vs Vulkan), thread count (physical cores, not hyperthreads), KV precision, flash attention, batch sizes and
+   Speed boost, and keeps what's fastest *on this PC for this model*.
+6. **Several GPUs:** detect them all; let the user choose one, or split a model across them.
+7. **Keeps working when things change:** VRAM freed or taken by other apps (games), a laptop on battery, or a
+   driver without CUDA. Re-plan instead of crashing, and say what changed.
+
+Test matrix to report: on the 5080 (CUDA, then Vulkan), the Ryzen's integrated graphics (Vulkan), and CPU-only,
+for a small, a medium and a large model (which needs the split), with measured speeds per mode.
+
 ## Feature map: every Mac feature, and what Windows and Linux do instead
 
 How to use it: build the **Windows** and **Linux** columns. "Same" means the existing cross-platform code should
@@ -150,7 +216,7 @@ Calendar API) is an optional connector for later; ask Logan before adding one.
 
 Report to Logan after each one: what works, screenshots, numbers, what's next.
 
-### W1. Windows: BYTE builds, runs, and answers on the GPU
+### W1. Windows: BYTE builds, runs, and answers on the GPU (see "Any hardware" above: all vendors and memory modes)
 1. **Engine build for Windows.** Recommended: llama.cpp with **dynamic backends**
    (`-DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON -DGGML_CUDA=ON -DGGML_VULKAN=ON`), so one `llama-server`
    picks CUDA, Vulkan or the best CPU code at runtime: NVIDIA, AMD and Intel GPUs and CPU-only PCs all work.

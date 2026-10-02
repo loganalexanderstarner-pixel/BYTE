@@ -17,6 +17,16 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — port brief: any GPU vendor, hardware smarts, memory modes
+- **Why:** owner: Windows/Linux must work on AMD and Intel graphics too, be as hardware-aware as the Mac app
+  (detection, estimates, measured speed, per-model tuning), and run bigger models across GPU + CPU + RAM + VRAM,
+  or each separately, as the user chooses.
+- **What:** `PORTING-WINDOWS-LINUX.md` "Any hardware" section: what the Mac does (chip.rs, system.rs, speed.rs,
+  tune.rs, modelcfg.rs), per-vendor detection and backends, the four memory modes, fit/estimates per mode, tuning
+  on PCs, multi-GPU, re-planning, and a test matrix.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — port feature map, and the port listed in CLUSTER-REQUESTS.md
 - **Why:** the owner's PC session reads `docs/CLUSTER-REQUESTS.md`; owner wants every Mac feature mapped to Windows
   and Linux, plus what those can do that the Mac can't.
