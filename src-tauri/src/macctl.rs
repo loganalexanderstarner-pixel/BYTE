@@ -869,7 +869,7 @@ fn plan(q: &str) -> Option<Plan> {
         return Some(Plan::Ask(Family::MailDraft));
     }
     if starts(&l, &["text ", "send a text to ", "send a message to ", "message ", "imessage ", "send an imessage to "])
-        && [" that ", " saying ", ":", " to say ", " and say ", " and tell "].iter().any(|c| l.contains(c))
+        && (SEPARATORS.iter().any(|c| l.contains(c)) || after_first(q, TEXT_CUES).is_some_and(|r| plain_text(&r).is_some()))
         && !starts(&l, &["text me", "message me", "text summar", "text to speech", "message queue"])
     {
         return Some(Plan::Ask(Family::Message));
@@ -1106,6 +1106,50 @@ fn after(q: &str, cues: &[&str]) -> Option<String> {
         }
     }
     None
+}
+
+/// Like `after`, but uses the cue that appears first in the message ("text Mom the message is ready" is cut
+/// after "text ", not after "message ").
+fn after_first(q: &str, cues: &[&str]) -> Option<String> {
+    let l = q.to_lowercase();
+    let (i, c) = cues.iter().filter_map(|c| l.find(c).map(|i| (i, *c))).min_by_key(|(i, _)| *i)?;
+    let rest = q[i + c.len()..].trim().trim_start_matches(':').trim();
+    (!rest.is_empty()).then(|| rest.to_string())
+}
+
+const TEXT_CUES: &[&str] = &["send an imessage to ", "send a text to ", "send a message to ", "imessage ", "message ", "text "];
+const SEPARATORS: &[&str] = &[" that ", " saying ", ":", " to say ", " and say ", " and tell them ", " and tell her ", " and tell him ", " and tell "];
+/// Words for people that are names in Contacts' relations, used without "that" / "saying".
+const PEOPLE: &[&str] = &[
+    "mom", "mum", "mommy", "mama", "mother", "dad", "daddy", "papa", "father", "grandma", "grandpa", "granny", "nana",
+    "wife", "husband", "sister", "brother", "sis", "bro", "son", "daughter", "boyfriend", "girlfriend", "partner",
+    "aunt", "uncle", "cousin", "boss",
+];
+
+/// "text Mom this is BYTE": a text written without "that" / "saying" / ":". The person is a family word, a
+/// capitalized name, a phone number or an email; everything after it is the message. Nothing else counts,
+/// so "text summarization models" stays an ordinary question.
+fn plain_text(rest: &str) -> Option<(String, String)> {
+    let mut words: Vec<&str> = rest.split_whitespace().collect();
+    if words.first().is_some_and(|w| w.eq_ignore_ascii_case("my")) {
+        words.remove(0);
+    }
+    let first = *words.first()?;
+    // A phone number may be written in parts: "(412) 555-0123".
+    let phone_len = words.iter().take_while(|w| w.chars().all(|c| c.is_ascii_digit() || "()+-.".contains(c))).count();
+    let digits: usize = words[..phone_len].iter().map(|w| w.chars().filter(|c| c.is_ascii_digit()).count()).sum();
+    let n = if phone_len > 0 && digits >= 7 {
+        phone_len
+    } else if first.contains('@')
+        || PEOPLE.contains(&first.to_lowercase().as_str())
+        || (first.chars().next().is_some_and(char::is_uppercase) && first.chars().all(|c| c.is_alphabetic() || c == '-' || c == '\'') && first != "I")
+    {
+        1
+    } else {
+        return None;
+    };
+    let body = words[n..].join(" ");
+    (!body.trim().is_empty()).then(|| (words[..n].join(" "), body))
 }
 
 /// Drops "tomorrow at 3pm", "on Friday", "in 20 minutes"… from a title.
@@ -1357,13 +1401,17 @@ say what they asked and nothing more (don't invent facts, dates or promises); a 
             Ok(Action::MailDraft { to, name, subject, body })
         }
         Family::Message => {
-            let rest = after(q, &["send an imessage to ", "send a text to ", "send a message to ", "imessage ", "message ", "text "]).unwrap_or_default();
+            let rest = after_first(q, TEXT_CUES).unwrap_or_default();
             let rl = rest.to_lowercase();
-            let cut = [" that ", " saying ", ":", " to say ", " and say ", " and tell them ", " and tell her ", " and tell him ", " and tell "].iter().filter_map(|c| rl.find(c).map(|i| (i, c.len()))).min();
-            let Some((i, n)) = cut else { return Ok(Err("What should the text say?".into())) };
-            let who = rest[..i].trim().trim_start_matches("my ").to_string();
-            // The user's own words, as they wrote them ("text Mom that I'm running late").
-            let body = first_upper(rest[i + n..].trim().trim_matches('"').trim_end_matches('.').trim());
+            let cut = SEPARATORS.iter().filter_map(|c| rl.find(c).map(|i| (i, c.len()))).min();
+            // "text Mom that I'm late", or plainly "text Mom I'm late".
+            let (who, raw) = match (cut, plain_text(&rest)) {
+                (Some((i, n)), _) => (rest[..i].trim().trim_start_matches("my ").to_string(), rest[i + n..].to_string()),
+                (None, Some((who, body))) => (who, body),
+                (None, None) => return Ok(Err("Who should I text, and what should it say? For example: “text Mom I'm on my way”.".into())),
+            };
+            // The user's own words, as they wrote them.
+            let body = first_upper(raw.trim().trim_matches('"').trim_end_matches('.').trim());
             if who.is_empty() || body.is_empty() {
                 return Ok(Err("Who should I text, and what should it say?".into()));
             }

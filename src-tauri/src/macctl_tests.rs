@@ -348,11 +348,19 @@ fn mail_and_messages_are_routed_only_when_asked_for() {
     assert_eq!(family("send an email to sam@example.com asking for the slides"), Some(Family::MailDraft));
     assert_eq!(family("text Mom that I'm running late"), Some(Family::Message));
     assert_eq!(family("message Sam: see you at 7"), Some(Family::Message));
+    // Plainly, without "that" / "saying" (owner's test, 2026-10-02).
+    assert_eq!(family("Text mom this is ai sending this message"), Some(Family::Message));
+    assert_eq!(family("text Sam I'm running 10 minutes late"), Some(Family::Message));
+    assert_eq!(family("text 412-555-0123 can you call me?"), Some(Family::Message));
+    assert_eq!(family("text my wife on my way"), Some(Family::Message));
     for q in [
         "write an email to my landlord about the heating",
         "how do I write a professional email?",
         "email me when it's done",
         "text summarization models",
+        "text classification with small models",
+        "message boards are dead",
+        "text me when it's done",
         "What is a good email subject line for a job application?",
         "reply to this comment politely",
     ] {
@@ -411,6 +419,17 @@ async fn a_text_finds_the_number_asks_first_and_never_sends() {
     let ran = fake.ran.lock().unwrap().clone();
     assert_eq!(ran[1], Command::Osa { script: MESSAGE_DRAFT, args: vec!["I'm running late".into(), "sms:%2B15550199&body=I%27m%20running%20late".into()] });
     assert!(out.unwrap().1.contains("It isn't sent"));
+}
+
+#[tokio::test]
+async fn a_plain_text_without_saying_works_too() {
+    let fake = Fake::default();
+    fake.replies.lock().unwrap().push(Ok(format!("Mom{US}{US}+1 555 0199{RS}")));
+    fake.replies.lock().unwrap().push(Ok("opened".into()));
+    let (_, ev) = flow("Text mom this is ai sending this message", &fake, Some(true)).await;
+    let card = ev.iter().find_map(|e| if let ChatEvent::Approval(a) = e { Some(a.clone()) } else { None }).expect("approval card");
+    assert_eq!(card.title, "Open Messages with a text to Mom");
+    assert!(card.fields.iter().any(|f| f.label == "Text" && f.value == "This is ai sending this message"), "{:?}", card.fields);
 }
 
 #[tokio::test]
@@ -528,4 +547,16 @@ async fn e2e_scripts_compile_and_run() {
     let v: u8 = now.trim().parse().unwrap_or(50);
     let set = MacRunner.run(&Action::Volume(v).command()).await.unwrap();
     assert_eq!(set.trim(), v.to_string());
+}
+
+#[test]
+fn plain_texts_split_person_and_message() {
+    assert_eq!(super::plain_text("mom this is ai sending this message"), Some(("mom".into(), "this is ai sending this message".into())));
+    assert_eq!(super::plain_text("Sam I'm late"), Some(("Sam".into(), "I'm late".into())));
+    assert_eq!(super::plain_text("my Wife on my way"), Some(("Wife".into(), "on my way".into())));
+    assert_eq!(super::plain_text("(412) 555-0123 call me"), Some(("(412) 555-0123".into(), "call me".into())));
+    assert_eq!(super::plain_text("sam@example.com see you"), Some(("sam@example.com".into(), "see you".into())));
+    assert_eq!(super::plain_text("classification models"), None);
+    assert_eq!(super::plain_text("Mom"), None);
+    assert_eq!(super::plain_text("I am late"), None);
 }

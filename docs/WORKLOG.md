@@ -17,6 +17,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — "text Mom I'm on my way" works without "saying"; BYTE never says it can't text
+- **Why:** owner tried "Text mom this is ai sending this message": no Messages card (routing needed "that"/"saying"/":"),
+  and the model answered "I can't actually send text messages".
+- **What:** `macctl.rs`: `plain_text()` (person = family word, capitalized name, phone number or email; the rest is
+  the message), `after_first()` (earliest cue wins), shared `TEXT_CUES`/`SEPARATORS`; routing accepts the plain form.
+  `prompt::MAC_CONTROL` (macOS, Mac control on) tells the model what BYTE can do and to point to direct requests.
+  Tests: routing positives/negatives, `plain_texts_split_person_and_message`, a flow test with the owner's words.
+- **Verify:** `cargo test macctl prompt`; on the Mac, "text Mom I'm on my way" → card → Messages filled in.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — port brief: reuse first, don't rewrite
 - **Why:** owner: most of the Mac app can be reused; it needs a few changes, not a rewrite.
 - **What:** `PORTING-WINDOWS-LINUX.md` rule: same codebase, platform branches inside existing modules, extend the
