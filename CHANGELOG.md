@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.12.0 — Offline switch, Touch ID lock and a Privacy tab (Phase 12 starts)
+
+- **Offline switch** (`offline.rs`, setting `offline`): a global flag checked by a connector layer
+  (`offline::guarded`, tower `Layer` on every internet client: `tools::fetch::web_client`, `cloud::http_client`, the
+  lab's HEAD client), so it holds through proxies too, plus the DNS resolvers. While offline: `backend` turns web
+  tools off for the turn, cloud turns answer on this Mac (Both's cloud half says it's offline), downloads, the
+  catalog refresh and watcher ticks refuse or skip, the web agent can't navigate. UI: Offline pill, Web: Offline in
+  the composer, ⌘K, the tray's Offline tick (`quick::sync_offline_item`, `privacy://offline`).
+- **Lock** (`lock.rs`, settings `lockEnabled`, `lockAfterMinutes`): LocalAuthentication `DeviceOwnerAuthentication`
+  (Touch ID or the password; `objc2-local-authentication`), locked at launch and after the idle time (UI pings
+  `lock_touch`), `lock_verify` before turning it on. While locked, `lock::ensure` makes the data commands refuse
+  (chats, search, export, memories, notes, boards, clipboard, KB search, recipes, projects, jobs, tasks, trackers,
+  research library, activity, `chat_send`, `settings_update`). UI: `LockScreen.tsx` replaces the app (main window and
+  Quick Ask), ⌘K and tray "Lock BYTE".
+- **Settings → Privacy** (`privacy.rs`, `PrivacyTab.tsx`, `lib/privacy.ts` + test): what reaches the internet, Mac
+  permissions with live status for Microphone (AVCaptureDevice) and Accessibility (`AXIsProcessTrusted`) and
+  System Settings links, the activity log (`actions_list` reads `actions.jsonl` + the rotated file, kinds, search,
+  `actions_clear`, Copy as JSON). Help article 11 rewritten.
+
 ## 0.11.7 — Personality, help, ideas and the brainstorm board (Phase 11 complete)
 
 - **Personality** (`prompt::Personality`, `personality_section`, setting `personality`): five 1–5 sliders, only

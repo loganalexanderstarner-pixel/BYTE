@@ -1,4 +1,4 @@
-import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot, ClipboardList, ListTodo, NotebookPen, LifeBuoy, Shapes } from "lucide-react";
+import { BookOpen, GraduationCap, FileText, PanelLeft, Settings as SettingsIcon, SquarePen, PenLine, Briefcase, Bot, ClipboardList, ListTodo, NotebookPen, LifeBuoy, Shapes, WifiOff } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { ChatView } from "../components/chat/ChatView";
@@ -24,7 +24,7 @@ import { THEMES } from "../design/themes";
 import { prettyKeys } from "../lib/keys";
 import type { PaletteItem } from "../lib/palette";
 import { Sidebar } from "../components/Sidebar";
-import { useStore } from "../state/store";
+import { useStore, type SettingsTab } from "../state/store";
 
 export function Shell() {
   const sidebarOpen = useStore((s) => s.sidebarOpen);
@@ -67,6 +67,15 @@ export function Shell() {
     const offs = [api.onQuickSaved(() => void addNewChats()), api.onQuickOpen((id) => (id ? void openFresh(id) : undefined))];
     return () => offs.forEach((p) => void p.then((off) => off()));
   }, [addNewChats, openFresh]);
+
+  // The menu-bar icon's Offline tick, and its "Lock BYTE" when the lock is off (opens Settings → Privacy).
+  useEffect(() => {
+    const offs = [
+      api.onOfflineChanged(() => void api.settingsGet().then((settings) => useStore.setState({ settings }))),
+      api.onOpenSettings((tab) => openSettings(tab as SettingsTab)),
+    ];
+    return () => offs.forEach((p) => void p.then((off) => off()));
+  }, [openSettings]);
 
   // A scheduled run (briefing, scheduled question) saved a new chat: show it in the list.
   useEffect(() => {
@@ -117,6 +126,8 @@ export function Shell() {
   }, [newChat, openSettings, toggleSidebar, stop]);
 
   const conversations = useStore((s) => s.conversations);
+  const offline = useStore((s) => !!s.settings?.offline);
+  const lockOn = useStore((s) => !!s.settings?.lockEnabled);
   const quickKeys = useStore((s) => (s.settings?.quickAsk !== false ? (s.settings?.quickAskKeys ?? "Alt+Space") : null));
   const paletteItems = useMemo(() => {
     if (!paletteOpen) return [];
@@ -125,8 +136,10 @@ export function Shell() {
       { id: "private", label: "New private chat", keywords: "incognito secret", group: "Actions" },
       { id: "sidebar", label: "Show or hide the sidebar", hint: "⌘\\", group: "Actions" },
       { id: "web", label: "Web search: switch Off / Auto / Always", keywords: "internet online", group: "Actions" },
+      { id: "offline", label: offline ? "Go back online" : "Go offline (nothing reaches the internet)", keywords: "offline airplane privacy internet network", group: "Actions" },
       { id: "docs", label: "Documents: PDFs, slides and Word files", keywords: "pdf pptx docx report deck", group: "Actions" },
     ];
+    if (lockOn) items.push({ id: "lock", label: "Lock BYTE now", keywords: "touch id privacy password", group: "Actions" });
     if (quickKeys) items.push({ id: "quick", label: "Quick Ask window", hint: prettyKeys(quickKeys), group: "Actions" });
     if (kitchenOn) items.push({ id: "recipes", label: "Recipe box", keywords: "kitchen cooking", group: "Actions" });
     if (assistantsOn) items.push({ id: "assistants", label: "Assistants", group: "Actions" });
@@ -145,7 +158,7 @@ export function Shell() {
     for (const t of THEMES) items.push({ id: `theme:${t.id}`, label: `Theme: ${t.name}`, keywords: "colors appearance", group: "Themes" });
     for (const c of conversations) if (!c.private && c.messages.length + (c.messageCount ?? 0) > 0) items.push({ id: `chat:${c.id}`, label: c.title || "Untitled chat", keywords: c.summary ?? undefined, group: "Chats" });
     return items;
-  }, [paletteOpen, conversations, quickKeys, kitchenOn, assistantsOn, tasksOn, clipsOn, jobsOn, writingOn, studyOn, notesOn]);
+  }, [paletteOpen, offline, lockOn, conversations, quickKeys, kitchenOn, assistantsOn, tasksOn, clipsOn, jobsOn, writingOn, studyOn, notesOn]);
 
   const runItem = (it: PaletteItem) => {
     const [kind, arg] = it.id.includes(":") ? [it.id.slice(0, it.id.indexOf(":")), it.id.slice(it.id.indexOf(":") + 1)] : [it.id, ""];
@@ -159,6 +172,10 @@ export function Shell() {
         return toggleSidebar();
       case "web":
         return st.toggleWeb();
+      case "offline":
+        return void st.updateSettings({ offline: !offline });
+      case "lock":
+        return void api.lockNow();
       case "docs":
         return setDocsOpen(true);
       case "quick":
@@ -216,6 +233,11 @@ export function Shell() {
             )}
           </div>
           <div className="row no-drag">
+            {offline && (
+              <button className="offline-pill" onClick={() => void useStore.getState().updateSettings({ offline: false })} title="BYTE is offline: nothing reaches the internet. Click to go back online.">
+                <WifiOff size={13} /> Offline
+              </button>
+            )}
             <EngineBadge />
             <button
               className="icon-btn"

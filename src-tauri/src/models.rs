@@ -879,6 +879,7 @@ impl Downloads {
         key: String,
         url_for: fn(&str, &str) -> String,
     ) -> AppResult<()> {
+        crate::offline::guard()?;
         let token = CancellationToken::new();
         {
             let mut active = self.active.lock().await;

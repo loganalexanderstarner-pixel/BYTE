@@ -13,7 +13,7 @@
 use std::str::FromStr;
 use std::sync::Mutex;
 
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Rect, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Modifiers, Shortcut};
@@ -234,12 +234,28 @@ pub fn apply_tray(app: &AppHandle, on: bool) {
     }
 }
 
+/// The menu's "Offline" tick, kept so a change in Settings shows there too.
+static OFFLINE_ITEM: Mutex<Option<CheckMenuItem<tauri::Wry>>> = Mutex::new(None);
+
+pub fn sync_offline_item(on: bool) {
+    if let Some(item) = OFFLINE_ITEM.lock().ok().and_then(|i| i.clone()) {
+        let _ = item.set_checked(on);
+    }
+}
+
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+    let offline = CheckMenuItem::with_id(app, "offline", "Offline (no internet)", true, crate::offline::is_offline(), None::<&str>)?;
+    if let Ok(mut slot) = OFFLINE_ITEM.lock() {
+        *slot = Some(offline.clone());
+    }
     let menu = Menu::with_items(
         app,
         &[
             &MenuItem::with_id(app, "quick", "Ask BYTE…", true, None::<&str>)?,
             &MenuItem::with_id(app, "show", "Show BYTE", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &offline,
+            &MenuItem::with_id(app, "lock", "Lock BYTE", crate::lock::AVAILABLE, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "quit", "Quit BYTE", true, None::<&str>)?,
         ],
@@ -254,6 +270,23 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         .on_menu_event(|app, e| match e.id.as_ref() {
             "quick" => toggle(app, None),
             "show" => crate::background::show_main(app),
+            "offline" => {
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    crate::privacy::set_offline(&app, !crate::offline::is_offline()).await;
+                });
+            }
+            "lock" => {
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if app.state::<crate::state::AppState>().settings.lock().await.lock_enabled {
+                        crate::lock::set_locked(&app, true);
+                    } else {
+                        crate::background::show_main(&app);
+                        let _ = app.emit("settings://open", "privacy");
+                    }
+                });
+            }
             "quit" => app.exit(0),
             _ => {}
         })

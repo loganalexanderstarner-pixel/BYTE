@@ -253,6 +253,7 @@ pub fn dashboard_usage(state: State<'_, AppState>) -> AppResult<Usage> {
 
 #[tauri::command]
 pub fn research_library(state: State<'_, AppState>, query: Option<String>) -> AppResult<Vec<Researched>> {
+    crate::lock::ensure(&state)?;
     research(&state.db, query.as_deref().unwrap_or(""), 60)
 }
 

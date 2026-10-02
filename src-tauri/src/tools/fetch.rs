@@ -454,6 +454,9 @@ struct PublicOnlyResolver;
 impl reqwest::dns::Resolve for PublicOnlyResolver {
     fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
         Box::pin(async move {
+            if crate::offline::is_offline() {
+                return Err(crate::offline::MESSAGE.into());
+            }
             let host = name.as_str().to_string();
             let addrs: Vec<std::net::SocketAddr> =
                 tokio::net::lookup_host((host.as_str(), 0)).await?.filter(|a| is_public(&a.ip())).collect();
@@ -467,7 +470,7 @@ impl reqwest::dns::Resolve for PublicOnlyResolver {
 
 /// HTTP client for the internet (search, pages, model downloads).
 pub fn web_client() -> reqwest::Client {
-    reqwest::Client::builder()
+    crate::offline::guarded(reqwest::Client::builder())
         .user_agent(concat!("BYTE/", env!("CARGO_PKG_VERSION"), " (macOS; local AI assistant)"))
         .dns_resolver(std::sync::Arc::new(PublicOnlyResolver))
         .redirect(reqwest::redirect::Policy::limited(8))

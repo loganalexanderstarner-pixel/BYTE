@@ -231,6 +231,15 @@ pub struct Settings {
     /// Notes (notes.rs) and the web clipper.
     #[serde(default = "yes")]
     pub notes_enabled: bool,
+    /// The offline switch (offline.rs): nothing reaches the internet while on.
+    #[serde(default)]
+    pub offline: bool,
+    /// Lock BYTE (lock.rs): Touch ID or the Mac password to open it.
+    #[serde(default)]
+    pub lock_enabled: bool,
+    /// Lock after this many idle minutes (0 = only when BYTE opens).
+    #[serde(default = "default_lock_after")]
+    pub lock_after_minutes: u32,
     /// Where notes are kept (None = ~/Documents/BYTE/Notes).
     #[serde(default)]
     pub notes_dir: Option<String>,
@@ -299,6 +308,10 @@ pub struct Settings {
     pub workspace: String,
 }
 
+fn default_lock_after() -> u32 {
+    15
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Settings {
@@ -362,6 +375,9 @@ impl Default for Settings {
             speech_style: default_speech_style(),
             personality: Default::default(),
             notes_enabled: true,
+            offline: false,
+            lock_enabled: false,
+            lock_after_minutes: default_lock_after(),
             notes_dir: None,
             voice_where: default_voice_where(),
             cloud_voice: String::new(),

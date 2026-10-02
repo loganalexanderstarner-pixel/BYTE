@@ -480,7 +480,7 @@ AssistantsPanel. **Done in v0.7.7:** long-form writer + "Write like me" (`writin
 **Next:** **Phase 10 is complete** (v0.10.0–v0.10.6, all released). Phase 11 (input & windows) has started: v0.11.0
 Quick Ask + menu bar + ⌘K palette + custom shortcuts, v0.11.1 voice input and v0.11.2 speaker labels + videos without
 captions v0.11.3 spoken answers + hands-free + "Hey BYTE" and v0.11.4 BYTE's own natural voices (Kokoro) and v0.11.5 the voice catalog + human speech and v0.11.6 notes, web clipper and mind maps and v0.11.7 personality, help, examples and the board are done:
-**Phase 11 is complete.** Next: Phase 12 (privacy & polish) as v0.12.0
+**Phase 11 is complete.** Phase 12 (privacy & polish) has started: v0.12.0 offline switch, Touch ID lock and the Privacy tab are done; next v0.12.1 kids mode + iCloud backup, v0.12.2 themes/animations/accessibility, v0.12.3 auto-update + README + Homebrew, then v1.0.0
 (see the Phase 11 section). Way of working
 (owner, 2026-09-29): build the next item during every wait; run long model tests from a copied test binary.
 1. **Writing studio**: split editor; per-paragraph rewrite / expand / shorten / change tone / fix grammar.
@@ -713,10 +713,13 @@ widget.
 6. Optional lifestyle modules (off by default): recipes & meal planning, mindfulness prompts.
 Verify: audio pipeline tests with sample files, window behavior checked by the owner.
 
-### Phase 12 — Privacy & polish → public 1.0 ⏳
-1. **Privacy**: offline switch (blocks all network, tray indicator), auto-delete chats after N days,
-   wipe-all, **Touch ID lock** (LocalAuthentication) with the DB key moved to the Keychain behind it,
-   **permission dashboard** (every grant, revoke, full action log), kids mode (no web/files, simple UI, PIN).
+### Phase 12 — Privacy & polish → public 1.0 🔄
+**Done in v0.12.0:** offline switch (`offline.rs`: a connector layer on every internet client, so proxies can't
+bypass it; tray tick, top-bar pill, ⌘K), **Touch ID lock** (`lock.rs`: LocalAuthentication, idle timer, data
+commands refuse while locked; the DB key stays in `db.key` because a Touch ID–bound Keychain item needs a paid
+signature), **Privacy tab** (`privacy.rs`: internet list, Mac permissions with live Microphone/Accessibility
+status, the activity log from `actions.jsonl` with search, filters, copy, clear).
+1. **Privacy** (left): auto-delete chats after N days, wipe-all, kids mode (no web/files, simple UI, PIN).
 2. **Signing without a paid account**: a free self-signed certificate (stored as a GitHub secret) so macOS
    permissions survive updates; README keeps the "Open Anyway" steps.
 3. **Looks**: all 20 themes, theme editor with import/export, custom/animated wallpapers, the unique BYTE

@@ -97,6 +97,12 @@ export interface Settings {
   /** "calm" | "natural" | "lively" */
   speechStyle?: string;
   notesEnabled?: boolean;
+  /** The offline switch (offline.rs): nothing reaches the internet. */
+  offline?: boolean;
+  /** Lock BYTE with Touch ID or the Mac password (lock.rs). */
+  lockEnabled?: boolean;
+  /** Lock after this many idle minutes (0 = only when BYTE opens). */
+  lockAfterMinutes?: number;
   notesDir?: string | null;
   personality?: import("./personality").Personality;
   /** Where BYTE's voice is made: "mac" | "cloud" | "auto". */
@@ -1297,3 +1303,32 @@ export interface LocalFile {
 
 /** Web modes shown on the Web pill: off, or on in one of two ways. */
 export type WebMode = "auto" | "always";
+
+/** lock.rs */
+export interface LockStatus {
+  /** This Mac can confirm it's you (Touch ID or a password). */
+  available: boolean;
+  enabled: boolean;
+  locked: boolean;
+}
+
+/** A Mac permission BYTE may use (privacy.rs). */
+export interface Permission {
+  id: string;
+  name: string;
+  why: string;
+  status: "allowed" | "denied" | "not asked" | "unknown";
+  url: string;
+}
+
+export type ActivityKind = "web" | "mac" | "terminal" | "files" | "connectors" | "automations" | "tasks" | "memory" | "other";
+
+/** One thing BYTE did, from the activity log (privacy.rs). */
+export interface Activity {
+  ts: string;
+  tool: string;
+  kind: ActivityKind;
+  ok: boolean;
+  summary: string;
+  args: unknown;
+}

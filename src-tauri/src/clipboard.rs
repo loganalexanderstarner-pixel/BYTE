@@ -200,6 +200,7 @@ pub fn watch(app: tauri::AppHandle) {
 
 #[tauri::command]
 pub fn clip_list(state: State<'_, AppState>, query: Option<String>) -> AppResult<Vec<Clip>> {
+    crate::lock::ensure(&state)?;
     list(&state.db, query.as_deref().unwrap_or(""))
 }
 

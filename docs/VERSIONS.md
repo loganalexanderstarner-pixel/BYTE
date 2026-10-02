@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.11.7** | Phase 11 ✅ · Personality, help, ideas and the brainstorm board | Personality sliders and presets, an offline help center (BYTE answers questions about itself from it), daily ideas on the home screen, a sticky-note board BYTE adds ideas to and groups into themes | Making BYTE yours, and finding your way around |
+| **v0.12.0** | Phase 12 · Offline switch, Touch ID lock and a Privacy tab | One switch that keeps everything on your Mac (enforced for every connection), a Touch ID lock with an idle timer, and a Privacy tab with Mac permissions and a full log of what BYTE did | Keeping BYTE private |
+| v0.11.7 | Phase 11 ✅ · Personality, help, ideas and the brainstorm board | Personality sliders and presets, an offline help center (BYTE answers questions about itself from it), daily ideas on the home screen, a sticky-note board BYTE adds ideas to and groups into themes | Making BYTE yours, and finding your way around |
 | v0.11.6 | Phase 11 · Notes, web clipper and mind maps | Markdown notes you own (folders, tags, search, part of the knowledge base), a bookmarklet that clips any page into your notes, mind maps of any answer or note with PNG/SVG export | Keeping what you find and learn |
 | v0.11.5 | Phase 11 · A voice catalog and more human speech | Over 2,000 free voices from Kokoro, Piper, Kitten, Supertonic and Pocket with filters and samples, speech that sounds like a person (pauses, steps in words, Calm/Natural/Lively), voice on the Mac or in the cloud, “Hey BYTE” that answers out loud and keeps listening | Choosing exactly how BYTE sounds |
 | v0.11.4 | Phase 11 · BYTE's own natural voices | 28 free, natural voices made on your Mac (Kokoro), speech that starts while the answer is written and flows without pauses | A voice that doesn't sound robotic |

@@ -37,6 +37,10 @@ on:
       - "src-tauri/src/background.rs"
       - "src-tauri/src/quick.rs"
       - "src-tauri/src/lib.rs"
+      # The lock (Touch ID) and Settings → Privacy (permission status) are macOS-only code.
+      - "src-tauri/src/lock.rs"
+      - "src-tauri/src/privacy.rs"
+      - "src-tauri/src/offline.rs"
       # Connector secrets use the macOS Keychain (compiled only on macOS).
       - "src-tauri/src/connectors/**"
       # The web agent saves pages with WKWebView (web_agent/capture_mac.rs).

@@ -177,7 +177,7 @@ async fn inspect_hf(net: &reqwest::Client, url: &str, info: &SystemInfo, ctx: u3
     })?;
     let resolve = format!("https://huggingface.co/{repo}/resolve/main/{file}");
     // Size and checksum without downloading: the redirect's headers carry them.
-    let head_client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).timeout(Duration::from_secs(20)).build()?;
+    let head_client = crate::offline::client_builder().redirect(reqwest::redirect::Policy::none()).timeout(Duration::from_secs(20)).build()?;
     let head = head_client.head(&resolve).send().await?;
     if head.status() == 404 {
         return Err(AppError::msg("That file isn't on Hugging Face (or the repo is private)."));

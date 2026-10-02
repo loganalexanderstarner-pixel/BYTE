@@ -3,7 +3,7 @@ import { VoiceModels } from "../chat/VoiceModels";
 import { KeyboardSection } from "./KeyboardSection";
 import { prettyKeys } from "../../lib/keys";
 import { open as openDialog, ask } from "@tauri-apps/plugin-dialog";
-import { Brain, Cloud, Cpu, Download, FolderSearch, Gauge, HardDrive, Info, Palette, Plug, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X, Zap } from "lucide-react";
+import { Brain, Cloud, Cpu, Download, FolderSearch, Gauge, HardDrive, Info, Palette, Plug, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X, Zap, Shield } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { THEMES } from "../../design/themes";
@@ -19,6 +19,7 @@ import { bars } from "../../lib/dashboard";
 import { useStore, type SettingsTab } from "../../state/store";
 import { CatalogBrowser } from "../models/CatalogBrowser";
 import { CloudTab } from "./CloudTab";
+import { PrivacyTab } from "./PrivacyTab";
 import { ConnectorsTab } from "./ConnectorsTab";
 import { KnowledgeTab } from "./KnowledgeTab";
 import { ModelLab } from "./ModelLab";
@@ -32,6 +33,7 @@ export const TABS: { id: SettingsTab; label: string; icon: typeof Cpu }[] = [
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "engine", label: "Engine", icon: Cpu },
   { id: "cloud", label: "Cloud", icon: Cloud },
+  { id: "privacy", label: "Privacy", icon: Shield },
   { id: "about", label: "About", icon: Info },
 ];
 
@@ -68,6 +70,7 @@ export function SettingsModal() {
           {tab === "appearance" && <AppearanceTab />}
           {tab === "engine" && <EngineTab />}
           {tab === "cloud" && <CloudTab />}
+          {tab === "privacy" && <PrivacyTab />}
           {tab === "about" && <AboutTab />}
         </section>
       </div>

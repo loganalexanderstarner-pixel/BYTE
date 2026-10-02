@@ -94,6 +94,16 @@ pub async fn answer(state: &AppState, mut request: ChatRequest, on_event: &Chann
         local.mode = crate::cloud::cmd::local_mode(&turn.mode);
         local
     });
+    // Offline: don't try the cloud at all.
+    if crate::offline::is_offline() {
+        return match fallback {
+            Some(local) => {
+                let _ = on_event.send(ChatEvent::Notice { text: "BYTE is offline, so this answer was written on this Mac.".into() });
+                finish(LocalLlama.answer(state, &local, on_event).await)
+            }
+            None => Err(AppError::msg(crate::offline::MESSAGE)),
+        };
+    }
     // Cards (recipes, compare tables, trips, reviews…) are made on this Mac, with the
     // model loaded here or else by asking the cloud for each card's JSON; the cloud
     // then writes the answer from BYTE's notes.
@@ -310,9 +320,11 @@ impl Setup {
         if let Some(o) = &overrides {
             o.apply(&mut plan);
         }
+        // The offline switch turns the web off for this turn: no tools, no prompt text.
+        let offline = crate::offline::is_offline();
         let (web, user_name, memory, about_me, home, depth, web_always, kitchen, metric, web_agent, modules, kb_on, cloud_on) = {
             let s = state.settings.lock().await;
-            (s.web_search, s.user_name.clone(), s.memory_enabled && !request.private, s.about_me.clone(), s.home_place.clone(), s.research_depth, s.web_mode == "always", s.kitchen_enabled, s.measure_units == "metric", s.web_agent_enabled, agent::Modules {
+            (s.web_search && !offline, s.user_name.clone(), s.memory_enabled && !request.private, s.about_me.clone(), s.home_place.clone(), s.research_depth, s.web_mode == "always", s.kitchen_enabled, s.measure_units == "metric", s.web_agent_enabled && !offline, agent::Modules {
                 reviews: s.reviews_enabled,
                 prices: s.prices_enabled,
                 game_hints: s.game_hints_enabled,

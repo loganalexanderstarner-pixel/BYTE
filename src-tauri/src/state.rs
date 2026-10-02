@@ -22,6 +22,8 @@ pub struct AppState {
     pub local_http: reqwest::Client,
     /// Log of every tool call (web searches, pages read, calculations).
     pub actions: crate::tools::ActionLog,
+    /// The lock (lock.rs): while locked, personal data stays hidden.
+    pub lock: crate::lock::Lock,
     /// True while "Tune for this Mac" is restarting the engine.
     pub tuning: std::sync::atomic::AtomicBool,
     /// Encrypted database: chats, search index, memories.
@@ -55,6 +57,7 @@ impl AppState {
             net: crate::tools::fetch::web_client(),
             local_http: crate::chat::local_client(),
             actions: crate::tools::ActionLog::new(paths.data.join("actions.jsonl")),
+            lock: crate::lock::Lock::default(),
             catalog: crate::models::CatalogStore::load(paths.root.join("catalog.json")),
             tuning: std::sync::atomic::AtomicBool::new(false),
             secrets: Box::new(crate::cloud::keychain::Keychain),

@@ -5864,3 +5864,229 @@ kbd {
 .sticky-blue { background: var(--sticky-blue); }
 .sticky-green { background: var(--sticky-green); }
 .sticky-purple { background: var(--sticky-purple); }
+
+/* ---------------------------------------------------------- privacy (v0.12.0) */
+.privacy-tab .settings-section {
+  margin-bottom: var(--space-5, 24px);
+}
+.privacy-tab h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.privacy-tab .search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  min-width: 180px;
+}
+.privacy-tab .search input {
+  flex: 1;
+  border: 0;
+  outline: none;
+  background: transparent;
+  min-width: 0;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.privacy-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.privacy-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+.privacy-list li:first-child {
+  border-top: 0;
+}
+.privacy-list li.off,
+.privacy-list li.blocked {
+  color: var(--text-2);
+}
+.privacy-list li.blocked .grow {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-3, var(--text-2));
+}
+.privacy-list.perms li .grow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.perm-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78em;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.perm-status.allowed {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+}
+.perm-status.denied {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+}
+.perm-status.not-asked {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+}
+.activity-log h4 {
+  margin: var(--space-3) 0 4px;
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-2);
+}
+.activity-row {
+  border-radius: var(--radius);
+}
+.activity-row.failed .activity-main {
+  color: var(--text-2);
+}
+.activity-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+}
+.activity-main:hover {
+  background: var(--surface-2);
+}
+.activity-main .grow {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-time {
+  width: 64px;
+  flex: none;
+}
+.activity-kind {
+  flex: none;
+  font-size: 0.72em;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.activity-kind.kind-mac,
+.activity-kind.kind-terminal {
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  color: var(--warn);
+}
+.activity-kind.kind-connectors,
+.activity-kind.kind-automations {
+  background: color-mix(in srgb, var(--ok) 18%, transparent);
+  color: var(--ok);
+}
+.activity-detail {
+  margin: 0 8px 8px 82px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--border);
+}
+.activity-detail pre {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text-2);
+}
+
+/* The lock screen (lock.rs). */
+.lock-screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(60% 50% at 50% 35%, var(--accent-soft), transparent 70%),
+    var(--bg);
+  z-index: 1000;
+}
+.lock-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 360px;
+  padding: 32px;
+  text-align: center;
+  animation: lock-in 260ms var(--ease) both;
+}
+.lock-card h2 {
+  margin: 8px 0 0;
+}
+.lock-card p {
+  margin: 0;
+}
+.lock-card .btn {
+  margin-top: 8px;
+}
+.lock-screen.compact .lock-card {
+  padding: 16px;
+  gap: 6px;
+}
+.lock-error {
+  color: var(--danger);
+}
+@keyframes lock-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lock-card {
+    animation: none;
+  }
+}
+
+/* The top bar's Offline pill. */
+.offline-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--warn) 50%, transparent);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  color: var(--warn);
+  font-size: 0.8em;
+  font-weight: 700;
+}
+.offline-pill:hover {
+  background: color-mix(in srgb, var(--warn) 22%, transparent);
+}
+.privacy-list.perms .perm-status {
+  min-width: 150px;
+  justify-content: center;
+}

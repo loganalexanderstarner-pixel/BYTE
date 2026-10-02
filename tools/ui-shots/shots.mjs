@@ -359,6 +359,41 @@ function initScript({ data }) {
           return null;
         case "boards_list":
           return [{ id: 1, title: "Food truck ideas", count: 9, updated: Date.now() - 3600000 }];
+        case "lock_status":
+          return { available: true, enabled: !!data.locked || !!data.settings?.lockEnabled, locked: !!data.locked };
+        case "lock_touch":
+        case "lock_now":
+        case "lock_verify":
+        case "actions_clear":
+          return null;
+        case "lock_unlock":
+          return new Promise(() => {});
+        case "privacy_permissions": {
+          const P = "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?";
+          return [
+            { id: "microphone", name: "Microphone", why: "Voice input, Talk mode and “Hey BYTE”. Audio stays on this Mac.", status: "allowed", url: P + "Privacy_Microphone" },
+            { id: "accessibility", name: "Accessibility", why: "Copying the text you selected for ⌥⌘B (smart reply, translate, explain).", status: "not asked", url: P + "Privacy_Accessibility" },
+            { id: "automation", name: "Automation", why: "Mac control: Notes, Reminders, Calendar, Mail drafts, Music, Finder and System Events, each asked once.", status: "unknown", url: P + "Privacy_Automation" },
+            { id: "calendars", name: "Calendars", why: "“What's on my calendar?” and the daily briefing.", status: "unknown", url: P + "Privacy_Calendars" },
+            { id: "reminders", name: "Reminders", why: "“Remind me to…” with Apple Reminders.", status: "unknown", url: P + "Privacy_Reminders" },
+            { id: "notifications", name: "Notifications", why: "Reminders, finished automations, watcher alerts and clipped pages.", status: "unknown", url: "x-apple.systempreferences:com.apple.Notifications-Settings.extension" },
+          ];
+        }
+        case "actions_list": {
+          const m = 60000;
+          const a = (ago, tool, kind, args, summary, ok = true) => ({ ts: new Date(Date.now() - ago).toISOString(), tool, kind, args, summary, ok });
+          const all = [
+            a(4 * m, "web_search", "web", { query: "best budget espresso machines 2026" }, "8 results"),
+            a(4 * m, "read_page", "web", { url: "https://www.seriouseats.com/best-espresso-machines" }, "Read 5,214 characters"),
+            a(22 * m, "mac_reminder_add", "mac", { title: "Call Mom", due: "tomorrow 3 pm" }, "Added to Reminders (Undo available)"),
+            a(40 * m, "mac_terminal", "terminal", { command: "lsof -nP -i :3000" }, "Ran after your OK"),
+            a(95 * m, "search_my_files", "files", { query: "lease pets" }, "3 passages from Lease 2026.pdf"),
+            a(26 * 60 * m, "automation_run", "automations", { name: "Morning AI news" }, "3 steps, saved to a chat"),
+            a(27 * 60 * m, "notion_create", "connectors", { title: "Packing list" }, "Page added to Trips"),
+            a(28 * 60 * m, "mac_dark_mode", "mac", { on: true }, "Couldn't: BYTE isn't allowed to control System Events", false),
+          ];
+          return all.filter((x) => (!args.kind || x.kind === args.kind) && (!args.query || JSON.stringify(x).toLowerCase().includes(args.query.toLowerCase())));
+        }
         case "board_save":
           return 1;
         case "board_get":
@@ -1902,6 +1937,29 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(150);
   await shot(p, "39-personality");
   console.log("help/board errors:", errors);
+  await ctx.close();
+}
+// Settings → Privacy, the offline pill and the lock screen
+{
+  const { p, ctx, errors } = await page(true, "midnight", { settingsPatch: { offline: true, lockEnabled: true, lockAfterMinutes: 15 } });
+  await p.waitForTimeout(400);
+  await shot(p, "40c-offline");
+  await p.keyboard.press("Meta+Comma");
+  await p.getByRole("button", { name: "Privacy", exact: true }).click();
+  await p.waitForTimeout(400);
+  await shot(p, "40-privacy");
+  await p.getByRole("heading", { name: "Activity" }).scrollIntoViewIfNeeded();
+  await p.locator(".activity-main").nth(2).click();
+  await p.waitForTimeout(200);
+  await shot(p, "40b-activity");
+  console.log("privacy errors:", errors);
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await page(true, "midnight", { locked: true });
+  await p.waitForTimeout(500);
+  await shot(p, "40d-locked");
+  console.log("lock errors:", errors);
   await ctx.close();
 }
 // The command-deck home, the research library and usage stats

@@ -6,6 +6,10 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { DocEvent, DocKind, DocOutline, DocSpec } from "./docs/spec";
 
 import type {
+  Activity,
+  ActivityKind,
+  LockStatus,
+  Permission,
   Trashed,
   VoiceStatus,
   SpeakersStatus,
@@ -326,6 +330,18 @@ export const api = {
   upkeepReveal: (scanId: string, id: string) => invoke<void>("upkeep_reveal", { scanId, id }),
   upkeepQuit: (card: string, app: string) => invoke<boolean>("upkeep_quit", { card, app }),
   upkeepOpenSettings: (url: string) => invoke<void>("upkeep_open_settings", { url }),
+  // The lock (lock.rs) and Settings → Privacy (privacy.rs, offline.rs).
+  lockStatus: () => invoke<LockStatus>("lock_status"),
+  lockTouch: () => invoke<void>("lock_touch"),
+  lockNow: () => invoke<void>("lock_now"),
+  lockUnlock: () => invoke<void>("lock_unlock"),
+  lockVerify: () => invoke<void>("lock_verify"),
+  onLockChanged: (cb: (locked: boolean) => void): Promise<UnlistenFn> => listen<boolean>("lock://changed", (e) => cb(e.payload)),
+  onOfflineChanged: (cb: (offline: boolean) => void): Promise<UnlistenFn> => listen<boolean>("privacy://offline", (e) => cb(e.payload)),
+  onOpenSettings: (cb: (tab: string) => void): Promise<UnlistenFn> => listen<string>("settings://open", (e) => cb(e.payload)),
+  privacyPermissions: () => invoke<Permission[]>("privacy_permissions"),
+  actionsList: (query?: string, kind?: ActivityKind, limit?: number) => invoke<Activity[]>("actions_list", { query: query ?? null, kind: kind ?? null, limit: limit ?? null }),
+  actionsClear: () => invoke<void>("actions_clear"),
   selectionPaste: (appName: string, text: string) => invoke<void>("selection_paste", { appName, text }),
   onSelection: (cb: (c: Captured) => void): Promise<UnlistenFn> => listen<Captured>("selection://captured", (e) => cb(e.payload)),
   onSelectionError: (cb: (message: string) => void): Promise<UnlistenFn> => listen<string>("selection://error", (e) => cb(e.payload)),

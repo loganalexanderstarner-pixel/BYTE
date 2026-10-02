@@ -15,6 +15,26 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ---
 
+## 2026-10-02
+
+### (this commit) — v0.12.0: offline switch, Touch ID lock, Privacy tab (Phase 12 starts)
+- **Why:** Phase 12's first items: one switch that keeps BYTE off the internet, a lock, and a permissions dashboard
+  with the action log (`ActionLog` was written since Phase 2 but never shown).
+- **What:** `offline.rs` (flag, `guarded` connector layer, `OfflineAwareResolver`, tests with their own switch),
+  `tools/fetch.rs` (`web_client` guarded, resolver check), `cloud/mod.rs`, `lab.rs`, `backend.rs` (web off; cloud →
+  local), `models.rs` (downloads), `watchers.rs`, `commands.rs` (catalog refresh, settings apply, lock check),
+  `web_agent/browser.rs`; `lock.rs` (+ tests, mac `can_check` test), `lock::ensure` in the data commands; `privacy.rs`
+  (+ tests); `quick.rs` tray Offline/Lock; settings `offline`, `lockEnabled`, `lockAfterMinutes`; Cargo deps
+  `tower-layer`, `tower-service`, `objc2-local-authentication`, `objc2-av-foundation` (macOS);
+  `mac-engine.yml` paths. UI: `LockScreen.tsx` (+ `useLock`), `App.tsx` gate, `PrivacyTab.tsx`, `lib/privacy.ts`
+  (+ test), Shell (pill, palette, listeners), Composer (Web: Offline), types/api, CSS; help article 11; screenshots
+  `40-*`. `help.rs` `best` now ignores words found in most articles ("byte", "open"), which the longer privacy article
+  exposed. Mac-only code type-checked with a scratch crate (`cargo check --target aarch64-apple-darwin`).
+- **Verify:** `cargo test offline lock privacy`; `npx vitest run src/lib/privacy.test.ts`; on a Mac: Settings →
+  Privacy → Work offline, then ask "news today" (no search) and try a download (refused); turn on the lock (Touch ID
+  asks), ⌘K → Lock BYTE now, unlock; open the Activity list.
+- **Undo:** `git revert` this commit (the new settings are ignored by older builds).
+
 ## 2026-10-01
 
 ### (this commit) — v0.11.7: personality, help center, example prompts, brainstorm board (Phase 11 done)

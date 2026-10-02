@@ -1,6 +1,6 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { AppWindow, AudioLines, ArrowUp, Brain, GraduationCap, Cloud, FolderSearch, Images, Loader2, Paperclip, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap } from "lucide-react";
+import { AppWindow, AudioLines, ArrowUp, Brain, GraduationCap, Cloud, FolderSearch, Images, Loader2, Paperclip, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap, WifiOff } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { api, inTauri } from "../../lib/api";
@@ -129,7 +129,8 @@ export function Composer() {
   const openSettings = useStore((s) => s.openSettings);
   const currentId = useStore((s) => s.currentId);
   const webMode = useStore((s) => webState(s.settings));
-  const web = webMode !== "off";
+  const offline = useStore((s) => !!s.settings?.offline);
+  const web = webMode !== "off" && !offline;
   // Agent pill: this message uses the browser ("go to … and fill in …").
   const [browse, setBrowse] = useState(false);
   // Tutor pill: teach step by step in this chat (stays on until turned off or the chat changes).
@@ -463,7 +464,18 @@ export function Composer() {
               {THINKING_LABEL[thinking]}
             </button>
           )}
-          {!onCloud && (
+          {!onCloud && offline && (
+            <button
+              className="pill"
+              style={{ cursor: "pointer", height: 30 }}
+              onClick={() => void useStore.getState().updateSettings({ offline: false })}
+              title="BYTE is offline, so the web isn't used. Click to go back online."
+            >
+              <WifiOff size={14} />
+              Web: Offline
+            </button>
+          )}
+          {!onCloud && !offline && (
             <button
               className={`pill ${web ? "accent" : ""}`}
               style={{ cursor: "pointer", height: 30 }}

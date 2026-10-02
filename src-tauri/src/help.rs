@@ -38,7 +38,9 @@ fn words(s: &str) -> Vec<String> {
 
 /// The (at most `n`) articles that best match the question, by shared words (title words count double).
 pub fn best(q: &str, n: usize) -> Vec<&'static str> {
-    let qw = words(q);
+    // Words in most articles ("BYTE", "open") say nothing about which one fits.
+    let common = |w: &String| ARTICLES.iter().filter(|a| words(a).contains(w)).count() * 2 > ARTICLES.len();
+    let qw: Vec<String> = words(q).into_iter().filter(|w| !common(w)).collect();
     let mut scored: Vec<(usize, &str)> = ARTICLES
         .iter()
         .map(|a| {

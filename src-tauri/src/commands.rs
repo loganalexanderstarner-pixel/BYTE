@@ -167,6 +167,7 @@ pub async fn card_delete(state: State<'_, AppState>, id: i64) -> AppResult<()> {
 /// A deck as an Anki import file (text); the UI saves it.
 #[tauri::command]
 pub async fn deck_export(state: State<'_, AppState>, id: i64) -> AppResult<String> {
+    crate::lock::ensure(&state)?;
     crate::study::deck_export(&state.db, id)
 }
 
@@ -174,6 +175,7 @@ pub async fn deck_export(state: State<'_, AppState>, id: i64) -> AppResult<Strin
 
 #[tauri::command]
 pub async fn recipes_list(state: State<'_, AppState>, query: Option<String>) -> AppResult<Vec<crate::kitchen::SavedRecipe>> {
+    crate::lock::ensure(&state)?;
     crate::kitchen::recipes_list(&state.db, query.as_deref())
 }
 
@@ -266,6 +268,7 @@ pub async fn kb_reindex(app: AppHandle, id: Option<i64>) -> AppResult<()> {
 
 #[tauri::command]
 pub async fn kb_search(app: AppHandle, query: String, limit: Option<usize>) -> AppResult<Vec<crate::kb::Hit>> {
+    crate::lock::ensure(&app.state::<crate::state::AppState>())?;
     crate::kb::search(&app, &query, limit.unwrap_or(8).min(30)).await
 }
 
@@ -303,14 +306,20 @@ pub async fn settings_get(state: State<'_, AppState>) -> AppResult<Settings> {
 
 #[tauri::command]
 pub async fn settings_update(app: AppHandle, state: State<'_, AppState>, patch: serde_json::Value) -> AppResult<Settings> {
+    crate::lock::ensure(&state)?;
     let mut s = state.settings.lock().await;
     let next = s.merged(patch)?;
+    if next.lock_enabled && !crate::lock::AVAILABLE {
+        return Err(AppError::msg("Locking BYTE needs a Mac for now."));
+    }
     crate::quick::check(&next)?;
     if next.open_at_login != s.open_at_login {
         crate::background::apply_login(&app, next.open_at_login).map_err(AppError::msg)?;
     }
     next.save(&state.paths.settings_file)?;
     *s = next.clone();
+    crate::offline::set(next.offline);
+    crate::quick::sync_offline_item(next.offline);
     crate::quick::apply_shortcuts(&app, &next);
     crate::quick::apply_tray(&app, next.menu_bar_icon);
     crate::wake::apply(&app, next.wake_word);
@@ -341,6 +350,7 @@ pub async fn model_recommend(state: State<'_, AppState>) -> AppResult<Option<Str
 /// Fetches a newer catalog if one is published. Returns true if it changed.
 #[tauri::command]
 pub async fn catalog_refresh(state: State<'_, AppState>) -> AppResult<bool> {
+    crate::offline::guard()?;
     let url = state.settings.lock().await.catalog_url.clone().unwrap_or_else(|| models::DEFAULT_CATALOG_URL.to_string());
     // A private repository (or no internet) makes the online list unreachable;
     // the list built into the app keeps working, so say that plainly.
@@ -654,6 +664,7 @@ pub async fn answer_cache_clear(state: State<'_, AppState>) -> AppResult<()> {
 
 #[tauri::command]
 pub async fn chat_send(state: State<'_, AppState>, request: ChatRequest, on_event: Channel<ChatEvent>) -> AppResult<()> {
+    crate::lock::ensure(&state)?;
     crate::backend::answer(&state, request, &on_event).await
 }
 
@@ -666,11 +677,13 @@ pub async fn chat_cancel(state: State<'_, AppState>, request_id: String) -> AppR
 
 #[tauri::command]
 pub fn chats_list(state: State<'_, AppState>) -> AppResult<Vec<ConversationMeta>> {
+    crate::lock::ensure(&state)?;
     state.db.list()
 }
 
 #[tauri::command]
 pub fn chat_load(state: State<'_, AppState>, id: String) -> AppResult<Option<serde_json::Value>> {
+    crate::lock::ensure(&state)?;
     state.db.load(&id)
 }
 
@@ -691,6 +704,7 @@ pub fn chat_update(state: State<'_, AppState>, id: String, patch: MetaPatch) -> 
 
 #[tauri::command]
 pub fn chats_search(state: State<'_, AppState>, query: String) -> AppResult<Vec<SearchHit>> {
+    crate::lock::ensure(&state)?;
     state.db.search(&query, 30)
 }
 
@@ -714,6 +728,7 @@ pub fn chats_import(state: State<'_, AppState>, conversations: Vec<serde_json::V
 /// Exports every chat into a new folder inside `dir`; returns that folder.
 #[tauri::command]
 pub fn chats_export(state: State<'_, AppState>, dir: String) -> AppResult<String> {
+    crate::lock::ensure(&state)?;
     let chats = state.db.export_all()?;
     let out = crate::export::export_chats(std::path::Path::new(&dir), &chats)?;
     Ok(out.to_string_lossy().into_owned())
@@ -721,6 +736,7 @@ pub fn chats_export(state: State<'_, AppState>, dir: String) -> AppResult<String
 
 #[tauri::command]
 pub fn memories_list(state: State<'_, AppState>) -> AppResult<Vec<Memory>> {
+    crate::lock::ensure(&state)?;
     state.db.memories()
 }
 
@@ -766,6 +782,7 @@ pub async fn chat_autotitle(state: State<'_, AppState>, id: String) -> AppResult
 
 #[tauri::command]
 pub fn projects_list(state: State<'_, AppState>) -> AppResult<Vec<Project>> {
+    crate::lock::ensure(&state)?;
     state.db.projects()
 }
 

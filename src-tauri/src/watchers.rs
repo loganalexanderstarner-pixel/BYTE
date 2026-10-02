@@ -410,7 +410,7 @@ pub async fn tick(app: &AppHandle) {
     let state = app.state::<AppState>();
     let on = {
         let s = state.settings.lock().await;
-        s.watch_enabled && s.web_search
+        s.watch_enabled && s.web_search && !crate::offline::is_offline()
     };
     if !on {
         return;

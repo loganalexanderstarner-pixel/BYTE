@@ -62,6 +62,9 @@ src-tauri/                Rust core (Tauri 2)
   src/mindmap.rs          mind maps: Markdown → tree (no model) or a model outline
   src/board.rs            brainstorm boards (DB): stickies, model ideas / themes
   src/help.rs             help articles (src/help/*.md) for "how do I … in BYTE" questions
+  src/offline.rs          the offline switch: a connector layer on every internet client (holds through proxies)
+  src/lock.rs             Touch ID lock (LocalAuthentication), idle timer, `ensure` gate on data commands
+  src/privacy.rs          Settings → Privacy: Mac permission status, activity log (actions.jsonl)
   src/speech.rs           answers read aloud (macOS `say`, text via a temp file), speakable(), voices
   src/wake.rs             "Hey BYTE": native mic (cpal, macOS), voice-burst detector, whisper check, opens Quick Ask
   src/quick.rs            Quick Ask window, menu-bar icon, global shortcuts from settings

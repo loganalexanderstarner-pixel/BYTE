@@ -379,7 +379,7 @@ pub fn sources_of(v: &Value) -> Vec<crate::tools::Source> {
 
 /// The HTTP client for the cloud. One is kept for the whole app (AppState).
 pub fn http_client() -> reqwest::Client {
-    reqwest::Client::builder()
+    crate::offline::client_builder()
         .connect_timeout(Duration::from_secs(10))
         .pool_idle_timeout(Duration::from_secs(90))
         .tcp_keepalive(Duration::from_secs(30))

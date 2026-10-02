@@ -305,6 +305,7 @@ pub async fn clip(app: &AppHandle, url: &str, selection: &str) -> AppResult<Note
 
 #[tauri::command]
 pub async fn notes_list(app: AppHandle, query: Option<String>) -> AppResult<Vec<Note>> {
+    crate::lock::ensure(&app.state::<crate::state::AppState>())?;
     let r = root(&app).await?;
     let all = list(&r);
     Ok(match query.filter(|q| !q.trim().is_empty()) {
@@ -315,6 +316,7 @@ pub async fn notes_list(app: AppHandle, query: Option<String>) -> AppResult<Vec<
 
 #[tauri::command]
 pub async fn note_get(app: AppHandle, id: String) -> AppResult<Note> {
+    crate::lock::ensure(&app.state::<crate::state::AppState>())?;
     let r = root(&app).await?;
     read(&r, &resolve(&r, &id)?).ok_or_else(|| AppError::msg("That note isn't there any more."))
 }

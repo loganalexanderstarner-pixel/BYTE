@@ -1,9 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { DEFAULT_THEME, resolveTheme } from "../design/themes";
 import type { Settings } from "../lib/types";
 import { useStore } from "../state/store";
 import { Onboarding } from "../components/onboarding/Onboarding";
+import { LockScreen, useLock } from "../components/LockScreen";
+import { api, inTauri } from "../lib/api";
 import { QuickAsk } from "./QuickAsk";
 import { Shell } from "./Shell";
 
@@ -31,7 +33,21 @@ export function windowKind(): "quick" | "main" {
 }
 
 export function App() {
-  return windowKind() === "quick" ? <QuickAsk /> : <MainApp />;
+  const locked = useLock();
+  const quick = windowKind() === "quick";
+  if (locked === null) return null;
+  // Locked: nothing that reads chats is mounted until unlocking.
+  if (locked) return <Locked compact={quick} />;
+  return quick ? <QuickAsk /> : <MainApp />;
+}
+
+function Locked({ compact }: { compact: boolean }) {
+  const [settings, setSettings] = useState<Settings | null>(null);
+  useEffect(() => {
+    if (inTauri) void api.settingsGet().then(setSettings, () => undefined);
+  }, []);
+  useAppearance(settings);
+  return <LockScreen compact={compact} />;
 }
 
 function MainApp() {

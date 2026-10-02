@@ -31,6 +31,9 @@ mod gguf;
 mod ocr;
 mod memory;
 mod error;
+mod offline;
+mod lock;
+mod privacy;
 mod modelcfg;
 mod models;
 mod paths;
@@ -143,6 +146,7 @@ pub fn run() {
             state.catalog.set_added(crate::lab::load(&state.paths.data.join("added_models.json")).iter().map(crate::lab::LabModel::to_catalog).collect());
             let _ = state.app.set(app.handle().clone());
             let settings_now = state.settings.blocking_lock().clone();
+            offline::set(settings_now.offline);
             let catalog = state.catalog.get();
             let models_dir = state.paths.models.clone();
             app.manage(state);
@@ -151,6 +155,7 @@ pub fn run() {
             quick::apply_shortcuts(app.handle(), &settings_now);
             quick::apply_tray(app.handle(), settings_now.menu_bar_icon);
             wake::apply(app.handle(), settings_now.wake_word);
+            lock::start(app.handle().clone(), settings_now.lock_enabled);
             clipboard::watch(app.handle().clone());
             // Reminders, the daily briefing and scheduled questions.
             scheduler::start(app.handle().clone());
@@ -440,6 +445,14 @@ pub fn run() {
             dashboard::dashboard_usage,
             dashboard::research_library,
             commands::chat_send,
+            lock::lock_status,
+            lock::lock_touch,
+            lock::lock_now,
+            lock::lock_unlock,
+            lock::lock_verify,
+            privacy::privacy_permissions,
+            privacy::actions_list,
+            privacy::actions_clear,
             commands::chat_cancel,
         ])
         .build(tauri::generate_context!())

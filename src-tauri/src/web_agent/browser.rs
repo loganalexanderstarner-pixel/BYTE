@@ -96,7 +96,7 @@ impl TauriBrowser {
                 }
                 match url.scheme() {
                     "about" | "blob" | "data" => true,
-                    "http" | "https" => allowed_host(url),
+                    "http" | "https" => !crate::offline::is_offline() && allowed_host(url),
                     // javascript:, file:, mailto:, app links…
                     _ => false,
                 }
