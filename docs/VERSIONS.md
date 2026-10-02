@@ -18,7 +18,8 @@ tag it builds).
 
 | Version | Phase | What it adds | Good if you want |
 |---|---|---|---|
-| **v0.12.1** | Phase 12 · Kids mode, backups and erasing | A kids mode with a PIN (no web or Mac actions, only the kids' own chats), encrypted backups to iCloud Drive with weekly backups and restore, automatic deletion of old chats, and Erase everything | Sharing the Mac with kids, and never losing your chats |
+| **v0.12.2** | Phase 12 · Your own themes, smoother motion and accessibility | A theme editor with live preview, readability checks and .bytetheme import/export, springy panels and a thinking glow, Reduce motion, optional chimes, and every button readable by VoiceOver | Making BYTE look and feel just right |
+| v0.12.1 | Phase 12 · Kids mode, backups and erasing | A kids mode with a PIN (no web or Mac actions, only the kids' own chats), encrypted backups to iCloud Drive with weekly backups and restore, automatic deletion of old chats, and Erase everything | Sharing the Mac with kids, and never losing your chats |
 | v0.12.0 | Phase 12 · Offline switch, Touch ID lock and a Privacy tab | One switch that keeps everything on your Mac (enforced for every connection), a Touch ID lock with an idle timer, and a Privacy tab with Mac permissions and a full log of what BYTE did | Keeping BYTE private |
 | v0.11.7 | Phase 11 ✅ · Personality, help, ideas and the brainstorm board | Personality sliders and presets, an offline help center (BYTE answers questions about itself from it), daily ideas on the home screen, a sticky-note board BYTE adds ideas to and groups into themes | Making BYTE yours, and finding your way around |
 | v0.11.6 | Phase 11 · Notes, web clipper and mind maps | Markdown notes you own (folders, tags, search, part of the knowledge base), a bookmarklet that clips any page into your notes, mind maps of any answer or note with PNG/SVG export | Keeping what you find and learn |

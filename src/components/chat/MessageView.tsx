@@ -204,7 +204,7 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
   };
 
   return (
-    <div className="msg assistant">
+    <div className={`msg assistant ${generating ? "streaming" : ""}`}>
       <div className="head">
         <Logo size={16} glow={false} />
         BYTE

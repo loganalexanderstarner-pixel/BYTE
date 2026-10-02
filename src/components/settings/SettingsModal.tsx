@@ -3,7 +3,7 @@ import { VoiceModels } from "../chat/VoiceModels";
 import { KeyboardSection } from "./KeyboardSection";
 import { prettyKeys } from "../../lib/keys";
 import { open as openDialog, ask } from "@tauri-apps/plugin-dialog";
-import { Brain, Cloud, Cpu, Download, FolderSearch, Gauge, HardDrive, Info, Palette, Plug, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X, Zap, Shield } from "lucide-react";
+import { Brain, Cloud, Cpu, Download, FolderSearch, Gauge, HardDrive, Info, Palette, Plug, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X, Zap, Shield, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { THEMES } from "../../design/themes";
@@ -20,6 +20,8 @@ import { useStore, type SettingsTab } from "../../state/store";
 import { CatalogBrowser } from "../models/CatalogBrowser";
 import { CloudTab } from "./CloudTab";
 import { PrivacyTab } from "./PrivacyTab";
+import { customThemes, ThemeEditor } from "./ThemeEditor";
+import type { CustomTheme } from "../../lib/customTheme";
 import { ConnectorsTab } from "./ConnectorsTab";
 import { KnowledgeTab } from "./KnowledgeTab";
 import { ModelLab } from "./ModelLab";
@@ -577,6 +579,7 @@ function AppearanceTab() {
       <p className="muted" style={{ marginTop: 0 }}>Pick a look. Changes apply instantly.</p>
       <div className="section">
         <h4>Theme</h4>
+        <CustomThemes />
         <div className="theme-grid">
           {THEMES.map((t) => (
             <button key={t.id} className="theme-swatch" aria-pressed={settings.theme === t.id} onClick={() => void update({ theme: t.id })}>
@@ -619,6 +622,26 @@ function AppearanceTab() {
         </div>
         <div className="field">
           <label>
+            Reduce motion
+            <small>Fewer animations. Auto follows macOS (System Settings → Accessibility → Display).</small>
+          </label>
+          <div className="segmented">
+            {(["auto", "reduce"] as const).map((m) => (
+              <button key={m} aria-pressed={(settings.reduceMotion ?? "auto") === m} onClick={() => void update({ reduceMotion: m })}>
+                {m === "auto" ? "Auto" : "Reduce"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="field">
+          <label>
+            Sounds
+            <small>A soft chime when an answer is ready</small>
+          </label>
+          <input type="checkbox" checked={!!settings.sounds} onChange={(e) => void update({ sounds: e.target.checked })} aria-label="Sounds" />
+        </div>
+        <div className="field">
+          <label>
             Show speed under answers
             <small>Tokens per second and time taken</small>
           </label>
@@ -626,6 +649,37 @@ function AppearanceTab() {
         </div>
       </div>
     </>
+  );
+}
+
+/** Your own themes, plus "Make your own" (ThemeEditor). */
+function CustomThemes() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const [editing, setEditing] = useState<CustomTheme | null | "new">(null);
+  const list = customThemes(settings?.customThemes);
+  return (
+    <div className="custom-themes">
+      {editing ? (
+        <ThemeEditor editing={editing === "new" ? null : editing} onClose={() => setEditing(null)} />
+      ) : (
+        <div className="row" style={{ gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+          {list.map((t) => (
+            <span key={t.id} className="custom-theme-chip">
+              <button className="chip" aria-pressed={settings?.theme === t.id} onClick={() => void update({ theme: t.id })}>
+                <i style={{ background: t.colors.accent }} /> {t.name}
+              </button>
+              <button className="icon-btn sm" onClick={() => setEditing(t)} aria-label={`Edit ${t.name}`}>
+                <Pencil size={12} />
+              </button>
+            </span>
+          ))}
+          <button className="btn sm ghost" onClick={() => setEditing("new")}>
+            <Plus size={13} /> Make your own
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { DEFAULT_THEME, resolveTheme } from "../design/themes";
+import { applyCustom, isCustom, parseTheme } from "../lib/customTheme";
 import type { Settings } from "../lib/types";
 import { useStore } from "../state/store";
 import { Onboarding } from "../components/onboarding/Onboarding";
@@ -14,7 +15,12 @@ export function useAppearance(settings: Settings | null) {
   useEffect(() => {
     const root = document.documentElement;
     const apply = () => {
-      root.dataset.theme = resolveTheme(settings?.theme ?? DEFAULT_THEME);
+      const id = settings?.theme ?? DEFAULT_THEME;
+      const custom = isCustom(id) ? ((settings?.customThemes ?? []).map(parseTheme).find((t) => t?.id === id) ?? null) : null;
+      root.dataset.theme = resolveTheme(custom || isCustom(id) ? DEFAULT_THEME : id);
+      applyCustom(root, custom);
+      if (settings?.reduceMotion === "reduce") root.dataset.motion = "reduce";
+      else delete root.dataset.motion;
       root.dataset.density = settings?.density ?? "comfortable";
       root.style.setProperty("--font-scale", String(settings?.fontScale ?? 1));
     };
@@ -22,7 +28,7 @@ export function useAppearance(settings: Settings | null) {
     const mq = window.matchMedia("(prefers-color-scheme: light)");
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
-  }, [settings?.theme, settings?.density, settings?.fontScale]);
+  }, [settings?.theme, settings?.density, settings?.fontScale, settings?.customThemes, settings?.reduceMotion]);
 }
 
 /** Which window this is: "quick" (Quick Ask, quick.rs) or the main one. `?window=quick` stands in outside the app. */

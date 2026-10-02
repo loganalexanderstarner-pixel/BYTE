@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.12.2 — Your own themes, smoother motion and accessibility
+
+- **Theme editor** (`components/settings/ThemeEditor.tsx`, `lib/customTheme.ts` + test, `lib/color.ts`): five colors
+  on a light/dark base (`applyCustom` sets the tokens inline; tokens.css derives the rest), the same readability
+  checks as the built-in themes' test, up to 10 saved (setting `customThemes`, validated in Rust: hex colors only),
+  `.bytetheme` export/import.
+- **Motion:** scrims fade, dialogs and panels spring in, the logo glows while answering, all only with
+  `prefers-reduced-motion: no-preference`; setting `reduceMotion` ("auto" | "reduce") sets `data-motion="reduce"`,
+  which turns animations and transitions down everywhere.
+- **Sounds** (`lib/sounds.ts`, setting `sounds`, off): a WebAudio chime when an answer finishes.
+- **Accessibility:** `src/a11y.test.ts` parses every component with the TypeScript compiler and fails on a button
+  without visible text, `aria-label`, `aria-labelledby` or `title` (all pass; a self-check proves it catches one).
+
 ## 0.12.1 — Kids mode, backups and erasing
 
 - **Kids mode** (`kids.rs`, settings `kidsMode`, `kidsPin`): PIN hashed with PBKDF2 (salted), wrong-PIN backoff;

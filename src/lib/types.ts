@@ -97,6 +97,12 @@ export interface Settings {
   /** "calm" | "natural" | "lively" */
   speechStyle?: string;
   notesEnabled?: boolean;
+  /** Your own themes (lib/customTheme.ts). */
+  customThemes?: unknown[];
+  /** "auto" follows macOS; "reduce" turns animations down. */
+  reduceMotion?: "auto" | "reduce";
+  /** Soft sounds when an answer is ready. */
+  sounds?: boolean;
   /** Kids mode (kids.rs): a simple BYTE; turning it off needs the PIN. */
   kidsMode?: boolean;
   /** Backups (backup.rs): a folder other than iCloud Drive's BYTE Backups. */

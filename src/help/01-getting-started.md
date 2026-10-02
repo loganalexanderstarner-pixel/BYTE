@@ -8,4 +8,6 @@ BYTE is an AI assistant that runs on your Mac. Your chats, files and notes stay 
 
 > **Tip:** Press **⌘K** to find any chat, setting, mode or theme, and **⌥Space** to ask from any app (Quick Ask).
 
+**Make it yours** in [Settings → Appearance](byte-setting:appearance): 20 themes, or **Make your own** from five colors (BYTE warns you if text would be hard to read), text size, **Reduce motion**, and an optional soft chime when an answer is ready. Your themes can be exported and shared as `.bytetheme` files.
+
 If macOS says BYTE "can't be opened", right-click BYTE in Applications, choose **Open**, then **Open Anyway** (see [Troubleshooting](help:troubleshooting)).

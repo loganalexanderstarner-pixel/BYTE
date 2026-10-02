@@ -231,6 +231,15 @@ pub struct Settings {
     /// Notes (notes.rs) and the web clipper.
     #[serde(default = "yes")]
     pub notes_enabled: bool,
+    /// Your own themes (Settings → Appearance): `{name, colors: {bg, panel, border, text, accent}}`, checked in the UI.
+    #[serde(default)]
+    pub custom_themes: Vec<serde_json::Value>,
+    /// "auto" follows macOS's Reduce motion; "reduce" turns animations down everywhere.
+    #[serde(default = "default_motion")]
+    pub reduce_motion: String,
+    /// Soft sounds when an answer is ready and for reminders.
+    #[serde(default)]
+    pub sounds: bool,
     /// Kids mode (kids.rs): a simple BYTE with no web, Mac control or files; leaving needs the PIN.
     #[serde(default)]
     pub kids_mode: bool,
@@ -329,6 +338,21 @@ pub struct Settings {
     pub workspace: String,
 }
 
+fn valid_theme(t: &serde_json::Value) -> bool {
+    let hex = |v: &serde_json::Value| {
+        v.as_str().is_some_and(|s| {
+            let h = s.strip_prefix('#').unwrap_or("");
+            matches!(h.len(), 3 | 6) && h.chars().all(|c| c.is_ascii_hexdigit())
+        })
+    };
+    let name_ok = t["name"].as_str().is_some_and(|n| !n.trim().is_empty() && n.chars().count() <= 40);
+    name_ok && ["bg", "panel", "border", "text", "accent"].iter().all(|k| hex(&t["colors"][*k]))
+}
+
+fn default_motion() -> String {
+    "auto".into()
+}
+
 fn default_lock_after() -> u32 {
     15
 }
@@ -397,6 +421,9 @@ impl Default for Settings {
             personality: Default::default(),
             notes_enabled: true,
             offline: false,
+            custom_themes: Vec::new(),
+            reduce_motion: default_motion(),
+            sounds: false,
             kids_mode: false,
             kids_pin: None,
             backup_dir: None,
@@ -464,6 +491,12 @@ impl Settings {
         if !matches!(next.workspace.as_str(), "local" | "cloud" | "both") {
             next.workspace = "local".into();
         }
+        if !matches!(next.reduce_motion.as_str(), "auto" | "reduce") {
+            next.reduce_motion = default_motion();
+        }
+        // Only well-formed themes with hex colors are kept (they become CSS values), at most 10.
+        next.custom_themes.retain(valid_theme);
+        next.custom_themes.truncate(10);
         Ok(next)
     }
 }
@@ -515,6 +548,17 @@ fn default_web_mode() -> String {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn custom_themes_and_motion_are_checked() {
+        let good = serde_json::json!({ "name": "Night", "colors": { "bg": "#000", "panel": "#111111", "border": "#222222", "text": "#eeeeee", "accent": "#4c8dff" } });
+        let bad = serde_json::json!({ "name": "Evil", "colors": { "bg": "#000", "panel": "red;}", "border": "#222", "text": "#eee", "accent": "#fff" } });
+        let s = Settings::default().merged(serde_json::json!({ "customThemes": [good, bad], "reduceMotion": "wild" })).unwrap();
+        assert_eq!(s.custom_themes.len(), 1);
+        assert_eq!(s.custom_themes[0]["name"], "Night");
+        assert_eq!(s.reduce_motion, "auto");
+    }
+
     use super::*;
 
     #[test]

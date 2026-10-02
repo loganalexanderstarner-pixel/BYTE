@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { nextWeb, webState } from "../lib/web";
+import { chime } from "../lib/sounds";
 import { api, errorText, events, inTauri, type ChatPatch, type CloudTurn } from "../lib/api";
 import { idOf, isImage, listOf, str, titleOf } from "../lib/cloudDocs";
 import { branchAt, switchVersion, versionsAt } from "../lib/branches";
@@ -761,6 +762,7 @@ export const useStore = create<State>((set, get) => {
         case "done":
           cancelAnimationFrame(frame);
           flush();
+          if (get().settings?.sounds && e.finishReason !== "cancelled") chime("done");
           patchMessage(convId, reply.id, (m) => ({
             ...endBrowsing(m),
             phase: undefined,

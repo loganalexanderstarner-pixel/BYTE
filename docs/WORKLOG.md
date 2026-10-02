@@ -17,6 +17,19 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — v0.12.2: theme editor, smoother motion, Reduce motion, sounds, accessibility check
+- **Why:** Phase 12's looks items (owner's list: theme editor with import/export, 60 fps animations that respect
+  reduced motion, optional sounds, accessibility pass).
+- **What:** `lib/color.ts`, `lib/customTheme.ts` (+ test), `lib/sounds.ts`, `components/settings/ThemeEditor.tsx`,
+  `SettingsModal.tsx` (CustomThemes, Reduce motion, Sounds), `App.tsx` (`useAppearance` applies custom themes and
+  `data-motion`), `store.ts` (chime on done), `MessageView.tsx` (`streaming` class), CSS (motion, editor);
+  `settings.rs` (`customThemes` validated, `reduceMotion`, `sounds` + test); `src/a11y.test.ts`; help article 01;
+  screenshots `42-*`.
+- **Verify:** `npx vitest run src/a11y.test.ts src/lib/customTheme.test.ts`; `cargo test settings`; on a Mac:
+  Settings → Appearance → Make your own, Save and use, Export then Import; Reduce motion; Sounds then ask something.
+- **Undo:** `git revert` this commit (custom themes fall back to Midnight in older builds).
+
+
 ### (this commit) — v0.12.1: kids mode, encrypted backups, auto-delete, erase everything
 - **Why:** the rest of Phase 12's privacy items.
 - **What:** `kids.rs` (PIN hashing, backoff, `PROMPT`, `harmless`, `is_on`/`may_touch`/`grownups_only`, commands,

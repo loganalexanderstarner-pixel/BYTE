@@ -6171,3 +6171,151 @@ kbd {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* ---------------------------------------------------------- motion (v0.12.2) */
+/* Panels and dialogs spring in; scrims fade. Only when motion is welcome. */
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes panel-spring {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.005);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes logo-thinking {
+  50% {
+    filter: drop-shadow(0 0 8px var(--accent));
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) .scrim {
+    animation: scrim-in 160ms var(--ease) both;
+  }
+  :root:not([data-motion="reduce"]) .scrim > .modal,
+  :root:not([data-motion="reduce"]) .scrim > .writing-panel {
+    animation: panel-spring 320ms var(--ease) both;
+  }
+  :root:not([data-motion="reduce"]) .msg.assistant.streaming > .head svg:first-child {
+    animation: logo-thinking 1.6s ease-in-out infinite;
+  }
+}
+/* Reduce motion (Settings → Appearance), on top of macOS's own setting. */
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ---------------------------------------------------------- theme editor */
+.theme-editor {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.theme-editor .text-input {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  user-select: text;
+  -webkit-user-select: text;
+}
+.theme-editor .mono {
+  font-family: var(--font-mono);
+  width: 9ch;
+}
+.theme-editor-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+.theme-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.theme-color {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.theme-color span {
+  flex: 1;
+  font-size: 0.9em;
+}
+.theme-color input[type="color"] {
+  width: 32px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+}
+.theme-preview {
+  border: 1px solid;
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.tp-panel {
+  border: 1px solid;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.tp-panel p {
+  margin: 0;
+  font-size: 0.9em;
+}
+.tp-btn {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85em;
+}
+.tp-link {
+  font-size: 0.85em;
+  text-decoration: underline;
+}
+.theme-warnings {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  color: var(--warn);
+}
+.theme-warnings li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.custom-theme-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.custom-theme-chip .chip i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+}

@@ -1962,6 +1962,27 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   console.log("help/board errors:", errors);
   await ctx.close();
 }
+// Appearance: make your own theme
+{
+  const { p, ctx, errors } = await page(true, "midnight");
+  await p.keyboard.press("Meta+Comma");
+  await p.getByRole("button", { name: "Appearance", exact: true }).click();
+  await p.getByRole("button", { name: /Make your own/ }).click();
+  await p.getByLabel("Theme name").fill("Night Owl");
+  await p.getByLabel("Start from a theme").selectOption("ocean");
+  await p.getByLabel("Accent hex").fill("#ff9f43");
+  await p.waitForTimeout(200);
+  await shot(p, "42-theme-editor");
+  await p.getByLabel("Accent hex").fill("#1b3a40");
+  await p.waitForTimeout(150);
+  await shot(p, "42b-theme-warning");
+  await p.getByLabel("Accent hex").fill("#ff9f43");
+  await p.getByRole("button", { name: "Save and use" }).click();
+  await p.waitForTimeout(300);
+  await shot(p, "42c-theme-applied");
+  console.log("theme errors:", errors);
+  await ctx.close();
+}
 // Settings → Privacy, the offline pill and the lock screen
 {
   const { p, ctx, errors } = await page(true, "midnight", { settingsPatch: { offline: true, lockEnabled: true, lockAfterMinutes: 15 } });
