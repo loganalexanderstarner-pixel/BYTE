@@ -17,6 +17,14 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — brief for the Windows/Linux port on the owner's PC
+- **Why:** the owner has a Claude Code session that can SSH into their dual-boot PC (Ryzen 7 7800X3D, 32 GB
+  DDR5-6000, RTX 5080) and wants it to build the Windows app, then Linux.
+- **What:** `docs/PORTING-WINDOWS-LINUX.md` (machine, ground rules incl. its own branch, setup, Mac-only inventory,
+  milestones W1–W4 and L1–L4, reporting); pointer at the top of `CLAUDE.md`.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — v0.12.4 release notes and version
 - **Why:** ship the polish pass; it's the first version v0.12.3 installs through the updater.
 - **What:** `docs/releases/v0.12.4.md`, VERSIONS, CHANGELOG, PROJECT_GUIDE, HANDOFF; version 0.12.4 (bump.mjs,

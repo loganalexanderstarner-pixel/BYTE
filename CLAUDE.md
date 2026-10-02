@@ -4,6 +4,8 @@ BYTE is a **local-first AI assistant for Apple Silicon Macs** (target: MacBook A
 inference engine (llama.cpp `llama-server`, Metal) as a Tauri sidecar, downloads Qwen3 GGUF models on first launch,
 and runs everything on-device. Only web search/reading and model downloads use the internet.
 
+**Porting to Windows or Linux (a session on the owner's PC)? Read `docs/PORTING-WINDOWS-LINUX.md` first.**
+
 **Start with `docs/HANDOFF.md`** (current state, next tasks, how to work here), then `docs/PROJECT_GUIDE.md` for the
 full feature catalog, architecture, decisions, and phase status, `docs/DESIGN-AND-PLATFORMS.md` (byte-ai's design
 tokens + logo, and the Windows/Linux plan), `docs/CLOUD-MODE.md` (BYTE as a remote backend) and
