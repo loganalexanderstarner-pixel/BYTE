@@ -57,6 +57,16 @@ cluster handles this internally" and keep the details off GitHub.
 
 ## Open requests
 
+### 0. For the session on Logan's PC: build the Windows app, then Linux (not a cluster request)
+
+Logan's Claude session that works on the cluster can also reach his dual-boot PC (Ryzen 7 7800X3D, 32 GB DDR5-6000,
+RTX 5080). The owner has asked it to build BYTE's **Windows** app first, then **Linux**. Everything it needs is in
+**[`docs/PORTING-WINDOWS-LINUX.md`](PORTING-WINDOWS-LINUX.md)**: the machine, the ground rules (its own branch
+`claude/windows-port`, never break the Mac app, no secrets in this public repo), setup, what's Mac-only today, the
+feature map (Mac feature → Windows → Linux, and what each can do that the Mac can't), and milestones W1–W4 then
+L1–L4. Report to Logan after each milestone. Start with W1: BYTE builds, runs and answers on the RTX 5080.
+
+
 ### 1. Structured replies without a conversation (`POST /api/complete`)
 
 **Why.** BYTE's cards (recipes, meal plans, comparisons, trips, reviews, prices,

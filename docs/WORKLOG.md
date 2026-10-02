@@ -17,6 +17,14 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-02
 
+### (this commit) — port feature map, and the port listed in CLUSTER-REQUESTS.md
+- **Why:** the owner's PC session reads `docs/CLUSTER-REQUESTS.md`; owner wants every Mac feature mapped to Windows
+  and Linux, plus what those can do that the Mac can't.
+- **What:** `CLUSTER-REQUESTS.md` item 0 points the PC session at the port brief; `PORTING-WINDOWS-LINUX.md` gains
+  the feature map (Mac → Windows → Linux), Windows-only and Linux-only extras, and the "BYTE Home" idea (ask first).
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — brief for the Windows/Linux port on the owner's PC
 - **Why:** the owner has a Claude Code session that can SSH into their dual-boot PC (Ryzen 7 7800X3D, 32 GB
   DDR5-6000, RTX 5080) and wants it to build the Windows app, then Linux.

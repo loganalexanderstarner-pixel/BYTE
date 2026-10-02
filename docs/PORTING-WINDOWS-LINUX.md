@@ -67,6 +67,85 @@ This PC is far faster than the target Mac for anything that fits in 16 GB of VRA
 - **Shell-outs to macOS tools** (`osascript`, `afconvert`, `afplay`, `say`, `pmset`, `mdfind`, `xattr` …) are mostly
   in `macctl.rs` (16), `system.rs` (11), `terminal.rs`, `upkeep.rs`, `speech.rs`, `wake.rs`, `voice.rs`.
 
+## Feature map: every Mac feature, and what Windows and Linux do instead
+
+How to use it: build the **Windows** and **Linux** columns. "Same" means the existing cross-platform code should
+just work; check it. When something truly can't exist on an OS, BYTE says so plainly and offers the closest thing,
+never a broken button. Everything that changes something keeps the Mac rules: an approval card first, Undo where
+possible, a line in the activity log.
+
+Prefer local OS APIs that need no account. Anything that needs a Microsoft or Google sign-in (Graph, Google
+Calendar API) is an optional connector for later; ask Logan before adding one.
+
+### Mac features → Windows → Linux
+
+| Mac feature (where) | Windows | Linux |
+|---|---|---|
+| AI engine on Metal (`engine.rs`, `build-llama-server.sh`) | llama.cpp CUDA + Vulkan + CPU (dynamic backends) | Same build: CUDA / Vulkan / ROCm / CPU |
+| Memory planner, unified memory (`system.rs`) | VRAM + RAM planner: GPU only / CPU only / split / best automatically | Same as Windows |
+| Touch ID lock (`lock.rs`) | **Windows Hello** (face, fingerprint or PIN) | polkit / PAM: fingerprint through `fprintd` if present, else the account password |
+| Keychain for keys (`cloud/keychain.rs`, connectors) | Credential Manager (`keyring` crate) | Secret Service / GNOME Keyring / KWallet (`keyring`) |
+| Text in photos and scans, Apple Vision (`ocr.rs`) | `Windows.Media.Ocr` (built in, offline) | Tesseract (bundled or a package) |
+| Mac voices, `say` (`speech.rs`) | Windows voices (`Windows.Media.SpeechSynthesis`, natural voices) | speech-dispatcher / espeak-ng; BYTE's sherpa voices are better and cross-platform |
+| BYTE's voices, sherpa (`tts.rs`, `voices.rs`) | Same | Same |
+| Dictation and "Hey BYTE", whisper + cpal mic (`voice.rs`, `wake.rs`) | Same (WASAPI under cpal); whisper on CUDA | Same (PipeWire/ALSA under cpal); whisper on CUDA |
+| Audio conversion, `afconvert` (`voice.rs`, `speakers.rs`) | In Rust (`symphonia`) or a bundled ffmpeg | Same as Windows |
+| Menu-bar icon (`quick.rs`) | System tray icon + **taskbar jump list** (New chat, Quick Ask, Lock) | Tray (AppIndicator / StatusNotifierItem); GNOME needs the AppIndicator extension, so say so |
+| Quick Ask ⌥Space, global shortcuts (`quick.rs`) | Same (Alt+Space is taken by Windows; default to Ctrl+Space or Win+Shift+B) | Same; Wayland may need the desktop's portal for global shortcuts |
+| Ask about selected text (`selection.rs`) | UI Automation to read the selection (fallback: simulate Ctrl+C) | The **PRIMARY selection** (highlighted text, no copy needed): `wl-paste -p` / `xclip -o` |
+| Clipboard history (`clipboard.rs`) | Same, alongside Windows' own Win+V history | Same (`wl-clipboard` / X11) |
+| Notes, Markdown files (`notes.rs`) | Same, in Documents\\BYTE\\Notes; "Show in File Explorer" | Same, in ~/Documents/BYTE/Notes (XDG dirs) |
+| Apple Notes (`macctl.rs`) | OneNote desktop through COM if installed; otherwise BYTE's own Notes | BYTE's own Notes (and the Obsidian connector, already cross-platform) |
+| Reminders (`macctl.rs`) | **BYTE's own reminders as Windows toasts** (with Snooze / Done buttons); Outlook tasks through COM if classic Outlook is installed | BYTE's own reminders as desktop notifications; Evolution Data Server over D-Bus on GNOME |
+| Calendar, EventKit/AppleScript (`macctl.rs`, `briefing.rs`) | Classic Outlook through COM; the calendar-link connector (ICS) works everywhere | Evolution Data Server (GNOME) / Akonadi (KDE) over D-Bus; ICS links everywhere |
+| Mail drafts (`macctl.rs`) | Classic Outlook through COM (draft opened, never sent); else `mailto:` in the default app | Thunderbird `-compose`, else `xdg-email` |
+| Messages (iMessage) | **Not possible** (no API). Offer: copy the text and open Phone Link | **Not possible**. Offer: copy the text |
+| Music app control | **Any media app**: play / pause / next / "what's playing" through System Media Transport Controls (Spotify, browsers, VLC…) | **Any media app** through MPRIS over D-Bus |
+| Safari's current tab (`macctl.rs`, web clipper) | The current tab of Edge/Chrome/Firefox through UI Automation; the bookmarklet clipper is already cross-platform | AT-SPI where it works; the bookmarklet clipper |
+| Shortcuts app (`shortcut_make.rs`, automations) | BYTE's own automations + run **PowerShell scripts**; hand off to Power Automate Desktop if installed | BYTE's own automations + shell scripts |
+| Settings: dark mode, volume, Do Not Disturb (`macctl.rs`) | **More:** dark mode (registry), volume and output device (Core Audio), Focus Assist, night light, brightness (WMI), power plan, Wi-Fi and Bluetooth on/off | **More:** dark mode (gsettings / KDE config), volume (PipeWire `wpctl`), DND, brightness (`brightnessctl`), Wi-Fi (`nmcli`), Bluetooth (`bluetoothctl`) |
+| Files and Finder (`filectl.rs`) | File Explorer; delete to the **Recycle Bin**; the Windows Search index replaces Spotlight (`mdfind`) | Delete to the trash (freedesktop trash spec); `locate`/`plocate` or Tracker/Baloo for search |
+| Terminal (`terminal.rs`) | **PowerShell** (and WSL commands if WSL is installed), same approval card | bash/zsh, same approval card |
+| Storage cleanup (`upkeep.rs`) | Temp folders, the Recycle Bin, Downloads, old installers, browser caches; Windows Update cleanup through Disk Cleanup (needs admin: ask) | `~/.cache`, trash, old Flatpak runtimes, snap revisions, `apt clean` / `dnf clean`, journal vacuum (needs admin: ask through `pkexec`) |
+| Battery health (`upkeep.rs`, `pmset`) | `powercfg /batteryreport` (laptops) | `/sys/class/power_supply` / UPower |
+| "How's my computer doing" (`dashboard.rs`, `upkeep.rs`) | CPU, RAM, **GPU load, VRAM and temperature (NVML)**, disk, top apps | Same, with NVML / `sensors` |
+| App uninstaller (`upkeep.rs`) | Installed apps from the registry; uninstall through `winget` or the app's uninstaller (approval) | apt / dnf / flatpak / snap remove (approval, `pkexec`) |
+| Open at login (`lib.rs`) | Run key in the registry | `~/.config/autostart/*.desktop` |
+| Scheduled tasks (`scheduler.rs`) | Same while BYTE runs; optionally **Task Scheduler** so a briefing runs even when BYTE is closed | Same; optionally a **systemd user timer** |
+| iCloud Drive backups (`backup.rs`) | **OneDrive** folder if present, else any folder | Any folder (Nextcloud/Syncthing folders work) |
+| Notifications | **Toasts with buttons and inline reply** ("Reply to BYTE…" right in the notification) | Desktop notifications with actions (freedesktop) |
+| Deep links `byte://` (clipper) | Same (Tauri registers the scheme) | Same (`.desktop` MIME handler) |
+| Signing and install | Unsigned NSIS installer ("More info → Run anyway"); updater signed with the same key | AppImage + `.deb` (+ maybe Flatpak); same updater key for AppImage |
+
+### Extras Windows can do that the Mac can't
+
+- **Game-aware BYTE:** when a full-screen game or a GPU-heavy app starts, BYTE frees the GPU: it unloads or moves
+  the model to the CPU, and brings it back after. Opt in, ask once. Made for a gaming PC like Logan's.
+- **"Why did my PC crash / freeze?"** Read the Windows Event Log and Reliability Monitor and explain in plain
+  words (read-only).
+- **Install and update apps with winget:** "update all my apps", "install VLC", each with an approval card.
+- **Startup apps:** list what starts with Windows and turn items off (Task Manager's list), with Undo.
+- **Drivers and GPU:** report the NVIDIA driver version, VRAM use and temperatures, and say when a newer driver is
+  out (read-only; link to NVIDIA).
+- **Toasts you can answer** without opening BYTE.
+- **Much bigger models:** 16 GB of VRAM plus 32 GB RAM runs models the 16 GB Mac can't, and image generation fast
+  (v1.1.0).
+
+### Extras Linux can do that the Mac can't
+
+- **System updates and packages** (apt/dnf/flatpak/snap) with approval through `pkexec`.
+- **"What went wrong?"** Read `journalctl` (and `dmesg`) and explain failures in plain words (read-only).
+- **Services:** list, start or stop systemd user services, with approval.
+- **Ask about highlighted text** with no copying (the PRIMARY selection).
+- **Any media player** through MPRIS, and deeper settings control through D-Bus.
+- **Scheduled tasks while BYTE is closed** through systemd user timers.
+
+### Idea to ask Logan about first (not in scope yet)
+
+- **"BYTE Home":** the PC serves its models to his other devices on the home network, so the Mac can use the
+  5080 like a private cloud. It would reuse the existing cloud-mode client. This needs his OK and a security
+  design: pairing and an encrypted connection, never open to the internet.
+
 ## The work, in milestones
 
 Report to Logan after each one: what works, screenshots, numbers, what's next.
