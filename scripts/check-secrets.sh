@@ -58,6 +58,30 @@ for p in "${infra[@]}"; do
   fi
 done
 
+# Commit messages are published with the repository and are not files, so the
+# scans above never saw them. They need to be, for the same reason: a message
+# saying which machine has which GPU is disclosure whether it sits in a doc or
+# in the log. HEAD only -- the commit being pushed -- so this does not retry
+# history every run.
+msg=$(git log -1 --format='%s%n%b' 2>/dev/null || true)
+if [ -n "$msg" ]; then
+  for p in \
+    '(^|[^0-9.])(192\.168|10\.[0-9]{1,3}\.|172\.(1[6-9]|2[0-9]|3[01])\.)[0-9]{1,3}\.[0-9]{1,3}' \
+    '\b[a-z][a-z0-9]*-node\b' \
+    '\.svc(\.cluster\.local)?\b' \
+    '\b(RTX|GTX)[ -]?[0-9]{3,4}\b'
+  do
+    if hits=$(printf '%s' "$msg" | grep -inE -e "$p" | grep -vE 'setup-node|node_modules'); then
+      if [ -n "$hits" ]; then
+        echo "Internal detail in the commit message ($p):"
+        echo "$hits" | sed 's/^/  /'
+        echo "  Commit messages are public too. Reword with: git commit --amend"
+        found=1
+      fi
+    fi
+  done
+fi
+
 if [ "$found" -ne 0 ]; then
   echo "Remove the secret (and rotate it if it was ever pushed)." >&2
   exit 1
