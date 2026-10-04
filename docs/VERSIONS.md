@@ -83,9 +83,10 @@ which download is which. Their files and notes are unchanged.
 
 ## Coming next
 
-| Version | Phase |
+| Version | What |
 |---|---|
-| v0.10.5+ | Google, Dropbox, OneDrive, Spotify connectors (once BYTE is registered with them) |
-| v0.11.0 | Input & windows (voice, vision, quick ask) |
-| v0.12.0 | Privacy & polish |
-| v1.0.0 | The finished BYTE |
+| v0.12.7+ | Fixes from the 1.0 checklist on a real Mac ([CHECKLIST-1.0.md](CHECKLIST-1.0.md)), if any are needed |
+| v1.0.0 | The finished BYTE (notes drafted in [releases/v1.0.0.md](releases/v1.0.0.md)) |
+| after 1.0 | Windows, then Linux ([PORTING-WINDOWS-LINUX.md](PORTING-WINDOWS-LINUX.md)) |
+| v1.1.0 | Image generation |
+| later | Google, Dropbox, OneDrive, Spotify connectors (once BYTE is registered with them); PowerPoint out of beta |

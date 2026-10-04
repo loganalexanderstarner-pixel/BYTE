@@ -17,6 +17,14 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-04
 
+### (this commit) — v1.0 release notes drafted (docs only)
+- **Why:** v0.12.6 is out, and the owner is testing it with `docs/CHECKLIST-1.0.md`. The 1.0 notes are written now
+  so 1.0 can ship as soon as the checklist passes.
+- **What:** `docs/releases/v1.0.0.md` (a draft, with an HTML comment to remove when it's finalized);
+  `docs/VERSIONS.md` "Coming next" brought up to date (v0.12.7+ fixes, v1.0.0, Windows/Linux, v1.1 images).
+- **Verify:** read both files; nothing is bumped or released.
+- **Undo:** `git revert` this commit.
+
 ### 144ae1b — email replies answer instead of copying
 - **Why:** the v0.12.6 Mac test failed `e2e_mail_reply_draft`: Qwen3 0.6B returned Sam's own email as the reply
   ("reply to Sam's email saying I can make it…"). A real bug, not a flake: nothing checked that a reply answers.
