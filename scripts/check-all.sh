@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
-# Everything CI checks, run locally (CI is manual-only to save Actions minutes).
-# Run before every push: scripts/check-all.sh
+# Everything CI checks, run locally. Run before every push.
+#
+# CI is NOT manual-only: Actions minutes are unlimited for public repositories,
+# and ci.yml runs on every push. This script is still the right first move
+# because it answers in seconds rather than two minutes, and because catching a
+# problem before pushing beats catching it after -- a shell script that would
+# not parse went to the branch on 2026-10-04 because the syntax check was run
+# in the wrong order.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 echo "== secret scan";   scripts/check-secrets.sh
