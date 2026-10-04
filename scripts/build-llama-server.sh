@@ -56,35 +56,27 @@ if [ ! -f "$BUILD/bin/${BIN_SUBDIR}llama-server$EXE" ]; then
       JOBS="$(sysctl -n hw.logicalcpu)"
       ;;
     *-windows-msvc)
+      # GGML_NATIVE=OFF matters as much here as on Apple, and for the same
+      # reason: this box is Zen 4, so NATIVE=ON bakes in AVX-512 and the
+      # binary dies with an illegal instruction on any CPU without it --
+      # which is most of them. A shipped engine must run on the machines
+      # people actually have, not the one that compiled it.
+      FLAGS+=(-DGGML_NATIVE=OFF)
       if [ "$ENGINE_BACKEND" = "vulkan" ]; then
-        # Vulkan needs no vendor SDK at runtime -- the user's own graphics
-        # driver provides the implementation, which is why one build covers
-        # NVIDIA, AMD and Intel.
-        FLAGS+=(-DGGML_NATIVE=OFF -DGGML_VULKAN=ON)
-        GEN=(-G "Visual Studio 17 2022" -A x64)
-        JOBS="${NUMBER_OF_PROCESSORS:-8}"
-        ;;
+        # Vulkan needs no vendor SDK at runtime: the user's own graphics driver
+        # supplies the implementation. That is what lets one build cover
+        # NVIDIA, AMD and Intel, including the two we have no hardware to test.
+        FLAGS+=(-DGGML_VULKAN=ON)
+      else
+        # CUDA_ARCHITECTURES is deliberately narrow while iterating. 120 is
+        # Blackwell (RTX 50-series), which is what W1 tests on. Each
+        # architecture compiles separately, so the wider shipping set costs
+        # real build time -- pay it when packaging, not on every build.
+        #   ship: CUDA_ARCHS="75;80;86;89;120"
+        FLAGS+=(-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCHS:-120}")
       fi
-      # CUDA for NVIDIA. GGML_NATIVE=OFF matters as much here as it does on
-      # Apple, and for the same reason: this box is Zen 4, so NATIVE=ON bakes
-      # in AVX-512 and the binary dies with an illegal instruction on any CPU
-      # that lacks it -- which is most of them. A shipped engine must run on
-      # the machines people actually have, not the one that compiled it.
-      #
-      # CUDA_ARCHITECTURES is deliberately narrow for now. 120 is Blackwell
-      # (RTX 50-series), which is what W1 tests on. Shipping needs the wider
-      # set below, and each architecture is compiled separately, so adding
-      # them multiplies the build time -- do it when packaging, not while
-      # iterating.
-      #   ship: -DCMAKE_CUDA_ARCHITECTURES="75;80;86;89;120"
-      FLAGS+=(
-        -DGGML_NATIVE=OFF
-        -DGGML_CUDA=ON
-        -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCHS:-120}"
-      )
-      # The Visual Studio generator finds MSVC by itself; Ninja would need a
-      # developer prompt (vcvars) for cl.exe to be on PATH, which an SSH
-      # session does not have.
+      # The Visual Studio generator locates MSVC itself; Ninja would need
+      # cl.exe on PATH, which means a developer prompt an SSH session lacks.
       GEN=(-G "Visual Studio 17 2022" -A x64)
       JOBS="${NUMBER_OF_PROCESSORS:-8}"
       ;;
