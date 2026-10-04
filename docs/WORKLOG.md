@@ -17,6 +17,16 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-04
 
+### (this commit) — Android "AI focus": other apps go to RAM Plus, the AI keeps the RAM (docs only)
+- **Why:** owner: let other apps stay open in storage (RAM Plus) while the AI is on, so RAM is mainly for the AI.
+- **What:** `docs/ANDROID.md`:
+  - the AI focus setting;
+  - counting what background apps can give up, from the per-phone memory test with RAM Plus on;
+  - the trade-off text, and RAM returned when BYTE closes;
+  - never closing other apps, and no `mlock`;
+  - keeping RAM Plus on.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — Android: use all the RAM it safely can; RAM Plus handled honestly (docs only)
 - **Why:** owner: Android should use as much RAM as it physically can without problems, for max use and speed, and
   asked about the phone's setting that uses storage as RAM.

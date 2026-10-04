@@ -32,8 +32,25 @@ stays out (see `DESIGN-AND-PLATFORMS.md`: free Apple signing expires every 7 day
   - **Stretch option:** the person can choose to run a model a bit bigger than RAM, with part of it read from
     storage (like the desktop's "partly on CPU" stretch mode). It's labelled "slower" with the measured speed, and
     is never picked automatically. It's best for MoE models, which only read a small part of their weights per word.
-  - Since phones with RAM Plus reserve that storage, the onboarding mentions turning it down if the person wants
-    more free storage for models.
+- **AI first: other apps go to storage, the AI keeps the RAM (owner, 2026-10-04).** While BYTE is in use, the
+  model gets the real RAM, and the other open apps are moved out to RAM Plus. They stay open, just paused in
+  storage, which is fine because they're less sensitive to speed than the model.
+  - **How it works:** this is how Android's memory manager already behaves, and BYTE leans into it. The model's
+    memory is used for every word, so the system keeps it in RAM, while apps sitting in the background are idle,
+    so the system moves them to RAM Plus first.
+  - **Counting the space:** BYTE's budget counts the memory those background apps can give up (measured by the
+    per-phone memory test with RAM Plus on), not just what's free right now. So bigger models fit than the "free
+    memory" number alone suggests.
+  - **"AI focus" setting:** on by default while BYTE is answering or a model is loaded, and the person can switch it
+    off. With it on, BYTE asks for the full budget. With it off, BYTE takes only what's free, so the other apps
+    stay in RAM.
+  - **The trade-off, said plainly in Settings:** switching back to another app can take a moment while it comes
+    back from storage, and a few apps may reload. Nothing is lost.
+  - **When BYTE closes or the model unloads:** the RAM goes back to everything else right away.
+  - **Not done:** BYTE never closes other apps itself, and never pins memory in ways Android forbids
+    (`mlock` is capped for apps).
+  - Keep RAM Plus on for this; the onboarding explains it and suggests the largest RAM Plus size if the person has
+    the storage.
 - The same per-device intelligence as the Mac:
   - detect the chip and GPU (Snapdragon / Adreno, Exynos / Xclipse, Tensor, Dimensity);
   - show estimated speed per model before downloading, then a measured speed after (`speed.rs`);
