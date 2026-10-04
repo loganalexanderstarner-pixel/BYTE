@@ -10,9 +10,30 @@ stays out (see `DESIGN-AND-PLATFORMS.md`: free Apple signing expires every 7 day
 - The desktop catalog goes up to 128 GB machines. The Android catalog covers **phones with up to 16 GB of RAM**,
   and it's **expanded with more models in that range**: more small and mid-size models, more quantizations of
   each, and MoE models with few active parameters. Those fit and run fast on phones.
-- Android itself and other apps use several GB, and the system kills apps that take too much. So the fit planner
-  (`system.rs`) works from what's actually free, with a safety margin. That's roughly 8–10 GB for model + context
-  on a 16 GB phone; measure it on the Fold8 Ultra before fixing the numbers.
+- **Use as much RAM as the phone can safely give (owner, 2026-10-04: "max use and speed").** No fixed cap. BYTE
+  takes everything that's free without getting the app killed or making the phone stutter:
+  - **Reading the budget:** it comes from the phone's live numbers (`ActivityManager.MemoryInfo`: `availMem`,
+    `threshold`, `lowMemory`, plus `/proc/meminfo`), not a guess. Model, context and cache grow to fill it, minus a
+    small margin for Android.
+  - **Backing off:** when Android warns of memory pressure (`onTrimMemory`, low-memory signals), BYTE shrinks
+    first: it trims the context cache, then unloads helper models, and never lets the system kill it mid-answer.
+    When memory frees up again, it grows back.
+  - **While answering:** a foreground service keeps BYTE alive and at full speed.
+  - **Measuring the real ceiling:** a one-time memory test on each phone (load in steps, watch for pressure)
+    finds what that phone can really hold, and it's saved like `tune.rs`'s per-Mac tuning. On a 16 GB Fold8 Ultra
+    that's probably 10–12 GB for the model, but the test decides.
+  - **Speed:** model weights are memory-mapped (no second copy), the CPU threads are pinned to the big cores, and
+    the GPU (Vulkan/OpenCL) is used where measuring shows it's faster.
+- **Storage used as RAM (Samsung "RAM Plus", virtual memory):** the phone sets aside storage as extra memory. It
+  helps keep apps open, but storage is many times slower than real RAM, and a model reads all its weights for every
+  word. So:
+  - BYTE detects RAM Plus and shows it, but **doesn't count it as RAM** when deciding what fits. Counting it would
+    make answers crawl.
+  - **Stretch option:** the person can choose to run a model a bit bigger than RAM, with part of it read from
+    storage (like the desktop's "partly on CPU" stretch mode). It's labelled "slower" with the measured speed, and
+    is never picked automatically. It's best for MoE models, which only read a small part of their weights per word.
+  - Since phones with RAM Plus reserve that storage, the onboarding mentions turning it down if the person wants
+    more free storage for models.
 - The same per-device intelligence as the Mac:
   - detect the chip and GPU (Snapdragon / Adreno, Exynos / Xclipse, Tensor, Dimensity);
   - show estimated speed per model before downloading, then a measured speed after (`speed.rs`);

@@ -17,6 +17,16 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-04
 
+### (this commit) — Android: use all the RAM it safely can; RAM Plus handled honestly (docs only)
+- **Why:** owner: Android should use as much RAM as it physically can without problems, for max use and speed, and
+  asked about the phone's setting that uses storage as RAM.
+- **What:** `docs/ANDROID.md`:
+  - a live memory budget instead of a fixed cap, with backing off on pressure, a foreground service and a
+    per-phone memory test;
+  - memory-mapped weights, big-core threads, and the GPU when it's faster;
+  - RAM Plus detected but not counted as RAM, with an opt-in labelled Stretch for slightly bigger models.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — Android extras added to the plan (docs only)
 - **Why:** owner asked what else Android could do, then "add all of it to the notes".
 - **What:** `docs/ANDROID.md`, a new "Extras only Android can do" section and milestone A4:
