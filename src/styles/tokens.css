@@ -31,6 +31,61 @@
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --dur-fast: 120ms;
   --dur: 200ms;
+
+  /* Smallest comfortable hit area. 44px is Apple's guidance, 48dp Android's;
+     48 satisfies both and is what docs/ANDROID.md requires. Only applied where
+     the pointer is coarse, so desktop density is untouched. */
+  --touch-target: 48px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Narrow screens (docs/LAYOUT-ANY-SCREEN.md)
+ *
+ * The defaults above stay exactly as they were: the Mac app has minWidth 900
+ * and never reaches these widths, so nothing here can change how it looks --
+ * which is the porting brief's first rule.
+ *
+ * What these add is the small-screen case that had no rules at all. The
+ * existing media queries stopped at 560px while a phone is 390-430px and a
+ * folded Galaxy Z Fold cover screen is roughly 320-380px, so the narrowest
+ * screen the owner owns was being laid out with desktop spacing.
+ *
+ * Tokens rather than per-component rules on purpose: one place to adjust, and
+ * every component that already reads the scale follows automatically.
+ * ------------------------------------------------------------------------ */
+@media (max-width: 560px) {
+  :root {
+    /* Tighter rhythm so content, not padding, gets the width. */
+    --space-5: 18px;
+    --space-6: 22px;
+    /* A sidebar wider than the screen cannot be a sidebar; it becomes a
+       drawer, and this is the width it slides in at. */
+    --sidebar-w: min(300px, 86vw);
+    --content-max: 100%;
+  }
+}
+
+/* A folded cover screen. Narrow enough that fixed chrome has to give way. */
+@media (max-width: 400px) {
+  :root {
+    --space-4: 12px;
+    --space-5: 14px;
+    --space-6: 18px;
+    --radius-lg: 12px;
+    /* No window chrome on a phone, so the space it reserved is content. */
+    --titlebar-h: 0px;
+  }
+}
+
+/* Touch, not width. A 1024px tablet is touch; a 380px desktop window is not. */
+@media (pointer: coarse) {
+  :root {
+    --touch-target: 48px;
+  }
+  /* Anything that only appears on hover is unreachable here, so reveal it. */
+  .hover-reveal {
+    opacity: 1 !important;
+  }
 }
 
 :root {

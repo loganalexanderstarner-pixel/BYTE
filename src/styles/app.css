@@ -1,3 +1,9 @@
+/* dvh alongside vh (docs/LAYOUT-ANY-SCREEN.md): on a phone, 100vh is the
+ * viewport WITHOUT the browser chrome and keyboard, so a full-height panel is
+ * taller than the screen and the composer ends up under the keyboard --
+ * precisely what docs/ANDROID.md forbids. 100dvh is the live height. The vh
+ * line stays first so an engine that does not know dvh still gets a value.
+ */
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 @import "./tokens.css";
@@ -875,6 +881,7 @@ a {
 .modal {
   width: min(860px, calc(100vw - 48px));
   height: min(640px, calc(100vh - 48px));
+  height: min(640px, calc(100dvh - 48px));
   display: grid;
   grid-template-columns: 200px 1fr;
   overflow: hidden;
@@ -1977,6 +1984,7 @@ kbd {
 .modal.small {
   height: auto;
   max-height: calc(100vh - 64px);
+  max-height: calc(100dvh - 64px);
 }
 .form-field input,
 .form-field textarea {
@@ -3524,6 +3532,7 @@ kbd {
 .recipe-box {
   width: min(920px, calc(100vw - 48px));
   height: min(700px, calc(100vh - 48px));
+  height: min(700px, calc(100dvh - 48px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -5439,6 +5448,7 @@ kbd {
 /* ------------------------------------------------ Quick Ask window */
 .quick {
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--bg);
