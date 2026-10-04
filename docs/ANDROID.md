@@ -38,6 +38,8 @@ stays out (see `DESIGN-AND-PLATFORMS.md`: free Apple signing expires every 7 day
   keys. Never ask Logan to paste one into a chat: he adds secrets in GitHub himself.
 - **Reuse, don't rewrite** (owner's rule). Most of BYTE is shared Rust + React; add Android pieces at the edges.
 - **No linking devices** (owner, 2026-10-02): the phone app doesn't sync with or control the Mac or PC.
+- **Same look as the Mac app** (owner, 2026-10-04): the same colours, icons (`src-tauri/icons/app-icon.svg`), themes
+  and panels. Only the arrangement adapts to the screen size, and the plumbing is Android's own.
 - **Honest limits:** never claim a model runs when it won't; show measured speeds.
 - **The assistant is BYTE.** It never calls itself by the model's name. Its tone is friendly and direct; the
   visuals are neon.

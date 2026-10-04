@@ -17,6 +17,12 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-04
 
+### (this commit) — "same look everywhere" carried into CLAUDE.md, HANDOFF and the Android brief (docs only)
+- **Why:** the owner's 2026-10-04 instruction (recorded by the cluster session in `228d5aa`): the same look as the
+  Mac app on every platform. `CLAUDE.md` and `HANDOFF.md` §1b still said "feel native rather than identical".
+- **What:** `CLAUDE.md`, `docs/HANDOFF.md`, `docs/ANDROID.md` ground rules.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — Android handover brief; keystores blocked from the repo
 - **Why:** owner: hand Android to the cluster session (which also reaches the PC) with everything it could need.
 - **What:**

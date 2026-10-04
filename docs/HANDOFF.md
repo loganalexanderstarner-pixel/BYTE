@@ -28,7 +28,7 @@ Order: **v1.0** (owner's update test + `docs/CHECKLIST-1.0.md`) → **Windows** 
 
 - **Windows first.** The owner has a Windows PC for testing; the plan is a Claude session running on that PC
   (Claude Desktop or `claude remote-control`) to build and run BYTE there. Not a self-hosted GitHub runner (the repo
-  is public). Each OS should feel native to itself (decision of 2026-09-27).
+  is public). Same look as the Mac app on every OS, with native behaviour underneath (owner, 2026-10-04; replaces "feel native" of 2026-09-27).
 - **Image generation (v1.1.0):** image models join the model catalog as their own kind. Each card says what the
   model is best at (realism, cartoon, anime, …) and how long one image takes on this hardware. An image model
   loads only when making images, never sits in memory by default. BYTE runs the chat model **or** the image model;

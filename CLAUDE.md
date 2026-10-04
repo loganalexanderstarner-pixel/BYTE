@@ -16,7 +16,8 @@ tokens + logo, and the Windows/Linux plan), `docs/CLOUD-MODE.md` (BYTE as a remo
 
 - **macOS and Apple Silicon first — but Windows and Linux are now targets too**
   (changed by the owner, 2026-09-27; superseded "macOS only, no Windows/Intel work").
-  Each should feel native to its own OS rather than one build for all three.
+  **Same look everywhere, native behaviour** (owner, 2026-10-04): identical colours, icons, layout and themes on
+  every platform; dialogs, notifications, install and OS features follow each OS (`DESIGN-AND-PLATFORMS.md`).
   **No iOS/iPadOS app** — dropped by the owner 2026-09-27.
   **Android is a target** (owner, 2026-10-04): its own app for phones up to 16 GB of RAM, with an expanded
   catalog for that range; built after Windows and before Linux. Plan: `docs/ANDROID.md`.
