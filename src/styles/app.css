@@ -6356,3 +6356,130 @@ kbd {
   align-items: center;
   gap: 3px;
 }
+
+/* Message composer (texts: the approval card, the Messages inbox). */
+.composer-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.composer-text {
+  width: 100%;
+  resize: vertical;
+  min-height: 64px;
+  font-size: 0.95rem;
+}
+.composer-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.composer-ideas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.composer-idea {
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+.composer-idea:hover {
+  border-color: var(--accent);
+}
+
+/* The Messages inbox. */
+.messages-panel {
+  width: min(980px, 94vw);
+  height: min(680px, 88vh);
+  display: flex;
+  flex-direction: column;
+}
+.messages-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 12px;
+}
+.messages-threads {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  padding-right: 8px;
+}
+.messages-thread {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.messages-thread:hover,
+.messages-thread.active {
+  background: var(--surface-2);
+}
+.messages-thread.unread b::after {
+  content: " •";
+  color: var(--accent);
+}
+.messages-thread-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 8px;
+}
+.messages-bubbles {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 2px;
+}
+.bubble-row {
+  display: flex;
+}
+.bubble-row.me {
+  justify-content: flex-end;
+}
+.text-bubble {
+  max-width: 72%;
+  padding: 7px 11px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  color: var(--text);
+  white-space: pre-wrap;
+  display: flex;
+  flex-direction: column;
+}
+.bubble-row.me .text-bubble {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.messages-reply {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

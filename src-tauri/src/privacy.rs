@@ -34,6 +34,13 @@ pub fn permissions() -> Vec<Permission> {
         p("automation", "Automation", "Mac control: Notes, Reminders, Calendar, Mail drafts, Music, Finder and System Events, each asked once.", "unknown", "Privacy_Automation"),
         p("calendars", "Calendars", "“What's on my calendar?” and the daily briefing.", "unknown", "Privacy_Calendars"),
         p("reminders", "Reminders", "“Remind me to…” with Apple Reminders.", "unknown", "Privacy_Reminders"),
+        p(
+            "fulldisk",
+            "Full Disk Access",
+            "Only for the Messages inbox: reading texts you receive (read-only, on this Mac).",
+            if crate::messages::has_access() { "allowed" } else { "not asked" },
+            "Privacy_AllFiles",
+        ),
         Permission {
             id: "notifications",
             name: "Notifications",
@@ -234,13 +241,14 @@ mod tests {
     #[test]
     fn every_permission_links_to_system_settings() {
         let ps = permissions();
-        assert_eq!(ps.len(), 6);
+        assert_eq!(ps.len(), 7);
         for p in &ps {
             assert!(p.url.starts_with("x-apple.systempreferences:com.apple."), "{}", p.url);
             assert!(!p.url.contains(char::is_whitespace));
             assert!(["allowed", "denied", "not asked", "unknown"].contains(&p.status));
         }
         assert!(ps.iter().any(|p| p.url.ends_with("Privacy_Microphone")));
+        assert!(ps.iter().any(|p| p.id == "fulldisk" && p.url.ends_with("Privacy_AllFiles")));
     }
 
     #[test]

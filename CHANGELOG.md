@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.6 — Texting from BYTE, and a Messages inbox
+
+- `macctl.rs`: `MessageSend` replaces `MessageDraft` (MESSAGE_SEND: into the known chat id, else iMessage, else SMS;
+  falls back to opening Messages filled in). The card's Text is editable (`ApprovalAsk.editable`,
+  `web_agent::answer_with` / `take_edits`, `agent_approve` edits).
+- UI: `messages/MessageComposer.tsx` (Fix grammar, Rephrase + tones, Shorter, Ideas, Undo; `lib/composer.ts`
+  over `writing_run`); tones "fun" and "sympathetic" in `writing.rs`. Text cards' button says "Send".
+- `messages.rs` (opt-in, Full Disk Access): chat.db read-only (attributedBody text, Apple dates, reactions left
+  out), names from Contacts' databases, threads / thread / send, a 15 s new-text watcher (notification + event).
+  UI: `messages/MessagesPanel.tsx`, a new-text banner (Draft a reply / Reply), Settings → Privacy → Messages inbox,
+  a Full Disk Access row. Kids mode and the lock keep it closed.
+
 ## 0.12.5 — Texting in plain words, and updates that explain themselves
 
 - `macctl.rs`: `plain_text()` / `after_first()`: "text Mom I'm on my way" routes to a Messages draft without

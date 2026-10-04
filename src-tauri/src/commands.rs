@@ -96,8 +96,8 @@ pub async fn calendar_open(app: tauri::AppHandle, path: String, data: String) ->
 
 /// Approve or deny the web agent's approval card. False when it's no longer waiting.
 #[tauri::command]
-pub fn agent_approve(id: String, ok: bool) -> bool {
-    crate::web_agent::answer(&id, ok)
+pub fn agent_approve(id: String, ok: bool, edits: Option<Vec<crate::web_agent::Field>>) -> bool {
+    crate::web_agent::answer_with(&id, ok, edits.unwrap_or_default())
 }
 
 /// Shows or hides the web agent's browser (to watch, or to take over a login).
@@ -328,6 +328,7 @@ pub async fn settings_update(app: AppHandle, state: State<'_, AppState>, patch: 
     next.save(&state.paths.settings_file)?;
     *s = next.clone();
     crate::offline::set(next.offline);
+    crate::messages::set_enabled(next.messages_inbox);
     crate::quick::sync_offline_item(next.offline);
     crate::quick::apply_shortcuts(&app, &next);
     crate::quick::apply_tray(&app, next.menu_bar_icon);

@@ -198,7 +198,7 @@ pub fn personality_section(p: &Personality) -> String {
 /// When the answer will be heard rather than read: talk like a person, not a document.
 /// Added when Mac control is on (macOS): so a request the app didn't act on gets a pointer, not "I can't".
 pub const MAC_CONTROL: &str = "\n\nOn this Mac, BYTE can act in apps when the user asks directly: \
-\"text Mom I'm on my way\" opens Messages with the text filled in (the user presses Send), \
+\"text Mom I'm on my way\" shows the text on a card the user can edit, and sends it through Messages when they press Send, \
 \"email Sam about Friday\" opens a Mail draft, \"remind me to call the bank at 3pm\", \"add lunch with Sam to my calendar tomorrow at noon\", \
 \"play some music\", \"turn on dark mode\". Never say you can't text, email or remind: if a request like that reaches you \
 here, write what they asked for and tell them they can ask it directly, like \"text Mom …\", to have BYTE open it for them.";

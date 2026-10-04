@@ -72,7 +72,8 @@ src-tauri/                Rust core (Tauri 2)
   src/speech.rs           answers read aloud (macOS `say`, text via a temp file), speakable(), voices
   src/wake.rs             "Hey BYTE": native mic (cpal, macOS), voice-burst detector, whisper check, opens Quick Ask
   src/quick.rs            Quick Ask window, menu-bar icon, global shortcuts from settings
-  src/macctl.rs           Mac control: fixed AppleScripts (user words only as argv), approval card, undo
+  src/macctl.rs           Mac control: fixed AppleScripts (user words only as argv), approval card, undo; texts sent after an editable card
+  src/messages.rs         Messages inbox (opt-in, Full Disk Access): chat.db read-only, Contacts names, new-text watcher, send into a thread
   src/router.rs           per-turn thinking/length plan by mode
   src/prompt.rs           system prompt (identity, date, mode rules)
   src/backend.rs          ModelBackend trait: LocalLlama + Cloud, fallback rules (chat_send goes through it)

@@ -18,12 +18,17 @@ wrong, slow or confusing — a screenshot or the exact message helps most.
 7. ☐ **PowerPoint (beta):** same with Slides. Open it in Keynote or PowerPoint and note what looks wrong.
 
 ## Voice
-8. ☐ **Dictation:** click 🎤 (first time: download the speech model), say a question.
+8. ☐ **Dictation:** click 🎤 (first time: download the speech model). macOS asks for the microphone once, and BYTE
+   shows up in System Settings → Privacy & Security → Microphone. Say a question.
 9. ☐ **Hey BYTE** (Settings → Models → Voice → Listen for "Hey BYTE"): say "Hey BYTE, what time is it?"
 
 ## Your Mac
 10. ☐ **Reminder:** "Remind me to call Mom tomorrow at 3pm" → **Do it** → it's in Reminders → **Undo** removes it.
 11. ☐ **Storage:** "What's taking up space on my Mac?"
+11a. ☐ **Text someone:** "text Mom I'm on my way" → edit it on the card, try **Fix grammar** and a **Rephrase** tone or
+    **Ideas** → **Send**. It arrives on their phone.
+11b. ☐ **Messages inbox:** Settings → Privacy → Messages inbox (turn on Full Disk Access for BYTE when asked). Have
+    someone text you: a banner appears → **Draft a reply** → edit → **Send**.
 
 ## Privacy
 12. ☐ **Offline:** Settings → Privacy → Work offline. A news question says it's offline; a normal question still works.

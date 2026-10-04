@@ -120,6 +120,9 @@ pub struct ApprovalAsk {
     /// The button's or link's label.
     pub target: String,
     pub fields: Vec<Field>,
+    /// Labels of fields the user may change on the card before approving (a text's wording).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub editable: Vec<String>,
 }
 
 /// A file BYTE saved (a download or a saved page), shown as a chip.
@@ -199,11 +202,30 @@ fn forget(id: &str) {
     }
 }
 
-/// The user pressed Approve or Deny (command `agent_approve`). False when
-/// the card is no longer waiting (answered, timed out or the answer stopped).
+/// Approve or deny with no edits (agent stop, tests).
+#[cfg_attr(not(any(test, target_os = "macos")), allow(dead_code))]
 pub fn answer(id: &str, ok: bool) -> bool {
+    answer_with(id, ok, Vec::new())
+}
+
+/// Fields the user changed on cards, kept until the action reads them (`take_edits`).
+static EDITS: Lazy<Mutex<HashMap<String, Vec<Field>>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+
+/// The user pressed Approve or Deny (command `agent_approve`), with the fields they edited on the card (only
+/// cards that allow it). False when the card is no longer waiting (answered, timed out or the answer stopped).
+pub fn answer_with(id: &str, ok: bool, edits: Vec<Field>) -> bool {
+    if ok && !edits.is_empty() {
+        if let Ok(mut m) = EDITS.lock() {
+            m.insert(id.to_string(), edits);
+        }
+    }
     let tx = APPROVALS.lock().ok().and_then(|mut m| m.remove(id));
     tx.map(|tx| tx.send(ok).is_ok()).unwrap_or(false)
+}
+
+/// The fields the user changed on card `id` (empty when none).
+pub fn take_edits(id: &str) -> Vec<Field> {
+    EDITS.lock().ok().and_then(|mut m| m.remove(id)).unwrap_or_default()
 }
 
 tokio::task_local! {
@@ -680,6 +702,7 @@ impl Session {
                 url: url_before.clone(),
                 target: el.label.clone(),
                 fields: info.fields,
+                editable: Vec::new(),
             };
             if !ask(ask_card, self.approval_wait, cancel, send).await? {
                 self.declined = true;
@@ -752,6 +775,7 @@ impl Session {
             url: url.to_string(),
             target: if label.is_empty() { name.clone() } else { label },
             fields: vec![Field { label: "Saved to".into(), value: format!("Downloads/BYTE/{name}") }],
+            editable: Vec::new(),
         };
         if !ask(card, self.approval_wait, cancel, send).await? {
             self.declined = true;

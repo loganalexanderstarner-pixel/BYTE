@@ -103,6 +103,9 @@ export interface Settings {
   reduceMotion?: "auto" | "reduce";
   /** Check daily for a newer BYTE (updater.rs). */
   updateCheck?: boolean;
+  /** The Messages inbox (needs Full Disk Access), and a notification for new texts. */
+  messagesInbox?: boolean;
+  messagesNotify?: boolean;
   /** Soft sounds when an answer is ready. */
   sounds?: boolean;
   /** Kids mode (kids.rs): a simple BYTE; turning it off needs the PIN. */
@@ -847,6 +850,8 @@ export interface ApprovalAsk {
   /** The button's or link's label. */
   target: string;
   fields: { label: string; value: string }[];
+  /** Fields the user can change on the card before approving (a text's wording). */
+  editable?: string[];
 }
 
 /** An approval card on a message, with what the user decided. */
@@ -1373,4 +1378,34 @@ export interface UpdateInfo {
   current: string;
   version: string;
   notes: string;
+}
+
+/** messages.rs: the Messages inbox. */
+export interface MessagesStatus {
+  available: boolean;
+  enabled: boolean;
+  granted: boolean;
+  message: string;
+}
+export interface MessageThread {
+  chat: string;
+  name: string;
+  handle: string;
+  group: boolean;
+  lastText: string;
+  lastAt: number;
+  lastFromMe: boolean;
+  unread: boolean;
+}
+export interface TextMessage {
+  text: string;
+  at: number;
+  fromMe: boolean;
+  sender: string;
+}
+export interface NewText {
+  chat: string;
+  name: string;
+  text: string;
+  at: number;
 }

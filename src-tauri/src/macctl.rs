@@ -75,8 +75,9 @@ pub enum Action {
     MailList { query: String, days: u32 },
     /// A new email opened in Mail, filled in, for the user to send (BYTE never sends).
     MailDraft { to: String, name: String, subject: String, body: String },
-    /// Messages opened to someone with the text filled in (the user presses Send).
-    MessageDraft { to: String, name: String, body: String },
+    /// A text sent through Messages after the user approves it (and may edit it on the card). `chat` is the
+    /// conversation's id from the Messages inbox when known (replies go to the same thread), else empty.
+    MessageSend { to: String, name: String, body: String, chat: String },
     /// People in Contacts (for finding an address; never shown as its own action).
     ContactFind { name: String },
 }
@@ -104,7 +105,7 @@ impl Action {
             Volume(_) | Mute(_) | Wifi(_) | SleepDisplay | OpenSettings { .. } => "System Settings",
             ShortcutsList | ShortcutRun { .. } => "Shortcuts",
             MailList { .. } | MailDraft { .. } => "Mail",
-            MessageDraft { .. } => "Messages",
+            MessageSend { .. } => "Messages",
             ContactFind { .. } => "Contacts",
         }
     }
@@ -130,14 +131,14 @@ impl Action {
             ShortcutRun { .. } => "mac_shortcut_run",
             MailList { .. } => "mac_mail_list",
             MailDraft { .. } => "mac_mail_draft",
-            MessageDraft { .. } => "mac_message_draft",
+            MessageSend { .. } => "mac_message_send",
             ContactFind { .. } => "mac_contact_find",
         }
     }
 
     /// Adds or changes something that stays: the user approves it first.
     pub fn needs_ok(&self) -> bool {
-        matches!(self, Action::NoteCreate { .. } | Action::ReminderAdd { .. } | Action::EventAdd { .. } | Action::Wifi(false) | Action::ShortcutRun { .. } | Action::MailDraft { .. } | Action::MessageDraft { .. })
+        matches!(self, Action::NoteCreate { .. } | Action::ReminderAdd { .. } | Action::EventAdd { .. } | Action::Wifi(false) | Action::ShortcutRun { .. } | Action::MailDraft { .. } | Action::MessageSend { .. })
     }
 
     /// One line saying what BYTE will do (the approval card's title).
@@ -172,7 +173,7 @@ impl Action {
             MailList { query, .. } if query.is_empty() => "Check your new emails".into(),
             MailList { query, .. } => format!("Look for emails about \"{query}\""),
             MailDraft { name, to, .. } => format!("Open an email to {} in Mail, ready to send", if name.is_empty() { to } else { name }),
-            MessageDraft { name, to, .. } => format!("Open Messages with a text to {}", if name.is_empty() { to } else { name }),
+            MessageSend { name, to, .. } => format!("Send a text to {}", if name.is_empty() { to } else { name }),
             ContactFind { name } => format!("Look up {name} in Contacts"),
         }
     }
@@ -210,10 +211,10 @@ impl Action {
                 ("Email".into(), body.chars().take(1500).collect()),
                 ("Note".into(), "Mail opens it for you to read and send. BYTE doesn't send it.".into()),
             ],
-            MessageDraft { to, name, body } => vec![
+            MessageSend { to, name, body, .. } => vec![
                 ("To".into(), if name.is_empty() || name == to { to.clone() } else { format!("{name} ({to})") }),
                 ("Text".into(), body.clone()),
-                ("Note".into(), "Messages opens with it filled in; you press Send.".into()),
+                ("Note".into(), "Sent from your Messages app when you press Send. A sent text can't be taken back from BYTE.".into()),
             ],
             _ => vec![],
         }
@@ -253,7 +254,7 @@ impl Action {
             ShortcutRun { name, .. } => Command::Exec { program: "shortcuts", args: vec!["run".into(), name.clone()] },
             MailList { query, days } => osa(MAIL_LIST, vec![query.clone(), days.to_string()]),
             MailDraft { to, subject, body, .. } => osa(MAIL_DRAFT, vec![to.clone(), subject.clone(), body.clone()]),
-            MessageDraft { to, body, .. } => osa(MESSAGE_DRAFT, vec![body.clone(), sms_url(to, body)]),
+            MessageSend { to, body, chat, .. } => osa(MESSAGE_SEND, vec![body.clone(), handle_of(to), chat.clone()]),
             ContactFind { name } => osa(CONTACT_FIND, vec![name.clone()]),
         }
     }
@@ -525,6 +526,29 @@ const MESSAGE_DRAFT: &str = r#"on run argv
 	return "opened"
 end run"#;
 
+/// Sends a text: into the known conversation (`chat id`, from the Messages inbox), else to the person over
+/// iMessage, else over SMS (needs an iPhone with Text Message Forwarding). The text and address are argv.
+const MESSAGE_SEND: &str = r#"on run argv
+	set theText to item 1 of argv
+	set target to item 2 of argv
+	set chatId to item 3 of argv
+	tell application "Messages"
+		if chatId is not "" then
+			send theText to chat id chatId
+			return "sent"
+		end if
+		try
+			set svc to 1st account whose service type = iMessage
+			send theText to participant target of svc
+			return "sent"
+		on error
+			set svc to 1st account whose service type = SMS
+			send theText to participant target of svc
+			return "sent sms"
+		end try
+	end tell
+end run"#;
+
 /// People whose name or nickname contains the words: name, emails, phones.
 const CONTACT_FIND: &str = r#"on run argv
 	set q to item 1 of argv
@@ -549,7 +573,7 @@ end run"#;
 #[cfg_attr(not(test), allow(dead_code))]
 pub const ALL_SCRIPTS: &[&str] = &[
     NOTE_CREATE, NOTE_DELETE, NOTE_FIND, REMINDER_ADD, REMINDER_DELETE, REMINDERS_LIST, EVENT_ADD, EVENT_DELETE, EVENTS_LIST, MUSIC_PLAY,
-    MUSIC_CONTROL, SAFARI_TAB, DARK_MODE, VOLUME, MUTE, MAIL_LIST, MAIL_DRAFT, MAIL_DRAFT_DELETE, MESSAGE_DRAFT, CONTACT_FIND,
+    MUSIC_CONTROL, SAFARI_TAB, DARK_MODE, VOLUME, MUTE, MAIL_LIST, MAIL_DRAFT, MAIL_DRAFT_DELETE, MESSAGE_DRAFT, MESSAGE_SEND, CONTACT_FIND,
 ];
 
 /// Percent-encodes for a URL part (spaces as %20, which Messages shows as spaces).
@@ -565,11 +589,19 @@ fn url_part(s: &str) -> String {
     out
 }
 
-/// `sms:` link that opens Messages to a number or email with the text filled in.
+/// The address Messages knows: a phone number keeps only digits and "+"; an email its own characters.
+pub(crate) fn handle_of(to: &str) -> String {
+    if to.contains('@') {
+        to.chars().filter(|c| c.is_ascii_alphanumeric() || "+@.-_".contains(*c)).collect()
+    } else {
+        to.chars().filter(|c| c.is_ascii_digit() || *c == '+').collect()
+    }
+}
+
+/// `sms:` link that opens Messages to a number or email with the text filled in (the fallback when sending
+/// directly doesn't work).
 fn sms_url(to: &str, body: &str) -> String {
-    // A phone number keeps only digits and "+"; an email address its own characters.
-    let to: String = if to.contains('@') { to.chars().filter(|c| c.is_ascii_alphanumeric() || "+@.-_".contains(*c)).collect() } else { to.chars().filter(|c| c.is_ascii_digit() || *c == '+').collect() };
-    format!("sms:{}&body={}", url_part(&to), url_part(body))
+    format!("sms:{}&body={}", url_part(&handle_of(to)), url_part(body))
 }
 
 /// Drops template leftovers small models add ("[Your Name]", "[Date]"): a line
@@ -1424,7 +1456,8 @@ say what they asked and nothing more (don't invent facts, dates or promises); a 
                     Err(ask) => return Ok(Err(ask)),
                 }
             };
-            Ok(Action::MessageDraft { to, name, body })
+            let chat = crate::messages::chat_for(&to).unwrap_or_default();
+            Ok(Action::MessageSend { to, name, body, chat })
         }
     })
 }
@@ -1657,6 +1690,11 @@ pub async fn undo(token: &str) -> AppResult<bool> {
 
 /// Shows an approval card for a Mac action and waits for the answer.
 pub(crate) async fn ask_ok(title: &str, app: &str, fields: Vec<(String, String)>, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<bool> {
+    Ok(ask_ok_edit(title, app, fields, &[], cancel, send).await?.0)
+}
+
+/// Like `ask_ok`, with fields the user can change on the card (`editable` labels); returns the changed ones.
+pub(crate) async fn ask_ok_edit(title: &str, app: &str, fields: Vec<(String, String)>, editable: &[&str], cancel: &CancellationToken, send: Emit<'_>) -> AppResult<(bool, Vec<crate::web_agent::Field>)> {
     let ask = crate::web_agent::ApprovalAsk {
         id: format!("mac_{}", uuid::Uuid::new_v4().simple()),
         action: "mac".into(),
@@ -1665,8 +1703,11 @@ pub(crate) async fn ask_ok(title: &str, app: &str, fields: Vec<(String, String)>
         url: String::new(),
         target: app.into(),
         fields: fields.into_iter().map(|(label, value)| crate::web_agent::Field { label, value }).collect(),
+        editable: editable.iter().map(|s| s.to_string()).collect(),
     };
-    crate::web_agent::ask(ask, APPROVAL_WAIT, cancel, send).await
+    let id = ask.id.clone();
+    let ok = crate::web_agent::ask(ask, APPROVAL_WAIT, cancel, send).await?;
+    Ok((ok, crate::web_agent::take_edits(&id)))
 }
 
 // -------------------------------------------------------------------- cards
@@ -1801,9 +1842,10 @@ fn read_out(action: &Action, out: &str) -> (String, String) {
             let who = if name.is_empty() { to } else { name };
             (format!("To {who} · {subject}"), format!("Done: BYTE opened a new email to {who} in Mail (\"{subject}\"). It isn't sent: the user reads it and presses Send."))
         }
-        MessageDraft { to, name, .. } => {
+        MessageSend { to, name, body, .. } => {
             let who = if name.is_empty() { to } else { name };
-            (format!("To {who}"), format!("Done: Messages is open with the text to {who} filled in (it's on the clipboard too: ⌘V if the box is empty). It isn't sent: the user presses Send."))
+            let how = if out.trim() == "sent sms" { " as a text message (SMS)" } else { "" };
+            (format!("Sent to {who}{how}"), format!("Done: BYTE sent the text to {who}{how} through Messages: \"{body}\". Tell the user it's sent (it can't be taken back from BYTE; iMessages can be unsent in Messages for a couple of minutes)."))
         }
         ContactFind { .. } => (String::new(), String::new()),
         ShortcutRun { name, .. } => {
@@ -1855,7 +1897,14 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, now: NaiveDateTime
     send(ChatEvent::ToolCall { id: id.clone(), name: action.tool().into(), args: args.clone() })?;
 
     if action.needs_ok() {
-        let ok = ask_ok(&action.describe(), app, action.fields(), cancel, send).await?;
+        let editable: &[&str] = if matches!(action, Action::MessageSend { .. }) { &["Text"] } else { &[] };
+        let (ok, edits) = ask_ok_edit(&action.describe(), app, action.fields(), editable, cancel, send).await?;
+        // The text as the user left it on the card (edited, fixed or rephrased there).
+        if let (Action::MessageSend { body, .. }, Some(text)) = (&mut action, edits.iter().find(|f| f.label == "Text").map(|f| f.value.trim().to_string())) {
+            if !text.is_empty() {
+                *body = text;
+            }
+        }
         if !ok {
             send(ChatEvent::ToolResult { id, ok: false, summary: "You said no".into() })?;
             turn.log.record(action.tool(), &args, false, "declined");
@@ -1867,6 +1916,17 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, now: NaiveDateTime
         r = execute(runner, &action) => r,
         _ = cancel.cancelled() => return Err(AppError::Cancelled),
     };
+    // Sending didn't work (no iMessage account, Messages refused): open it filled in instead, for the user to send.
+    if let (Err(e), Action::MessageSend { to, name, body, .. }) = (&out, &action) {
+        if runner.run(&Command::Osa { script: MESSAGE_DRAFT, args: vec![body.clone(), sms_url(to, body)] }).await.is_ok() {
+            let who = if name.is_empty() { to } else { name };
+            let why = e.text(app);
+            send(ChatEvent::ToolResult { id, ok: false, summary: "Opened in Messages instead".into() })?;
+            turn.log.record(action.tool(), &args, false, &why);
+            send(ChatEvent::MacDone(MacDone { app: app.into(), title: format!("Couldn't send it, so Messages is open with the text to {who}"), detail: why.clone(), ok: false, undo: None }))?;
+            return Ok(Some((SourceBook::default(), format!("BYTE couldn't send the text directly ({why}), so it opened Messages with the text to {who} filled in (also on the clipboard). Tell the user to press Send there."))));
+        }
+    }
     match out {
         Ok(out) => {
             let (detail, notes) = read_out(&action, &out);

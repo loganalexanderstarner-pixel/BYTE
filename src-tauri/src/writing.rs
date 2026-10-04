@@ -62,6 +62,8 @@ Don't invent facts about real people, dates, prices or numbers."
                 "confident" => "confident and direct: clear statements, active voice, no hedging",
                 "simple" => "simple and plain: short sentences and everyday words a 12-year-old would understand",
                 "persuasive" => "persuasive: lead with the benefit, give reasons, end with a clear ask",
+                "fun" => "fun and playful: light, upbeat and a little witty, still clear (an emoji is fine if it fits)",
+                "sympathetic" => "sympathetic and caring: warm, understanding and gentle, acknowledging how the other person feels",
                 _ => "warm and friendly: conversational, kind, like talking to a friend",
             };
             format!("Rewrite this text so its tone is {how}. Keep the same meaning and roughly the same length.")

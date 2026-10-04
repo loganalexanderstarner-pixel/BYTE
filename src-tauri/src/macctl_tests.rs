@@ -234,6 +234,11 @@ impl Runner for Fake {
 type Seen = Arc<StdMutex<Vec<ChatEvent>>>;
 
 async fn flow(q: &str, fake: &Fake, approve: Option<bool>) -> (Option<(SourceBook, String)>, Vec<ChatEvent>) {
+    flow_edited(q, fake, approve, Vec::new()).await
+}
+
+/// Like `flow`, with fields the user changed on the card before approving.
+async fn flow_edited(q: &str, fake: &Fake, approve: Option<bool>, edits: Vec<crate::web_agent::Field>) -> (Option<(SourceBook, String)>, Vec<ChatEvent>) {
     let dir = tempfile::tempdir().unwrap();
     let log = crate::tools::ActionLog::new(dir.path().join("a.jsonl"));
     let http = chat::local_client();
@@ -258,7 +263,7 @@ async fn flow(q: &str, fake: &Fake, approve: Option<bool>) -> (Option<(SourceBoo
             loop {
                 let id = s3.lock().unwrap().iter().find_map(|e| if let ChatEvent::Approval(a) = e { Some(a.id.clone()) } else { None });
                 if let Some(id) = id {
-                    crate::web_agent::answer(&id, ok);
+                    crate::web_agent::answer_with(&id, ok, edits);
                     return;
                 }
                 tokio::time::sleep(Duration::from_millis(5)).await;
@@ -374,7 +379,7 @@ fn mail_and_messages_keep_words_out_of_scripts() {
     for a in [
         Action::MailList { query: evil.into(), days: 3 },
         Action::MailDraft { to: evil.into(), name: String::new(), subject: evil.into(), body: evil.into() },
-        Action::MessageDraft { to: "+1 555 123 4567".into(), name: String::new(), body: evil.into() },
+        Action::MessageSend { to: "+1 555 123 4567".into(), name: String::new(), body: evil.into(), chat: evil.into() },
         Action::ContactFind { name: evil.into() },
     ] {
         let Command::Osa { script, args } = a.command() else { panic!("{a:?}") };
@@ -384,7 +389,10 @@ fn mail_and_messages_keep_words_out_of_scripts() {
     assert_eq!(sms_url("+1 (555) 123-4567", "Running late, 10 min!"), "sms:%2B15551234567&body=Running%20late%2C%2010%20min%21");
     assert_eq!(sms_url("mom@example.com", "hi"), "sms:mom%40example.com&body=hi");
     assert!(Action::MailDraft { to: "a@b.c".into(), name: String::new(), subject: "s".into(), body: "b".into() }.needs_ok());
-    assert!(Action::MessageDraft { to: "1".into(), name: String::new(), body: "b".into() }.needs_ok());
+    assert!(Action::MessageSend { to: "1".into(), name: String::new(), body: "b".into(), chat: String::new() }.needs_ok());
+    // The address goes in as a clean number or email, the text and conversation as separate arguments.
+    let Command::Osa { args, .. } = (Action::MessageSend { to: "+1 (412) 555-0123".into(), name: "Mom".into(), body: "hi".into(), chat: String::new() }).command() else { panic!() };
+    assert_eq!(args, vec!["hi".to_string(), "+14125550123".into(), String::new()]);
     assert!(!Action::MailList { query: String::new(), days: 3 }.needs_ok());
 }
 
@@ -408,28 +416,50 @@ fn contacts_and_senders_are_read() {
 }
 
 #[tokio::test]
-async fn a_text_finds_the_number_asks_first_and_never_sends() {
+async fn a_text_finds_the_number_asks_first_then_sends() {
     let fake = Fake::default();
     fake.replies.lock().unwrap().push(Ok(format!("Mom{US}{US}+1 555 0199{RS}")));
-    fake.replies.lock().unwrap().push(Ok("opened".into()));
+    fake.replies.lock().unwrap().push(Ok("sent".into()));
     let (out, ev) = flow("text Mom that I'm running late", &fake, Some(true)).await;
     let card = ev.iter().find_map(|e| if let ChatEvent::Approval(a) = e { Some(a.clone()) } else { None }).expect("approval card");
-    assert_eq!(card.title, "Open Messages with a text to Mom");
+    assert_eq!(card.title, "Send a text to Mom");
+    assert_eq!(card.editable, vec!["Text".to_string()]);
     assert!(card.fields.iter().any(|f| f.label == "Text" && f.value == "I'm running late"), "{:?}", card.fields);
     let ran = fake.ran.lock().unwrap().clone();
-    assert_eq!(ran[1], Command::Osa { script: MESSAGE_DRAFT, args: vec!["I'm running late".into(), "sms:%2B15550199&body=I%27m%20running%20late".into()] });
-    assert!(out.unwrap().1.contains("It isn't sent"));
+    assert_eq!(ran[1], Command::Osa { script: MESSAGE_SEND, args: vec!["I'm running late".into(), "+15550199".into(), String::new()] });
+    assert!(ev.iter().any(|e| matches!(e, ChatEvent::MacDone(d) if d.ok && d.detail == "Sent to Mom" && d.undo.is_none())));
+    assert!(out.unwrap().1.contains("BYTE sent the text to Mom"));
 }
 
 #[tokio::test]
-async fn a_plain_text_without_saying_works_too() {
+async fn the_text_edited_on_the_card_is_the_one_sent() {
     let fake = Fake::default();
     fake.replies.lock().unwrap().push(Ok(format!("Mom{US}{US}+1 555 0199{RS}")));
+    fake.replies.lock().unwrap().push(Ok("sent".into()));
+    let edit = vec![crate::web_agent::Field { label: "Text".into(), value: "Running 10 minutes late, sorry!".into() }];
+    let (_, _) = flow_edited("Text mom this is ai sending this message", &fake, Some(true), edit).await;
+    let ran = fake.ran.lock().unwrap().clone();
+    assert_eq!(ran[1], Command::Osa { script: MESSAGE_SEND, args: vec!["Running 10 minutes late, sorry!".into(), "+15550199".into(), String::new()] });
+}
+
+#[tokio::test]
+async fn when_sending_fails_messages_opens_it_instead() {
+    let fake = Fake::default();
+    fake.replies.lock().unwrap().push(Ok(format!("Mom{US}{US}+1 555 0199{RS}")));
+    fake.replies.lock().unwrap().push(Err(RunError::NotAllowed));
     fake.replies.lock().unwrap().push(Ok("opened".into()));
-    let (_, ev) = flow("Text mom this is ai sending this message", &fake, Some(true)).await;
-    let card = ev.iter().find_map(|e| if let ChatEvent::Approval(a) = e { Some(a.clone()) } else { None }).expect("approval card");
-    assert_eq!(card.title, "Open Messages with a text to Mom");
-    assert!(card.fields.iter().any(|f| f.label == "Text" && f.value == "This is ai sending this message"), "{:?}", card.fields);
+    let (out, _) = flow("Text mom this is ai sending this message", &fake, Some(true)).await;
+    let ran = fake.ran.lock().unwrap().clone();
+    assert!(matches!(&ran[2], Command::Osa { script, .. } if *script == MESSAGE_DRAFT));
+    assert!(out.unwrap().1.contains("couldn't send the text directly"));
+}
+
+#[tokio::test]
+async fn saying_no_sends_nothing() {
+    let fake = Fake::default();
+    fake.replies.lock().unwrap().push(Ok(format!("Mom{US}{US}+1 555 0199{RS}")));
+    let (_, _) = flow("text Mom I'm on my way", &fake, Some(false)).await;
+    assert_eq!(fake.ran.lock().unwrap().len(), 1, "only the Contacts lookup ran");
 }
 
 #[tokio::test]

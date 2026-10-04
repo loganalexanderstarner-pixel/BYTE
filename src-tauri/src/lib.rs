@@ -21,6 +21,7 @@ mod jobs;
 mod kitchen;
 mod lab;
 mod macctl;
+mod messages;
 mod looker;
 mod engine;
 mod export;
@@ -155,6 +156,7 @@ pub fn run() {
             let _ = state.app.set(app.handle().clone());
             let settings_now = state.settings.blocking_lock().clone();
             offline::set(settings_now.offline);
+            messages::set_enabled(settings_now.messages_inbox);
             kids::set(settings_now.kids_mode);
             let catalog = state.catalog.get();
             let models_dir = state.paths.models.clone();
@@ -168,6 +170,7 @@ pub fn run() {
             clipboard::watch(app.handle().clone());
             // Reminders, the daily briefing and scheduled questions.
             scheduler::start(app.handle().clone());
+            messages::start(app.handle().clone());
             // The window stays hidden when the login item started BYTE.
             if !background::launched_in_background() {
                 background::show_main(app.handle());
@@ -471,6 +474,10 @@ pub fn run() {
             backup::erase_everything,
             updater::update_configured,
             updater::update_check,
+            messages::messages_status,
+            messages::messages_threads,
+            messages::messages_thread,
+            messages::messages_send,
             updater::update_install,
             commands::chat_cancel,
         ])

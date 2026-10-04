@@ -15,6 +15,7 @@ import {
   Shapes,
   WifiOff,
   KeyRound,
+  MessageCircle,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
@@ -26,6 +27,7 @@ import { Palette } from "../components/Palette";
 import { THEMES } from "../design/themes";
 import { prettyKeys } from "../lib/keys";
 import type { PaletteItem } from "../lib/palette";
+import type { NewText } from "../lib/types";
 import { Sidebar } from "../components/Sidebar";
 import { KidsExit } from "../components/kids/KidsExit";
 import { useStore, type SettingsTab } from "../state/store";
@@ -75,6 +77,11 @@ const BoardPanel = lazy(() =>
 const JobsPanel = lazy(() =>
   import("../components/jobs/JobsPanel").then((m) => ({
     default: m.JobsPanel,
+  })),
+);
+const MessagesPanel = lazy(() =>
+  import("../components/messages/MessagesPanel").then((m) => ({
+    default: m.MessagesPanel,
   })),
 );
 const ClipboardPanel = lazy(() =>
@@ -133,6 +140,16 @@ export function Shell() {
       s.settings?.macControl !== false && s.settings?.clipboardHistory === true,
   );
   const [clipsOpen, setClipsOpen] = useState(false);
+  // The Messages inbox (macOS, opt-in), and the newest text that arrived while BYTE is open.
+  const messagesOn = useStore(
+    (s) =>
+      s.settings?.macControl !== false && s.settings?.messagesInbox === true,
+  );
+  const [messagesOpen, setMessagesOpen] = useState<{
+    chat: string | null;
+    draft: boolean;
+  } | null>(null);
+  const [newText, setNewText] = useState<NewText | null>(null);
   const tasksOn = useStore(
     (s) =>
       s.settings?.tasksEnabled !== false ||
@@ -170,6 +187,11 @@ export function Shell() {
     ];
     return () => offs.forEach((p) => void p.then((off) => off()));
   }, [openSettings]);
+
+  useEffect(() => {
+    const off = api.onNewTexts((t) => t.length && setNewText(t[t.length - 1]));
+    return () => void off.then((f) => f());
+  }, []);
 
   // A newer BYTE is out (the daily check): a quiet banner with Install.
   const [newVersion, setNewVersion] = useState<string | null>(null);
@@ -312,6 +334,13 @@ export function Shell() {
       });
     if (clipsOn)
       items.push({ id: "clips", label: "Clipboard history", group: "Actions" });
+    if (messagesOn)
+      items.push({
+        id: "messages",
+        label: "Messages: your texts",
+        keywords: "imessage sms reply inbox",
+        group: "Actions",
+      });
     if (jobsOn)
       items.push({ id: "jobs", label: "Job search", group: "Actions" });
     if (writingOn)
@@ -440,6 +469,8 @@ export function Shell() {
         return setTasksOpen(true);
       case "clips":
         return setClipsOpen(true);
+      case "messages":
+        return setMessagesOpen({ chat: null, draft: false });
       case "jobs":
         return setJobsOpen(true);
       case "writing":
@@ -559,6 +590,15 @@ export function Shell() {
                   <ListTodo size={18} />
                 </button>
               )}
+              {messagesOn && !kids && (
+                <button
+                  className="icon-btn"
+                  onClick={() => setMessagesOpen({ chat: null, draft: false })}
+                  title="Messages: your texts, with replies BYTE can draft"
+                >
+                  <MessageCircle size={18} />
+                </button>
+              )}
               {clipsOn && (
                 <button
                   className="icon-btn"
@@ -628,6 +668,38 @@ export function Shell() {
             </div>
           )}
         </header>
+        {newText && messagesOn && !kids && (
+          <div className="banner update-banner" role="status">
+            <span className="grow ellipsis">
+              <b>{newText.name}:</b> {newText.text}
+            </span>
+            <button
+              className="btn sm primary"
+              onClick={() => (
+                setMessagesOpen({ chat: newText.chat, draft: true }),
+                setNewText(null)
+              )}
+            >
+              Draft a reply
+            </button>
+            <button
+              className="btn sm"
+              onClick={() => (
+                setMessagesOpen({ chat: newText.chat, draft: false }),
+                setNewText(null)
+              )}
+            >
+              Reply
+            </button>
+            <button
+              className="icon-btn sm"
+              onClick={() => setNewText(null)}
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
         {newVersion && !kids && (
           <div className="banner update-banner" role="status">
             <span className="grow">BYTE {newVersion} is out.</span>
@@ -661,6 +733,13 @@ export function Shell() {
         {helpOpen && <HelpCenter />}
         {boardOpen && <BoardPanel key={boardKey} />}
         {clipsOpen && <ClipboardPanel onClose={() => setClipsOpen(false)} />}
+        {messagesOpen && (
+          <MessagesPanel
+            open={messagesOpen.chat}
+            draft={messagesOpen.draft}
+            onClose={() => setMessagesOpen(null)}
+          />
+        )}
         {tasksOpen && <TasksPanel onClose={() => setTasksOpen(false)} />}
         {jobsOpen && <JobsPanel onClose={() => setJobsOpen(false)} />}
         {assistantsOpen && (

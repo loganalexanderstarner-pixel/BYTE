@@ -7,6 +7,10 @@ import type { DocEvent, DocKind, DocOutline, DocSpec } from "./docs/spec";
 
 import type {
   UpdateInfo,
+  MessagesStatus,
+  MessageThread,
+  TextMessage,
+  NewText,
   Activity,
   BackupInfo,
   ActivityKind,
@@ -211,7 +215,7 @@ export const api = {
 
   // Web agent (web_agent/ in Rust).
   /** Answers an approval card; false when it's no longer waiting. */
-  agentApprove: (id: string, ok: boolean) => invoke<boolean>("agent_approve", { id, ok }),
+  agentApprove: (id: string, ok: boolean, edits?: { label: string; value: string }[]) => invoke<boolean>("agent_approve", { id, ok, edits: edits ?? null }),
   macUndo: (token: string) => invoke<boolean>("mac_undo", { token }),
   // To-dos and schedules (tasks.rs, scheduler.rs).
   tasksList: () => invoke<Task[]>("tasks_list", { includeDone: true }),
@@ -354,6 +358,12 @@ export const api = {
   eraseEverything: (confirm: string) => invoke<void>("erase_everything", { confirm }),
   // One-click updates (updater.rs).
   updateConfigured: () => invoke<boolean>("update_configured"),
+  // The Messages inbox (messages.rs).
+  messagesStatus: () => invoke<MessagesStatus>("messages_status"),
+  messagesThreads: () => invoke<MessageThread[]>("messages_threads"),
+  messagesThread: (chat: string) => invoke<TextMessage[]>("messages_thread", { chat }),
+  messagesSend: (chat: string, to: string, text: string) => invoke<string>("messages_send", { chat, to, text }),
+  onNewTexts: (cb: (t: NewText[]) => void): Promise<UnlistenFn> => listen<NewText[]>("messages://new", (e) => cb(e.payload)),
   updateCheck: () => invoke<UpdateInfo | null>("update_check"),
   updateInstall: () => invoke<void>("update_install"),
   onUpdateAvailable: (cb: (u: UpdateInfo) => void): Promise<UnlistenFn> => listen<UpdateInfo>("update://available", (e) => cb(e.payload)),

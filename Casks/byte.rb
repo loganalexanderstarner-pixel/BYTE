@@ -3,7 +3,7 @@
 #   brew install --cask byte
 # scripts/bump.mjs keeps the version in step with the app.
 cask "byte" do
-  version "0.12.5"
+  version "0.12.6"
   sha256 :no_check
 
   url "https://github.com/loganalexanderstarner-pixel/BYTE/releases/download/v#{version}/BYTE_#{version}_aarch64.dmg"

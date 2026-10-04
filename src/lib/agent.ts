@@ -19,6 +19,7 @@ export function canOpen(file: SavedFile): boolean {
 }
 
 /** What the approval card's button says. */
-export function approveLabel(a: Pick<ApprovalCard, "action">): string {
+export function approveLabel(a: Pick<ApprovalCard, "action"> & Partial<Pick<ApprovalCard, "title">>): string {
+  if (a.action === "mac" && a.title?.startsWith("Send a text")) return "Send";
   return a.action === "download" ? "Download" : a.action === "submit" ? "Submit" : a.action === "mac" ? "Do it" : "Press it";
 }

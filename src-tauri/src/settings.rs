@@ -240,6 +240,12 @@ pub struct Settings {
     /// Check once a day whether a newer BYTE is out (updater.rs).
     #[serde(default = "yes")]
     pub update_check: bool,
+    /// The Messages inbox (messages.rs): read texts you receive (needs Full Disk Access). Off by default.
+    #[serde(default)]
+    pub messages_inbox: bool,
+    /// A notification when a text arrives (while the inbox is on).
+    #[serde(default = "yes")]
+    pub messages_notify: bool,
     /// Soft sounds when an answer is ready and for reminders.
     #[serde(default)]
     pub sounds: bool,
@@ -428,6 +434,8 @@ impl Default for Settings {
             reduce_motion: default_motion(),
             sounds: false,
             update_check: true,
+            messages_inbox: false,
+            messages_notify: true,
             kids_mode: false,
             kids_pin: None,
             backup_dir: None,

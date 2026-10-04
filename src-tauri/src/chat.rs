@@ -1037,7 +1037,7 @@ mod wire_format {
         assert_eq!(serde_json::to_value(s).unwrap(), serde_json::json!({ "state": "ready", "model": "m", "context": 4096, "boosted": false, "vision": false }));
         assert_eq!(serde_json::to_value(crate::engine::EngineStatus::NoModel).unwrap(), serde_json::json!({ "state": "noModel" }));
         // Web agent events (lib/types.ts ApprovalAsk / SavedFile): no field may clash with the "kind" tag.
-        let ask = crate::web_agent::ApprovalAsk { id: "a1".into(), action: "submit".into(), title: "Submit?".into(), site: "example.com".into(), url: "https://example.com/".into(), target: "Send".into(), fields: vec![] };
+        let ask = crate::web_agent::ApprovalAsk { id: "a1".into(), action: "submit".into(), title: "Submit?".into(), site: "example.com".into(), url: "https://example.com/".into(), target: "Send".into(), fields: vec![], editable: vec![] };
         let v = serde_json::to_value(ChatEvent::Approval(ask)).unwrap();
         assert_eq!(v, serde_json::json!({ "kind": "approval", "id": "a1", "action": "submit", "title": "Submit?", "site": "example.com", "url": "https://example.com/", "target": "Send", "fields": [] }));
         let f = crate::web_agent::SavedFile { path: "/d/a.pdf".into(), name: "a.pdf".into(), format: "pdf".into(), bytes: 3, url: "https://x.com".into() };

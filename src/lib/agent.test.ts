@@ -33,6 +33,8 @@ describe("web agent helpers", () => {
     expect(canOpen(f("run.sh"))).toBe(false);
     expect(approveLabel({ action: "download" })).toBe("Download");
     expect(approveLabel({ action: "submit" })).toBe("Submit");
+    expect(approveLabel({ action: "mac", title: "Send a text to Mom" })).toBe("Send");
+    expect(approveLabel({ action: "mac", title: "Add the reminder" })).toBe("Do it");
     expect(approveLabel({ action: "mac" })).toBe("Do it");
   });
 });

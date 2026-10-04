@@ -359,6 +359,26 @@ function initScript({ data }) {
           return null;
         case "boards_list":
           return [{ id: 1, title: "Food truck ideas", count: 9, updated: Date.now() - 3600000 }];
+        case "messages_status":
+          return { available: true, enabled: !!data.messages, granted: !!data.messages, message: "" };
+        case "messages_threads": {
+          const t = Date.now();
+          return [
+            { chat: "iMessage;-;+14125550123", name: "Mom", handle: "+14125550123", group: false, lastText: "Bring dessert if you can!", lastAt: t - 120000, lastFromMe: false, unread: true },
+            { chat: "iMessage;+;chat99", name: "Family", handle: "", group: true, lastText: "Who's in for Sunday?", lastAt: t - 3600000, lastFromMe: false, unread: false },
+            { chat: "iMessage;-;sam@example.com", name: "Sam Lee", handle: "sam@example.com", group: false, lastText: "See you at 7", lastAt: t - 86400000 * 2, lastFromMe: true, unread: false },
+          ];
+        }
+        case "messages_thread": {
+          const t = Date.now();
+          return [
+            { text: "Are you coming for dinner Saturday?", at: t - 7200000, fromMe: false, sender: "Mom" },
+            { text: "Yes! What time?", at: t - 7100000, fromMe: true, sender: "You" },
+            { text: "6pm. Bring dessert if you can!", at: t - 120000, fromMe: false, sender: "Mom" },
+          ];
+        }
+        case "messages_send":
+          return "Sent";
         case "update_configured":
           return true;
         case "update_check":
@@ -586,7 +606,15 @@ function initScript({ data }) {
           const send = (e) => args.onEvent.onmessage(e);
           send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q4_K_M" });
           if (args.action === "reply") {
-            send({ kind: "content", delta: "Hi Priya, thanks for checking! Thursday at 10 works for me, and I'll bring the slides. See you then." });
+            const reply = data.messages ? "Yes! I'll bring an apple pie. See you at 6 😊" : "Hi Priya, thanks for checking! Thursday at 10 works for me, and I'll bring the slides. See you then.";
+            send({ kind: "content", delta: reply });
+            send({ kind: "done", finishReason: "stop" });
+            return null;
+          }
+          if (data.text) {
+            const byTone = { friendly: "Hey Mom! Just testing my new assistant, BYTE. It's sending this for me 😊", fun: "Plot twist: this text was sent by my AI, BYTE 🤖✨", formal: "Hello Mom, this message was sent by my AI assistant, BYTE." };
+            const out = args.action === "grammar" ? "This is AI sending this message." : byTone[args.tone] ?? "Hi Mom, my AI assistant BYTE is sending this message.";
+            send({ kind: "content", delta: out });
             send({ kind: "done", finishReason: "stop" });
             return null;
           }
@@ -863,6 +891,24 @@ function initScript({ data }) {
             send({ kind: "approval", id: "term1", action: "mac", title: "Run this command in Terminal?", site: "Terminal", url: "", target: "Terminal",
               fields: [{ label: "Command", value: "lsof -i :3000" }, { label: "What it does", value: "Lists the programs using port 3000, with their process IDs." }, { label: "Note", value: "It only reads or shows information." }] });
             return new Promise(() => {});
+          }
+          if (data.text) {
+            send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
+            send({ kind: "toolCall", id: "x0", name: "mac_message_send", args: { app: "Messages", what: "Send a text to Mom" } });
+            send({ kind: "approval", id: "text1", action: "mac", title: "Send a text to Mom", site: "Messages", url: "", target: "Messages", editable: ["Text"],
+              fields: [{ label: "To", value: "Mom (+1 412 555 0123)" }, { label: "Text", value: "This is ai sending this message" },
+                { label: "Note", value: "Sent from your Messages app when you press Send. A sent text can't be taken back from BYTE." }] });
+            let finish;
+            const ended = new Promise((r) => (finish = r));
+            window.__agentContinue = async () => {
+              send({ kind: "approvalDone", id: "text1", ok: true });
+              send({ kind: "toolResult", id: "x0", ok: true, summary: "Sent to Mom" });
+              send({ kind: "macDone", app: "Messages", title: "Send a text to Mom", detail: "Sent to Mom", ok: true, undo: null });
+              for (const t of ["Sent! Your text to Mom is on its way."]) { send({ kind: "content", delta: t }); await wait(10); }
+              send({ kind: "done", finishReason: "stop" });
+              finish(null);
+            };
+            return ended;
           }
           if (data.mail) {
             send({ kind: "started", thinking: false, model: "qwen3.5-9b:Q6_K" });
@@ -1705,6 +1751,46 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
   await p.waitForTimeout(300);
   await shot(p, "23c-mac-undone");
   console.log("mac errors:", errors);
+  await ctx.close();
+}
+// Texting: the card's text can be edited, fixed, rephrased or picked from ideas, then sent
+{
+  const { p, ctx, errors } = await page(true, "midnight", { text: true });
+  await p.getByLabel("Message BYTE").fill("Text mom this is ai sending this message");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(600);
+  await p.locator(".approval").scrollIntoViewIfNeeded();
+  await shot(p, "44-text-card");
+  await p.getByRole("button", { name: /Ideas/ }).click();
+  await p.waitForTimeout(500);
+  await p.locator(".composer-ideas").scrollIntoViewIfNeeded();
+  await shot(p, "44b-text-ideas");
+  await p.locator(".composer-idea").first().click();
+  await p.getByRole("button", { name: "Send", exact: true }).click();
+  await p.waitForTimeout(600);
+  await p.locator(".mac-card").scrollIntoViewIfNeeded();
+  await shot(p, "44c-text-sent");
+  console.log("text errors:", errors);
+  await ctx.close();
+}
+// The Messages inbox: a new text arrives, Draft a reply, and the Privacy setting
+{
+  const { p, ctx, errors } = await page(true, "midnight", { messages: true, settingsPatch: { messagesInbox: true } });
+  await p.waitForTimeout(300);
+  await p.evaluate(() => window.__emit("messages://new", [{ chat: "iMessage;-;+14125550123", name: "Mom", text: "6pm. Bring dessert if you can!", at: Date.now() }]));
+  await p.waitForTimeout(300);
+  await shot(p, "44d-new-text");
+  await p.getByRole("button", { name: "Draft a reply" }).first().click();
+  await p.waitForTimeout(900);
+  await shot(p, "44e-messages-inbox");
+  await p.keyboard.press("Escape");
+  await p.getByRole("button", { name: "Close" }).first().click().catch(() => {});
+  await p.keyboard.press("Meta+Comma");
+  await p.getByRole("button", { name: "Privacy", exact: true }).click();
+  await p.waitForTimeout(300);
+  await p.getByRole("heading", { name: /Messages inbox/ }).scrollIntoViewIfNeeded();
+  await shot(p, "44f-privacy-messages");
+  console.log("messages errors:", errors);
   await ctx.close();
 }
 // Mail: a reply draft waits for OK, then opens in Mail (never sent by BYTE)

@@ -17,6 +17,21 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-04
 
+### (this commit) — v0.12.6: texting from BYTE, and a Messages inbox
+- **Why:** owner: texts should send after "Do it" (showing it sending), with suggested edits, Fix grammar &
+  punctuation, Rephrase with tones (formal, fun, sympathetic…), and a place for received messages with "Draft a
+  reply" and "Reply". Chose: send after approval; inbox with Full Disk Access; ship before 1.0.
+- **What:** `macctl.rs` MessageSend + MESSAGE_SEND (chat id, else iMessage, else SMS; draft fallback), editable
+  approval fields (`web_agent` answer_with/take_edits, `agent_approve` edits); `messages.rs` (chat.db read-only,
+  attributedBody, Contacts names, threads/thread/send, watcher), settings `messagesInbox`/`messagesNotify`,
+  Full Disk Access permission row; UI `MessageComposer`, `MessagesPanel`, new-text banner, Privacy section,
+  "Send" label; tones fun/sympathetic; prompt MAC_CONTROL wording; help 07, checklist 11a/11b, CLAUDE.md layout;
+  ui-shots `44-*`; release notes, VERSIONS, CHANGELOG; version 0.12.6.
+- **Verify:** check-all (499 Rust incl. messages fixture and send/edit/fallback flows, 217 vitest); on the Mac:
+  text card → Send arrives; inbox banner → Draft a reply → Send.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — port brief: texting on Windows through Phone Link
 - **Why:** owner: Windows should send and receive texts through Phone Link, which already links the phone.
 - **What:** `PORTING-WINDOWS-LINUX.md`: the texting row (Phone Link / KDE Connect) and a "Texting through Phone Link"

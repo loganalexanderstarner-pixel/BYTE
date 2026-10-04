@@ -3,16 +3,25 @@ import { useState } from "react";
 
 import { approveLabel, canOpen, fileSize } from "../../lib/agent";
 import { api, errorText } from "../../lib/api";
+import { MessageComposer } from "../messages/MessageComposer";
 import type { ApprovalCard as Card, SavedFile } from "../../lib/types";
 
 /** BYTE wants to submit, commit or download: nothing happens until the user says so. */
 export function ApprovalCard({ card }: { card: Card }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Fields the user may change before approving (a text's wording), as they are now.
+  const editable = card.status === "waiting" ? (card.editable ?? []) : [];
+  const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(card.fields.filter((f) => editable.includes(f.label)).map((f) => [f.label, f.value])));
   const decide = async (ok: boolean) => {
     setBusy(true);
     try {
-      const waiting = await api.agentApprove(card.id, ok);
+      const edits = ok ? Object.entries(values).map(([label, value]) => ({ label, value })) : undefined;
+      if (ok && edits?.some((e) => !e.value.trim())) {
+        setError("Write something to send first.");
+        return;
+      }
+      const waiting = await api.agentApprove(card.id, ok, edits);
       if (!waiting) setError("This request isn't waiting any more.");
     } catch (e) {
       setError(errorText(e));
@@ -30,9 +39,15 @@ export function ApprovalCard({ card }: { card: Card }) {
       {card.fields.length > 0 && (
         <dl className="approval-fields">
           {card.fields.map((f, i) => (
-            <div key={i}>
+            <div key={i} className={f.label in values ? "approval-field-edit" : undefined}>
               <dt>{f.label}</dt>
-              <dd className={f.label === "Command" ? "mono" : undefined}>{f.value || <span className="muted">(empty)</span>}</dd>
+              <dd className={f.label === "Command" ? "mono" : undefined}>
+                {f.label in values ? (
+                  <MessageComposer value={values[f.label]} disabled={busy} label={f.label} onChange={(v) => setValues((x) => ({ ...x, [f.label]: v }))} />
+                ) : (
+                  f.value || <span className="muted">(empty)</span>
+                )}
+              </dd>
             </div>
           ))}
         </dl>
