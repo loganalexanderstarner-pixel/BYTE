@@ -374,6 +374,15 @@ fn mail_and_messages_are_routed_only_when_asked_for() {
 }
 
 #[test]
+fn email_replies_must_answer_not_copy() {
+    let theirs = "Hi! A few of us are getting dinner at Luca's on Friday at 7. Can you come?";
+    assert!(!reply_answers("Hi Sam,\n\nA few of us are getting dinner at Luca's on Friday at 7. Can you come?\n\nBest,", theirs));
+    assert!(reply_answers("Hi Sam,\n\nI can make it, and I'll bring dessert!\n\nBest,", theirs));
+    assert_eq!(user_words("Reply to Sam's email saying I can make it and I'll bring dessert"), "I can make it and I'll bring dessert");
+    assert_eq!(user_words("reply to Sam"), "");
+}
+
+#[test]
 fn mail_and_messages_keep_words_out_of_scripts() {
     let evil = "x\" & (do shell script \"rm -rf ~\") & \"";
     for a in [

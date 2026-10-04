@@ -1184,6 +1184,35 @@ fn plain_text(rest: &str) -> Option<(String, String)> {
     (!body.trim().is_empty()).then(|| (words[..n].join(" "), body))
 }
 
+/// What the user wants to say, from "reply to Sam's email saying I can make it" → "I can make it".
+fn user_words(q: &str) -> String {
+    let l = q.to_lowercase();
+    [" saying ", " that ", " to say ", " and say ", " and tell them ", " telling them "]
+        .iter()
+        .filter_map(|c| l.find(c).map(|i| i + c.len()))
+        .min()
+        .map(|i| q[i..].trim().trim_end_matches(['.', '!']).to_string())
+        .unwrap_or_default()
+}
+
+/// A reply answers the email instead of copying it (small models sometimes repeat it word for word): with the
+/// greeting and sign-off lines left out, at most half of the reply's 4-word runs may appear in their email.
+fn reply_answers(body: &str, original: &str) -> bool {
+    let words = |s: &str| s.to_lowercase().split(|c: char| !c.is_alphanumeric() && c != '\'').filter(|w| !w.is_empty()).map(String::from).collect::<Vec<_>>();
+    let lines: Vec<&str> = body.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    let core = if lines.len() > 2 { lines[1..lines.len() - 1].join(" ") } else { lines.join(" ") };
+    let (mine, theirs) = (words(&core), words(original).join(" "));
+    if mine.is_empty() {
+        return false;
+    }
+    if theirs.is_empty() || mine.len() < 4 {
+        return true;
+    }
+    let runs: Vec<String> = mine.windows(4).map(|w| w.join(" ")).collect();
+    let copied = runs.iter().filter(|r| theirs.contains(r.as_str())).count();
+    copied * 2 <= runs.len()
+}
+
 /// Drops "tomorrow at 3pm", "on Friday", "in 20 minutes"… from a title.
 fn without_time(s: &str) -> String {
     let mut words: Vec<&str> = s.split_whitespace().collect();
@@ -1390,6 +1419,7 @@ async fn details(turn: &Turn<'_>, family: Family, q: &str, now: NaiveDateTime, r
             }
             // A reply: the latest email from them gives the address, subject and what to answer.
             let mut original = String::new();
+            let mut original_text = String::new();
             let (mut name, mut subject) = (String::new(), String::new());
             let to: String;
             if reply {
@@ -1401,6 +1431,7 @@ async fn details(turn: &Turn<'_>, family: Family, q: &str, now: NaiveDateTime, r
                 to = t;
                 subject = if m[1].to_lowercase().starts_with("re:") { m[1].to_string() } else { format!("Re: {}", m[1]) };
                 original = format!("From: {}\nSubject: {}\n\n{}", m[0], m[1], m.get(3).unwrap_or(&""));
+                original_text = m.get(3).unwrap_or(&"").to_string();
             } else if who.contains('@') {
                 to = who.split_whitespace().find(|w| w.contains('@')).unwrap_or(&who).trim_matches(|c: char| c == '<' || c == '>' || c == ',').to_string();
             } else {
@@ -1421,14 +1452,29 @@ say what they asked and nothing more (don't invent facts, dates or promises); a 
                 if name.is_empty() { &who } else { name.split_whitespace().next().unwrap_or(&name) }
             );
             let schema = json!({"type":"object","properties":{"subject":{"type":"string"},"body":{"type":"string"}},"required":["subject","body"]});
-            let v = chat::complete_json(turn.http, turn.ep, "You write emails for the user. Reply only with JSON.", &user, schema, 700).await.ok().map(|r| crate::research::lenient_json(&r));
-            let text = |k: &str| v.as_ref().and_then(|v| v.get(k)).and_then(Value::as_str).unwrap_or("").trim().to_string();
-            let body = without_placeholders(&text("body"));
+            let first_name = if name.is_empty() { who.clone() } else { name.split_whitespace().next().unwrap_or(&name).to_string() };
+            // Small models sometimes copy the email they're answering: ask again, plainer, then fall back to the
+            // user's own words.
+            let (mut body, mut new_subject) = (String::new(), String::new());
+            for attempt in 0..3 {
+                let ask = if attempt == 0 { user.clone() } else { format!("{user}\n\nDon't repeat their email back: answer it, in the user's words (\"{}\").", user_words(q)) };
+                let v = chat::complete_json(turn.http, turn.ep, "You write emails for the user. Reply only with JSON.", &ask, schema.clone(), 700).await.ok().map(|r| crate::research::lenient_json(&r));
+                let text = |k: &str| v.as_ref().and_then(|v| v.get(k)).and_then(Value::as_str).unwrap_or("").trim().to_string();
+                body = without_placeholders(&text("body"));
+                new_subject = text("subject");
+                if !reply || reply_answers(&body, &original_text) {
+                    break;
+                }
+                body.clear();
+            }
+            if body.is_empty() && reply && !user_words(q).is_empty() {
+                body = format!("Hi {first_name},\n\n{}.\n\nBest,", first_upper(user_words(q).trim_end_matches('.')));
+            }
             if body.is_empty() {
                 return Ok(Err("What should the email say?".into()));
             }
             if subject.is_empty() {
-                subject = text("subject");
+                subject = new_subject;
             }
             Ok(Action::MailDraft { to, name, subject, body })
         }
