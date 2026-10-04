@@ -59,14 +59,14 @@ cluster handles this internally" and keep the details off GitHub.
 
 ### 0. For the session on Logan's PC: build the Windows app, then Android, then Linux (not a cluster request)
 
-Logan's Claude session that works on the cluster can also reach his dual-boot PC (Ryzen 7 7800X3D, 32 GB DDR5-6000,
-RTX 5080). The owner has asked it to build BYTE's **Windows** app first, then **Linux**. Everything it needs is in
+Logan's Claude session that works on the cluster can also reach his dual-boot PC (a recent desktop with a
+discrete NVIDIA GPU; exact parts deliberately not listed here). The owner has asked it to build BYTE's **Windows** app first, then **Linux**. Everything it needs is in
 **[`docs/PORTING-WINDOWS-LINUX.md`](PORTING-WINDOWS-LINUX.md)**: the machine, the ground rules (its own branch
 `claude/windows-port`, never break the Mac app, no secrets in this public repo), setup, what's Mac-only today, the
 feature map (Mac feature → Windows → Linux, and what each can do that the Mac can't), and milestones W1–W4 then
 L1–L4. **The rule: every Mac feature, and more** (macOS is the most locked-down; Windows and Linux allow more), on NVIDIA,
 AMD and Intel graphics or CPU only. Report to Logan after each milestone. Start with W1: BYTE builds, runs and
-answers on the RTX 5080.
+answers on the PC's GPU.
 
 **Then Android** (owner, 2026-10-04: Windows → Android → Linux), for Logan's Galaxy Z Fold8 Ultra, built from the
 same PC with the phone on adb. Everything is in **[`docs/ANDROID.md`](ANDROID.md)**:

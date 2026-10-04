@@ -129,9 +129,10 @@ to 7/8 after: forced search for any question about the world (`router::wants_web
 after every search (`agent::read_top`), a search budget and no repeat searches, an "answer now" step plus a filter
 for tool-call markup (`agent::ToolTextFilter`), a junk-result filter (`search::on_topic`: Bing serves unrelated
 pages to bots), Wikipedia alongside, Open-Meteo weather (`tools/weather.rs`), and the cloud's `/api/search`
-(SearXNG) as the primary source when a key is saved (`docs/CLOUD-MODE.md` "Web search").
-**Server-side notes from the owner's session:** the searxng-settings ConfigMap holds SearXNG's `secret_key`
-in plaintext; it belongs in a Secret (low risk, internal-only).
+as the primary source when a key is saved (`docs/CLOUD-MODE.md` "Web search").
+**Server-side notes stay server-side:** anything about how the cluster is
+configured internally is kept out of this repository, per
+`docs/CLUSTER-REQUESTS.md`. The owner's session tracks those privately.
 
 ### 3.2d Speed and reliability list (owner, 2026-09-28: "add more speed fixes to the list")
 Done (9f854b3): honest memory plans for CPU-offloaded models (4 GB for macOS, 1 GB GPU headroom), a startup

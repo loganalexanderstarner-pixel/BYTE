@@ -50,8 +50,8 @@ Do not hardcode the list; it changes per account.
 Roughly: `fast` answers immediately with no reasoning; `auto` picks depth per
 question; `extended` thinks longer; `extended_plus` is uncapped.
 
-Do **not** choose an engine. A 27B on GPU and a 30B-A3B MoE on CPU sit behind
-the same endpoint and the router picks per request based on context length.
+Do **not** choose an engine. Two engines of different sizes sit behind the
+same endpoint and the router picks per request based on context length.
 
 ---
 
@@ -158,11 +158,12 @@ approval step, with "built-in designs" as the default.
     -> { "engine": "searxng" | "ddgs" | "none",
          "results": [ { "title": ..., "body": ..., "href": ... }, ... ] }
 
-SearXNG on the cluster (Google, Bing, DuckDuckGo and Brave merged); the server
-falls back to `ddgs` (plain DuckDuckGo) only when SearXNG returns nothing. The
-SearXNG instance itself is cluster-internal and stays that way: its upstream
+the cluster's own metasearch backend (Google, Bing, DuckDuckGo and Brave
+merged); the server falls back to `ddgs` (plain DuckDuckGo) only when the
+metasearch returns nothing. That backend is internal and has no public
+address: its upstream
 engines rate-limit by the server's egress IP, so exposing it would break search
-for the cloud models too. Use this endpoint, never a SearXNG address.
+for the cloud models too. Use this endpoint; there is no address to point at.
 
 - **Primary source for all of BYTE's web search** when a key is saved, in every
   workspace (the local model's searches too). The keyless chain on the Mac
@@ -210,23 +211,22 @@ behavioural characteristics, which is what the app needs.
 
 ### Two engines, one endpoint
 
-| | dense model | MoE model |
+| | smaller engine | larger engine |
 |---|---|---|
-| runs on | a discrete GPU | CPU, RAM-backed |
 | context | ~33k tokens | **49k per request** |
 | concurrency | shared | **4 simultaneous requests** |
 | suits | short interactive turns, lower latency | long context, large documents |
 
 **The app must not choose.** A router picks per request based on prompt size:
-short turns go to the GPU for latency, long ones to the MoE because its
-context is RAM-backed and there is far more RAM than VRAM. Sending a hint
-about which engine you want will be ignored, and hardcoding an assumption
-about which one answered will break when the router changes.
+short turns go to the lower-latency engine, long ones to the large-context
+engine. Sending a hint about which engine you want will be ignored, and
+hardcoding an assumption about which one answered will break when the router
+changes. How either is hosted is deliberately not described here.
 
 ### Speed, honestly
 
 It is consumer hardware, not a datacentre. Expect **roughly 20–35 tokens per
-second** on the MoE — fine to read as it streams, noticeably slower than a
+second** on the large-context engine — fine to read as it streams, noticeably slower than a
 commercial API. First-token latency is usually sub-second but a long prompt
 must be processed before generation starts, so a large document can take
 tens of seconds before anything appears.
@@ -283,7 +283,7 @@ bearer token, while the native versions get built.
 | capability | byte-ai today | this app |
 |---|---|---|
 | Documents: PDF, PPTX, DOCX, flyer, worksheet | **working** — real renderers, template library, page-image previews | Phase 5, planned |
-| Web search with citations | **working** — self-hosted SearXNG, numbered sources, relevance filtering | Phase 2 done (DDG) |
+| Web search with citations | **working** — self-hosted metasearch, numbered sources, relevance filtering | Phase 2 done (DDG) |
 | Knowledge base / reference extraction | **working** — upload a PDF/DOCX/PPTX, use its text as source material | Phase 4, planned |
 | Long-term memory across devices | **working** — semantic recall, same memory from any client | Phase 3 done (local only) |
 | Vision | **working** — the MoE is a vision-language model | Phase 11, planned |

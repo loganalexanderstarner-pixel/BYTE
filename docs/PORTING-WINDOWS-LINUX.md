@@ -80,8 +80,11 @@ allows that macOS doesn't. Propose new ones to Logan as you find them.
   `docs/WORKLOG.md` (what, why, files, verify, undo); `scripts/check-all.sh` before pushing (on Windows, run its
   steps by hand or in Git Bash).
 - **No secrets in the repo, ever** (it's public). Never ask Logan to paste a key into a chat.
-- **Each OS should feel native** (owner decision): not "macOS-shaped". The UI is one React app, but how BYTE talks
-  to the OS, where it keeps things and how it installs follow Windows and Linux conventions.
+- **Same look, native behaviour** (owner, 2026-10-04: "the same look icons and such as the macos app... pretty
+  much same app"). The UI is one React app and it should look identical on every platform — same colours, type,
+  layout, themes, and the same icon set from `src-tauri/icons/app-icon.svg`. What follows Windows and Linux
+  conventions is how BYTE *talks* to the OS: file dialogs, notifications, where it keeps things, how it installs,
+  and where a feature lives (system tray rather than menu bar). Native plumbing, identical face.
 - **Honest limits:** never claim a model runs when it won't.
 
 ## Setting up the PC

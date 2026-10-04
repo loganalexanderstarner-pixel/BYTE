@@ -125,8 +125,25 @@ surfaces, do the same.
 > macOS only, Apple Silicon only. No Windows/Intel work.
 
 **Logan has changed this.** The target is macOS, Windows and Linux — three
-desktop platforms, each feeling native to its own OS rather than identical
-across all three.
+desktop platforms.
+
+**They look the same. They behave natively.** Owner instruction, 2026-10-04:
+"I want the same look icons and such as the macos app, make it where its
+pretty much same app." An earlier draft of this line said each platform should
+feel native "rather than identical across all three", which was wrong and is
+corrected here. Concretely:
+
+| identical everywhere | native per platform |
+|---|---|
+| colours, type, spacing, theme tokens | file dialogs, notifications, install flow |
+| the icon set (`src-tauri/icons/app-icon.svg` is the one source) | where a feature lives — menu bar vs system tray vs Quick Settings tile |
+| layout, button arrangement, panel structure | paths, permissions, update mechanism |
+| every custom theme | what the OS actually permits |
+
+So a Windows user should recognise it instantly as the same app, not a port
+that drifted. What differs is **what each platform can do**, and that belongs
+in the feature maps in `docs/PORTING-WINDOWS-LINUX.md` and `docs/ANDROID.md`
+— written down per feature, never left for someone to discover.
 
 **Android is a target** (owner, 2026-10-04): a phone app for devices with up to 16 GB of RAM, running models on
 the phone. See `docs/ANDROID.md`.
