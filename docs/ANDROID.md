@@ -41,9 +41,17 @@ stays out (see `DESIGN-AND-PLATFORMS.md`: free Apple signing expires every 7 day
   - **Counting the space:** BYTE's budget counts the memory those background apps can give up (measured by the
     per-phone memory test with RAM Plus on), not just what's free right now. So bigger models fit than the "free
     memory" number alone suggests.
-  - **"AI focus" setting:** on by default while BYTE is answering or a model is loaded, and the person can switch it
-    off. With it on, BYTE asks for the full budget. With it off, BYTE takes only what's free, so the other apps
-    stay in RAM.
+  - **When AI focus is on (owner, 2026-10-04):** only while **BYTE is open on screen** or **Ask BYTE** (the
+    assistant overlay, the side button or the text-selection menu) is in use. That includes an answer still being
+    written after the person switches away, which is finished first.
+  - **Loading on demand:** opening BYTE or Ask BYTE starts loading the model right away, before the person has
+    finished typing or speaking. The weights are memory-mapped, so a reopen within minutes is near-instant because
+    they're often still cached.
+  - **Leaving:** when BYTE leaves the screen and nothing is being answered, it waits a short grace period (default
+    2 minutes, adjustable, so a quick app switch doesn't reload), then unloads the model. The RAM goes back to the
+    other apps.
+  - **Switching it off:** the person can turn AI focus off. Then BYTE takes only what's free, and other apps stay
+    in RAM.
   - **The trade-off, said plainly in Settings:** switching back to another app can take a moment while it comes
     back from storage, and a few apps may reload. Nothing is lost.
   - **When BYTE closes or the model unloads:** the RAM goes back to everything else right away.

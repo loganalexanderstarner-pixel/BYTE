@@ -17,6 +17,14 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-04
 
+### (this commit) — Android AI focus only while BYTE or Ask BYTE is in use (docs only)
+- **Why:** owner: AI focus applies "when the app is open or when using Ask BYTE".
+- **What:** `docs/ANDROID.md`:
+  - AI focus is active while BYTE is on screen or Ask BYTE is in use, and while an answer is finishing;
+  - the model preloads when BYTE opens;
+  - after leaving, BYTE unloads after a 2-minute grace period and the RAM goes back.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — Android "AI focus": other apps go to RAM Plus, the AI keeps the RAM (docs only)
 - **Why:** owner: let other apps stay open in storage (RAM Plus) while the AI is on, so RAM is mainly for the AI.
 - **What:** `docs/ANDROID.md`:
