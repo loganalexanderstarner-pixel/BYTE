@@ -17,6 +17,15 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-04
 
+### 144ae1b — email replies answer instead of copying
+- **Why:** the v0.12.6 Mac test failed `e2e_mail_reply_draft`: Qwen3 0.6B returned Sam's own email as the reply
+  ("reply to Sam's email saying I can make it…"). A real bug, not a flake: nothing checked that a reply answers.
+- **What:** `macctl::reply_answers` (greeting/sign-off lines skipped; at most half the reply's 4-word runs may be in
+  their email), up to 3 tries with "don't repeat their email", then a reply built from `user_words(q)`; test.
+- **Verify:** `cargo test macctl`; the real-model test passed 3/3 locally (llama-server + Qwen3 0.6B).
+- **Undo:** `git revert 144ae1b`.
+
+
 ### (this commit) — stories stay stories
 - **Why:** owner: asking for a story sometimes started a Mac action. The rules didn't fire on 30+ probed story
   prompts, so the guard is general: a creative-only request never reaches computer control.
