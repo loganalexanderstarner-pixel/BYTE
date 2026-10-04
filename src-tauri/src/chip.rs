@@ -42,11 +42,33 @@ pub struct ChipInfo {
 /// Parses a CPU brand like "Apple M4 Pro" and the GPU core count.
 pub fn identify(brand: &str, gpu_cores: Option<u32>) -> ChipInfo {
     let b = brand.to_lowercase();
-    let generation = b
-        .split_whitespace()
-        .find_map(|w| w.strip_prefix('m').and_then(|n| n.parse::<u8>().ok()))
-        .unwrap_or(0);
-    let tier = if b.contains("ultra") {
+    // Apple-only parsing, gated on the brand actually being an Apple chip.
+    //
+    // Without that gate the tier keywords match any CPU name containing them,
+    // and PC brands are full of them: "Intel Core Ultra 7 265K" came out as an
+    // Apple ULTRA tier and "AMD Ryzen 7 PRO" as an Apple PRO, each then handed
+    // an M-series chip's bandwidth and TFLOPS out of the table below -- numbers
+    // the planner predicts speed from and the catalogue recommends models from.
+    // Found by the fixtures in hardware_fixtures_tests.rs.
+    let apple = b.contains("apple")
+        || b.split_whitespace().any(|w| {
+            w.len() >= 2
+                && w.starts_with('m')
+                && w[1..].chars().next().is_some_and(|c| c.is_ascii_digit())
+        });
+    let generation = if apple {
+        b.split_whitespace()
+            .find_map(|w| w.strip_prefix('m').and_then(|n| n.parse::<u8>().ok()))
+            .unwrap_or(0)
+    } else {
+        0
+    };
+    let tier = if !apple {
+        // A PC chip has no Apple tier. Saying Base is not a guess about the
+        // hardware; it keeps it out of the Apple lookup table entirely, and
+        // `exact: false` below is what tells callers the numbers are estimates.
+        Tier::Base
+    } else if b.contains("ultra") {
         Tier::Ultra
     } else if b.contains("max") {
         Tier::Max
@@ -80,7 +102,7 @@ pub fn identify(brand: &str, gpu_cores: Option<u32>) -> ChipInfo {
     };
     let (bandwidth_gbps, gpu_tflops, neural_engine_tops, exact) = match known {
         Some((bw, tf, ne)) => (bw, tf, ne, true),
-        None if generation >= 4 => {
+        None if apple && generation >= 4 => {
             // Newer or unlisted chip: scale the newest known base chip by tier.
             let mult = match tier {
                 Tier::Base => 1.0,

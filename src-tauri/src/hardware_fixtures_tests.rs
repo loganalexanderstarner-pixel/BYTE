@@ -109,9 +109,6 @@ fn discrete_gpu_budget_never_exceeds_vram() {
 }
 
 #[test]
-#[ignore = "identify() matches the word 'ultra' anywhere in the brand, so Intel's \
-            'Core Ultra' is read as an Apple Ultra tier and given an M-series \
-            Ultra's bandwidth and TFLOPS."]
 fn intel_core_ultra_is_not_an_apple_ultra() {
     let c = chip::identify("Intel Core Ultra 7 265K", None);
     assert!(!matches!(c.tier, Tier::Ultra),
@@ -120,8 +117,6 @@ fn intel_core_ultra_is_not_an_apple_ultra() {
 }
 
 #[test]
-#[ignore = "same false match on 'pro': AMD's Ryzen PRO line and Intel's chips with \
-            'Pro' in the name are read as Apple Pro tiers."]
 fn amd_ryzen_pro_is_not_an_apple_pro() {
     let c = chip::identify("AMD Ryzen 7 PRO 7745", None);
     assert!(!matches!(c.tier, Tier::Pro),
