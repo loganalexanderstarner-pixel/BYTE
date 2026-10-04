@@ -15,8 +15,15 @@ TRIPLE="${TARGET_TRIPLE:-$(rustc -vV | sed -n 's/^host: //p')}"
 WORK="${SHERPA_WORK:-$ROOT/.cache/sherpa-onnx}"
 SRC="$WORK/src-$SHERPA_TAG"
 BUILD="$SRC/build"
-BIN="$BUILD/bin/sherpa-onnx-offline-speaker-diarization"
-TTS="$BUILD/bin/sherpa-onnx-offline-tts"
+GEN=()
+# Windows: executables carry a suffix and the Visual Studio generator writes
+# into a per-configuration subdirectory.
+case "$TRIPLE" in
+  *-windows-msvc) EXE=".exe"; BIN_SUBDIR="Release/" ;;
+  *)              EXE="";     BIN_SUBDIR="" ;;
+esac
+BIN="$BUILD/bin/${BIN_SUBDIR}sherpa-onnx-offline-speaker-diarization$EXE"
+TTS="$BUILD/bin/${BIN_SUBDIR}sherpa-onnx-offline-tts$EXE"
 
 mkdir -p "$WORK" "$OUT_DIR"
 
@@ -43,6 +50,12 @@ if [ ! -f "$BIN" ] || [ ! -f "$TTS" ]; then
       FLAGS+=(-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3)
       JOBS="$(sysctl -n hw.logicalcpu)"
       ;;
+    *-windows-msvc)
+      # The Visual Studio generator locates MSVC itself; Ninja would need
+      # cl.exe on PATH, which an SSH session does not have.
+      GEN=(-G "Visual Studio 17 2022" -A x64)
+      JOBS="${NUMBER_OF_PROCESSORS:-8}"
+      ;;
     *)
       JOBS="$(nproc)"
       ;;
@@ -51,13 +64,13 @@ if [ ! -f "$BIN" ] || [ ! -f "$TTS" ]; then
   echo "==> Configuring sherpa-onnx ($TRIPLE)"
   # SHERPA_CMAKE_EXTRA: extra cmake arguments (e.g. FETCHCONTENT_SOURCE_DIR_* where downloads are blocked).
   # shellcheck disable=SC2086
-  cmake -S "$SRC" -B "$BUILD" "${FLAGS[@]}" ${SHERPA_CMAKE_EXTRA:-} >/dev/null
+  cmake -S "$SRC" -B "$BUILD" ${GEN[@]+"${GEN[@]}"} "${FLAGS[@]}" ${SHERPA_CMAKE_EXTRA:-} >/dev/null
   echo "==> Building the speaker-diarization and speech tools with $JOBS jobs"
   cmake --build "$BUILD" --config Release --target sherpa-onnx-offline-speaker-diarization sherpa-onnx-offline-tts -j "$JOBS"
 fi
 
 for pair in "$BIN:sherpa-diarize" "$TTS:sherpa-tts"; do
-  DEST="$OUT_DIR/${pair##*:}-$TRIPLE"
+  DEST="$OUT_DIR/${pair##*:}-$TRIPLE$EXE"
   cp "${pair%%:*}" "$DEST"
   chmod +x "$DEST"
   echo "==> Installed $DEST"

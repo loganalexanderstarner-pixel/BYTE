@@ -14,10 +14,17 @@ TRIPLE="${TARGET_TRIPLE:-$(rustc -vV | sed -n 's/^host: //p')}"
 WORK="${WHISPER_WORK:-$ROOT/.cache/whisper.cpp}"
 SRC="$WORK/src-$WHISPER_TAG"
 BUILD="$SRC/build"
+GEN=()
+# Windows: the executable has a suffix and the Visual Studio generator writes
+# into a per-configuration subdirectory.
+case "$TRIPLE" in
+  *-windows-msvc) EXE=".exe"; BIN_SUBDIR="Release/" ;;
+  *)              EXE="";     BIN_SUBDIR="" ;;
+esac
 
 mkdir -p "$WORK" "$OUT_DIR"
 
-if [ ! -f "$BUILD/bin/whisper-cli" ]; then
+if [ ! -f "$BUILD/bin/${BIN_SUBDIR}whisper-cli$EXE" ]; then
   if [ ! -d "$SRC" ]; then
     echo "==> Fetching whisper.cpp $WHISPER_TAG"
     git clone --quiet --depth 1 --branch "$WHISPER_TAG" https://github.com/ggml-org/whisper.cpp "$SRC"
@@ -42,18 +49,26 @@ if [ ! -f "$BUILD/bin/whisper-cli" ]; then
       )
       JOBS="$(sysctl -n hw.logicalcpu)"
       ;;
+    *-windows-msvc)
+      # The Visual Studio generator locates MSVC itself; Ninja would need
+      # cl.exe on PATH, which means a developer prompt an SSH session lacks.
+      # CPU only: speech-to-text runs on short clips, so a GPU build would add
+      # a CUDA dependency to a binary that does not need one.
+      GEN=(-G "Visual Studio 17 2022" -A x64)
+      JOBS="${NUMBER_OF_PROCESSORS:-8}"
+      ;;
     *)
       JOBS="$(nproc)"
       ;;
   esac
 
   echo "==> Configuring whisper.cpp ($TRIPLE)"
-  cmake -S "$SRC" -B "$BUILD" "${FLAGS[@]}" >/dev/null
+  cmake -S "$SRC" -B "$BUILD" ${GEN[@]+"${GEN[@]}"} "${FLAGS[@]}" >/dev/null
   echo "==> Building whisper-cli with $JOBS jobs"
   cmake --build "$BUILD" --config Release --target whisper-cli -j "$JOBS"
 fi
 
-DEST="$OUT_DIR/whisper-cli-$TRIPLE"
-cp "$BUILD/bin/whisper-cli" "$DEST"
+DEST="$OUT_DIR/whisper-cli-$TRIPLE$EXE"
+cp "$BUILD/bin/${BIN_SUBDIR}whisper-cli$EXE" "$DEST"
 chmod +x "$DEST"
 echo "==> Installed $DEST"
