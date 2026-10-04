@@ -1,8 +1,23 @@
 # Porting BYTE to Windows and Linux — brief for the Claude session on the owner's PC
 
-You are a Claude Code session with SSH access to Logan's PC. Your job is to make BYTE run natively on
-**Windows first, then Linux**, on that PC. Another Claude session (in the cloud) keeps working on the Mac app on
-the same repo. Read this file, then `CLAUDE.md`, `docs/HANDOFF.md` (§1b has the order of work) and
+You are a Claude Code session working on Logan's PC. Your job is to make BYTE run natively on
+**Windows first, then Linux**, on that PC.
+
+**How a session gets onto that PC** (this file previously asserted SSH access, which was never set up, and
+contradicted `docs/HANDOFF.md` §1b -- the owner-decision record -- which says a session runs *on* the PC):
+
+1. **A session on the PC itself** -- Claude Desktop for Windows, or `claude remote-control` from the PC. This is
+   what §1b decided, and it is the better fit: the milestones require *looking at* a running GUI app, which a
+   remote shell cannot do.
+2. **SSH from the cluster session** -- possible, but Windows ships with no inbound access, so OpenSSH Server has
+   to be installed and a key authorised once (for an administrator account the key belongs in
+   `C:\ProgramData\ssh\administrators_authorized_keys`, not the user's `.ssh`, with inherited ACLs removed, or
+   sshd silently ignores it). Good for builds and toolchain setup; bad for verifying anything visual.
+
+Either way **somebody has to touch the machine once** -- a fresh Windows install has no remote access at all.
+Until that happens the Windows port cannot start, whatever this file says about what you have.
+
+Another Claude session (in the cloud) keeps working on the Mac app on the same repo. Read this file, then `CLAUDE.md`, `docs/HANDOFF.md` (§1b has the order of work) and
 `docs/DESIGN-AND-PLATFORMS.md` Part 2 (the platform plan) before writing code.
 
 ## The machine
