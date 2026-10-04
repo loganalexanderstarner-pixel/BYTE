@@ -69,7 +69,9 @@
           "width": 660,
           "height": 400
         }
-      }
+      },
+      "entitlements": "Entitlements.plist",
+      "hardenedRuntime": true
     }
   },
   "plugins": {

@@ -194,6 +194,22 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    /// The mic and Apple Events work under the hardened runtime only with these entitlements (without them macOS
+    /// refuses silently and BYTE never shows up in Privacy & Security), and every prompt needs its wording.
+    #[test]
+    fn mac_permissions_are_declared() {
+        let ent = include_str!("../Entitlements.plist");
+        for key in ["com.apple.security.device.audio-input", "com.apple.security.automation.apple-events"] {
+            assert!(ent.contains(&format!("<key>{key}</key>\n  <true/>")), "{key}");
+        }
+        let conf: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert_eq!(conf["bundle"]["macOS"]["entitlements"], "Entitlements.plist");
+        let info = include_str!("../Info.plist");
+        for key in ["NSMicrophoneUsageDescription", "NSAppleEventsUsageDescription", "NSContactsUsageDescription"] {
+            assert!(info.contains(key), "{key}");
+        }
+    }
+
     #[test]
     fn reads_newest_first_across_the_rotated_file() {
         let dir = tempfile::tempdir().unwrap();

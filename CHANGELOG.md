@@ -4,6 +4,9 @@
 
 - `macctl.rs`: `plain_text()` / `after_first()`: "text Mom I'm on my way" routes to a Messages draft without
   "that"/"saying". `prompt::MAC_CONTROL` when Mac control is on.
+- `Entitlements.plist` (`com.apple.security.device.audio-input`, `…automation.apple-events`) referenced from
+  `tauri.conf.json`: under the hardened runtime macOS refused the mic silently and never listed BYTE. Test pins
+  them; `release.yml` checks the signed app with `codesign -d --entitlements`.
 - `updater.rs`: `unwritable_place()` (App Translocation, /Volumes) and os error 30 → plain fix steps. UI:
   `lib/updateNotes.ts` (first paragraph, no Markdown). README/release footer/help: run `xattr -cr` before the
   first launch so updates can install.

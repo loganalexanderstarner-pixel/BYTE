@@ -15,6 +15,21 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ---
 
+## 2026-10-04
+
+### (this commit) — the microphone: entitlements under the hardened runtime (v0.12.5)
+- **Why:** owner: BYTE asks for the mic, but isn't in System Settings → Microphone (screenshots). Tauri signs with
+  the hardened runtime; without `com.apple.security.device.audio-input` macOS denies silently and never lists the
+  app. Apple Events need `com.apple.security.automation.apple-events` the same way.
+- **What:** `src-tauri/Entitlements.plist`, `tauri.conf.json` `bundle.macOS.entitlements` (+ explicit
+  `hardenedRuntime`), test `privacy::mac_permissions_are_declared`, `release.yml` codesign check, help 14, v0.12.5
+  notes, CHANGELOG.
+- **Verify:** `cargo test mac_permissions`; release run's verify step; on the Mac the mic prompt appears and BYTE is
+  listed under Microphone.
+- **Also:** `src/a11y.test.ts` scanned from the repo root (node_modules and the 20 GB Rust build folder), so it
+  timed out as the build grew; it now scans `src/` only (~1 s).
+- **Undo:** `git revert` this commit.
+
 ## 2026-10-02
 
 ### (this commit) — v0.12.5: read-only updates explained, clean notes, install steps

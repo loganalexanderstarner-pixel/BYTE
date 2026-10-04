@@ -7,9 +7,13 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const ROOT = join(__dirname, "..");
+/** Only the UI's own sources (src/): walking the repo root also read node_modules and the Rust build folder. */
+const SRC = __dirname;
+const SKIP = new Set(["node_modules", "dist", "target"]);
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {
+    if (SKIP.has(n)) return [];
     const p = join(dir, n);
     if (statSync(p).isDirectory()) return files(p);
     return p.endsWith(".tsx") && !p.endsWith(".test.tsx") ? [p] : [];
@@ -62,8 +66,8 @@ describe("accessibility", () => {
   });
 
   it("every button has a name VoiceOver can read", () => {
-    const missing = files(ROOT).flatMap((f) => unnamedButtons(f));
+    const missing = files(SRC).flatMap((f) => unnamedButtons(f));
     expect(missing).toEqual([]);
-    // Parses every component file, which can pass the 5 s default when the machine is busy.
+    // Parses every component file in src/ (about a second).
   }, 30_000);
 });

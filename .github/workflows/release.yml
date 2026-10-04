@@ -134,6 +134,10 @@ jobs:
           test -x "$app/Contents/MacOS/whisper-cli"
           test -x "$app/Contents/MacOS/sherpa-diarize"
           test -x "$app/Contents/MacOS/sherpa-tts"
+          # Without these macOS silently refuses the microphone and Apple Events (hardened runtime).
+          ents=$(codesign -d --entitlements - --xml "$app" 2>/dev/null)
+          echo "$ents" | grep -q "com.apple.security.device.audio-input"
+          echo "$ents" | grep -q "com.apple.security.automation.apple-events"
           codesign --verify --deep --strict --verbose=2 "$app"
           "$app/Contents/MacOS/llama-server" --version
           "$app/Contents/MacOS/whisper-cli" --help >/dev/null

@@ -16,3 +16,5 @@ Check free disk space and memory in [Settings → Engine](byte-setting:engine). 
 Downloads resume where they left off: press **Resume**.
 
 **An update fails with "Read-only file system".** macOS is running a read-only copy of BYTE because it was downloaded and isn't signed by Apple. Quit BYTE, make sure it's in Applications (not the .dmg window), run `xattr -cr /Applications/BYTE.app` once in Terminal, open BYTE again and install the update.
+
+**BYTE says it needs the microphone, but isn't in System Settings → Microphone.** Versions before 0.12.5 couldn't ask macOS for the microphone. Update BYTE (Settings → About), then press the mic: macOS asks once. If you answered "Don't Allow" earlier, switch BYTE on in System Settings → Privacy & Security → Microphone, or reset the answer in Terminal with `tccutil reset Microphone com.loganstarner.byte` and try again. Because BYTE isn't signed by Apple, macOS may ask again after an update.
