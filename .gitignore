@@ -35,3 +35,6 @@ scripts/catalog-cards.json
 *.keystore
 *.p12
 *.pfx
+
+# Microsoft redistributable binaries, fetched not committed
+vendor/windows-runtime/
