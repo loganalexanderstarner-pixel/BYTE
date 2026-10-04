@@ -52,6 +52,24 @@ const REASONING_CUES: &[&str] = &[
 ];
 
 /// Cheap signal that a message benefits from deliberate reasoning.
+/// A request to *write* something creative (a story, poem, song, joke…) and nothing else: no Mac control, files or
+/// automations for it, even when the story mentions texting, reminders or a time. "…and save it to my notes" or
+/// "…and text it to Mom" still count as asking for an action.
+pub fn creative_only(message: &str) -> bool {
+    let l = message.trim().to_lowercase();
+    const KINDS: &[&str] = &[
+        "story", "stories", "poem", "poetry", "song", "lyrics", "rap", "joke", "riddle", "fairy tale", "fable", "limerick", "haiku",
+        "script", "screenplay", "comic", "bedtime", "short fiction", "fanfic", "fan fiction", "tale", "adventure", "chapter",
+    ];
+    const ASKS: &[&str] = &["write", "make", "tell", "create", "give me", "come up with", "invent", "compose", "continue", "can you write", "could you write", "can you make", "can you tell", "i want a", "i need a", "story about", "a story", "once upon"];
+    const ACTIONS: &[&str] = &[
+        "save it", "save this", "save that", "to my notes", "in my notes", "in notes", "text it", "send it", "email it", "message it", "and send", "and text", "and email",
+        "remind me", "to my calendar", "to reminders", "as a file", "to a file", "to my desktop", "to my documents", "every day", "every morning", "every night", "every week",
+    ];
+    let creative = KINDS.iter().any(|k| l.contains(k)) && (ASKS.iter().any(|a| l.contains(a)) || l.starts_with("story"));
+    creative && !ACTIONS.iter().any(|a| l.contains(a))
+}
+
 pub fn looks_complex(message: &str) -> bool {
     let m = message.to_lowercase();
     if m.chars().count() > 280 {
@@ -510,6 +528,32 @@ fn percent_of(message: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn creative_requests_are_just_writing() {
+        for q in [
+            "make a story about a girl who texts her mom from space",
+            "write a story about a reminder that never stops",
+            "Make a story about Elias who lost his book at the library at 3pm",
+            "tell me a bedtime story about a cat who plays music",
+            "write a poem about dark mode",
+            "make a song about my dad's car",
+            "continue the story",
+            "story: a dog named Max texts his owner",
+        ] {
+            assert!(creative_only(q), "{q}");
+        }
+        for q in [
+            "write a story and save it to my notes",
+            "make a story and text it to Mom",
+            "write a poem every morning about the weather",
+            "text Mom I'm on my way",
+            "remind me to call Mom at 3pm",
+            "what's the story with my storage?",
+        ] {
+            assert!(!creative_only(q), "{q}");
+        }
+    }
+
     use super::*;
 
     #[test]

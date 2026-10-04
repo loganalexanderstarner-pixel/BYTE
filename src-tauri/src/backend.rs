@@ -370,7 +370,8 @@ impl Setup {
         if kids {
             system.push_str(crate::kids::PROMPT);
         }
-        if cfg!(target_os = "macos") && modules.mac {
+        let last_question = request.messages.iter().rev().find(|m| m.role == "user").map(|m| chat::question_text(&m.content)).unwrap_or_default();
+        if cfg!(target_os = "macos") && modules.mac && !crate::router::creative_only(&last_question) {
             system.push_str(prompt::MAC_CONTROL);
         }
         if let Some(q) = request.messages.iter().rev().find(|m| m.role == "user") {

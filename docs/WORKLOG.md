@@ -17,6 +17,15 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-04
 
+### (this commit) — stories stay stories
+- **Why:** owner: asking for a story sometimes started a Mac action. The rules didn't fire on 30+ probed story
+  prompts, so the guard is general: a creative-only request never reaches computer control.
+- **What:** `router::creative_only` (+ test); `agent::specialist` uses it to switch off Mac control, files, upkeep,
+  terminal and automations for that turn; `backend` leaves out `prompt::MAC_CONTROL` then.
+- **Verify:** `cargo test creative`; on the Mac, "make a story about a girl who texts her mom" just writes a story.
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — v0.12.6: texting from BYTE, and a Messages inbox
 - **Why:** owner: texts should send after "Do it" (showing it sending), with suggested edits, Fix grammar &
   punctuation, Rephrase with tones (formal, fun, sympathetic…), and a place for received messages with "Draft a

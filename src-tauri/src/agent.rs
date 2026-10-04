@@ -751,11 +751,14 @@ async fn specialist(
     send: Emit<'_>,
 ) -> AppResult<Option<(SourceBook, String, &'static str)>> {
     let q = question;
-    let mac_reminders = cfg!(target_os = "macos") && turn.modules.mac;
+    // A story, poem or song is writing, not something to do on the Mac (unless it also asks to save or send it).
+    let writing_only = crate::router::creative_only(q);
+    let mac_on = turn.modules.mac && !writing_only;
+    let mac_reminders = cfg!(target_os = "macos") && mac_on;
     let tasks_db = turn.app.filter(|_| turn.modules.tasks).map(|a| &tauri::Manager::state::<crate::state::AppState>(a).inner().db);
     let watch_db = turn.app.filter(|_| turn.modules.watch).map(|a| &tauri::Manager::state::<crate::state::AppState>(a).inner().db);
     let trackers_db = turn.app.filter(|_| turn.modules.trackers).map(|a| &tauri::Manager::state::<crate::state::AppState>(a).inner().db);
-    Ok(if turn.modules.automations && turn.app.is_some() && crate::automations::applies(q) {
+    Ok(if turn.modules.automations && turn.app.is_some() && !writing_only && crate::automations::applies(q) {
         crate::automations::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "automation"))
     } else if turn.modules.connectors && turn.app.is_some_and(|a| crate::connectors::applies(a, q)) {
         crate::connectors::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "connectors"))
@@ -769,13 +772,13 @@ async fn specialist(
         crate::feeds::run(turn, db, q, send).await?
     } else if let Some(db) = watch_db.filter(|_| crate::watchers::applies(q)) {
         crate::watchers::run(turn, db, q, cancel, send).await?.map(|(b, n)| (b, n, "watch"))
-    } else if crate::macctl::applies(turn.modules.mac, q) {
+    } else if crate::macctl::applies(mac_on, q) {
         crate::macctl::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
-    } else if crate::filectl::applies(turn.modules.mac, q) {
+    } else if crate::filectl::applies(mac_on, q) {
         crate::filectl::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
-    } else if crate::upkeep::applies(turn.modules.mac && turn.modules.upkeep, q) {
+    } else if crate::upkeep::applies(mac_on && turn.modules.upkeep, q) {
         crate::upkeep::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
-    } else if crate::terminal::applies(turn.modules.mac, q) {
+    } else if crate::terminal::applies(mac_on, q) {
         crate::terminal::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
     } else if crate::youtube::applies(turn.web, q, turn.history) {
         crate::youtube::run(turn, q, used_tokens, cancel, send).await?.map(|(b, n)| (b, n, "youtube"))

@@ -7,6 +7,9 @@
   `web_agent::answer_with` / `take_edits`, `agent_approve` edits).
 - UI: `messages/MessageComposer.tsx` (Fix grammar, Rephrase + tones, Shorter, Ideas, Undo; `lib/composer.ts`
   over `writing_run`); tones "fun" and "sympathetic" in `writing.rs`. Text cards' button says "Send".
+- `router::creative_only`: story/poem/song/joke requests skip Mac control, files, upkeep, terminal and automations
+  and the Mac-control prompt note, unless they also ask to save/send/remind (owner: stories sometimes started Mac
+  actions).
 - `messages.rs` (opt-in, Full Disk Access): chat.db read-only (attributedBody text, Apple dates, reactions left
   out), names from Contacts' databases, threads / thread / send, a 15 s new-text watcher (notification + event).
   UI: `messages/MessagesPanel.tsx`, a new-text banner (Draft a reply / Reply), Settings → Privacy → Messages inbox,
