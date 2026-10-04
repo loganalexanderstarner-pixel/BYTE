@@ -356,7 +356,7 @@ Report to Logan after each one: what works, screenshots, numbers, what's next.
   change with the Mac session, because it touches `release.yml`.
 - GitHub's Windows runners have no GPU: CI builds and unit tests only. Real GPU testing is on this PC.
 
-### L1–L4. Linux, the same way
+### L1–L4. Linux, the same way (after the Android app, owner 2026-10-04: Windows → Android → Linux)
 - CUDA (and Vulkan) engine builds; AppImage and `.deb`.
 - Secrets → Secret Service (`keyring`); OCR → Tesseract; lock → polkit or the desktop's own authentication.
 - Tray, autostart (`~/.config/autostart`), systemd user timers, and `xdotool`/`ydotool` or D-Bus for app

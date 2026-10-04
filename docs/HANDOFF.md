@@ -23,8 +23,8 @@ talks in a normal friendly tone; the *visuals* are neon/cyberpunk. No paid Apple
 
 ## 1b. Owner decisions, 2026-10-02 (after 1.0)
 
-Order: **v1.0** (owner's update test + `docs/CHECKLIST-1.0.md`) → **Windows** → **Linux** → **v1.1.0 image generation**;
-**Android** (added 2026-10-04, `docs/ANDROID.md`) after Windows and Linux unless the owner moves it up.
+Order: **v1.0** (owner's update test + `docs/CHECKLIST-1.0.md`) → **Windows** → **Android** (added 2026-10-04,
+`docs/ANDROID.md`) → **Linux** → **v1.1.0 image generation**.
 
 - **Windows first.** The owner has a Windows PC for testing; the plan is a Claude session running on that PC
   (Claude Desktop or `claude remote-control`) to build and run BYTE there. Not a self-hosted GitHub runner (the repo

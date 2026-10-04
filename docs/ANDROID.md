@@ -4,7 +4,7 @@ Owner decision, 2026-10-04: **BYTE gets an Android app.** The owner's phone is a
 Windows and Linux apps, it is its own native app with no linking to the Mac or PC (decision of 2026-10-02). iOS
 stays out (see `DESIGN-AND-PLATFORMS.md`: free Apple signing expires every 7 days).
 
-**When:** after 1.0, Windows and Linux, unless the owner moves it up. This file holds the plan; nothing is built yet.
+**When:** after 1.0 and the Windows app, before Linux (owner, 2026-10-04). This file holds the plan; nothing is built yet.
 
 ## The rule: models for phones up to 16 GB of RAM
 - The desktop catalog goes up to 128 GB machines. The Android catalog covers **phones with up to 16 GB of RAM**,

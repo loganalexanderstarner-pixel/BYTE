@@ -19,7 +19,7 @@ tokens + logo, and the Windows/Linux plan), `docs/CLOUD-MODE.md` (BYTE as a remo
   Each should feel native to its own OS rather than one build for all three.
   **No iOS/iPadOS app** — dropped by the owner 2026-09-27.
   **Android is a target** (owner, 2026-10-04): its own app for phones up to 16 GB of RAM, with an expanded
-  catalog for that range; after 1.0, Windows and Linux. Plan: `docs/ANDROID.md`.
+  catalog for that range; built after Windows and before Linux. Plan: `docs/ANDROID.md`.
 - **Never require a paid Apple Developer account.** Builds are ad-hoc / self-signed. README explains "Open Anyway".
 - **The assistant's name is BYTE.** It never calls itself Qwen or another model (it may say it runs Qwen3 locally
   if asked). Tone: normal, friendly, direct — *not* cyberpunk-talk. The *visual* style is neon/cyberpunk.

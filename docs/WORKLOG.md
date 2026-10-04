@@ -17,6 +17,12 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-04
 
+### (this commit) — platform order: Windows → Android → Linux (docs only)
+- **Why:** owner: "after windows we can do it [Android] then linux".
+- **What:** order updated in `CLAUDE.md`, `ANDROID.md`, `HANDOFF.md` §1b, `VERSIONS.md`, `PORTING-WINDOWS-LINUX.md`,
+  and the v1.0 draft notes.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — Android planned (docs only)
 - **Why:** owner: an Android build for their Galaxy Z Fold8 Ultra, for phones up to 16 GB of RAM (the desktop catalog
   goes to 128 GB), with the catalog expanded in that range.
