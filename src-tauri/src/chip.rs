@@ -112,7 +112,20 @@ pub fn identify(brand: &str, gpu_cores: Option<u32>) -> ChipInfo {
             };
             (153.0 * mult, 5.7 * mult, 38.0, false)
         }
-        None => (50.0, 1.0, 0.0, false),
+        // No data source for non-Apple hardware yet, so this is the first
+        // number a PC user sees before anything is measured. It was 50 GB/s,
+        // which is optimistic for a thin laptop and wildly optimistic for a
+        // small ARM board: a Pi 5 has about 17 GB/s and the old value
+        // overpredicted its measured 3.26 tok/s by five times.
+        //
+        // Deliberately conservative now. Under an honest-limits rule, telling
+        // someone a model will be slower than it turns out to be costs them a
+        // mild surprise; telling them it will be fast when it crawls costs
+        // them their trust in every other number BYTE shows. `exact: false`
+        // marks it as an estimate, and `models::calibrate` replaces it with a
+        // real measurement of the machine in front of the user, which is the
+        // actual fix.
+        None => (24.0, 1.0, 0.0, false),
     };
     ChipInfo {
         name: if brand.trim().is_empty() { "Unknown".into() } else { brand.trim().to_string() },
@@ -215,6 +228,14 @@ pub fn estimate_on(
     // memory does (measured 0.62 CUDA / 0.58 Vulkan against a predicted 0.8).
     if matches!(backend, Backend::Cuda | Backend::Vulkan) {
         efficiency *= 0.75;
+    }
+    // Running on CPU reaches a smaller share again. Measured on a Cortex-A76
+    // (Pi 5, 4 cores, no GPU) with Qwen3 4B Q4_K_M: 3.26 tok/s against about
+    // 17 GB/s of real memory bandwidth, so roughly 0.46 of peak -- and that is
+    // with three threads, where more threads stop helping because the limit is
+    // memory, not arithmetic.
+    if matches!(backend, Backend::Cpu) {
+        efficiency *= 0.58;
     }
     let tokens_per_sec = (chip.bandwidth_gbps * 1e9 * efficiency / bytes_per_token.max(1.0)).min(250.0);
 

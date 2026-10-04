@@ -228,3 +228,35 @@ fn apple_estimates_are_untouched() {
     let new = chip::estimate_on(&m4, 4_900_000_000, Some(8.2), None, Backend::Metal);
     assert_eq!(old, new, "the Metal path must not have changed");
 }
+
+/// Measured on a Raspberry Pi 5 (4x Cortex-A76, 8 GB LPDDR4X ~17 GB/s, no GPU),
+/// Qwen3 4B Q4_K_M, llama.cpp b11205, 3 threads: 3.26 tok/s generating,
+/// 11.4 tok/s prompt. The weakest machine BYTE claims to support.
+#[test]
+fn low_tier_machines_get_an_honest_estimate_not_an_optimistic_one() {
+    let mut pi = chip::identify("Cortex-A76", None);
+    assert!(!pi.exact, "an ARM board is not in the Apple table and must say so");
+    pi.bandwidth_gbps = 17.0; // what the hardware really has
+
+    let e = chip::estimate_on(&pi, 2_400_000_000, Some(4.0), None, Backend::Cpu);
+    // Must not promise more than roughly what it did: over-promising on the
+    // weakest hardware is the worst case for trust.
+    assert!(e.tokens_per_sec <= 6.0,
+            "predicted {:.1} tok/s where the machine measured 3.26 -- \
+             over-promising on low-tier hardware breaks the honest-limits rule",
+            e.tokens_per_sec);
+    assert!(e.tokens_per_sec >= 1.5,
+            "predicted {:.1} tok/s, so pessimistic it would hide a usable machine",
+            e.tokens_per_sec);
+}
+
+#[test]
+fn the_unknown_hardware_default_is_not_optimistic() {
+    // Before anything is measured, an unrecognised chip gets a default. It
+    // should sit below a real desktop rather than above a small ARM board.
+    let unknown = chip::identify("Some Future CPU 9000", None);
+    assert!(!unknown.exact);
+    assert!(unknown.bandwidth_gbps <= 30.0,
+            "unknown hardware defaulted to {} GB/s, which over-promises",
+            unknown.bandwidth_gbps);
+}
