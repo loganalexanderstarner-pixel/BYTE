@@ -13,7 +13,13 @@ OUT_DIR="$ROOT/src-tauri/binaries"
 TRIPLE="${TARGET_TRIPLE:-$(rustc -vV | sed -n 's/^host: //p')}"
 WORK="${LLAMA_WORK:-$ROOT/.cache/llama.cpp}"
 SRC="$WORK/src-$LLAMA_TAG"
-BUILD="$SRC/build"
+# ENGINE_BACKEND picks the accelerator: cuda (NVIDIA, fastest) or vulkan (every
+# vendor, including the AMD and Intel GPUs we cannot test on). Each gets its own
+# build directory and its own output name, so both can exist and be compared on
+# the same machine -- which is the only way to answer whether the 500 MB of
+# CUDA libraries in the installer is worth what it buys.
+ENGINE_BACKEND="${ENGINE_BACKEND:-cuda}"
+BUILD="$SRC/build-$ENGINE_BACKEND"
 # Set by the per-platform case below; empty elsewhere.
 GEN=()
 case "$TRIPLE" in
@@ -50,6 +56,15 @@ if [ ! -f "$BUILD/bin/${BIN_SUBDIR}llama-server$EXE" ]; then
       JOBS="$(sysctl -n hw.logicalcpu)"
       ;;
     *-windows-msvc)
+      if [ "$ENGINE_BACKEND" = "vulkan" ]; then
+        # Vulkan needs no vendor SDK at runtime -- the user's own graphics
+        # driver provides the implementation, which is why one build covers
+        # NVIDIA, AMD and Intel.
+        FLAGS+=(-DGGML_NATIVE=OFF -DGGML_VULKAN=ON)
+        GEN=(-G "Visual Studio 17 2022" -A x64)
+        JOBS="${NUMBER_OF_PROCESSORS:-8}"
+        ;;
+      fi
       # CUDA for NVIDIA. GGML_NATIVE=OFF matters as much here as it does on
       # Apple, and for the same reason: this box is Zen 4, so NATIVE=ON bakes
       # in AVX-512 and the binary dies with an illegal instruction on any CPU
@@ -85,7 +100,13 @@ if [ ! -f "$BUILD/bin/${BIN_SUBDIR}llama-server$EXE" ]; then
   cmake --build "$BUILD" --config Release --target llama-server -j "$JOBS"
 fi
 
-DEST="$OUT_DIR/llama-server-$TRIPLE$EXE"
+# The default backend keeps the plain name Tauri's externalBin expects; any
+# other backend is suffixed so it sits alongside rather than replacing it.
+if [ "$ENGINE_BACKEND" = "cuda" ]; then
+  DEST="$OUT_DIR/llama-server-$TRIPLE$EXE"
+else
+  DEST="$OUT_DIR/llama-server-$ENGINE_BACKEND-$TRIPLE$EXE"
+fi
 cp "$BUILD/bin/${BIN_SUBDIR}llama-server$EXE" "$DEST"
 chmod +x "$DEST"
 
