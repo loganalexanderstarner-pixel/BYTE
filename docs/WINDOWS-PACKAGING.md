@@ -18,12 +18,29 @@ redistributable, so a clean machine does not have them.
 Without them BYTE installs, launches, and fails to start its engine with a
 missing-DLL error naming a file the user has never heard of.
 
-Two ways to fix it. Bundle the four files as resources, or have the installer
-run `VC_redist.x64.exe`. Bundling is preferable: it needs no elevation and
-cannot fail halfway. It is **not wired up yet** because those are Microsoft's
-redistributable binaries and should not be committed to a public repo -- they
-need a fetch step (`scripts/fetch-windows-runtime.ps1`) writing to an ignored
-`vendor/windows-runtime/`, which is the next task here.
+Two ways to fix it: bundle the four files as resources, or have the installer
+run `VC_redist.x64.exe`. Bundling is preferable -- it needs no elevation and
+cannot fail halfway.
+
+They are Microsoft's redistributable binaries, so they are **copied at build
+time and never committed**. `scripts/fetch-windows-runtime.ps1` stages them into
+the gitignored `vendor/windows-runtime/` from Visual Studio's redist folder or
+System32, and fails the build loudly if any is missing -- an installer without
+them installs cleanly and then cannot start its engine, which is far worse than a
+failed build.
+
+**They are listed in `tauri.windows-release.conf.json`, not in the base Windows
+config, on purpose.** Tauri fails the build when a listed resource is missing
+(the sidecar placeholders found that out), so putting them in the base config
+would break every dev and test build on a machine that had not run the fetch
+step. The release build passes it explicitly:
+
+    powershell scripts/fetch-windows-runtime.ps1
+    npm run tauri build -- --config src-tauri/tauri.windows-release.conf.json
+
+**Not yet verified:** that the resource lands next to the executable, which is
+where Windows looks for a DLL first. It has to be checked by installing the
+built package, not assumed from the config.
 
 ## CUDA is the large part, and it earns its place
 
