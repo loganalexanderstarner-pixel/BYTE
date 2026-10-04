@@ -17,6 +17,16 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-04
 
+### (this commit) — Android extras added to the plan (docs only)
+- **Why:** owner asked what else Android could do, then "add all of it to the notes".
+- **What:** `docs/ANDROID.md`, a new "Extras only Android can do" section and milestone A4:
+  - default assistant, Ask BYTE on selected text, replies in any messaging app, what's on my screen;
+  - camera: point and ask, live translate, scanner;
+  - Fold: interpreter mode, Flex mode, split screen;
+  - location reminders, phone actions, call screening, earbuds, no-signal mode;
+  - the honest limits.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — platform order: Windows → Android → Linux (docs only)
 - **Why:** owner: "after windows we can do it [Android] then linux".
 - **What:** order updated in `CLAUDE.md`, `ANDROID.md`, `HANDOFF.md` §1b, `VERSIONS.md`, `PORTING-WINDOWS-LINUX.md`,

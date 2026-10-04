@@ -45,6 +45,59 @@ stays out (see `DESIGN-AND-PLATFORMS.md`: free Apple signing expires every 7 day
 | Mac upkeep, terminal, AppleScript control | Not on Android (phones don't allow it); storage view for BYTE's own models and files only |
 | Web agent, research, documents, study, voices | Same as the desktop |
 
+## Extras only Android can do (owner: "add all of it", 2026-10-04)
+Each is a module the person can turn off, and anything that acts still shows the approval card first.
+
+**Everywhere on the phone**
+- **Default assistant:** BYTE can be chosen as the phone's digital assistant (`RoleManager.ROLE_ASSISTANT` /
+  `VoiceInteractionService`), opened by a long press of the side button or a corner swipe instead of Gemini or Bixby.
+- **"Ask BYTE" on selected text in any app:** an entry in the text-selection menu (`ACTION_PROCESS_TEXT`) to reply,
+  translate, explain or rewrite, like ⌥⌘B on the Mac. It can put the result back in place.
+- **Reply in any messaging app:** with notification access (`NotificationListenerService`), BYTE sees messages from
+  WhatsApp, Messenger, Discord, Instagram and so on. It drafts a reply on the editable card and sends it through
+  the notification's own reply action (`RemoteInput`).
+  - **"What did I miss?"** summarizes recent notifications.
+  - Notifications are read on the phone only, and are never stored beyond the summary the person asks for.
+- **"What's on my screen?":** with Accessibility permission (`AccessibilityService`), BYTE reads the current screen
+  to explain, summarize or help fill it in. Any tap or typing it does is shown on an approval card first. It is off
+  by default, with a clear note on what it allows.
+
+**Camera**
+- **Point and ask:** a live camera view; take a photo, then ask. Covers plants, broken parts, homework, labels and
+  recipes. It uses a vision model when one fits, and otherwise the photo helper (`looker.rs`) or the text read from
+  it.
+- **Live translate of signs and menus:** on-device text recognition (ML Kit, offline) plus BYTE's translate, drawn
+  over the camera view.
+- **Document scanner:** edge detection and cleanup (ML Kit document scanner) produce a PDF or note, which goes into
+  the knowledge base.
+
+**Made for the Fold**
+- **Interpreter mode:** a two-person conversation translated live.
+  - Unfolded, the person sees their side on the inner screen while the other person reads and speaks on the cover
+    screen (Jetpack WindowManager / rear display).
+  - Speech uses whisper, then translate, then a voice.
+- **Flex mode (half-folded):** the answer or camera on the top half, and the composer, keyboard or controls on the
+  bottom (`FoldingFeature` posture).
+- **Split screen and drag and drop:** BYTE works side by side with other apps, and text, photos and files can be
+  dragged in and out.
+
+**Your day**
+- **Location reminders:** "remind me when I get home / leave work" (geofences, with location only when allowed).
+- **Phone actions by voice or text:** alarms and timers (`AlarmClock` intents), Do Not Disturb (with permission),
+  flashlight, opening apps and settings pages, and starting navigation.
+- **Call screening:** labels or answers unknown callers (`CallScreeningService`). It doesn't record calls (Android
+  blocks that).
+- **Hands-free with earbuds:** pressing the headset button opens a voice turn (`MediaSession`).
+- **No-signal mode:** answers, translation, notes and documents keep working with no internet. The offline switch
+  turns on by itself when there's no connection, with a note saying so.
+
+**Honest limits (shown in the app)**
+- **Heat and battery:** long answers on big models warm the phone. BYTE shows the battery cost, and when the phone
+  reports throttling it uses smaller models.
+- Always-on "Hey BYTE" is opt-in for battery reasons.
+- Screen reading and replying through notifications are harder to get into the Play Store. They're fine in the
+  GitHub APK, so they ship there first.
+
 ## Shipping without the Play Store
 - A signed APK on GitHub Releases. The signing keystore is made by the owner (free) and kept as GitHub secrets,
   never in the repo.
@@ -64,4 +117,9 @@ stays out (see `DESIGN-AND-PLATFORMS.md`: free Apple signing expires every 7 day
    - web research, files, notes, documents and voice;
    - texting (SMS) and the inbox;
    - calendar, notifications, widget and share sheet.
-4. **A4:** signed APK releases with in-app updates; checklist on the owner's phone.
+4. **A4:** the extras:
+   - default assistant, Ask BYTE on selected text, replies in any messaging app, what's on my screen;
+   - camera: point and ask, live translate, scanner;
+   - Fold: interpreter mode, Flex mode, split screen;
+   - location reminders, phone actions, call screening, earbuds, no-signal mode.
+5. **A5:** signed APK releases with in-app updates; checklist on the owner's phone.
