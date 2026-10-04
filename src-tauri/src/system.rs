@@ -545,3 +545,7 @@ mod battery_tests {
         assert_eq!(parse_pmset("Now drawing from 'AC Power'\n"), None, "a desktop Mac has no battery");
     }
 }
+
+#[cfg(test)]
+#[path = "hardware_fixtures_tests.rs"]
+mod hardware_fixtures_tests;
