@@ -12,7 +12,7 @@
 //! the test. They are a specification, not a wish list -- remove the `ignore`
 //! as each is implemented.
 
-use crate::chip::{self, Tier};
+use crate::chip::{self, Backend, Tier};
 use crate::system::{self, Fit, ModelArch};
 
 const GIB: u64 = 1024 * 1024 * 1024;
@@ -178,4 +178,58 @@ fn small_cards_keep_a_usable_share() {
     // offer most of itself, or BYTE would refuse models that do fit.
     let b = system::gpu_budget_for(16 * GIB, Some(6 * GIB), None);
     assert!(b >= 5 * GIB, "6 GB card offered only {:.1} GB", b as f64 / GIB as f64);
+}
+
+// ---------------------------------------------------------------------------
+// Measured on an RTX 5080, Qwen3 4B Q4_K_M, llama.cpp b11205:
+//   CUDA    generation 204.8 tok/s   prompt 9,827 tok/s over 1,701 tokens
+//   VULKAN  generation 192.1 tok/s   prompt   251 tok/s over 1,701 tokens
+// The estimates must land near those, or every recommendation built on them
+// misleads the user.
+// ---------------------------------------------------------------------------
+
+/// An RTX 5080: 960 GB/s, roughly 225 TFLOPS FP16 dense.
+fn rtx_5080() -> chip::ChipInfo {
+    let mut c = chip::identify("AMD Ryzen 7 7800X3D", None);
+    c.bandwidth_gbps = 960.0;
+    c.gpu_tflops = 225.0;
+    c
+}
+
+const QWEN3_4B_Q4: u64 = 2_330_000_000;
+
+#[test]
+fn generation_estimate_is_near_the_measured_rate() {
+    let c = rtx_5080();
+    for (backend, measured) in [(Backend::Cuda, 204.8), (Backend::Vulkan, 192.1)] {
+        let e = chip::estimate_on(&c, QWEN3_4B_Q4, Some(4.0), None, backend);
+        let ratio = e.tokens_per_sec / measured;
+        assert!((0.7..=1.4).contains(&ratio),
+                "{backend:?}: estimated {:.0} tok/s against a measured {measured} \
+                 (ratio {ratio:.2})", e.tokens_per_sec);
+    }
+}
+
+#[test]
+fn vulkan_prompt_speed_is_not_predicted_like_cuda() {
+    // The whole point: the same card reads a document 39x slower on Vulkan, and
+    // an estimate that misses that is wrong by an order of magnitude.
+    let c = rtx_5080();
+    let cuda = chip::estimate_on(&c, QWEN3_4B_Q4, Some(4.0), None, Backend::Cuda);
+    let vk = chip::estimate_on(&c, QWEN3_4B_Q4, Some(4.0), None, Backend::Vulkan);
+    assert!(cuda.prompt_per_sec > 10.0 * vk.prompt_per_sec,
+            "cuda {:.0} vs vulkan {:.0} prompt tok/s -- the gap is measured at 39x",
+            cuda.prompt_per_sec, vk.prompt_per_sec);
+    // And generation should stay close, because it measured 1.07x.
+    let g = cuda.tokens_per_sec / vk.tokens_per_sec;
+    assert!((0.8..=1.3).contains(&g), "generation should be near-identical, got {g:.2}x");
+}
+
+#[test]
+fn apple_estimates_are_untouched() {
+    // estimate() must behave exactly as before for every existing caller.
+    let m4 = chip::identify("Apple M4", Some(10));
+    let old = chip::estimate(&m4, 4_900_000_000, Some(8.2), None);
+    let new = chip::estimate_on(&m4, 4_900_000_000, Some(8.2), None, Backend::Metal);
+    assert_eq!(old, new, "the Metal path must not have changed");
 }

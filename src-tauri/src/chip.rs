@@ -119,6 +119,26 @@ pub fn gpu_core_count() -> Option<u32> {
     None
 }
 
+/// Which engine will actually serve the model. It belongs in a speed estimate
+/// because the same GPU is a different machine depending on the answer:
+/// measured on an RTX 5080 with Qwen3 4B Q4_K_M, generation came out 204.8
+/// tok/s on CUDA and 192.1 on Vulkan -- near enough identical -- while prompt
+/// processing was 9,827 tok/s against 251, a factor of **39**. Predicting from
+/// hardware alone is therefore right about generation and wrong by more than an
+/// order of magnitude about reading a document.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum Backend {
+    /// Apple unified memory. The existing numbers were tuned here.
+    Metal,
+    /// NVIDIA through CUDA: cuBLAS makes prompt processing enormously faster.
+    Cuda,
+    /// Any vendor through Vulkan. Generation matches CUDA; prompt does not.
+    Vulkan,
+    /// No usable GPU.
+    Cpu,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SpeedEstimate {
@@ -140,15 +160,62 @@ const TYPICAL_THINKING: f64 = 700.0;
 /// Estimates speed for a model file of `file_bytes` with `total_b` billion
 /// parameters of which `active_b` are used per token (MoE), on `chip`.
 pub fn estimate(chip: &ChipInfo, file_bytes: u64, total_b: Option<f32>, active_b: Option<f32>) -> SpeedEstimate {
+    estimate_on(chip, file_bytes, total_b, active_b, Backend::Metal)
+}
+
+/// As `estimate`, told which engine will serve the model.
+///
+/// The two correction factors below are measured, not assumed, and that matters
+/// because the uncorrected arithmetic is badly wrong off Apple hardware. For
+/// Qwen3 4B Q4_K_M (2.33 GB) on an RTX 5080 (960 GB/s) the bandwidth model
+/// predicts 329 tok/s at the Apple efficiency of 0.8; the card actually
+/// delivered 204.8 on CUDA and 192.1 on Vulkan, so the achievable share of peak
+/// on a discrete card is nearer 0.6 than 0.8 -- it overpredicted by 45%.
+///
+/// One GPU, one model, one build: a single calibration point, honestly, and the
+/// right fix long term is `models::calibrate` measuring the real machine. These
+/// factors exist so the first estimate a user ever sees is not fiction.
+pub fn estimate_on(
+    chip: &ChipInfo,
+    file_bytes: u64,
+    total_b: Option<f32>,
+    active_b: Option<f32>,
+    backend: Backend,
+) -> SpeedEstimate {
     let total = total_b.map(|t| t as f64).filter(|t| *t > 0.0).unwrap_or(file_bytes as f64 / 0.6e9);
     let active = active_b.map(|a| a as f64).filter(|a| *a > 0.0 && *a < total).unwrap_or(total);
     let moe = active < total;
     // Bytes of weights touched per generated token.
     let bytes_per_token = file_bytes as f64 * (active / total);
     // Achievable share of peak bandwidth (MoE routing is less efficient).
-    let efficiency = if moe { 0.6 } else { 0.8 };
+    let mut efficiency = if moe { 0.6 } else { 0.8 };
+    // Discrete cards reach a smaller share of peak bandwidth than unified
+    // memory does (measured 0.62 CUDA / 0.58 Vulkan against a predicted 0.8).
+    if matches!(backend, Backend::Cuda | Backend::Vulkan) {
+        efficiency *= 0.75;
+    }
     let tokens_per_sec = (chip.bandwidth_gbps * 1e9 * efficiency / bytes_per_token.max(1.0)).min(250.0);
-    let prompt_per_sec = (chip.gpu_tflops * 1e12 * 0.9 / (2.0 * active * 1e9)).clamp(5.0, 5000.0);
+
+    // Prompt processing is where the backends diverge, and by a lot. CUDA's
+    // measured 9,827 tok/s sat above the old 5,000 ceiling, so the ceiling was
+    // understating NVIDIA; Vulkan's 251 tok/s is 39x slower, so the same
+    // formula was overstating every AMD and Intel GPU by more than an order of
+    // magnitude. A 10,000-token document is about a second on CUDA and about
+    // forty on Vulkan -- a difference the user must be told about rather than
+    // discover.
+    let prompt_ceiling = match backend {
+        Backend::Cuda => 12_000.0,
+        Backend::Metal => 5_000.0,
+        Backend::Vulkan => 400.0,
+        Backend::Cpu => 60.0,
+    };
+    let prompt_scale = match backend {
+        Backend::Vulkan => 0.026,   // 251 / 9827, measured on the same card
+        Backend::Cpu => 0.004,
+        _ => 1.0,
+    };
+    let prompt_per_sec =
+        (chip.gpu_tflops * 1e12 * 0.9 * prompt_scale / (2.0 * active * 1e9)).clamp(5.0, prompt_ceiling);
     let reply_secs = TYPICAL_PROMPT / prompt_per_sec + TYPICAL_ANSWER / tokens_per_sec;
     SpeedEstimate {
         tokens_per_sec,
