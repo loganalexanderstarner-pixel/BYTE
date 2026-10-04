@@ -5,13 +5,84 @@ Every change, newest first: what it did, why, where it lives, and how to undo it
 change here and revert just that commit (`git revert <hash>`) instead of starting
 over from an old copy of the repo.
 
-**CI is manual** (the owner's GitHub Actions minutes are limited): pushing costs
-nothing and is the backup, so push every change. Before each push run
-`scripts/check-all.sh` (secret scan, typecheck, frontend tests + build, Rust tests,
-clippy). Run CI / the Mac engine test / a test build by hand only at milestones
-(phases 8, 10, 12) or when the owner asks.
+**CI is free and runs on every push** -- `.github/workflows/ci.yml` says so in its
+own header, because Actions minutes are unlimited for public repositories. This
+paragraph previously said minutes were limited and to run CI by hand only at
+milestones; that was stale and actively harmful, since it told sessions to skip
+the one verification that needs no local toolchain. Corrected 2026-10-04 after
+CI caught several problems a local run had missed.
+
+Still run `scripts/check-all.sh` before pushing (secret scan, typecheck,
+frontend tests + build, Rust tests, clippy) -- it is faster than waiting for CI
+and catches the same things. The Mac engine test and test builds remain manual,
+being slow rather than expensive.
 
 Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo**.
+
+---
+
+## 2026-10-04 (cluster session, Windows port: `claude/windows-port`)
+
+These eight commits were pushed without worklog entries, against CLAUDE.md's own
+rule. Recorded together here rather than pretended into separate entries.
+
+### W1: the Windows app builds, runs, and the engine sees the GPU
+- **Why:** first milestone of `docs/PORTING-WINDOWS-LINUX.md`.
+- **What:** toolchain on the PC (MSVC 14.44, CUDA 13.4, Vulkan SDK 1.4.363, Rust
+  1.99, Node 22 pinned to match CI, Strawberry Perl); `llama-server` built with
+  CUDA for Blackwell and separately with Vulkan, both installed as sidecars;
+  Rust core compiles; frontend builds; `byte.exe` runs.
+- **Verify:** `--list-devices` reports the discrete GPU; CI green on all jobs.
+
+### Four findings worth keeping
+- **A GUI app cannot start from an SSH session.** WebView2 fails with "Invalid
+  window handle" because an SSH session is session 0 with no desktop. Launch via
+  Task Scheduler with `/IT` to reach the interactive session. Cost two rounds of
+  debugging a non-bug.
+- **`rusqlite`'s `bundled-sqlcipher-vendored-openssl` needs perl on Windows.**
+  CI never caught it because GitHub's windows runner ships Strawberry Perl, so
+  the documented setup was incomplete while CI stayed green. Added to the brief.
+- **The VC++ runtime DLLs the engine needs do not ship with Windows.** On the
+  test machine they were created twelve days *after* the OS install, by a
+  redistributable. So the installer must carry `MSVCP140`, `VCRUNTIME140`,
+  `VCRUNTIME140_1` and `VCOMP140`, or the engine fails to load on a clean
+  machine with a cryptic error. Found without needing a clean VM.
+- **CUDA and Vulkan differ where it matters.** Same card, same model, same
+  llama.cpp: generation 204.8 vs 192.1 tok/s (1.07x), prompt processing 9,827 vs
+  251 tok/s (**39x**). A 10,000-token document is about a second on CUDA and
+  about forty on Vulkan. This is why the installer bundles CUDA.
+
+### Three planner defects, found by fixtures and fixed
+`src-tauri/src/hardware_fixtures_tests.rs` tests machines nobody owns by feeding
+hardware descriptions to the planner, which is pure arithmetic. It found:
+- **`gpu_budget()` returned a share of system RAM** -- correct for unified
+  memory, structurally wrong for a discrete card. On a 32 GB PC it offered
+  21.3 GB to a 16 GB card, so BYTE would have recommended a model that cannot
+  load. Fixed by `gpu_budget_for(total_ram, vram, override)`; the Apple path is
+  unchanged and a test asserts that.
+- **`identify()` read PC CPU names as Apple chips.** "Intel Core Ultra" matched
+  the Ultra tier and "Ryzen PRO" the Pro tier, each then given an M-series
+  chip's bandwidth and TFLOPS. Parsing is now gated on the brand being Apple.
+- **Speed estimates ignored the backend and over-promised weak hardware.** Now
+  calibrated per backend from the measurements above, and the unknown-hardware
+  default drops from 50 to 24 GB/s after a 4B model on four Cortex-A76 cores
+  measured 3.26 tok/s where the old default predicted 16.7.
+- **Verify:** `cargo test hardware_fixtures -- --include-ignored`; three fixtures
+  remain ignored, covering PC bandwidth data and Apple-shaped RAM advice.
+- **Undo:** revert `a4d5028`, `3a41380`, `25d8ed1`, `56eec17` individually.
+
+### Still open
+- **The layout is device-class, not continuous.** Breakpoints stop at 560px; a
+  folded cover screen is ~320px and Android split-screen is arbitrary. The owner
+  wants it to adapt to any screen including foldables, which needs container
+  queries and fluid scales rather than more breakpoints. **Do this before any
+  Android UI work or it gets built twice.**
+- Voice engines (`whisper-cli`, `sherpa-*`) are zero-byte placeholders on
+  Windows, so voice does not work; chat does.
+- No installer yet, and `release.yml` has no Windows job.
+- `titleBarStyle: Overlay` and `hiddenTitle` are macOS-only, so Windows draws a
+  standard titlebar where the Mac runs content under the window controls. Needs
+  a `tauri.windows.conf.json` overlay.
 
 ---
 
