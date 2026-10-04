@@ -57,7 +57,7 @@ cluster handles this internally" and keep the details off GitHub.
 
 ## Open requests
 
-### 0. For the session on Logan's PC: build the Windows app, then Linux (not a cluster request)
+### 0. For the session on Logan's PC: build the Windows app, then Android, then Linux (not a cluster request)
 
 Logan's Claude session that works on the cluster can also reach his dual-boot PC (Ryzen 7 7800X3D, 32 GB DDR5-6000,
 RTX 5080). The owner has asked it to build BYTE's **Windows** app first, then **Linux**. Everything it needs is in
@@ -67,6 +67,19 @@ feature map (Mac feature → Windows → Linux, and what each can do that the Ma
 L1–L4. **The rule: every Mac feature, and more** (macOS is the most locked-down; Windows and Linux allow more), on NVIDIA,
 AMD and Intel graphics or CPU only. Report to Logan after each milestone. Start with W1: BYTE builds, runs and
 answers on the RTX 5080.
+
+**Then Android** (owner, 2026-10-04: Windows → Android → Linux), for Logan's Galaxy Z Fold8 Ultra, built from the
+same PC with the phone on adb. Everything is in **[`docs/ANDROID.md`](ANDROID.md)**:
+- its branch `claude/android-port` and the same ground rules;
+- reading the phone's real specs over adb, and setup (SDK, NDK, JDK 17, Rust target);
+- how to reuse the code: Tauri 2 Android, with `llama-server` kept and run from the native library folder;
+- using as much RAM as the phone safely can, AI focus with other apps moved to RAM Plus, and an expanded catalog
+  for phones up to 16 GB;
+- the Mac → Android feature map, and the extras only Android can do;
+- signed APKs (Logan makes the keystore and adds the GitHub secrets himself), in-app updates, testing;
+- milestones A1–A5.
+
+Start Android when Windows reaches W4, or when Logan says so.
 
 
 ### 1. Structured replies without a conversation (`POST /api/complete`)

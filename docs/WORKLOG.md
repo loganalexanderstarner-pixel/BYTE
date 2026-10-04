@@ -17,6 +17,21 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-04
 
+### (this commit) — Android handover brief; keystores blocked from the repo
+- **Why:** owner: hand Android to the cluster session (which also reaches the PC) with everything it could need.
+- **What:**
+  - `docs/ANDROID.md` is now a full brief: who it's for and the read order; ground rules (branch
+    `claude/android-port`, cfg rules, no secrets); the phone and adb; Tauri 2 Android, with desktop-only plugins
+    under `cfg(desktop)` and Android APIs in a Kotlin plugin.
+  - The engine: `llama-server` built with the NDK and run from `nativeLibraryDir`, with a library fallback.
+    Plus the chip table, the catalog phone pass, setup, keystore + secrets + in-app updater + `release.yml` job,
+    milestones A1–A5, testing and reporting.
+  - `CLUSTER-REQUESTS.md` item 0 points to it.
+  - `scripts/check-secrets.sh` fails on tracked `*.jks/*.keystore/*.p12/*.pfx/*.key`, and `.gitignore` ignores
+    them.
+- **Verify:** `scripts/check-secrets.sh` passes; a force-added `x.jks` makes it fail.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — Android AI focus only while BYTE or Ask BYTE is in use (docs only)
 - **Why:** owner: AI focus applies "when the app is open or when using Ask BYTE".
 - **What:** `docs/ANDROID.md`:

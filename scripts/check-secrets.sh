@@ -25,6 +25,14 @@ for p in "${patterns[@]}"; do
     fi
   fi
 done
+# Signing keystores (Android) and key files must never be committed, whatever they contain.
+if files=$(git ls-files --cached --others --exclude-standard -- '*.jks' '*.keystore' '*.p12' '*.pfx' '*.key'); then
+  if [ -n "$files" ]; then
+    echo "Signing key files must not be in the repo:"
+    echo "$files"
+    found=1
+  fi
+fi
 if [ "$found" -ne 0 ]; then
   echo "Remove the secret (and rotate it if it was ever pushed)." >&2
   exit 1
