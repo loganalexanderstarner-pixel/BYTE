@@ -5,6 +5,7 @@ inference engine (llama.cpp `llama-server`, Metal) as a Tauri sidecar, downloads
 and runs everything on-device. Only web search/reading and model downloads use the internet.
 
 **Porting to Windows or Linux (a session on the owner's PC)? Read `docs/PORTING-WINDOWS-LINUX.md` first.**
+**Android? Read `docs/ANDROID.md`.**
 
 **Start with `docs/HANDOFF.md`** (current state, next tasks, how to work here), then `docs/PROJECT_GUIDE.md` for the
 full feature catalog, architecture, decisions, and phase status, `docs/DESIGN-AND-PLATFORMS.md` (byte-ai's design
@@ -16,8 +17,9 @@ tokens + logo, and the Windows/Linux plan), `docs/CLOUD-MODE.md` (BYTE as a remo
 - **macOS and Apple Silicon first — but Windows and Linux are now targets too**
   (changed by the owner, 2026-09-27; superseded "macOS only, no Windows/Intel work").
   Each should feel native to its own OS rather than one build for all three.
-  **No iOS/iPadOS app** — dropped by the owner 2026-09-27; `PROJECT_GUIDE.md` was
-  right to exclude it. Three desktop platforms, nothing else.
+  **No iOS/iPadOS app** — dropped by the owner 2026-09-27.
+  **Android is a target** (owner, 2026-10-04): its own app for phones up to 16 GB of RAM, with an expanded
+  catalog for that range; after 1.0, Windows and Linux. Plan: `docs/ANDROID.md`.
 - **Never require a paid Apple Developer account.** Builds are ad-hoc / self-signed. README explains "Open Anyway".
 - **The assistant's name is BYTE.** It never calls itself Qwen or another model (it may say it runs Qwen3 locally
   if asked). Tone: normal, friendly, direct — *not* cyberpunk-talk. The *visual* style is neon/cyberpunk.

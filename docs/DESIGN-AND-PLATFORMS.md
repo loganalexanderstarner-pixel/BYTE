@@ -128,6 +128,9 @@ surfaces, do the same.
 desktop platforms, each feeling native to its own OS rather than identical
 across all three.
 
+**Android is a target** (owner, 2026-10-04): a phone app for devices with up to 16 GB of RAM, running models on
+the phone. See `docs/ANDROID.md`.
+
 **iOS/iPadOS is not a target.** Considered and dropped on 2026-09-27;
 `PROJECT_GUIDE.md`'s original "no iPhone app" line stands. Don't design for
 it, don't leave hooks for it.

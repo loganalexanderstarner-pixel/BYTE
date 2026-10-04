@@ -89,4 +89,5 @@ which download is which. Their files and notes are unchanged.
 | v1.0.0 | The finished BYTE (notes drafted in [releases/v1.0.0.md](releases/v1.0.0.md)) |
 | after 1.0 | Windows, then Linux ([PORTING-WINDOWS-LINUX.md](PORTING-WINDOWS-LINUX.md)) |
 | v1.1.0 | Image generation |
+| after that | Android, for phones up to 16 GB of RAM ([ANDROID.md](ANDROID.md)) |
 | later | Google, Dropbox, OneDrive, Spotify connectors (once BYTE is registered with them); PowerPoint out of beta |

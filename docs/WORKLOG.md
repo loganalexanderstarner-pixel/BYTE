@@ -17,6 +17,15 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-04
 
+### (this commit) — Android planned (docs only)
+- **Why:** owner: an Android build for their Galaxy Z Fold8 Ultra, for phones up to 16 GB of RAM (the desktop catalog
+  goes to 128 GB), with the catalog expanded in that range.
+- **What:** `docs/ANDROID.md` (new: plan, catalog rule, reuse via Tauri 2 Android, feature map, shipping, milestones);
+  the platform decision in `CLAUDE.md`, `HANDOFF.md` §1b, `DESIGN-AND-PLATFORMS.md`; `VERSIONS.md` and the v1.0
+  draft notes' "Coming next".
+- **Verify:** read the files. Nothing is built.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — v1.0 release notes drafted (docs only)
 - **Why:** v0.12.6 is out, and the owner is testing it with `docs/CHECKLIST-1.0.md`. The 1.0 notes are written now
   so 1.0 can ship as soon as the checklist passes.
