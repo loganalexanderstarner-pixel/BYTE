@@ -97,12 +97,10 @@ fn a_27b_model_does_not_fit_8gb() {
 // ---------------------------------------------------------------------------
 
 #[test]
-#[ignore = "plan_fit derives GPU budget from system RAM (Apple unified memory). \
-            A discrete GPU has its own fixed VRAM and needs a separate input."]
 fn discrete_gpu_budget_never_exceeds_vram() {
     for m in MACHINES {
         let Some(vram) = m.vram else { continue };
-        let budget = system::gpu_budget(m.total_ram, None);
+        let budget = system::gpu_budget_for(m.total_ram, Some(vram), None);
         assert!(budget <= vram,
                 "{}: planner offers {:.1} GB to a card holding {:.1} GB -- it would plan \
                  a model that cannot load",
@@ -153,4 +151,31 @@ fn ram_advice_is_not_limited_to_apple_configurations() {
     let needed = 10 * GIB;
     let tier = system::ram_tier_gb(needed);
     assert_ne!(tier, 16, "PC advice should not round to Apple's 16 GB tier by default");
+}
+
+#[test]
+fn unified_memory_budget_is_unchanged() {
+    // The Apple path must keep behaving exactly as before: a share of RAM.
+    for gb in [8u64, 16, 24, 32, 64, 128] {
+        let total = gb * GIB;
+        assert_eq!(system::gpu_budget_for(total, None, None),
+                   system::gpu_budget(total, None),
+                   "{} GB unified: the Apple arithmetic must not change", gb);
+    }
+}
+
+#[test]
+fn a_user_override_cannot_exceed_the_physical_card() {
+    // Someone raising the GPU share on a PC must still be bounded by VRAM.
+    let vram = 8 * GIB;
+    let b = system::gpu_budget_for(32 * GIB, Some(vram), Some(24 * GIB));
+    assert!(b <= vram, "override offered {} bytes on an 8 GB card", b);
+}
+
+#[test]
+fn small_cards_keep_a_usable_share() {
+    // The reserve must not eat a low-end card alive: a 6 GB GPU should still
+    // offer most of itself, or BYTE would refuse models that do fit.
+    let b = system::gpu_budget_for(16 * GIB, Some(6 * GIB), None);
+    assert!(b >= 5 * GIB, "6 GB card offered only {:.1} GB", b as f64 / GIB as f64);
 }

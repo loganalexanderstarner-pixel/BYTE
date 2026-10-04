@@ -97,6 +97,35 @@ pub fn system_info(data_dir: &std::path::Path) -> SystemInfo {
 /// about two thirds of RAM on smaller Macs and three quarters on 36 GB+.
 /// If the user raised `iogpu.wired_limit_mb`, that wins.
 pub fn gpu_budget(total_ram: u64, override_bytes: Option<u64>) -> u64 {
+    gpu_budget_for(total_ram, None, override_bytes)
+}
+
+/// How much GPU memory a model may use.
+///
+/// Two different machines hide behind this one number:
+///
+/// * **Unified memory** (Apple silicon): the GPU draws from system RAM, so a
+///   share of total RAM is exactly right, and that is what `vram: None` means.
+/// * **A discrete card** (every PC with a real GPU): VRAM is a separate, fixed
+///   pool with no relationship to system RAM. Deriving the budget from RAM
+///   over-commits the card badly -- on a 32 GB PC the old arithmetic offered
+///   21.3 GB to a 16 GB RTX 5080, so BYTE would recommend a model, the user
+///   would pick it, and the load would fail. Found by the fixtures in
+///   `hardware_fixtures_tests.rs`, which is the whole reason they exist.
+///
+/// The reserve exists because on a PC the same card is drawing the desktop and
+/// whatever else is open. It is deliberately generous rather than optimistic:
+/// promising a model that then fails to load is worse than recommending a
+/// slightly smaller one.
+pub fn gpu_budget_for(total_ram: u64, vram: Option<u64>, override_bytes: Option<u64>) -> u64 {
+    if let Some(v) = vram {
+        // A user override still cannot exceed the physical card.
+        if let Some(o) = override_bytes {
+            return o.min(v);
+        }
+        let reserve = (v / 10).clamp(512 * 1024 * 1024, 3 * GIB / 2);
+        return v.saturating_sub(reserve);
+    }
     if let Some(o) = override_bytes {
         return o.min(total_ram);
     }
