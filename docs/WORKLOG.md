@@ -17,6 +17,14 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-04
 
+### (this commit) — port brief: texting on Windows through Phone Link
+- **Why:** owner: Windows should send and receive texts through Phone Link, which already links the phone.
+- **What:** `PORTING-WINDOWS-LINUX.md`: the texting row (Phone Link / KDE Connect) and a "Texting through Phone Link"
+  section (reading its local cache read-only or its notifications, sending through UI Automation after approval,
+  iPhone limits, unofficial-API fallback, shared UI).
+- **Undo:** `git revert` this commit.
+
+
 ### (this commit) — the microphone: entitlements under the hardened runtime (v0.12.5)
 - **Why:** owner: BYTE asks for the mic, but isn't in System Settings → Microphone (screenshots). Tauri signs with
   the hardened runtime; without `com.apple.security.device.audio-input` macOS denies silently and never lists the

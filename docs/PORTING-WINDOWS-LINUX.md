@@ -239,7 +239,7 @@ Calendar API) is an optional connector for later; ask Logan before adding one.
 | Reminders (`macctl.rs`) | **BYTE's own reminders as Windows toasts** (with Snooze / Done buttons); Outlook tasks through COM if classic Outlook is installed | BYTE's own reminders as desktop notifications; Evolution Data Server over D-Bus on GNOME |
 | Calendar, EventKit/AppleScript (`macctl.rs`, `briefing.rs`) | Classic Outlook through COM; the calendar-link connector (ICS) works everywhere | Evolution Data Server (GNOME) / Akonadi (KDE) over D-Bus; ICS links everywhere |
 | Mail drafts (`macctl.rs`) | Classic Outlook through COM (draft opened, never sent); else `mailto:` in the default app | Thunderbird `-compose`, else `xdg-email` |
-| Messages (iMessage) | **Not possible** (no API). Offer: copy the text and open Phone Link | **Not possible**. Offer: copy the text |
+| Texting: send after approval, the Messages inbox, Draft a reply (`macctl.rs` MessageSend, `messages.rs`) | **Phone Link** (see "Texting through Phone Link" below) | **KDE Connect** (Android) where installed; otherwise copy the text |
 | Music app control | **Any media app**: play / pause / next / "what's playing" through System Media Transport Controls (Spotify, browsers, VLC…) | **Any media app** through MPRIS over D-Bus |
 | Safari's current tab (`macctl.rs`, web clipper) | The current tab of Edge/Chrome/Firefox through UI Automation; the bookmarklet clipper is already cross-platform | AT-SPI where it works; the bookmarklet clipper |
 | Shortcuts app (`shortcut_make.rs`, automations) | BYTE's own automations + run **PowerShell scripts**; hand off to Power Automate Desktop if installed | BYTE's own automations + shell scripts |
@@ -256,6 +256,26 @@ Calendar API) is an optional connector for later; ask Logan before adding one.
 | Notifications | **Toasts with buttons and inline reply** ("Reply to BYTE…" right in the notification) | Desktop notifications with actions (freedesktop) |
 | Deep links `byte://` (clipper) | Same (Tauri registers the scheme) | Same (`.desktop` MIME handler) |
 | Signing and install | Unsigned NSIS installer ("More info → Run anyway"); updater signed with the same key | AppImage + `.deb` (+ maybe Flatpak); same updater key for AppImage |
+
+### Texting through Phone Link (owner's ask, 2026-10-04)
+
+The Mac app sends texts after an approval card, shows an inbox of received texts, and drafts replies (v0.12.6,
+`macctl.rs` MessageSend and `messages.rs`). Windows has no Messages app, but **Phone Link** (Settings → Bluetooth
+& devices → Mobile devices) already links the user's phone and can send and reply. BYTE wires into it:
+- **Android** works fully through Phone Link. **iPhone** on Windows 11 works too, for one-to-one texts while the
+  phone is in Bluetooth range (no group chats, no history from before it was linked).
+- **Reading texts (the inbox):** Phone Link keeps a local SQLite cache under
+  `%LOCALAPPDATA%\Packages\Microsoft.YourPhone_*\LocalCache\Indexed\…` (open it **read-only**, like chat.db on
+  the Mac). As a second path, read its toast notifications through `Windows.UI.Notifications.Management.UserNotificationListener`
+  (the user allows it once), which also gives instant "new text" events.
+- **Sending:** UI Automation on Phone Link's Messages view: open the conversation, put the text in the compose box,
+  press Send, after BYTE's approval card (same rule as the Mac: nothing is sent without the user's OK).
+- **It's unofficial:** Microsoft publishes no texting API, so a Phone Link update can break it. Detect that, say so
+  plainly, and fall back to opening Phone Link with the text copied.
+- **Reuse:** the inbox panel, the composer (Fix grammar, Rephrase with tones, Ideas, Draft a reply) and the
+  approval card are shared React code; only a Windows backend (`messages` commands with the same names and types)
+  is new.
+- **Linux:** KDE Connect exposes texts (and sending) over D-Bus for Android phones; use it when it's installed.
 
 ### Extras Windows can do that the Mac can't
 
