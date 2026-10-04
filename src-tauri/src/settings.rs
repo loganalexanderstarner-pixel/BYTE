@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -21,6 +22,65 @@ pub enum ThinkingPref {
     Off,
 }
 
+/// What BYTE favours when it recommends a model version.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SpeedPref {
+    /// Faster answers; accepts a smaller or more compressed model.
+    Speed,
+    #[default]
+    Balanced,
+    /// The smartest model that fits, even if it's slower.
+    Quality,
+}
+
+/// Engine settings measured to be fastest for one model on this Mac.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Tuning {
+    /// Use the Speed boost helper.
+    pub boost: bool,
+    /// Keep the conversation memory (KV cache) at full precision instead of 8-bit.
+    pub kv_f16: bool,
+    /// Tokens processed per GPU batch while reading the prompt.
+    pub ubatch: u32,
+    /// Measured speeds with these settings.
+    pub tokens_per_sec: f64,
+    pub prompt_per_sec: f64,
+    /// Chip it was measured on (re-tune on another Mac).
+    pub chip: String,
+    pub tested_at: i64,
+    pub flash_attn: bool,
+    pub draft_n_max: u32,
+    pub draft_p_min: f32,
+    /// Whether the thorough tune (more settings, ~5 minutes) was run.
+    pub thorough: bool,
+    /// Which kind of helper the look-ahead was tuned for.
+    pub helper_kind: crate::models::HelperKind,
+    /// Repeated-text guessing (llama.cpp ngram-mod) won.
+    pub ngram: bool,
+}
+
+impl Default for Tuning {
+    fn default() -> Self {
+        Tuning {
+            boost: false,
+            kv_f16: false,
+            ubatch: 512,
+            tokens_per_sec: 0.0,
+            prompt_per_sec: 0.0,
+            chip: String::new(),
+            tested_at: 0,
+            flash_attn: true,
+            draft_n_max: 16,
+            draft_p_min: 0.75,
+            thorough: false,
+            helper_kind: crate::models::HelperKind::Draft,
+            ngram: false,
+        }
+    }
+}
+
 /// Persistent user settings. Unknown or missing fields fall back to defaults so
 /// older settings files keep loading after upgrades.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,16 +99,271 @@ pub struct Settings {
     pub show_stats: bool,
     /// Let BYTE search and read the web when a question needs it.
     pub web_search: bool,
+    /// With web on: "auto" (search when a question needs it) or "always"
+    /// (search for every real question).
+    #[serde(default = "default_web_mode")]
+    pub web_mode: String,
     /// What BYTE calls the user (asked during setup).
     pub user_name: Option<String>,
+    /// The user's town, for "near me" questions ("Pittsburgh, PA"). Never guessed.
+    #[serde(default)]
+    pub home_place: Option<String>,
+    /// How far research goes: 0 Normal, 1 More, 2 Max (more pages and searches).
+    #[serde(default)]
+    pub research_depth: u8,
     /// Where to fetch model catalog updates (default: the BYTE repository).
     pub catalog_url: Option<String>,
     /// Free-form "About me" the user writes; included in every conversation.
     pub about_me: Option<String>,
     /// Use saved memories in answers and let BYTE suggest new ones.
     pub memory_enabled: bool,
+    /// Knowledge base module: index the chosen folders and let BYTE search
+    /// them ("My files" in the chat box). Off = no indexing, no tool.
+    pub kb_enabled: bool,
+    /// Kitchen module: recipes, meal plans and the recipe box.
+    #[serde(default = "yes")]
+    pub kitchen_enabled: bool,
+    /// Recipe measures: "us" (cups, spoons, °F; the default) or "metric" (g, mL, °C).
+    #[serde(default = "default_units")]
+    pub measure_units: String,
+    /// Web agent module: BYTE may use a hidden browser for the user (open, click, fill forms with approval).
+    #[serde(default = "yes")]
+    pub web_agent_enabled: bool,
+    /// Review summaries ("reviews of X", "is X worth it").
+    #[serde(default = "yes")]
+    pub reviews_enabled: bool,
+    /// Price compare ("cheapest X", "where to buy X").
+    #[serde(default = "yes")]
+    pub prices_enabled: bool,
+    /// Spoiler-free game hints ("stuck on … in <game>").
+    #[serde(default = "yes")]
+    pub game_hints_enabled: bool,
+    /// Check cited answers against their sources (Deep, Extended, fact-check).
+    #[serde(default = "yes")]
+    pub self_check: bool,
+    /// Three drafts and a majority vote for hard questions (Deep, Extended).
+    #[serde(default = "yes")]
+    pub best_of_three: bool,
+    /// Study tools: flashcards, quizzes, tutor mode, the Study panel.
+    #[serde(default = "yes")]
+    pub study_enabled: bool,
+    /// Photo helper: a small vision model describes photos for models that can't see them.
+    #[serde(default = "yes")]
+    pub photo_helper: bool,
+    /// The writing studio (✍️): rewrite, expand, shorten, tone, grammar.
+    #[serde(default = "yes")]
+    pub writing_enabled: bool,
+    /// The user's writing style for "Write like me" (learned from their samples; editable).
+    #[serde(default)]
+    pub writing_style: String,
+    /// Advanced tuning per model key ("id:quant").
+    #[serde(default)]
+    pub model_overrides: std::collections::HashMap<String, ModelOverride>,
+    /// Below 20% battery and unplugged: Deep/Extended answer like Auto, and thinking is short.
+    #[serde(default = "yes")]
+    pub battery_saver: bool,
+    /// ⌥⌘B: select text in any app and open it in the writing studio (Mac control).
+    #[serde(default = "yes")]
+    pub selection_hotkey: bool,
+    /// Keep a history of copied text (off until switched on; secrets skipped).
+    #[serde(default)]
+    pub clipboard_history: bool,
+    /// Mac control: BYTE uses Notes, Reminders, Calendar, Music and settings when asked (macOS).
+    #[serde(default = "yes")]
+    pub mac_control: bool,
+    /// BYTE's to-do list, reminders and scheduled questions (tasks.rs, scheduler.rs).
+    #[serde(default = "yes")]
+    pub tasks_enabled: bool,
+    /// Topics the daily briefing follows (a few headlines each; needs the web).
+    #[serde(default)]
+    pub briefing_topics: Vec<String>,
+    /// News feeds and page watchers (feeds.rs, watchers.rs; needs the web).
+    #[serde(default = "yes")]
+    pub watch_enabled: bool,
+    /// Automations and multi-step runs (automations.rs).
+    #[serde(default = "yes")]
+    pub automations_enabled: bool,
+    /// Trackers: packages, bills and subscriptions, birthdays, maintenance (trackers.rs).
+    #[serde(default = "yes")]
+    pub trackers_enabled: bool,
+    /// Connectors (connectors/): each is also off until set up.
+    #[serde(default = "yes")]
+    pub connectors_enabled: bool,
+    /// The Obsidian vault folder (connectors/obsidian.rs).
+    #[serde(default)]
+    pub obsidian_vault: Option<String>,
+    /// The Notion page new pages go under (its id; the secret is in the Keychain).
+    #[serde(default)]
+    pub notion_parent: Option<String>,
+    /// Open BYTE (in the background) when the user logs in.
+    #[serde(default)]
+    pub open_at_login: bool,
+    /// Closing the window keeps BYTE running (schedules and watchers go on); ⌘Q quits.
+    #[serde(default = "yes")]
+    pub keep_running: bool,
+    /// Quick Ask: a small window from anywhere on the global shortcut below (quick.rs).
+    #[serde(default = "yes")]
+    pub quick_ask: bool,
+    /// Quick Ask's shortcut, in Tauri's syntax ("Alt+Space" is ⌥Space).
+    #[serde(default = "default_quick_keys")]
+    pub quick_ask_keys: String,
+    /// The selection hotkey's keys ("Alt+Super+KeyB" is ⌥⌘B).
+    #[serde(default = "default_selection_keys")]
+    pub selection_keys: String,
+    /// BYTE's icon in the menu bar (click: Quick Ask; menu: show BYTE, quit).
+    #[serde(default = "yes")]
+    pub menu_bar_icon: bool,
+    /// Voice input: the mic button, holding Space, and transcribing audio files (voice.rs).
+    #[serde(default = "yes")]
+    pub voice_enabled: bool,
+    /// Which speech model to use ("turbo" or "base-en", voice::MODELS).
+    #[serde(default = "default_voice_model")]
+    pub voice_model: String,
+    /// Read answers aloud (speech.rs, macOS voices).
+    #[serde(default)]
+    pub read_aloud: bool,
+    /// BYTE's own voice (voices.rs: "<package>/<speaker>"), used once that voice is downloaded.
+    #[serde(default = "default_byte_voice")]
+    pub byte_voice: String,
+    /// How BYTE talks (prompt.rs personality sliders).
+    #[serde(default)]
+    pub personality: crate::prompt::Personality,
+    /// Notes (notes.rs) and the web clipper.
+    #[serde(default = "yes")]
+    pub notes_enabled: bool,
+    /// Your own themes (Settings → Appearance): `{name, colors: {bg, panel, border, text, accent}}`, checked in the UI.
+    #[serde(default)]
+    pub custom_themes: Vec<serde_json::Value>,
+    /// "auto" follows macOS's Reduce motion; "reduce" turns animations down everywhere.
+    #[serde(default = "default_motion")]
+    pub reduce_motion: String,
+    /// Check once a day whether a newer BYTE is out (updater.rs).
+    #[serde(default = "yes")]
+    pub update_check: bool,
+    /// The Messages inbox (messages.rs): read texts you receive (needs Full Disk Access). Off by default.
+    #[serde(default)]
+    pub messages_inbox: bool,
+    /// A notification when a text arrives (while the inbox is on).
+    #[serde(default = "yes")]
+    pub messages_notify: bool,
+    /// Soft sounds when an answer is ready and for reminders.
+    #[serde(default)]
+    pub sounds: bool,
+    /// Kids mode (kids.rs): a simple BYTE with no web, Mac control or files; leaving needs the PIN.
+    #[serde(default)]
+    pub kids_mode: bool,
+    /// The kids-mode PIN, salted and hashed (kids.rs). Never the PIN itself.
+    #[serde(default)]
+    pub kids_pin: Option<String>,
+    /// Backups (backup.rs): a folder other than iCloud Drive's BYTE Backups.
+    #[serde(default)]
+    pub backup_dir: Option<String>,
+    /// Back up every week (with the passphrase remembered in the Keychain).
+    #[serde(default)]
+    pub backup_auto: bool,
+    /// Include the notes folder in backups.
+    #[serde(default = "yes")]
+    pub backup_include_notes: bool,
+    /// When the last backup was made (Unix ms).
+    #[serde(default)]
+    pub last_backup: Option<i64>,
+    /// Delete unpinned chats not used for this many days (0 = keep them).
+    #[serde(default)]
+    pub auto_delete_days: u32,
+    /// The offline switch (offline.rs): nothing reaches the internet while on.
+    #[serde(default)]
+    pub offline: bool,
+    /// Lock BYTE (lock.rs): Touch ID or the Mac password to open it.
+    #[serde(default)]
+    pub lock_enabled: bool,
+    /// Lock after this many idle minutes (0 = only when BYTE opens).
+    #[serde(default = "default_lock_after")]
+    pub lock_after_minutes: u32,
+    /// Where notes are kept (None = ~/Documents/BYTE/Notes).
+    #[serde(default)]
+    pub notes_dir: Option<String>,
+    /// How BYTE speaks: "calm", "natural" or "lively" (pace and pauses).
+    #[serde(default = "default_speech_style")]
+    pub speech_style: String,
+    /// Where BYTE's voice is made: "mac", "cloud" or "auto" (the cloud when it's connected and has voices).
+    #[serde(default = "default_voice_where")]
+    pub voice_where: String,
+    /// The BYTE Cloud voice to use (from the cloud's voice list; "" = its default).
+    #[serde(default)]
+    pub cloud_voice: String,
+    /// The macOS voice ("" = the system's default voice).
+    #[serde(default)]
+    pub speech_voice: String,
+    /// "slow", "normal" or "fast".
+    #[serde(default = "default_speech_speed")]
+    pub speech_speed: String,
+    /// Listen for "Hey BYTE" (wake.rs; off until switched on).
+    #[serde(default)]
+    pub wake_word: bool,
+    /// Label who's speaking in recordings (speakers.rs; needs its small models).
+    #[serde(default = "yes")]
+    pub voice_speakers: bool,
+    /// The spoken language ("auto", or a code like "en", "es").
+    #[serde(default = "default_voice_language")]
+    pub voice_language: String,
+    /// Mac upkeep: storage clean-up, health checks, uninstalling apps, login items (macOS).
+    #[serde(default = "yes")]
+    pub mac_upkeep: bool,
+    /// "Translate … into …" in chat: part by part, for long texts, files and pages.
+    #[serde(default = "yes")]
+    pub translate_enabled: bool,
+    /// The job search tracker (💼).
+    #[serde(default = "yes")]
+    pub jobs_enabled: bool,
+    /// Custom assistants (🤖).
+    #[serde(default = "yes")]
+    pub assistants_enabled: bool,
+    /// Reuse the answer to a question asked (almost exactly) in the last week
+    /// (needs the search-by-meaning model; see answer_cache.rs).
+    pub answer_cache: bool,
     /// Models loaded alongside the main one; reloaded at launch.
     pub loaded_alongside: Vec<String>,
+    /// Models BYTE already said "a better model fits your Mac" about (said once per model).
+    #[serde(default)]
+    pub better_model_hint_for: Vec<String>,
+    /// Speculative decoding with a small same-family helper model.
+    pub speed_boost: bool,
+    pub speed_pref: SpeedPref,
+    /// Measure and apply the fastest engine settings the first time a model loads.
+    pub auto_tune: bool,
+    /// Measured best settings per model key ("id:quant").
+    pub tuning: HashMap<String, Tuning>,
+    /// A BYTE cloud key is saved in the Keychain (the key itself is never here).
+    pub cloud_connected: bool,
+    /// Cloud address; `None` = the default in `cloud::DEFAULT_BASE`.
+    pub cloud_base_url: Option<String>,
+    /// The account as `GET /api/auth/me` last described it (tier, modes, budgets).
+    pub cloud_account: Option<serde_json::Value>,
+    /// Answer with the BYTE cloud instead of the model on this Mac.
+    pub use_cloud: bool,
+    /// Cloud mode id last chosen (one of the account's modes).
+    pub cloud_mode: Option<String>,
+    /// Which workspace the sidebar shows: "local" (this Mac), "cloud" or "both".
+    pub workspace: String,
+}
+
+fn valid_theme(t: &serde_json::Value) -> bool {
+    let hex = |v: &serde_json::Value| {
+        v.as_str().is_some_and(|s| {
+            let h = s.strip_prefix('#').unwrap_or("");
+            matches!(h.len(), 3 | 6) && h.chars().all(|c| c.is_ascii_hexdigit())
+        })
+    };
+    let name_ok = t["name"].as_str().is_some_and(|n| !n.trim().is_empty() && n.chars().count() <= 40);
+    name_ok && ["bg", "panel", "border", "text", "accent"].iter().all(|k| hex(&t["colors"][*k]))
+}
+
+fn default_motion() -> String {
+    "auto".into()
+}
+
+fn default_lock_after() -> u32 {
+    15
 }
 
 impl Default for Settings {
@@ -59,17 +374,99 @@ impl Default for Settings {
             context_size: None,
             default_mode: Mode::Auto,
             thinking: ThinkingPref::Auto,
-            theme: "neon-night".into(),
+            theme: "midnight".into(),
             accent: None,
             font_scale: 1.0,
             density: "comfortable".into(),
             show_stats: true,
             web_search: true,
+            web_mode: default_web_mode(),
             user_name: None,
+            home_place: None,
+            research_depth: 0,
             catalog_url: None,
             about_me: None,
             memory_enabled: true,
+            kb_enabled: true,
+            kitchen_enabled: true,
+            measure_units: default_units(),
+            web_agent_enabled: true,
+            reviews_enabled: true,
+            prices_enabled: true,
+            game_hints_enabled: true,
+            self_check: true,
+            best_of_three: true,
+            study_enabled: true,
+            photo_helper: true,
+            writing_enabled: true,
+            writing_style: String::new(),
+            model_overrides: Default::default(),
+            battery_saver: true,
+            translate_enabled: true,
+            mac_control: true,
+            mac_upkeep: true,
+            tasks_enabled: true,
+            briefing_topics: Vec::new(),
+            watch_enabled: true,
+            automations_enabled: true,
+            trackers_enabled: true,
+            connectors_enabled: true,
+            obsidian_vault: None,
+            notion_parent: None,
+            open_at_login: false,
+            keep_running: true,
+            quick_ask: true,
+            quick_ask_keys: default_quick_keys(),
+            selection_keys: default_selection_keys(),
+            menu_bar_icon: true,
+            voice_enabled: true,
+            voice_model: default_voice_model(),
+            voice_language: default_voice_language(),
+            voice_speakers: true,
+            read_aloud: false,
+            speech_voice: String::new(),
+            byte_voice: default_byte_voice(),
+            speech_style: default_speech_style(),
+            personality: Default::default(),
+            notes_enabled: true,
+            offline: false,
+            custom_themes: Vec::new(),
+            reduce_motion: default_motion(),
+            sounds: false,
+            update_check: true,
+            messages_inbox: false,
+            messages_notify: true,
+            kids_mode: false,
+            kids_pin: None,
+            backup_dir: None,
+            backup_auto: false,
+            backup_include_notes: true,
+            last_backup: None,
+            auto_delete_days: 0,
+            lock_enabled: false,
+            lock_after_minutes: default_lock_after(),
+            notes_dir: None,
+            voice_where: default_voice_where(),
+            cloud_voice: String::new(),
+            speech_speed: default_speech_speed(),
+            wake_word: false,
+            selection_hotkey: true,
+            clipboard_history: false,
+            jobs_enabled: true,
+            assistants_enabled: true,
+            answer_cache: true,
             loaded_alongside: Vec::new(),
+            better_model_hint_for: Vec::new(),
+            speed_boost: true,
+            speed_pref: SpeedPref::Balanced,
+            auto_tune: true,
+            tuning: HashMap::new(),
+            cloud_connected: false,
+            cloud_base_url: None,
+            cloud_account: None,
+            use_cloud: false,
+            cloud_mode: None,
+            workspace: "local".into(),
         }
     }
 }
@@ -102,12 +499,78 @@ impl Settings {
                 obj.insert(k, v);
             }
         }
-        Ok(serde_json::from_value(current)?)
+        let mut next: Settings = serde_json::from_value(current)?;
+        if !matches!(next.workspace.as_str(), "local" | "cloud" | "both") {
+            next.workspace = "local".into();
+        }
+        if !matches!(next.reduce_motion.as_str(), "auto" | "reduce") {
+            next.reduce_motion = default_motion();
+        }
+        // Only well-formed themes with hex colors are kept (they become CSS values), at most 10.
+        next.custom_themes.retain(valid_theme);
+        next.custom_themes.truncate(10);
+        Ok(next)
     }
+}
+
+
+fn yes() -> bool {
+    true
+}
+
+fn default_byte_voice() -> String {
+    crate::voices::DEFAULT_VOICE.into()
+}
+
+fn default_speech_style() -> String {
+    "natural".into()
+}
+
+fn default_voice_where() -> String {
+    "mac".into()
+}
+
+fn default_speech_speed() -> String {
+    "normal".into()
+}
+
+fn default_voice_model() -> String {
+    "turbo".into()
+}
+
+fn default_voice_language() -> String {
+    "auto".into()
+}
+
+pub fn default_quick_keys() -> String {
+    "Alt+Space".into()
+}
+
+pub fn default_selection_keys() -> String {
+    crate::selection::HOTKEY.into()
+}
+
+fn default_units() -> String {
+    "us".into()
+}
+
+fn default_web_mode() -> String {
+    "auto".into()
 }
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn custom_themes_and_motion_are_checked() {
+        let good = serde_json::json!({ "name": "Night", "colors": { "bg": "#000", "panel": "#111111", "border": "#222222", "text": "#eeeeee", "accent": "#4c8dff" } });
+        let bad = serde_json::json!({ "name": "Evil", "colors": { "bg": "#000", "panel": "red;}", "border": "#222", "text": "#eee", "accent": "#fff" } });
+        let s = Settings::default().merged(serde_json::json!({ "customThemes": [good, bad], "reduceMotion": "wild" })).unwrap();
+        assert_eq!(s.custom_themes.len(), 1);
+        assert_eq!(s.custom_themes[0]["name"], "Night");
+        assert_eq!(s.reduce_motion, "auto");
+    }
+
     use super::*;
 
     #[test]
@@ -137,5 +600,67 @@ mod tests {
         let path = dir.path().join("settings.json");
         std::fs::write(&path, "{not json").unwrap();
         assert!(!Settings::load(&path).onboarding_complete);
+    }
+}
+
+/// Advanced tuning for one model (None/empty: the model's recommended value).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ModelOverride {
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
+    /// Tokens the model may think (-1 = no limit).
+    pub thinking_budget: Option<i32>,
+    /// Extra instructions added to every chat with this model.
+    pub system_extra: String,
+}
+
+impl ModelOverride {
+    /// Applies the sampling and thinking overrides to a turn's plan (values clamped to sane ranges).
+    pub fn apply(&self, plan: &mut crate::router::TurnPlan) {
+        for s in [&mut plan.profile.think, &mut plan.profile.plain] {
+            if let Some(t) = self.temperature {
+                s.temperature = t.clamp(0.0, 2.0);
+            }
+            if let Some(p) = self.top_p {
+                s.top_p = p.clamp(0.05, 1.0);
+            }
+        }
+        if let (true, Some(b)) = (plan.thinking, self.thinking_budget) {
+            plan.thinking_budget = if b < 0 { -1 } else { b.clamp(64, 32_768) };
+        }
+    }
+}
+
+#[cfg(test)]
+mod override_tests {
+    use super::*;
+
+    #[test]
+    fn overrides_change_sampling_and_thinking() {
+        let mut plan = crate::router::plan_turn(Mode::Deep, ThinkingPref::Auto, "Explain why the sky is blue");
+        assert!(plan.thinking);
+        let o = ModelOverride { temperature: Some(3.0), top_p: Some(0.5), thinking_budget: Some(10), system_extra: String::new() };
+        o.apply(&mut plan);
+        assert_eq!((plan.profile.think.temperature, plan.profile.plain.top_p), (2.0, 0.5), "clamped");
+        assert_eq!(plan.thinking_budget, 64, "at least 64 tokens");
+        let mut unlimited = crate::router::plan_turn(Mode::Auto, ThinkingPref::On, "x");
+        ModelOverride { thinking_budget: Some(-1), ..Default::default() }.apply(&mut unlimited);
+        assert_eq!(unlimited.thinking_budget, -1);
+        let mut off = crate::router::plan_turn(Mode::Fast, ThinkingPref::Off, "x");
+        let before = off;
+        ModelOverride { thinking_budget: Some(900), ..Default::default() }.apply(&mut off);
+        assert_eq!(off, before, "no thinking, nothing to budget");
+    }
+
+    #[test]
+    fn overrides_are_saved_in_camel_case() {
+        let mut s = Settings::default();
+        s.model_overrides.insert("qwen3-8b:Q4_K_M".into(), ModelOverride { temperature: Some(0.3), system_extra: "Be brief.".into(), ..Default::default() });
+        let v = serde_json::to_value(&s).unwrap();
+        assert_eq!(v["modelOverrides"]["qwen3-8b:Q4_K_M"]["temperature"], serde_json::json!(0.3f32));
+        assert_eq!(v["batterySaver"], true);
+        let back: Settings = serde_json::from_value(v).unwrap();
+        assert_eq!(back.model_overrides["qwen3-8b:Q4_K_M"].system_extra, "Be brief.");
     }
 }

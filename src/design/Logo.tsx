@@ -1,31 +1,42 @@
-import { useId } from "react";
+/** Which of the eight bits are lit (reading order: top row, then bottom row). */
+export const LIT_BITS = [1, 6];
 
-/** The BYTE mark: a neon "B" drawn like a chip, with bit pins on the stem. */
+const CELL = 10;
+const GAP = 3.5;
+const W = 4 * CELL + 3 * GAP;
+const H = 2 * CELL + GAP;
+
+/**
+ * The BYTE mark: one byte, eight bits as rounded squares in two rows of four,
+ * two of them lit. Drawn in the live theme's accent so it recolours with the theme.
+ * `size` is the height of the square box the mark sits in; the mark is wider than tall.
+ */
 export function Logo({ size = 28, glow = true }: { size?: number; glow?: boolean }) {
-  const id = useId().replace(/:/g, "");
+  const height = size * 0.62;
   return (
     <svg
-      width={size}
-      height={size}
-      viewBox="230 270 520 484"
+      width={(height * W) / H}
+      height={height}
+      viewBox={`0 0 ${W} ${H}`}
       className={glow ? "logo-glow" : undefined}
       role="img"
       aria-label="BYTE"
     >
-      <defs>
-        <linearGradient id={`n${id}`} gradientUnits="userSpaceOnUse" x1="250" y1="290" x2="720" y2="740">
-          <stop offset="0" stopColor="var(--accent)" />
-          <stop offset="1" stopColor="var(--accent-2)" />
-        </linearGradient>
-      </defs>
-      <g transform="translate(25 0)" fill="none" stroke={`url(#n${id})`} strokeLinecap="round" strokeLinejoin="round">
-        <g strokeWidth={56}>
-          <path d="M360 300V724" />
-          <path d="M360 300H556a106 106 0 0 1 0 212H360" />
-          <path d="M360 512H586a106 106 0 0 1 0 212H360" />
-        </g>
-        <path strokeWidth={30} d="M250 346H300M250 446H300M250 578H300M250 678H300" />
-      </g>
+      {Array.from({ length: 8 }, (_, i) => {
+        const lit = LIT_BITS.includes(i);
+        return (
+          <rect
+            key={i}
+            x={(i % 4) * (CELL + GAP)}
+            y={Math.floor(i / 4) * (CELL + GAP)}
+            width={CELL}
+            height={CELL}
+            rx={2.6}
+            fill="var(--accent)"
+            fillOpacity={lit ? 1 : 0.32}
+          />
+        );
+      })}
     </svg>
   );
 }

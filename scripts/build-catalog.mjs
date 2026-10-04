@@ -7,20 +7,22 @@
 // the architecture numbers BYTE's RAM planner needs (layers, KV heads, head
 // size, context length). Nothing large is downloaded.
 //
-//   node scripts/build-catalog.mjs
+//   node scripts/build-catalog.mjs && node scripts/enrich-catalog.mjs
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sources = JSON.parse(readFileSync(join(root, "scripts/catalog-sources.json"), "utf8"));
-const discovered = (() => {
+const readList = (file) => {
   try {
-    return JSON.parse(readFileSync(join(root, "scripts/catalog-discovered.json"), "utf8")).models;
+    return JSON.parse(readFileSync(join(root, "scripts", file), "utf8")).models;
   } catch {
     return [];
   }
-})();
+};
+// Official models found by discover-models.mjs, then community fine-tunes (--community).
+const discovered = [...readList("catalog-discovered.json"), ...readList("catalog-community.json")];
 const HF = "https://huggingface.co";
 
 async function json(url) {
@@ -32,12 +34,63 @@ async function json(url) {
   }
 }
 
+const trees = new Map();
+async function tree(repo) {
+  if (!trees.has(repo)) trees.set(repo, await json(`${HF}/api/models/${repo}/tree/main?recursive=1`));
+  return trees.get(repo);
+}
+
 /** All .gguf files in a repo (recursively), without projector/draft extras. */
 async function listFiles(repo) {
-  const tree = await json(`${HF}/api/models/${repo}/tree/main?recursive=1`);
-  return tree
+  return (await tree(repo))
     .filter((f) => f.type === "file" && f.path.endsWith(".gguf") && !/mmproj|(^|\/)mtp[-/]/i.test(f.path))
     .map((f) => ({ name: f.path, size: f.lfs?.size ?? f.size, sha256: f.lfs?.oid ?? null }));
+}
+
+/**
+ * A speed-up head shipped next to the model (multi-token prediction, EAGLE-3
+ * or DSpark), used for speculative decoding instead of a separate small
+ * model. Picks one 8-bit copy (4-bit when the 8-bit one is over 2 GB); skips
+ * 16-bit copies and "shared" variants.
+ */
+export function pickSpeedHead(files) {
+  const heads = files
+    .filter((f) => f.type === "file" && f.path.endsWith(".gguf") && f.lfs?.oid)
+    .map((f) => ({ name: f.path, size: f.lfs.size ?? f.size, sha256: f.lfs.oid, base: f.path.split("/").pop() }))
+    .map((f) => ({ ...f, kind: /^(mtp|eagle3|dspark)[-_]/i.exec(f.base)?.[1]?.toLowerCase() }))
+    .filter((f) => f.kind && !/BF16|F16|shared/i.test(f.base));
+  if (!heads.length) return null;
+  const rank = (f) => {
+    const q = /(Q8_0|Q4_K_M|Q4_0)\.gguf$/i.exec(f.base)?.[1]?.toUpperCase();
+    if (q === "Q8_0" || !q) return f.size > 2e9 ? 3 : 0;
+    return q === "Q4_K_M" ? 1 : 2;
+  };
+  heads.sort((a, b) => rank(a) - rank(b) || a.name.length - b.name.length);
+  const { kind, name, size, sha256 } = heads[0];
+  return { kind, file: { name, size, sha256 } };
+}
+
+/**
+ * The image adapter ("mmproj") shipped with a model that can see photos,
+ * used with `--mmproj`. Prefers F16 (what llama.cpp recommends), then BF16,
+ * then Q8_0, then whatever there is; a 16-bit adapter over 1.5 GB loses to a
+ * Q8_0 copy (half the memory, same pictures in practice).
+ */
+export function pickVision(files) {
+  const found = files
+    .filter((f) => f.type === "file" && f.path.endsWith(".gguf") && f.lfs?.oid && /mmproj/i.test(f.path.split("/").pop()))
+    .map((f) => ({ name: f.path, size: f.lfs.size ?? f.size, sha256: f.lfs.oid }));
+  if (!found.length) return null;
+  const rank = (f) => {
+    const base = f.name.split("/").pop();
+    const big = f.size > 1.5e9 ? 2.5 : 0;
+    if (/[-_.]F16\.gguf$/i.test(base) && !/BF16/i.test(base)) return big;
+    if (/BF16/i.test(base)) return 1 + big;
+    if (/Q8_0/i.test(base)) return 2;
+    return 3;
+  };
+  found.sort((a, b) => rank(a) - rank(b) || a.name.length - b.name.length);
+  return { file: found[0] };
 }
 
 /**
@@ -269,7 +322,10 @@ async function build(entry, role) {
   else if (entry.auto) entry.quality = autoQuality(paramsB ?? 7, activeB, entry.released);
   const { variants: _v, auto: _a, ...rest } = entry;
   console.log(`  ✓ ${entry.id.slice(0, 34).padEnd(34)} ${arch.arch.padEnd(10)} kvLayers=${arch.kvLayers}/${arch.nLayer} ctx=${arch.maxCtx} ${variants.length} sizes`);
-  return { quality: 0, ...rest, role, sizeLabel: params, paramsB, activeB, arch, variants };
+  const repoFiles = role === "chat" ? await tree(entry.repo) : [];
+  const speedHead = role === "chat" ? pickSpeedHead(repoFiles) : null;
+  const vision = role === "chat" ? pickVision(repoFiles) : null;
+  return { quality: 0, ...rest, role, sizeLabel: params, paramsB, activeB, arch, variants, ...(speedHead ? { speedHead } : {}), ...(vision ? { vision } : {}) };
 }
 
 /** Runs `fn` over items with limited concurrency, keeping order. */
@@ -287,21 +343,43 @@ async function pool(items, n, fn) {
   return results;
 }
 
-const out = { version: 1, generated: new Date().toISOString().slice(0, 10), models: [] };
-for (const m of sources.models) out.models.push(await build(m, "chat"));
-for (const h of sources.helpers) out.models.push(await build(h, h.role));
-const ids = new Set(out.models.map((m) => m.id));
-const auto = await pool(discovered.filter((m) => !ids.has(m.id)), 6, async (m) => {
-  try {
-    return await build(m, "chat");
-  } catch (e) {
-    console.warn(`  ! skipped ${m.id}: ${e.message}`);
-    return null;
-  }
-});
-for (const m of auto) if (m && !ids.has(m.id)) (ids.add(m.id), out.models.push(m));
+if (process.argv[1] === fileURLToPath(import.meta.url)) await (process.argv.includes("--vision") ? visionOnly() : main());
 
-const dest = join(root, "src-tauri/catalog/models.json");
-mkdirSync(dirname(dest), { recursive: true });
-writeFileSync(dest, `${JSON.stringify(out)}\n`);
-console.log(`wrote ${out.models.length} models to ${dest} (${(JSON.stringify(out).length / 1024).toFixed(1)} KB)`);
+/** `--vision`: only (re)checks which catalog models ship an image adapter, in place. */
+async function visionOnly() {
+  const dest = join(root, "src-tauri/catalog/models.json");
+  const cat = JSON.parse(readFileSync(dest, "utf8"));
+  let n = 0;
+  await pool(cat.models.filter((m) => m.role === "chat"), 8, async (m) => {
+    try {
+      const v = pickVision(await tree(m.repo));
+      if (v) (m.vision = v), n++;
+      else delete m.vision;
+    } catch (e) {
+      console.warn(`  ! ${m.id}: ${e.message}`);
+    }
+  });
+  writeFileSync(dest, `${JSON.stringify(cat)}\n`);
+  console.log(`${n} models can see images`);
+}
+
+async function main() {
+  const out = { version: 1, generated: new Date().toISOString().slice(0, 10), models: [] };
+  for (const m of sources.models) out.models.push(await build(m, "chat"));
+  for (const h of sources.helpers) out.models.push(await build(h, h.role));
+  const ids = new Set(out.models.map((m) => m.id));
+  const auto = await pool(discovered.filter((m) => !ids.has(m.id)), 6, async (m) => {
+    try {
+      return await build(m, "chat");
+    } catch (e) {
+      console.warn(`  ! skipped ${m.id}: ${e.message}`);
+      return null;
+    }
+  });
+  for (const m of auto) if (m && !ids.has(m.id)) (ids.add(m.id), out.models.push(m));
+
+  const dest = join(root, "src-tauri/catalog/models.json");
+  mkdirSync(dirname(dest), { recursive: true });
+  writeFileSync(dest, `${JSON.stringify(out)}\n`);
+  console.log(`wrote ${out.models.length} models to ${dest} (${(JSON.stringify(out).length / 1024).toFixed(1)} KB)`);
+}

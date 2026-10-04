@@ -8,6 +8,7 @@ import { MessageView } from "./MessageView";
 export function ChatView() {
   const conv = useStore(currentConversation);
   const running = useStore((s) => s.running);
+  const keepAnswer = useStore((s) => s.keepAnswer);
   const scroller = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
 
@@ -58,7 +59,20 @@ export function ChatView() {
             return (
               <div className="compare-grid" key={item[0].id} style={{ gridTemplateColumns: `repeat(${item.length}, minmax(0, 1fr))` }}>
                 {item.map((m) => (
-                  <MessageView key={m.id} message={m} isLast={isLast} generating={running.includes(m.id)} />
+                  <div key={m.id} className="compare-cell">
+                    <MessageView message={m} isLast={isLast} generating={running.includes(m.id)} />
+                    {item.length > 1 && !item.some((x) => running.includes(x.id)) && m.status === "done" && (
+                      <div className="keep-answer">
+                        {m.alt ? (
+                          <button className="btn sm ghost" onClick={() => keepAnswer(m.id)} title="Continue the chat from this answer">
+                            Keep this one
+                          </button>
+                        ) : (
+                          <span className="kept">Continuing with this answer</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             );

@@ -1,17 +1,47 @@
 //! Decides per message whether the model should think before answering and
-//! how much it may write. Phase 8 swaps the heuristic for a small classifier.
+//! how much it may write. Accuracy first: in Auto mode BYTE thinks unless the
+//! message is clearly simple (small talk, a rewrite, a sum the calculator
+//! answers), and scales the thinking budget with how hard the question looks.
 
 use serde::Serialize;
 
 use crate::settings::{Mode, ThinkingPref};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TurnPlan {
     pub thinking: bool,
     /// Max tokens the model may spend thinking (-1 = unlimited).
     pub thinking_budget: i32,
     pub max_tokens: u32,
+    pub mode: Mode,
+    /// The running model's recommended sampling and thinking control.
+    #[serde(skip)]
+    pub profile: crate::modelcfg::ModelProfile,
+}
+
+impl TurnPlan {
+    /// Adapts the plan to the running model: models that always think do,
+    /// models that can't think don't, and sampling follows the model card.
+    pub fn for_model(mut self, profile: crate::modelcfg::ModelProfile) -> Self {
+        self.profile = profile;
+        let thinking = profile.thinks(self.thinking);
+        if thinking != self.thinking {
+            self.thinking = thinking;
+            self.thinking_budget = if thinking { mode_limits(self.mode).0 } else { 0 };
+        }
+        self
+    }
+}
+
+/// (thinking budget, max tokens) per mode.
+fn mode_limits(mode: Mode) -> (i32, u32) {
+    match mode {
+        Mode::Fast => (512, 1536),
+        Mode::Auto => (2048, 4096),
+        Mode::Deep => (6144, 8192),
+        Mode::Extended => (-1, 12288),
+    }
 }
 
 const REASONING_CUES: &[&str] = &[
@@ -22,6 +52,24 @@ const REASONING_CUES: &[&str] = &[
 ];
 
 /// Cheap signal that a message benefits from deliberate reasoning.
+/// A request to *write* something creative (a story, poem, song, joke…) and nothing else: no Mac control, files or
+/// automations for it, even when the story mentions texting, reminders or a time. "…and save it to my notes" or
+/// "…and text it to Mom" still count as asking for an action.
+pub fn creative_only(message: &str) -> bool {
+    let l = message.trim().to_lowercase();
+    const KINDS: &[&str] = &[
+        "story", "stories", "poem", "poetry", "song", "lyrics", "rap", "joke", "riddle", "fairy tale", "fable", "limerick", "haiku",
+        "script", "screenplay", "comic", "bedtime", "short fiction", "fanfic", "fan fiction", "tale", "adventure", "chapter",
+    ];
+    const ASKS: &[&str] = &["write", "make", "tell", "create", "give me", "come up with", "invent", "compose", "continue", "can you write", "could you write", "can you make", "can you tell", "i want a", "i need a", "story about", "a story", "once upon"];
+    const ACTIONS: &[&str] = &[
+        "save it", "save this", "save that", "to my notes", "in my notes", "in notes", "text it", "send it", "email it", "message it", "and send", "and text", "and email",
+        "remind me", "to my calendar", "to reminders", "as a file", "to a file", "to my desktop", "to my documents", "every day", "every morning", "every night", "every week",
+    ];
+    let creative = KINDS.iter().any(|k| l.contains(k)) && (ASKS.iter().any(|a| l.contains(a)) || l.starts_with("story"));
+    creative && !ACTIONS.iter().any(|a| l.contains(a))
+}
+
 pub fn looks_complex(message: &str) -> bool {
     let m = message.to_lowercase();
     if m.chars().count() > 280 {
@@ -54,23 +102,284 @@ pub fn needs_fresh_info(message: &str) -> bool {
     (year - 1..=year + 1).any(|y| m.contains(&y.to_string()))
 }
 
+const WEATHER_CUES: &[&str] = &["weather", "forecast", "temperature", "rain", "snow", "sunny", "humid", "how hot", "how cold", "degrees outside", "umbrella", "storm"];
+const WHEN_WORDS: &[&str] = &[" this ", " today", " tomorrow", " tonight", " next ", " on ", " over ", " right now", " now", " later", " during", " for the ", " at the ", " like", " going ", " be "];
+
+/// The place in a weather question ("weather in Portland, Maine tomorrow" →
+/// "Portland, Maine"), or None if it isn't about the weather or names no place.
+pub fn weather_place(message: &str) -> Option<String> {
+    let text = message.trim().replace('\u{2019}', "'");
+    let lower = text.to_lowercase();
+    if !WEATHER_CUES.iter().any(|c| lower.contains(c)) {
+        return None;
+    }
+    let clean = |raw: &str| -> Option<String> {
+        let mut end = raw.len();
+        let lower_raw = raw.to_lowercase();
+        for w in WHEN_WORDS {
+            if let Some(i) = format!("{lower_raw} ").find(w) {
+                end = end.min(i);
+            }
+        }
+        for c in ['?', '.', '!', ';', '\n'] {
+            if let Some(i) = raw.find(c) {
+                end = end.min(i);
+            }
+        }
+        let place = raw[..end].trim().trim_end_matches(',').trim();
+        let words = place.split_whitespace().count();
+        (!place.is_empty() && words <= 5 && !["the", "my area", "here", "my city"].contains(&place.to_lowercase().as_str())).then(|| place.to_string())
+    };
+    // "... in / for / at <place> ..."
+    for marker in [" in ", " for ", " at "] {
+        if let Some(i) = lower.rfind(marker) {
+            let after = &text[i + marker.len()..];
+            if let Some(p) = clean(after) {
+                if !WEATHER_CUES.iter().any(|c| p.to_lowercase().contains(c)) {
+                    return Some(p);
+                }
+            }
+        }
+    }
+    // "<Place> weather ..."
+    let i = lower.find(" weather").or_else(|| lower.find(" forecast"))?;
+    let before = text[..i].trim();
+    let ok = !before.is_empty()
+        && before.split_whitespace().count() <= 3
+        && before.split_whitespace().all(|w| w.chars().next().is_some_and(char::is_uppercase))
+        && !["what", "what's", "whats", "how", "the", "is"].contains(&before.to_lowercase().split_whitespace().next().unwrap_or(""));
+    ok.then(|| before.to_string())
+}
+
+/// Requests that are writing or coding jobs, not questions about the world.
+const MAKE_JOBS: &[&str] = &[
+    "write ", "draft ", "compose ", "create a ", "create an ", "generate ", "make me ", "code ", "implement ",
+    "refactor ", "debug this", "fix this code", "poem", "story about", "a joke", "brainstorm",
+];
+
+/// Openers of questions about the world (people, products, places, how-tos).
+const QUESTION_OPENERS: &[&str] = &[
+    "who", "what", "what's", "whats", "when", "where", "which", "why", "how", "is", "are", "was", "were", "do",
+    "does", "did", "can", "could", "should", "will", "would", "tell me", "explain", "compare", "best", "top",
+    "recommend", "find", "list", "review", "price", "cost", "any good",
+];
+
+/// Things people keep in files, after "my" ("what does my lease say…").
+const MY_THINGS: &[&str] = &[
+    "file", "files", "folder", "folders", "document", "documents", "doc", "docs", "notes", "note", "pdf", "pdfs",
+    "knowledge base", "records", "papers", "paperwork", "lease", "contract", "contracts", "resume", "cv", "manual",
+    "manuals", "invoice", "invoices", "receipts", "statements", "syllabus", "slides", "spreadsheet", "spreadsheets",
+    "reports", "thesis", "downloads", "desktop", "warranty",
+];
+
+/// True when the question is about the user's own files (search the
+/// knowledge base first): "in my notes", "what does my lease say", "from my files".
+pub fn wants_files(message: &str) -> bool {
+    let m = format!(" {} ", message.to_lowercase().replace('\u{2019}', "'"));
+    let words: String = m.chars().map(|c| if c.is_alphanumeric() || c == ' ' { c } else { ' ' }).collect();
+    MY_THINGS.iter().any(|t| words.contains(&format!(" my {t} ")) || words.contains(&format!(" our {t} ")))
+}
+
+const PAPER_CUES: &[&str] = &[
+    "study", "studies", "research", "paper", "papers", "evidence", "clinical", "trial", "trials", "meta-analysis",
+    "meta analysis", "peer-reviewed", "peer reviewed", "systematic review", "scientific", "science", "scientists",
+    "literature", "journal", "efficacy", "side effects", "health effects", "health benefits", "risk of", "linked to",
+];
+
+/// True when published research would help answer (BYTE then also searches
+/// papers in Deep and Extended mode): "what does research say about…",
+/// "is there evidence that…", "side effects of…".
+pub fn wants_papers(message: &str) -> bool {
+    let m = format!(" {} ", message.to_lowercase().replace(|c: char| !c.is_alphanumeric() && c != '-', " "));
+    PAPER_CUES.iter().any(|c| m.contains(&format!(" {c} ")))
+}
+
+const NEAR_ME: &[&str] = &["near me", "nearby", "around me", "around here", "close to me", "closest", "nearest", "near here", "in my area", "open now", "within walking distance"];
+
+/// A places question ("coffee near me", "pharmacies open now in Shadyside,
+/// Pittsburgh", "best sushi in Lisbon"): what to find and where (the user's
+/// town from Settings for "near me", else "" so BYTE asks).
+pub fn places_request(message: &str, home: Option<&str>) -> Option<(String, String)> {
+    let m = message.trim().trim_end_matches(['?', '!', '.']).replace('\u{2019}', "'");
+    let lower = m.to_lowercase();
+    // Things that aren't about finding a place.
+    if wants_trip(&lower) || wants_compare(&lower) || lower.contains("recipe") || lower.contains("how to make") || lower.contains("```") {
+        return None;
+    }
+    let cat = crate::tools::places::category_for(&lower)?;
+    let near_me = NEAR_ME.iter().any(|c| lower.contains(c));
+    // "… in Shadyside, Pittsburgh" / "… near the Strip District" / "… around Lisbon".
+    let named = [" in ", " near ", " around ", " by "]
+        .iter()
+        .filter_map(|p| lower.rfind(p).map(|i| (i, p.len())))
+        .max_by_key(|(i, _)| *i)
+        .map(|(i, len)| m[i + len..].to_string())
+        .map(|s| {
+            let l = s.to_lowercase();
+            let cut = ["open now", " that ", " with ", " for ", " which ", " today", " tonight", " right now"].iter().filter_map(|w| l.find(w)).min().unwrap_or(s.len());
+            s[..cut].trim().trim_start_matches("the ").trim().to_string()
+        })
+        .filter(|s| {
+            let l = s.to_lowercase();
+            !s.is_empty() && !["me", "here", "my area", "the area", "town", "my town"].contains(&l.as_str()) && s.split_whitespace().count() <= 6 && s.chars().next().is_some_and(|c| c.is_uppercase() || c.is_ascii_digit())
+        });
+    if named.is_none() && !near_me {
+        return None;
+    }
+    let near = named.unwrap_or_else(|| home.unwrap_or("").to_string());
+    // Keep the specific words ("sushi", "vegan pizza") when they're short.
+    let what = cat.words.iter().filter(|w| lower.contains(*w)).max_by_key(|w| w.len()).map(|w| w.to_string()).unwrap_or_else(|| cat.label.to_string());
+    Some((what, near))
+}
+
+const TRIP_CUES: &[&str] = &["plan a trip", "plan my trip", "trip to", "itinerary", "days in ", "day trip", "weekend in ", "vacation in", "vacation to", "holiday in", "holiday to", "visit to ", "travel plan", "honeymoon in", "road trip"];
+
+/// A request to plan a trip ("plan 3 days in Lisbon", "weekend in Chicago").
+pub fn wants_trip(message: &str) -> bool {
+    let m = message.to_lowercase();
+    let planning = ["plan", "itinerary", "schedule", "trip", "going to", "visiting", "what to do", "things to do"].iter().any(|w| m.contains(w));
+    planning && TRIP_CUES.iter().any(|c| m.contains(c))
+}
+
+const FACT_CUES: &[&str] = &[
+    "is it true that", "is it true", "is that true", "is this true", "fact-check", "fact check", "factcheck",
+    "true or false", "debunk", "is it a myth", "is that a myth", "myth that", "did they really", "is it really true",
+];
+
+/// True when the user asks BYTE to check whether something is true.
+pub fn wants_fact_check(message: &str) -> bool {
+    let m = message.to_lowercase().replace('\u{2019}', "'");
+    FACT_CUES.iter().any(|c| m.contains(c))
+}
+
+const COMPARE_CUES: &[&str] = &[
+    " vs ", " vs. ", " versus ", "compare ", "comparison of", "comparison between", "which is better",
+    "which one is better", "which is best", "which should i", "should i get", "should i buy", "should i choose",
+    "should i pick", "better choice", "or should i",
+];
+
+/// True when the user is choosing between options ("X vs Y", "should I get X or Y").
+pub fn wants_compare(message: &str) -> bool {
+    let m = format!(" {} ", message.to_lowercase().replace('\u{2019}', "'"));
+    if m.contains("```") || m.lines().count() > 12 {
+        return false;
+    }
+    COMPARE_CUES.iter().any(|c| m.contains(c))
+        // "should I get … or …" style without the exact cue.
+        || ((m.contains("should i") || m.contains("which")) && m.contains(" or "))
+}
+
+/// `wants_web`, or with Web "Always" any real question (not small talk,
+/// rewrites, pasted code or a plain sum).
+pub fn wants_web_in(message: &str, always: bool) -> bool {
+    if wants_web(message) {
+        return true;
+    }
+    if !always || effort(message) == Effort::Trivial {
+        return false;
+    }
+    let m = message.trim();
+    !m.contains("```") && m.lines().count() <= 12
+}
+
+/// True when BYTE should search the web before the model answers. Answer
+/// quality comes first: small local models often answer from (stale or
+/// wrong) memory instead of choosing to search, so BYTE searches itself for
+/// anything that asks about the world. Small talk, rewrites, writing and
+/// coding jobs, maths and questions about BYTE itself don't need it.
+pub fn wants_web(message: &str) -> bool {
+    if needs_fresh_info(message) {
+        return true;
+    }
+    if effort(message) == Effort::Trivial {
+        return false;
+    }
+    let m = message.trim().to_lowercase().replace('\u{2019}', "'");
+    if m.contains("```") || m.lines().count() > 12 {
+        return false; // pasted code or long text to work on
+    }
+    if MAKE_JOBS.iter().any(|j| m.starts_with(j) || m.starts_with(&format!("please {j}")) || m.starts_with(&format!("can you {j}")) || (j.len() > 6 && m.contains(j.trim()))) {
+        return false;
+    }
+    // Questions about BYTE itself ("what can you do", "who made you").
+    let padded = format!(" {} ", m.trim_end_matches(['?', '!', '.']));
+    if [" you ", " your ", " yourself "].iter().any(|y| padded.contains(y))
+        && !["tell me", "find", "look up", "search", "check"].iter().any(|v| m.contains(v))
+    {
+        return false;
+    }
+    let first = m.split(|c: char| !c.is_alphanumeric() && c != '\'').find(|w| !w.is_empty()).unwrap_or("");
+    m.ends_with('?') || QUESTION_OPENERS.iter().any(|o| if o.contains(' ') { m.starts_with(o) } else { first == *o })
+}
+
+/// How much deliberate reasoning a message needs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Effort {
+    /// Greetings, thanks, rewrites, formatting, a sum the calculator answers.
+    Trivial,
+    /// A short, plain question: a little thinking catches slips.
+    Light,
+    /// Anything else.
+    Normal,
+    /// Reasoning cues, long messages, maths.
+    Hard,
+}
+
+/// Whole messages (after greetings and "BYTE" are removed) that are small talk.
+const SMALL_TALK: &[&str] = &[
+    "", "how are you", "how are you doing", "what's up", "whats up", "sup", "who are you", "what's your name",
+    "good morning", "good night", "good evening", "see you", "see you later", "got it", "thank you", "bye",
+];
+const GREETING_WORDS: &[&str] = &["hi", "hey", "hello", "yo", "byte"];
+const ACK_WORDS: &[&str] = &["ok", "okay", "cool", "nice", "great", "thanks", "thx", "ty", "yes", "no", "sure", "lol", "haha", "perfect", "awesome"];
+
+const TEXT_JOBS: &[&str] = &[
+    "rewrite", "rephrase", "reword", "paraphrase", "proofread", "fix the spelling", "fix the grammar", "fix grammar",
+    "fix spelling", "fix typos", "translate", "format this", "format as", "make it shorter", "make it longer",
+    "shorten", "summarize this", "summarise this", "tl;dr", "turn this into", "convert this to", "capitalize",
+];
+
+/// Classifies a message (cheap heuristics; no model call).
+pub fn effort(message: &str) -> Effort {
+    let m = message.trim().to_lowercase();
+    let clean: String = m.chars().filter(|c| c.is_alphanumeric() || c.is_whitespace() || *c == '\'').collect();
+    let words = clean.split_whitespace().count();
+    let rest: Vec<&str> = clean.split_whitespace().filter(|w| !GREETING_WORDS.contains(w)).collect();
+    if words <= 6 && (SMALL_TALK.contains(&rest.join(" ").as_str()) || rest.iter().all(|w| ACK_WORDS.contains(w))) {
+        return Effort::Trivial;
+    }
+    if TEXT_JOBS.iter().any(|j| m.starts_with(j) || m.contains(&format!("\n{j}")) || (words <= 12 && m.contains(j))) {
+        return Effort::Trivial;
+    }
+    // The calculator answers plain sums exactly; thinking adds nothing.
+    if words <= 8 && math_expression(message).is_some() {
+        return Effort::Trivial;
+    }
+    if looks_complex(message) {
+        return Effort::Hard;
+    }
+    if words <= 12 {
+        Effort::Light
+    } else {
+        Effort::Normal
+    }
+}
+
 pub fn plan_turn(mode: Mode, pref: ThinkingPref, message: &str) -> TurnPlan {
-    let thinking = match pref {
-        ThinkingPref::On => true,
-        ThinkingPref::Off => false,
-        ThinkingPref::Auto => match mode {
-            Mode::Fast => false,
-            Mode::Auto => looks_complex(message),
-            Mode::Deep | Mode::Extended => true,
+    let (budget, max_tokens) = mode_limits(mode);
+    let (thinking, budget) = match pref {
+        ThinkingPref::On => (true, budget),
+        ThinkingPref::Off => (false, 0),
+        ThinkingPref::Auto => match (mode, effort(message)) {
+            (Mode::Fast, _) => (false, 0),
+            (Mode::Auto, Effort::Trivial) => (false, 0),
+            (Mode::Auto, Effort::Light) => (true, 384),
+            (Mode::Auto, Effort::Normal) => (true, 1024),
+            (Mode::Auto, Effort::Hard) => (true, budget),
+            (Mode::Deep | Mode::Extended, _) => (true, budget),
         },
     };
-    let (budget, max_tokens) = match mode {
-        Mode::Fast => (512, 1536),
-        Mode::Auto => (2048, 4096),
-        Mode::Deep => (6144, 8192),
-        Mode::Extended => (-1, 12288),
-    };
-    TurnPlan { thinking, thinking_budget: if thinking { budget } else { 0 }, max_tokens }
+    TurnPlan { thinking, thinking_budget: if thinking { budget } else { 0 }, max_tokens, mode, profile: Default::default() }
 }
 
 /// An arithmetic question in the user's message ("what's 1234 * 5678?",
@@ -219,7 +528,81 @@ fn percent_of(message: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn creative_requests_are_just_writing() {
+        for q in [
+            "make a story about a girl who texts her mom from space",
+            "write a story about a reminder that never stops",
+            "Make a story about Elias who lost his book at the library at 3pm",
+            "tell me a bedtime story about a cat who plays music",
+            "write a poem about dark mode",
+            "make a song about my dad's car",
+            "continue the story",
+            "story: a dog named Max texts his owner",
+        ] {
+            assert!(creative_only(q), "{q}");
+        }
+        for q in [
+            "write a story and save it to my notes",
+            "make a story and text it to Mom",
+            "write a poem every morning about the weather",
+            "text Mom I'm on my way",
+            "remind me to call Mom at 3pm",
+            "what's the story with my storage?",
+        ] {
+            assert!(!creative_only(q), "{q}");
+        }
+    }
+
     use super::*;
+
+    #[test]
+    fn web_always_searches_more() {
+        let q = "I'm thinking about switching to a standing desk at work";
+        assert!(!wants_web_in(q, false));
+        assert!(wants_web_in(q, true));
+        assert!(!wants_web_in("thanks!", true));
+        assert!(!wants_web_in("```rust\nfn main() {}\n```\nwhat does this do", true));
+        assert!(wants_web_in("Who won the Super Bowl?", false));
+    }
+
+    #[test]
+    fn places_questions_are_understood() {
+        let home = Some("Pittsburgh, PA");
+        assert_eq!(places_request("Is there good coffee near me?", home), Some(("coffee".into(), "Pittsburgh, PA".into())));
+        assert_eq!(places_request("pharmacies open now in Shadyside, Pittsburgh", home), Some(("pharmacies".into(), "Shadyside, Pittsburgh".into())));
+        assert_eq!(places_request("Best sushi in Lisbon?", None), Some(("sushi".into(), "Lisbon".into())));
+        // "near me" without a town: asks (empty place).
+        assert_eq!(places_request("closest gas station", None), Some(("gas station".into(), String::new())));
+        assert_eq!(places_request("how do I make coffee?", home), None);
+        assert_eq!(places_request("Is coffee bad for you?", home), None);
+        assert_eq!(places_request("Plan 3 days in Lisbon with good restaurants", home), None);
+        assert!(wants_trip("Plan 3 days in Lisbon in May for $1500"));
+        assert!(wants_trip("Can you make an itinerary for a weekend in Chicago?"));
+        assert!(!wants_trip("What's the weather in Lisbon?"));
+    }
+
+    #[test]
+    fn fact_checks_and_comparisons_are_recognised() {
+        assert!(wants_fact_check("Is it true that we only use 10% of our brains?"));
+        assert!(wants_fact_check("Fact-check this: the Great Wall is visible from space"));
+        assert!(wants_fact_check("true or false: bats are blind"));
+        assert!(!wants_fact_check("What's true north?"));
+        assert!(wants_compare("MacBook Air M4 vs Dell XPS 13 for college"));
+        assert!(wants_compare("Should I get an iPhone 17 or a Pixel 10?"));
+        assert!(wants_compare("Which is better for a beginner, Python or JavaScript?"));
+        assert!(wants_compare("compare Netflix and Hulu"));
+        assert!(!wants_compare("Who won the Super Bowl?"));
+        assert!(!wants_compare("Tea or coffee in the morning is fine, I think."));
+    }
+
+    #[test]
+    fn research_questions_want_papers() {
+        assert!(wants_papers("What does the research say about intermittent fasting?"));
+        assert!(wants_papers("Is there evidence that creatine helps memory?"));
+        assert!(wants_papers("side effects of melatonin"));
+        assert!(!wants_papers("Who won the Super Bowl?"));
+    }
 
     #[test]
     fn detects_time_sensitive_questions() {
@@ -232,6 +615,77 @@ mod tests {
     }
 
     #[test]
+    fn finds_the_place_in_weather_questions() {
+        assert_eq!(weather_place("What's the weather in Pittsburgh this weekend?").as_deref(), Some("Pittsburgh"));
+        assert_eq!(weather_place("weather in Portland, Maine tomorrow").as_deref(), Some("Portland, Maine"));
+        assert_eq!(weather_place("Will it rain in Seattle tomorrow?").as_deref(), Some("Seattle"));
+        assert_eq!(weather_place("forecast for Paris").as_deref(), Some("Paris"));
+        assert_eq!(weather_place("Pittsburgh weather this weekend").as_deref(), Some("Pittsburgh"));
+        assert_eq!(weather_place("New York City forecast").as_deref(), Some("New York City"));
+        assert_eq!(weather_place("what's the weather like?"), None);
+        assert_eq!(weather_place("Who is the CEO of OpenAI?"), None);
+        assert_eq!(weather_place("what's the weather in my area"), None);
+    }
+
+    #[test]
+    fn searches_first_for_questions_about_the_world() {
+        for q in [
+            "Who is the CEO of OpenAI?",
+            "How do I fix \"xcrun: error: invalid active developer path\" on my Mac?",
+            "Is the Steam Deck OLED worth buying?",
+            "What is llama.cpp?",
+            "What\u{2019}s the weather in Pittsburgh this weekend?",
+            "best budget mechanical keyboard",
+            "tell me about the history of the Steelers",
+            "Can you tell me the population of Pittsburgh",
+        ] {
+            assert!(wants_web(q), "{q}");
+        }
+        for q in [
+            "hi",
+            "thanks!",
+            "Write a poem about the sea",
+            "write a python function that reverses a list",
+            "Rewrite this to sound friendlier: hey send me the file",
+            "What can you do?",
+            "who are you",
+            "12 * 34",
+            "```rust\nfn main() {}\n``` why doesn't this compile?",
+        ] {
+            assert!(!wants_web(q), "{q}");
+        }
+    }
+
+    #[test]
+    fn questions_about_my_files_search_them_first() {
+        for q in ["What does my lease say about pets?", "Find the deadline in my notes", "summarize my resume", "Is it in our contract?", "search my files for the Wi-Fi password"] {
+            assert!(wants_files(q), "{q}");
+        }
+        for q in ["What is a lease?", "Write my essay intro about whales", "how do I fix my Mac", "my dog ate chocolate, what do I do?"] {
+            assert!(!wants_files(q), "{q}");
+        }
+    }
+
+    #[test]
+    fn accuracy_first_effort_levels() {
+        let e = |m: &str| effort(m);
+        for m in ["hi", "Thanks!", "hey byte, what's up", "ok cool", "what's 1234 * 5678?", "Rewrite this so it sounds friendlier: see you at 5"] {
+            assert_eq!(e(m), Effort::Trivial, "{m}");
+        }
+        assert_eq!(e("Translate to French: the meeting moved to Tuesday afternoon because of the storm"), Effort::Trivial);
+        for m in ["What is the capital of Australia?", "Who wrote Dune?", "hi, what causes tides on earth"] {
+            assert_eq!(e(m), Effort::Light, "{m}");
+        }
+        assert_eq!(e("Tell me about the history of the printing press in Europe and its effect on literacy"), Effort::Normal);
+        assert_eq!(e("Should I use Postgres or SQLite for a small desktop app?"), Effort::Hard);
+        // Short plain questions think a little; hard ones get the full budget.
+        let light = plan_turn(Mode::Auto, ThinkingPref::Auto, "Who wrote Dune?");
+        assert!(light.thinking && light.thinking_budget == 384);
+        assert_eq!(plan_turn(Mode::Auto, ThinkingPref::Auto, "Explain why the sky is blue").thinking_budget, 2048);
+        assert!(!plan_turn(Mode::Fast, ThinkingPref::Auto, "Explain why the sky is blue").thinking);
+    }
+
+    #[test]
     fn small_talk_skips_thinking_in_auto() {
         assert!(!plan_turn(Mode::Auto, ThinkingPref::Auto, "hey byte, what's up").thinking);
     }
@@ -239,7 +693,9 @@ mod tests {
     #[test]
     fn reasoning_questions_think_in_auto() {
         assert!(plan_turn(Mode::Auto, ThinkingPref::Auto, "Explain why the sky is blue").thinking);
-        assert!(plan_turn(Mode::Auto, ThinkingPref::Auto, "what is 17*23 + 4^2 = ?").thinking);
+        assert!(plan_turn(Mode::Auto, ThinkingPref::Auto, "If a train leaves at 3pm going 80 km/h, when does it cover 200 km?").thinking);
+        // A plain sum goes to the calculator, which is exact; no thinking needed.
+        assert!(!plan_turn(Mode::Auto, ThinkingPref::Auto, "what is 17*23 + 4^2 = ?").thinking);
     }
 
     #[test]

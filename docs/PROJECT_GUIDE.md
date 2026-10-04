@@ -11,15 +11,114 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 | 1 | Foundation: engine sidecar, model catalog/downloader, RAM planner, streaming chat, modes, thinking, onboarding, logo, themes, CI/release | ✅ Done (commit 47d952e) |
 | 2 | Agent & web: tool registry, action log, web search/read, forced grounding, citations, calculator | ✅ Done (test.2) |
 | 3 | Memory: encrypted DB, chats, memory/About me, projects, profiles, branching, pins, export | ✅ Done (test.5 + test.6): encrypted DB, search, pins, folders, private chats, memory + About me, export, edit & versions, auto titles/summaries/tags, projects, profiles, interrupted-answer recovery |
-| 4 | Files & knowledge base: parsers, OCR, embeddings, folder indexing, reader | Planned |
-| 5 | Documents: PDF/PPTX/DOCX/HTML, edit existing files, infographics, math/diagrams | Planned |
-| 6 | Research+: Deep/Extended, academic, quote finder, fact-check, compare, web agent, YouTube | Planned |
-| 7 | Writing & learning: studio, long-form, style, flashcards, quizzes, tutor, custom assistants | Planned |
-| 8 | Speed: speculative decoding, routing, model lab | Planned |
-| 9 | Mac control: Apple apps, Shortcuts, files, clipboard, undo & dry-run | Planned |
-| 10 | Upkeep & automation: scheduler, briefing, watchers, trackers, connectors, dashboards | Planned |
-| 11 | Input & windows: voice, vision, Quick Ask, floating widget, menu-bar popover, palette, notes | Planned |
-| 12 | Privacy & polish: offline, Touch ID, permissions dashboard, 20 themes, sharing, v1.0 | Planned |
+| 4 | Files & knowledge base: parsers, OCR, embeddings, folder indexing, reader | Done (test.14): attachments, vision, OCR, embeddings, knowledge base, My files tool, reader, instant answers |
+| 5 | Documents (light local version; the cloud makes the full range) | Done: plan → edit outline → write on the Mac → save as PDF / PPTX / DOCX, 4 designs, charts |
+| 6 | Research+: Deep/Extended, academic, quote finder, fact-check, compare, web agent, YouTube | Done: v0.6.0 deep research, papers, citations, confidence; v0.6.1 fact-check, compare & decide; v0.6.2 places nearby, trip planner; v0.6.3 faster research; v0.6.4 Kitchen, Web Off/Auto/Always; v0.6.5 YouTube; v0.6.6 web agent; v0.6.7 reviews, prices, game hints, self-check, best of 3 (video-to-slides moved to Phase 11) |
+| 7 | Writing & learning: studio, long-form, style, flashcards, quizzes, tutor, custom assistants | In progress: flashcards (SM-2, Study panel, Anki export), quizzes, tutor (v0.7.0); writing studio (v0.7.4); translate and job tracker (v0.7.5); custom assistants (v0.7.6); long-form writer, style cloning, poems and speeches (v0.7.7). **Done** |
+| 8 | Speed: Speed boost (drafters + MTP/EAGLE-3/DSpark heads), repeated-text guessing, per-Mac tuning, measured-speed recommendations, CPU offload, GPU share, thinking router + model lab, advanced tuning panel, battery saver | ✅ Done (test.7–test.9, v0.8.0) |
+| Cloud | BYTE cloud backend: chat, streaming, actions, attachments, documents with approval, account data | ✅ Built (test.10), awaiting real-cluster check; tab redesign + "Both" next (see HANDOFF) |
+| 9 | Mac control: Apple apps, Shortcuts, files, clipboard, undo & dry-run | 🔄 v0.9.0: Reminders, Calendar, Notes, Music, Shortcuts, Safari, system toggles, approval + undo; v0.9.1: Mail (read, reply, new) and Messages drafts; v0.9.2: ⌥⌘B selected text anywhere + clipboard history; v0.9.3: files (find, tidy, convert, Finder selection) and the terminal helper. ✅ Done (the byte:// link moves to Phase 11, creating Shortcuts to Phase 10) |
+| 10 | Upkeep & automation: Mac upkeep, scheduler, briefing, watchers, trackers, connectors, dashboards | 🔄 v0.10.0: storage analyzer (treemap, duplicates, safe caches, Trash with Undo), slowness/battery coach, check-up, uninstaller with leftovers, login items; v0.10.1: to-dos + reminders, scheduler, daily briefing (composed by BYTE), scheduled questions; v0.10.2: news feeds (RSS/Atom, discovery, digest composed by BYTE), page-change and price watchers; v0.10.3: automations (trigger + steps, background runs with resume), multi-step requests in chat, Shortcuts that start automations (`byte://` links with a per-automation key), open at login, keep running; v0.10.4: trackers (packages with carrier links, bills and subscriptions with totals, birthdays with gift ideas, maintenance), notifications ahead of time; v0.10.5: connectors without app registration (Obsidian vault, Notion with the user's integration secret, calendar links / iCal); v0.10.6: command-deck home tiles, research library, usage stats. ✅ Done |
+| 11 | Input & windows: voice, vision, Quick Ask, floating widget, menu-bar popover, palette, notes | ✅ v0.11.0: Quick Ask window (⌥Space), menu-bar icon, ⌘K command palette, customizable global shortcuts; v0.11.1: voice input (whisper.cpp sidecar, 🎤 / hold Space, audio files → transcripts); v0.11.2: speaker labels (sherpa-onnx) and YouTube videos without captions (yt-dlp helper + whisper); v0.11.3: spoken answers (macOS voices), hands-free conversation, “Hey BYTE”; v0.11.4: BYTE's own natural voices (Kokoro, 28 voices, gapless streaming speech); v0.11.5: a catalog of 2,000+ free voices (Kokoro, Piper, Kitten, Supertonic, Pocket), human-paced speech, cloud voice option, “Hey BYTE” answers aloud. v0.11.6: notes (Markdown files, KB), web clipper (bookmarklet), mind maps. v0.11.7: personality, help center, example prompts, brainstorm board. **Phase 11 complete.** |
+| 12 | Privacy & polish: offline, Touch ID, permissions dashboard, sharing, v1.0 (20 themes + byte-ai palette + eight-bit logo already done) | 🔄 v0.12.0: offline switch (every connection), Touch ID lock with idle timer, Privacy tab (internet list, Mac permissions, activity log); v0.12.1: kids mode (PIN, enforced in the core), encrypted iCloud Drive backups + restore, auto-delete old chats, erase everything; v0.12.2: theme editor (import/export, readability checks), spring motion + Reduce motion, optional chimes, VoiceOver names checked; v0.12.3: signed one-click updates, Homebrew cask, new README; v0.12.4: 1.0 polish pass (welcome guide, model blurbs, kids-mode model block, lazy panels, Beta documents, cloud key steps). Next: v1.0.0 after the owner's checklist |
+
+## Speed boost (pulled forward from Phase 8; `engine.rs`, `speed.rs`, `models::drafter_for`)
+
+- Token generation on Apple Silicon is limited by memory bandwidth (M4: ~120 GB/s), so the levers are fewer
+  bytes per token (smaller quant, MoE), more tokens per pass (speculative decoding), and fewer wasted tokens
+  (thinking only when needed).
+- Speculative decoding: `--model-draft <helper> --spec-type draft-simple --spec-draft-n-max 16
+  --spec-draft-p-min 0.75` (+ draft on GPU, q8 KV). Helpers by family: Qwen3.5/3.6/3.8 → qwen3.5-0.8b,
+  Qwen3 → qwen3-0.6b, Gemma 3 → gemma-3-270m, Llama 3 → llama-3.2-1b; must be ≤ ¼ of the main model.
+  A mismatched helper makes llama-server log "failed to initialize speculative…" and run without it;
+  `EngineStatus::Ready.boosted` reports whether it's active. Skipped if memory would be tight.
+- Measured with the pinned engine on CPU: p-min 0.75 raised acceptance from 38–59% to 70–97%. The real
+  speed-up can only be measured on Metal, so `engine_speed_test` measures both ways on the user's Mac and
+  keeps the faster (`speed::boost_wins`, ≥ 5% better).
+- Models whose repos ship their own speed-up head (MTP / EAGLE-3 / DSpark) use it instead of a drafter
+  (catalog `speedHead`, see "Speed-up heads" below).
+- `settings.speedPref` (speed / balanced / quality) changes the tokens/sec target in `models::score`
+  (22 / 8 / 5).
+- **Per-model profiles** (`modelcfg.rs`): recommended sampling per family (think / plain) and thinking
+  control (`Toggle` via `enable_thinking`, `Always`, `Effort` = gpt-oss `reasoning_effort`, `Never`).
+  `TurnPlan::for_model` applies it; `chat::build_body` sends the sampling and template kwargs.
+- **Per-Mac tuning** (`tune.rs`): on first load of a model (and via `engine_tune`), downloads the Speed
+  boost helper if needed, then restarts the engine with candidates and measures real speed
+  (`speed::measure_both`: writing + reading a ~1.5k-token prompt): standard → + boost (keep if ≥5% faster)
+  → + f16 KV (≥3%, only if the same context fits) → + ubatch 1024 (keep if reading ≥10% faster without
+  slower writing). Saved in `settings.tuning[key]` with the chip name; `tune::launch_opts` applies it on
+  every start. `state.tuning` blocks chat while it runs; progress on `engine://tune`.
+- **Speed-up heads** (`models::{HelperKind, SpeedHead, Helper, helper_for}`): catalog entries may carry
+  `speedHead` (MTP / EAGLE-3 / DSpark file shipped in the model's repo; `build-catalog.mjs pickSpeedHead`).
+  `helper_for` prefers the head over the family drafter; downloads use key `"<id>:speed-head"`
+  (`Catalog::download_target`). `engine::Draft { path, kind }` → `--spec-type draft-mtp|draft-eagle3|…`,
+  default look-ahead per kind (16/3/8/7), `--spec-draft-p-min` only for separate models.
+- **Repeated-text guessing** (`LaunchOpts.ngram`): `ngram-mod` with a 4-token match (llama.cpp's 24 suits
+  code files, not chat); a tuner candidate on every model; `speed::PROMPTS` includes an edit prompt.
+- If the engine fails to start with a helper, `Engine::start` retries once without it.
+- **Recommendations** use measured speed (`SystemInfo::with_settings` → `measured`; `models::calibrate`
+  scales every estimate by the median measured/estimated ratio), count Speed boost (×1.3) for models with a
+  helper, break ties toward the faster model, and (outside "Faster") stay within `QUALITY_FLOOR` (8) of the
+  most capable comfortable model.
+- **CPU offload** (`system::plan_offload`, used by `models::plan` when a model is over the GPU share but
+  fits RAM): MoE models keep N expert layers for the CPU (`--n-cpu-moe`); dense models ≤15% over run in
+  stretch mode (`--n-gpu-layers k`), never auto-recommended. `models::offload_slowdown` adjusts the shown speed.
+- **Bigger GPU share** (`system::set_gpu_share`): `osascript … sysctl iogpu.wired_limit_mb` with admin
+  rights, to all but max(4 GB, 12.5%) of RAM; resets on reboot; Settings → Engine.
+- **Thinking router** (`router::effort`): accuracy first. Auto mode skips thinking only for small talk,
+  rewrites/translations and sums the calculator answers; budget 384 (short) / 1024 / 2048 (reasoning).
+
+## Backends (`backend.rs`)
+
+- `chat_send` → `backend::answer`: every turn goes through the `ModelBackend` trait (`name`, `capabilities`,
+  `answer`). `LocalLlama` is the bundled engine (the agent loop, tools, memory, projects); `Cloud` is the BYTE
+  cloud. `backend::with_fallback` holds the rules: private chats only reach backends with
+  `capabilities().private`; an unreachable primary hands the turn (with the mapped local mode) to the
+  secondary with a quiet `Notice`, unless the request has no fallback (Both workspace); other failures are
+  reported, never answered twice. Windows/Linux engines later are new `ModelBackend`s.
+
+## Cloud mode (`cloud/`, contract in `docs/CLOUD-MODE.md`)
+
+- `cloud::CloudClient` (bearer key, 10 s connect timeout, no read timeout on streams: queueing is normal).
+  Errors: 401/403 → `Unauthorized`; connect/timeout/502–504 → `Unreachable`; else `Other`.
+- Key: `cloud::keychain::Keychain` (macOS Keychain via `keyring`, service `com.loganstarner.byte.cloud`, account
+  per profile). `cloud_connect` validates with `GET /api/auth/me` *before* saving. Settings keep only
+  `cloudConnected`, `cloudBaseUrl`, `cloudAccount` (raw `me`), `useCloud` (legacy, mirrors the Cloud
+  workspace), `cloudMode`, `workspace`.
+- **Workspaces** (`settings.workspace`: `local` | `cloud` | `both`, switch at the top of the sidebar, Cloud and
+  Both only while connected; `store.workspaceOf`). A chat belongs to the workspace it was made in, by id prefix
+  (`store.spaceOf`: `cloud-…`, `both-…`, anything else is This Mac); private chats are always This Mac.
+  - Cloud: sidebar = local mirrors of cloud chats + "On your cloud" (`GET /api/conversations`, re-read on
+    focus, `store.refreshCloudChats`); open = `cloud_import` (`store.openCloudChat`); new = a `cloud-<uuid>`
+    chat whose first message creates the remote conversation; delete = `DELETE /api/conversations/{id}`
+    (404/405 → "your cloud doesn't support deleting yet", hidden locally).
+  - Both: `store.answer` runs the local model and the cloud at once in one compare `group` (cloud answer
+    `alt`, `CloudTurn.noFallback` so a down cloud doesn't answer on the Mac twice). `store.keepAnswer` picks
+    which answer continues the chat ("Keep this one"); the cloud answer is kept by default when it finishes.
+  - Composer: cloud modes from `me.modes` (a compact select in Both), budget chip (`cloudDocs.budgetSummary`).
+- Modes: parsed from `me.modes` (`cloud::parse_me`, tolerant of strings or objects), never hard-coded.
+- Chat: `chat_send` with `request.cloud` → `cloud::cmd::send`: create conversation (first message), optional
+  `branch` (after edit/regenerate; `store.cloudTurn` decides), post the message, then `cloud::follow` reads the
+  SSE stream (`cloud::sse::Parser`): `delta` → `ChatEvent::Content`, `phase` → `Phase`, `sources` → `Sources`
+  (as they arrive), `status` done/error, `bye` → reconnect with `since`; if the stream won't reopen, `cloud::recover` re-reads
+  `GET /api/conversations/{id}` and finishes from the saved answer (`cloud::saved_answer`). 429 →
+  "today's allowance … is used up" (`cloud::limit_error`). `Remote` events carry conversation and
+  message ids; `conversations.cloud_id` (schema v3) and `message.remoteId` keep them.
+- Fallback: `Unreachable` before the cloud accepted the message → `Notice` + the local model answers
+  (`cloud::cmd::local_mode` maps modes). After acceptance, errors are reported, never answered twice.
+- Actions: `cloud_action` (deepen / justify stream a new answer; answer-now, stop, feedback), `cloud_import`
+  copies cloud conversations into the local DB. Private chats never use the cloud.
+- General calls: `cloud_get/post/delete` (only `/api/…` paths, `cmd::api_path`), `cloud_image` (data: URL for
+  thumbnails/pages), `cloud_upload` (multipart field `file`, 50 MB cap), `cloud_attach` (creates the cloud
+  conversation first if needed), `cloud_download` (to a path from the save dialog). The UI builds features on
+  these: `src/lib/cloudDocs.ts` reads replies tolerantly (lists, job state, outline round-trip).
+- Attachments: `store.pending` → `message.attachments` → `CloudTurn.attachmentIds`; Library =
+  `GET /api/attachments`. Documents: `components/documents/DocumentsPanel.tsx` (create → poll job →
+  `OutlineReview` with templates → approve/reject → document previews, download, revise, render).
+- Account data: `components/settings/CloudAccount.tsx` (memories, knowledge, saved prompts, recipes,
+  personal context + default mode, search → `cloud_import`, export zip). Saved prompts double as `/`
+  commands in the composer (`store.savedPrompts`).
+- Tests: `cloud/tests.rs` with `wiremock` (fake keys only). `scripts/check-secrets.sh` runs in CI.
 
 ## Chats & memory (Phase 3, `db.rs`, `export.rs`)
 
@@ -50,6 +149,18 @@ which phase builds it, and how everything is verified. Quick-start rules for cod
 
 ## Model catalog (added after Phase 2)
 
+- **Pipeline (run in this order):** `node scripts/discover-models.mjs` (official models →
+  `catalog-discovered.json`), `node scripts/discover-models.mjs --community` (→ `catalog-community.json`:
+  community fine-tunes — uncensored versions capped at 45 and one per base model and size, Dolphin, story and
+  role-play tunes — tagged `community`; plus independent models from smaller makers, listed as regular; repos
+  marked `not-for-all-audiences` and explicit names excluded), `node scripts/build-catalog.mjs`, then
+  `node scripts/enrich-catalog.mjs` (adds `details` to every chat model: `about` from the original model's
+  card, `author` (the creator, not the GGUF uploader), `sourceUrl`, `strengths` 1–5 for chat / writing /
+  coding / reasoning / math / languages / speed (BYTE's estimate from quality, tags, family and size),
+  `ideas`, `community`, `caution`; card text cached in `scripts/catalog-cards.json`).
+- Community models are never recommended (`CatalogModel::is_community`, `models::recommend`) and only show
+  under the Community / Stories / Uncensored filters or in search (`CatalogBrowser.tsx`). Each model card has a
+  "Details" dropdown (`ModelCard.tsx` `ModelDetailsView`).
 - `scripts/catalog-sources.json` (curated models with quality scores and "used for" text, helpers, quality
   overrides) + `scripts/catalog-discovered.json` (from `scripts/discover-models.mjs`: trusted authors, official
   name allowlist, excludes uncensored/abliterated/RP/vision/merges) → `scripts/build-catalog.mjs` (picks

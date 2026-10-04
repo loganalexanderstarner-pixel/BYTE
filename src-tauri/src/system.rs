@@ -19,11 +19,45 @@ pub struct SystemInfo {
     pub apple_silicon: bool,
     /// Chip generation, tier, bandwidth and Neural Engine (for speed estimates).
     pub chip_info: crate::chip::ChipInfo,
+    /// What the user asked BYTE to favour when recommending (set from settings).
+    #[serde(skip)]
+    pub speed_pref: crate::settings::SpeedPref,
+    /// Speed boost is on (estimates count on it where a helper exists).
+    #[serde(skip)]
+    pub boost: bool,
+    /// Writing speed measured by tuning on this Mac, by model key.
+    #[serde(skip)]
+    pub measured: std::collections::HashMap<String, f64>,
+    /// Measured ÷ estimated speed on this Mac (median over tuned models), to
+    /// correct estimates for models not measured yet. Set by `models::calibrate`.
+    #[serde(skip)]
+    pub calibration: Option<f64>,
 }
 
 impl SystemInfo {
     /// This Mac with `bytes` already taken by other loaded models, for
     /// planning a model that runs alongside them.
+    #[cfg(test)]
+    pub fn with_pref(mut self, pref: crate::settings::SpeedPref) -> Self {
+        self.speed_pref = pref;
+        self
+    }
+
+    /// Adds what the settings say about preferences and measured speeds.
+    pub fn with_settings(mut self, s: &crate::settings::Settings) -> Self {
+        let chip = self.chip_id();
+        self.speed_pref = s.speed_pref;
+        self.boost = s.speed_boost;
+        self.measured = s.tuning.iter().filter(|(_, t)| t.chip == chip && t.tokens_per_sec > 0.0).map(|(k, t)| (k.clone(), t.tokens_per_sec)).collect();
+        self
+    }
+
+    /// Name of this Mac's chip, to know when tuning was done on another Mac.
+    pub fn chip_id(&self) -> String {
+        let c = &self.chip_info;
+        format!("{} {}", c.name, c.gpu_cores.map(|g| format!("{g}-core GPU")).unwrap_or_default()).trim().to_string()
+    }
+
     pub fn minus(mut self, bytes: u64) -> Self {
         self.gpu_budget_bytes = self.gpu_budget_bytes.saturating_sub(bytes);
         self.total_ram_bytes = self.total_ram_bytes.saturating_sub(bytes);
@@ -45,6 +79,10 @@ pub fn system_info(data_dir: &std::path::Path) -> SystemInfo {
     static GPU_CORES: once_cell::sync::Lazy<Option<u32>> = once_cell::sync::Lazy::new(crate::chip::gpu_core_count);
     SystemInfo {
         chip_info: crate::chip::identify(&chip, *GPU_CORES),
+        speed_pref: Default::default(),
+        boost: false,
+        measured: Default::default(),
+        calibration: None,
         apple_silicon: cfg!(all(target_os = "macos", target_arch = "aarch64")),
         gpu_budget_bytes: gpu_budget(total, wired_limit_override()),
         free_disk_bytes: free_disk_for(data_dir),
@@ -67,6 +105,70 @@ pub fn gpu_budget(total_ram: u64, override_bytes: Option<u64>) -> u64 {
     } else {
         total_ram / 3 * 2
     }
+}
+
+/// A larger GPU share that still leaves macOS enough memory: all but 4 GB,
+/// or all but 12.5% on big Macs (16 GB → 12 GB, 32 GB → 28 GB, 64 GB → 56 GB).
+pub fn raised_gpu_budget(total_ram: u64) -> u64 {
+    total_ram.saturating_sub((total_ram / 8).max(4 * GIB)).max(gpu_budget(total_ram, None))
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GpuShare {
+    /// Whether this Mac supports changing it (Apple Silicon macOS).
+    pub supported: bool,
+    pub current_bytes: u64,
+    pub default_bytes: u64,
+    pub raised_bytes: u64,
+    pub raised: bool,
+}
+
+pub fn gpu_share() -> GpuShare {
+    let mut sys = System::new();
+    sys.refresh_memory();
+    let total = sys.total_memory();
+    let over = wired_limit_override();
+    GpuShare {
+        supported: cfg!(all(target_os = "macos", target_arch = "aarch64")),
+        current_bytes: gpu_budget(total, over),
+        default_bytes: gpu_budget(total, None),
+        raised_bytes: raised_gpu_budget(total),
+        raised: over.is_some(),
+    }
+}
+
+/// Raises (or resets) how much memory macOS lets the GPU use. Asks for the
+/// administrator password through the standard macOS dialog; lasts until the
+/// Mac restarts.
+pub fn set_gpu_share(raise: bool) -> crate::error::AppResult<GpuShare> {
+    #[cfg(target_os = "macos")]
+    {
+        let mb = if raise { raised_gpu_budget(gpu_share_total()) / (1024 * 1024) } else { 0 };
+        let script = format!("do shell script \"/usr/sbin/sysctl iogpu.wired_limit_mb={mb}\" with administrator privileges");
+        let out = std::process::Command::new("/usr/bin/osascript").args(["-e", &script]).output()?;
+        if !out.status.success() {
+            let err = String::from_utf8_lossy(&out.stderr);
+            return Err(crate::error::AppError::msg(if err.contains("-128") {
+                "Cancelled.".to_string()
+            } else {
+                format!("macOS didn't allow the change: {}", err.trim())
+            }));
+        }
+        Ok(gpu_share())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = raise;
+        Err(crate::error::AppError::msg("This setting is only available on Macs."))
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn gpu_share_total() -> u64 {
+    let mut sys = System::new();
+    sys.refresh_memory();
+    sys.total_memory()
 }
 
 fn wired_limit_override() -> Option<u64> {
@@ -151,6 +253,20 @@ pub struct FitPlan {
     pub gpu_budget_bytes: u64,
     pub total_ram_bytes: u64,
     pub note: String,
+    /// Mixture-of-experts layers whose experts stay in regular memory for the
+    /// CPU (llama.cpp `--n-cpu-moe`), when the model is larger than the GPU's
+    /// share of memory but fits in RAM. 0 = everything on the GPU.
+    pub cpu_moe_layers: u32,
+    /// Layers on the GPU when a dense model is slightly too big ("stretch";
+    /// the rest run on the CPU, noticeably slower). None = all.
+    pub gpu_layers: Option<u32>,
+}
+
+impl FitPlan {
+    /// Part of the model runs on the CPU.
+    pub fn offloaded(&self) -> bool {
+        self.cpu_moe_layers > 0 || self.gpu_layers.is_some()
+    }
 }
 
 /// Compute buffers, Metal heaps and scratch space on top of weights + KV.
@@ -182,6 +298,8 @@ pub fn plan_fit(
         gpu_budget_bytes: gpu_budget,
         total_ram_bytes: total_ram,
         note,
+        cpu_moe_layers: 0,
+        gpu_layers: None,
     };
 
     let gpu_room = gpu_budget.saturating_sub(base);
@@ -218,6 +336,86 @@ pub fn plan_fit(
         gpu_budget_bytes: gpu_budget,
         total_ram_bytes: total_ram,
         note,
+        cpu_moe_layers: 0,
+        gpu_layers: None,
+    }
+}
+
+/// Dense models may run at most this share of their weights on the CPU.
+const MAX_STRETCH: f64 = 0.15;
+
+/// With part of a model on the CPU, the whole file still sits in memory, so
+/// macOS, BYTE's window and the GPU driver need this much left over (3 GB
+/// wasn't enough on 16 GB Macs: big MoE models got killed while loading).
+const OFFLOAD_OS_RESERVE: u64 = 4 * GB;
+/// GPU memory kept free for llama.cpp's working buffers when offloading
+/// (0.3 GB made Metal fail to allocate them for 35B MoE models).
+const OFFLOAD_GPU_MARGIN: u64 = 1_000_000_000;
+
+/// For a model that doesn't fit the GPU's share of memory: runs part of it on
+/// the CPU when the whole model still fits in RAM (Apple Silicon memory is
+/// shared, so nothing is copied). Mixture-of-experts models move whole expert
+/// layers, which costs little speed because each token uses few experts;
+/// dense models move a few layers ("stretch"), which costs more. Returns
+/// `None` when that doesn't help either.
+///
+/// `expert_share`: fraction of the weights that are experts (0 for dense).
+pub fn plan_offload(weights_bytes: u64, arch: ModelArch, desired_ctx: u32, total_ram: u64, gpu_budget: u64, expert_share: f64) -> Option<FitPlan> {
+    let per_tok = arch.kv_bytes_per_token().max(1);
+    let desired = desired_ctx.min(arch.max_ctx).max(MIN_CONTEXT);
+    let base = weights_bytes + RUNTIME_OVERHEAD;
+    let ram_room = total_ram.checked_sub(base + OFFLOAD_OS_RESERVE)?;
+    if ram_room < per_tok * MIN_CONTEXT as u64 || arch.n_layer == 0 {
+        return None;
+    }
+    let context = ((ram_room / per_tok).min(desired as u64) as u32 / 1024 * 1024).max(MIN_CONTEXT);
+    let needed = base + per_tok * context as u64;
+    // What must leave the GPU, with a little margin for buffers.
+    let excess = (needed + OFFLOAD_GPU_MARGIN).saturating_sub(gpu_budget);
+    if excess == 0 {
+        return None; // fits on the GPU: the normal plan applies
+    }
+    let layers = arch.n_layer as u64;
+    let (cpu_moe_layers, gpu_layers, note) = if expert_share > 0.3 {
+        let per_layer = (weights_bytes as f64 * expert_share / layers as f64).max(1.0);
+        let n = ((excess as f64 / per_layer).ceil() as u64 + 1).min(layers);
+        if n as f64 * per_layer < excess as f64 {
+            return None;
+        }
+        (n as u32, None, format!("Runs with {n} of {layers} expert layers on the CPU, a little slower. Close other heavy apps."))
+    } else {
+        if excess as f64 > weights_bytes as f64 * MAX_STRETCH {
+            return None;
+        }
+        let per_layer = (weights_bytes / layers).max(1);
+        let off = excess.div_ceil(per_layer) + 1;
+        let on = layers.saturating_sub(off);
+        (0, Some(on as u32), format!("Stretch mode: {off} of {layers} layers run on the CPU, noticeably slower. Close other heavy apps."))
+    };
+    Some(FitPlan {
+        fit: Fit::Tight,
+        context,
+        needed_bytes: needed,
+        gpu_budget_bytes: gpu_budget,
+        total_ram_bytes: total_ram,
+        note,
+        cpu_moe_layers,
+        gpu_layers,
+    })
+}
+
+#[cfg(test)]
+mod gpu_share_tests {
+    use super::*;
+
+    #[test]
+    fn raised_share_leaves_room_for_macos() {
+        assert_eq!(raised_gpu_budget(16 * GIB), 12 * GIB);
+        assert_eq!(raised_gpu_budget(32 * GIB), 28 * GIB);
+        assert_eq!(raised_gpu_budget(64 * GIB), 56 * GIB);
+        for gb in [8u64, 16, 24, 36, 128] {
+            assert!(raised_gpu_budget(gb * GIB) >= gpu_budget(gb * GIB, None), "{gb}");
+        }
     }
 }
 
@@ -294,5 +492,56 @@ mod tests {
         assert_eq!(gpu_budget(RAM16, Some(12 * GIB)), 12 * GIB);
         assert_eq!(gpu_budget(RAM16, Some(64 * GIB)), RAM16);
         assert_eq!(gpu_budget(48 * GIB, None), 36 * GIB);
+    }
+}
+
+/// Battery charge (percent) and whether it's charging or plugged in; None on desktops.
+pub fn battery() -> Option<(u8, bool)> {
+    #[cfg(target_os = "macos")]
+    {
+        let out = std::process::Command::new("pmset").args(["-g", "batt"]).output().ok()?;
+        parse_pmset(&String::from_utf8_lossy(&out.stdout))
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let dir = std::path::Path::new("/sys/class/power_supply/BAT0");
+        let pct: u8 = std::fs::read_to_string(dir.join("capacity")).ok()?.trim().parse().ok()?;
+        let status = std::fs::read_to_string(dir.join("status")).unwrap_or_default();
+        Some((pct, !status.trim().eq_ignore_ascii_case("discharging")))
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    {
+        None
+    }
+}
+
+/// `pmset -g batt`: "Now drawing from 'Battery Power' … 18%; discharging; 1:52 remaining".
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub fn parse_pmset(text: &str) -> Option<(u8, bool)> {
+    let line = text.lines().find(|l| l.contains('%'))?;
+    let pct: u8 = line.split('%').next()?.rsplit(|c: char| !c.is_ascii_digit()).next()?.parse().ok()?;
+    let on_ac = text.contains("'AC Power'");
+    let charging = on_ac || (line.contains("charging") && !line.contains("discharging")) || line.contains("charged");
+    Some((pct.min(100), charging))
+}
+
+/// Battery saver applies: under 20% and not plugged in.
+pub fn low_battery() -> bool {
+    battery().is_some_and(|(p, charging)| p < 20 && !charging)
+}
+
+#[cfg(test)]
+mod battery_tests {
+    use super::parse_pmset;
+
+    #[test]
+    fn pmset_output_is_read() {
+        let on_battery = "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=4653155)\t18%; discharging; 1:52 remaining present: true\n";
+        assert_eq!(parse_pmset(on_battery), Some((18, false)));
+        let charging = "Now drawing from 'AC Power'\n -InternalBattery-0 (id=4653155)\t57%; charging; 0:48 remaining present: true\n";
+        assert_eq!(parse_pmset(charging), Some((57, true)));
+        let full = "Now drawing from 'AC Power'\n -InternalBattery-0 (id=1)\t100%; charged; 0:00 remaining present: true";
+        assert_eq!(parse_pmset(full), Some((100, true)));
+        assert_eq!(parse_pmset("Now drawing from 'AC Power'\n"), None, "a desktop Mac has no battery");
     }
 }

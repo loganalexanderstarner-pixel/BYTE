@@ -5,10 +5,19 @@
 //
 // Rules: ungated; architecture supported by the pinned engine
 // (scripts/llama-archs.json); chat models only (no embeddings, speech, OCR,
-// image, draft/MTP files); no "uncensored"/"abliterated" re-tunes; one entry
-// per base model, preferring the best-known quantizer.
+// image, draft/MTP files); one entry per base model, preferring the
+// best-known quantizer.
 //
-//   node scripts/discover-models.mjs [--target 500]
+// Two lists:
+//  - official models (catalog-discovered.json): only official model lines;
+//  - community models (catalog-community.json, --community): popular
+//    fine-tunes and merges people make (Dolphin, Hermes, story and role-play
+//    tunes, uncensored versions). Repos Hugging Face marks
+//    "not-for-all-audiences" and explicit names stay out. Each is labelled as
+//    community in the app, with its creator and what makes it different.
+//
+//   node scripts/discover-models.mjs [--target 650]
+//   node scripts/discover-models.mjs --community [--target 160]
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,7 +25,10 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const HF = "https://huggingface.co";
 const argTarget = process.argv.indexOf("--target");
-const TARGET = argTarget > 0 ? Number(process.argv[argTarget + 1]) : 500;
+const COMMUNITY = process.argv.includes("--community");
+const TARGET = argTarget > 0 ? Number(process.argv[argTarget + 1]) : COMMUNITY ? 220 : 650;
+// Community list balance: at most this many uncensored versions, one per base model and size.
+const MAX_UNCENSORED = 45;
 
 const SUPPORTED = new Set(JSON.parse(readFileSync(join(root, "scripts/llama-archs.json"), "utf8")).architectures);
 const curated = JSON.parse(readFileSync(join(root, "scripts/catalog-sources.json"), "utf8"));
@@ -24,8 +36,12 @@ const curatedRepos = new Set([...curated.models, ...curated.helpers].map((m) => 
 
 // Publisher preference (lower index wins for the same base model).
 // Trusted publishers of GGUF files (they re-upload official models faithfully).
-const AUTHORS = ["unsloth", "ggml-org", "bartowski", "lmstudio-community", "Qwen", "google", "microsoft", "mistralai", "ibm-granite", "LiquidAI", "NousResearch", "allenai", "nvidia", "HuggingFaceTB", "LGAI-EXAONE", "tiiuae", "internlm", "openbmb", "second-state"];
-const PER_AUTHOR = { unsloth: 1000, bartowski: 2000, "ggml-org": 400, "lmstudio-community": 1000, "second-state": 400 };
+const AUTHORS = ["unsloth", "ggml-org", "bartowski", "lmstudio-community", "Qwen", "google", "microsoft", "mistralai", "ibm-granite", "LiquidAI", "NousResearch", "allenai", "nvidia", "HuggingFaceTB", "LGAI-EXAONE", "tiiuae", "internlm", "openbmb", "second-state", "mradermacher", "QuantFactory", "MaziyarPanahi"];
+const PER_AUTHOR = { unsloth: 1000, bartowski: 3000, "ggml-org": 400, "lmstudio-community": 1500, "second-state": 600, mradermacher: 3000, QuantFactory: 1000, MaziyarPanahi: 800 };
+// Where community fine-tunes are found (quantizers re-uploading them, and creators who publish GGUF themselves).
+const COMMUNITY_AUTHORS = ["bartowski", "mradermacher", "QuantFactory", "MaziyarPanahi", "lmstudio-community", "TheDrummer", "NousResearch", "DavidAU", "Triangle104", "mlabonne", "huihui-ai"];
+// Explicit content stays out of the community list too.
+const ADULT = /nsfw|erotic|lewd|porn|sex|hentai|smut|horny|fetish|nsfl|explicit|18\+|adult|criminal/i;
 
 // Re-uploads named "<origin>_<model>" (bartowski style) must come from the
 // model's official publisher, so community fine-tunes stay out.
@@ -42,7 +58,7 @@ const OFFICIAL = /^(qwen\d|qwen-|qwq|gemma-|medgemma|translategemma|functiongemm
 const EXCLUDE = /uncensor|abliterat|heretic|obliterat|derestrict|nsfw|erotic|deepsex|roleplay|\brp\b|-rp-|lewd|jailbreak|stheno|lunaris|cydonia|tavern|dolphin|venice|drummer|whiterabbit|novelist|embed|rerank|tts|asr|whisper|ocr|speech|audio|vision|vlm|-vl-|-vl$|vl-gguf|\d\.\dv[-_]|omni|image|diffusion|flux|sdxl|mtp|draft|eagle|reward|-prm|guard|classifier|test|tiny|random|debug|-base-|-base$|pretrain|merge|slerp|distilled|styletune|agi|ins-v\d|or-not|uncenc|lorablat|readyart|scotoma|joycaption|llava|gutenberg|megabeam|special-tokens|reap|ream|whittle|turbo-|swift|anko|fable|claude|opus|gpt-?[45]|sonnet|i1$|-i1-/i;
 // Community fine-tunes that re-upload under official-looking names, and
 // outdated generations that newer models in the catalog replace.
-const FINETUNE = /summary|deepsync|doctor|mesh|iterative|storm|open-sft|smoltalk|openreviewer|[-_]sft|dpo|simpo|sppo|wpo|[-_]cpo|kto|orpo|ablated|lcot|airoboros|prism|0\.6x|11\.5b|3-120b|3some|nephilim|rpmax|arliai|formax|\bsex\b|-sex|ataraxy|enigma|esper|cobalt|fireplace|shiningvaliant|hawkish|sentient|argunaut|supernova|sauerkraut|ultra-instruct|patronus|lynx|smaug|turbcat|boundless|lumen|yggdrasil|twin|eirai|bllossom|geminified|replete|agent007|magpie|chimera|litert|khanacademy|wikihow|legal|finance|korean|chinese|taiwan|luxia|alpha|centauri|wizardlm|sharegpt|docchat|chatqa|taide|elite|gradient|prolong|ezo|translator|flight|med42|sqlcoder|evol|reinstruct|trinity-2|genrm|rlbff|prover|research-reasoning|gsm8k|tool-use|-old$|llama-2|qwen1\.5|gemma-1\.1|gemma-7b|mistral-7b-instruct-v0\.[12]|deepseek-llm|granite-7b|phi-3-mini-4k|phi-3\.1|colbert|bpe-fix|-aps|japanese|262k/i;
+const FINETUNE = /summary|deepsync|doctor|mesh|iterative|storm|open-sft|smoltalk|openreviewer|[-_]sft|dpo|simpo|sppo|wpo|[-_]cpo|kto|orpo|ablated|lcot|airoboros|prism|0\.6x|11\.5b|3-120b|3some|nephilim|rpmax|arliai|formax|\bsex\b|-sex|ataraxy|enigma|esper|cobalt|fireplace|shiningvaliant|hawkish|sentient|argunaut|supernova|sauerkraut|ultra-instruct|patronus|lynx|smaug|turbcat|boundless|lumen|yggdrasil|twin|eirai|bllossom|geminified|replete|agent007|magpie|chimera|litert|khanacademy|wikihow|luxia|alpha|centauri|wizardlm|sharegpt|docchat|chatqa|taide|elite|gradient|prolong|ezo|flight|evol|reinstruct|trinity-2|genrm|rlbff|prover|research-reasoning|gsm8k|tool-use|-old$|colbert|bpe-fix|-aps|262k/i;
 const EXCLUDE_AUTHORS = new Set(["TheDrummer", "cognitivecomputations", "Sao10K", "NeverSleep", "Undi95"]);
 
 async function json(url) {
@@ -100,7 +116,7 @@ const FAMILIES = [
   [/hunyuan/, "Hunyuan", "Tencent's Hunyuan models.", ["multilingual"]],
   [/minimax/, "MiniMax", "MiniMax's large mixture-of-experts models.", ["reasoning"]],
   [/kimi/, "Kimi", "Moonshot's Kimi models.", ["reasoning"]],
-  [/ornith/, "Ornith", "Ornith models.", ["reasoning"]],
+  [/ornith/, "Ornith", "Built for coding agents and step-by-step reasoning", ["reasoning"]],
   [/command|aya|cohere/, "Cohere", "Cohere's Command and Aya models: retrieval and many languages.", ["multilingual"]],
   [/falcon/, "Falcon", "TII's Falcon models.", ["writing"]],
   [/internlm/, "InternLM", "Shanghai AI Lab's InternLM models.", ["reasoning"]],
@@ -112,7 +128,7 @@ const FAMILIES = [
   [/minicpm/, "MiniCPM", "OpenBMB's MiniCPM: small models that punch above their size.", ["fast"]],
   [/arcee|afm/, "Arcee", "Arcee AI's efficient general models.", ["writing"]],
   [/apriel/, "Apriel", "ServiceNow's Apriel reasoning models.", ["reasoning"]],
-  [/glm/, "GLM", "Zhipu's GLM models.", ["reasoning", "multilingual"]],
+  [/glm/, "GLM", "Zhipu's GLM: strong reasoning and coding, fluent in English and Chinese", ["reasoning", "multilingual"]],
 ];
 
 function family(name) {
@@ -198,7 +214,7 @@ async function main() {
       const origin = repoName.includes("_") ? repoName.split("_")[0] : null;
       if (origin && (EXCLUDE_AUTHORS.has(origin) || !OFFICIAL_ORIGINS.has(origin.toLowerCase()))) continue;
       if (!OFFICIAL.test(baseName(m.id)) || FINETUNE.test(baseName(m.id))) continue;
-      if ((m.createdAt ?? "2025") < "2024-04") continue;
+      if ((m.createdAt ?? "2025") < "2023-09") continue;
       if (!family(baseName(m.id)).family) continue;
       if (curatedRepos.has(m.id.toLowerCase())) continue;
       if ((m.downloads ?? 0) < 400) continue;
@@ -270,4 +286,129 @@ async function main() {
   writeFileSync(join(root, "scripts/catalog-discovered.json"), `${JSON.stringify({ $comment: "Generated by scripts/discover-models.mjs — do not edit by hand; curate in catalog-sources.json instead.", generated: new Date().toISOString().slice(0, 10), models: out }, null, 1)}\n`);
 }
 
-main();
+const NOT_CHAT = /llava|joycaption|ui-mate|ui-tars|embed|rerank|tts|asr|whisper|ocr|speech|audio|vision|vlm|-vl-|-vl$|vl-gguf|omni|image|diffusion|flux|sdxl|mtp|draft|eagle|reward|-prm|guard|classifier|test|random|debug|-base-|-base$|pretrain|i1$|-i1-|special-tokens/i;
+
+/** What kind of community model this is, from its name. */
+function communityKind(base) {
+  if (/abliterat|uncensor|heretic|obliterat|derestrict|lorablat/.test(base)) return "uncensored";
+  if (/dolphin/.test(base)) return "dolphin";
+  if (/roleplay|\brp\b|-rp-|cydonia|rocinante|magnum|stheno|lunaris|mythomax|tavern|behemoth|skyfall|anubis|valkyrie|fallen|unslop|nemomix|mn-12b|celeste|eva-|chronos|story|writer|novel|creative|gutenberg|darkest|dark-/.test(base)) return "stories";
+  if (/coder|code/.test(base)) return "coding";
+  if (/r1|reason|think|math/.test(base)) return "reasoning";
+  return "general";
+}
+
+const KIND = {
+  uncensored: ["Uncensored version: its safety tuning was removed, so it refuses far less.", ["uncensored"]],
+  dolphin: ["Dolphin: an uncensored, very steerable assistant from Cognitive Computations.", ["uncensored", "writing"]],
+  stories: ["Made by the community for stories, characters and role-play.", ["writing", "stories"]],
+  coding: ["Community fine-tune for programming.", ["coding"]],
+  reasoning: ["Community fine-tune for step-by-step reasoning.", ["reasoning"]],
+  general: ["Community fine-tune or merge of an open model.", ["writing"]],
+};
+
+async function community() {
+  const officialIds = new Set(JSON.parse(readFileSync(join(root, "scripts/catalog-discovered.json"), "utf8")).models.map((m) => m.id));
+  const seen = new Map();
+  for (const m of [...curated.models, ...curated.helpers]) seen.set(baseName(m.repo), { skip: true });
+  for (const author of COMMUNITY_AUTHORS) {
+    const limit = PER_AUTHOR[author] ?? 600;
+    const url = `${HF}/api/models?author=${author}&filter=gguf&sort=downloads&direction=-1&limit=${limit}&expand[]=gguf&expand[]=gated&expand[]=downloads&expand[]=createdAt&expand[]=tags`;
+    let list;
+    try {
+      list = await json(url);
+    } catch (e) {
+      console.warn(`! ${author}: ${e.message}`);
+      continue;
+    }
+    for (const m of list) {
+      const arch = m.gguf?.architecture;
+      if (!arch || !SUPPORTED.has(arch) || m.gated) continue;
+      if (NOT_CHAT.test(m.id) || ADULT.test(m.id) || (m.tags ?? []).includes("not-for-all-audiences")) continue;
+      if ((m.downloads ?? 0) < 1500 || (m.createdAt ?? "2025") < "2024-01") continue;
+      const base = baseName(m.id);
+      // Official models belong in the regular list.
+      const official = OFFICIAL.test(base) && !FINETUNE.test(base) && !EXCLUDE.test(m.id);
+      if (official || officialIds.has(base.replace(/[^a-z0-9.]+/g, "-")) || seen.has(base)) continue;
+      const tmpl = m.gguf?.chat_template ?? "";
+      if (!tmpl) continue;
+      seen.set(base, {
+        repo: m.id,
+        base,
+        arch,
+        total: m.gguf.total ?? null,
+        downloads: m.downloads ?? 0,
+        created: m.createdAt ?? null,
+        tools: /tools/.test(tmpl),
+        thinking: /enable_thinking|<think>|reasoning/.test(tmpl),
+      });
+    }
+    console.log(`${author}: ${seen.size} candidates so far`);
+  }
+  const ranked = [...seen.values()].filter((c) => !c.skip && c.total && c.total >= 0.5e9).sort((a, b) => b.downloads - a.downloads);
+  const out = [];
+  const names = new Set();
+  const uncensoredSeen = new Set();
+  let uncensored = 0;
+  for (const c of ranked) {
+    if (out.length >= TARGET) break;
+    const kindNow = communityKind(c.base);
+    if (kindNow === "uncensored") {
+      // "qwen2.5-14b-instruct-abliterated-v2" and "…-heretic" are the same model for the list.
+      const key = `${(family(c.base).family ?? c.arch)}-${Math.round((c.total ?? 0) / 1e9)}`;
+      if (uncensored >= MAX_UNCENSORED || uncensoredSeen.has(key)) continue;
+      uncensoredSeen.add(key);
+      uncensored++;
+    }
+    let files;
+    try {
+      const tree = await json(`${HF}/api/models/${c.repo}/tree/main?recursive=1`);
+      files = tree.filter((f) => f.type === "file" && f.path.endsWith(".gguf") && !/mmproj|mtp/i.test(f.path)).map((f) => f.path);
+    } catch {
+      continue;
+    }
+    const variants = pickQuants(files);
+    if (!variants.length) continue;
+    if (c.total * 0.45 > 380e9) continue;
+    const name = c.repo.split("/")[1].replace(/^[^_]+_/, "").replace(/[-_]GGUF$/i, "").replace(/[-_]/g, " ").replace(/\s+/g, " ").trim();
+    if (names.has(name.toLowerCase())) continue;
+    names.add(name.toLowerCase());
+    const p = paramsB(c.total);
+    const active = activeFromName(c.base);
+    const kind = communityKind(c.base);
+    const [tagline, kindTags] = KIND[kind];
+    const fam = family(c.base).family ?? family(c.arch).family ?? "Community";
+    // Uncensored versions, Dolphin and story/role-play tunes are community-made;
+    // the rest are independent models from smaller makers (listed as regular models).
+    const isCommunity = ["uncensored", "dolphin", "stories"].includes(kind);
+    const tags = new Set([...(isCommunity ? ["community"] : []), ...kindTags]);
+    if (p !== null && p <= 4.5) tags.add("small").add("fast");
+    if (active !== null) tags.add("moe");
+    if (c.thinking) tags.add("reasoning");
+    out.push({
+      id: `${isCommunity ? "community-" : ""}${c.base.replace(/[^a-z0-9.]+/g, "-").replace(/^-|-$/g, "")}`,
+      name,
+      family: fam,
+      released: c.created ? c.created.slice(0, 7) : null,
+      tagline: isCommunity ? tagline : family(c.base).blurb !== "Open model for general chat." ? family(c.base).blurb : "Open model from an independent maker.",
+      usedFor: kind === "stories" ? "stories, characters and role-play" : kind === "coding" ? "programming help" : "everyday chat with a different personality",
+      tags: [...tags],
+      thinking: c.thinking,
+      tools: c.tools,
+      license: null,
+      // Unknown quality: never ranked above official models of the same size.
+      quality: Math.max(15, autoQuality(p ?? 7, active, c.created) - 6),
+      paramsB: p,
+      activeB: active,
+      repo: c.repo,
+      variants,
+      auto: true,
+    });
+    process.stdout.write(".");
+  }
+  console.log(`\nwrote ${out.length} community models`);
+  writeFileSync(join(root, "scripts/catalog-community.json"), `${JSON.stringify({ $comment: "Generated by scripts/discover-models.mjs --community — do not edit by hand.", generated: new Date().toISOString().slice(0, 10), models: out }, null, 1)}\n`);
+}
+
+if (COMMUNITY) community();
+else main();

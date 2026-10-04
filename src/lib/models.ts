@@ -48,7 +48,13 @@ export const TAG_LABELS: Record<string, string> = {
   fast: "Fast",
   small: "Small",
   flagship: "Flagship",
+  community: "Community",
+  stories: "Stories",
+  uncensored: "Uncensored",
 };
+
+/** Filters that show community fine-tunes (hidden from the main list otherwise). */
+export const COMMUNITY_CAPS = ["community", "stories", "uncensored"];
 
 /** Which fit bucket a model falls into on this Mac. */
 export function fitGroup(m: ModelStatus): "great" | "tight" | "toobig" {

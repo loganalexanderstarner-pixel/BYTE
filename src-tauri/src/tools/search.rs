@@ -1,5 +1,10 @@
-//! Keyless web search. Tries DuckDuckGo (HTML, then Lite), then Bing, and
-//! spaces requests out so search engines don't throttle BYTE.
+//! Web search. With a BYTE cloud key, the cloud's `/api/search` (SearXNG on
+//! the cluster: Google, Bing, DuckDuckGo and Brave merged) answers first.
+//! Without one, or when it can't help, the keyless chain runs: DuckDuckGo
+//! (HTML, then Lite), then Bing. Either way BYTE keeps
+//! only results that are actually about the query (Bing serves unrelated
+//! pages to clients it thinks are bots), adds matching Wikipedia articles,
+//! and spaces requests out so search engines don't throttle BYTE.
 
 use std::time::{Duration, Instant};
 
@@ -24,10 +29,15 @@ pub const BROWSER_UA: &str =
 
 /// Minimum gap between two outgoing searches.
 const MIN_GAP: Duration = Duration::from_millis(1200);
-static LAST_SEARCH: Mutex<Option<Instant>> = Mutex::const_new(None);
+/// When each scraped search engine was last asked. Only DuckDuckGo and Bing
+/// (scraped pages that throttle bots) are spaced out, each on its own, so a
+/// Bing fallback doesn't wait for DuckDuckGo. The cloud's search, Wikipedia and
+/// the other services have real APIs and aren't paced.
+static LAST_DDG: Mutex<Option<Instant>> = Mutex::const_new(None);
+static LAST_BING: Mutex<Option<Instant>> = Mutex::const_new(None);
 
-async fn pace() {
-    let mut last = LAST_SEARCH.lock().await;
+async fn pace(engine: Engine) {
+    let mut last = if engine.is_ddg() { LAST_DDG.lock().await } else { LAST_BING.lock().await };
     if let Some(t) = *last {
         let since = t.elapsed();
         if since < MIN_GAP {
@@ -37,23 +47,216 @@ async fn pace() {
     *last = Some(Instant::now());
 }
 
-/// Runs a web search, falling back across engines until one returns results.
-pub async fn search(client: &reqwest::Client, query: &str, max: usize) -> AppResult<Vec<SearchResult>> {
+/// After DuckDuckGo throttles BYTE (a 202 bot check), leave it alone this long.
+const DDG_COOLDOWN: Duration = Duration::from_secs(120);
+static DDG_BLOCKED_AT: Mutex<Option<Instant>> = Mutex::const_new(None);
+
+/// After the cloud's search says 429 (60 searches per 5 minutes) or fails,
+/// BYTE leaves it alone for a while instead of retrying.
+static CLOUD_RESTING_UNTIL: Mutex<Option<Instant>> = Mutex::const_new(None);
+
+/// Search results and where they came from ("your BYTE cloud", "duckduckgo", …).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Searched {
+    pub results: Vec<SearchResult>,
+    pub source: String,
+}
+
+/// Asks the cloud's search. `Ok(None)` means "use the keyless chain".
+async fn cloud_search(cloud: &crate::cloud::CloudClient, query: &str, max: usize) -> Option<Vec<SearchResult>> {
+    if CLOUD_RESTING_UNTIL.lock().await.is_some_and(|t| Instant::now() < t) {
+        return None;
+    }
+    let rest = |secs: u64| async move {
+        *CLOUD_RESTING_UNTIL.lock().await = Some(Instant::now() + Duration::from_secs(secs));
+    };
+    match cloud.search(query, max.max(8)).await {
+        Ok((engine, results)) => {
+            let found = results.len();
+            let relevant = on_topic(results.clone(), query);
+            // SearXNG merges several engines, so its results are trusted a little
+            // more: one topic word is enough if the stricter check leaves nothing.
+            let relevant = if relevant.is_empty() && engine == "searxng" { keep_matching(results, query, 1) } else { relevant };
+            // "ddgs" is the same DuckDuckGo BYTE scrapes itself: same suspicion.
+            let good = !relevant.is_empty() && (engine == "searxng" || relevant.len() * 2 >= found.min(6));
+            log::info!("cloud search ({engine}): {} of {found} results on topic for {query:?}", relevant.len());
+            good.then_some(relevant)
+        }
+        Err(crate::cloud::CloudError::Limited(m)) => {
+            log::warn!("cloud search rate-limited, resting 5 minutes: {m}");
+            rest(300).await;
+            None
+        }
+        Err(crate::cloud::CloudError::Unauthorized) => {
+            rest(600).await;
+            None
+        }
+        Err(e) => {
+            log::warn!("cloud search failed: {}", AppError::from(e));
+            rest(60).await;
+            None
+        }
+    }
+}
+
+/// Runs a web search, falling back across engines until one returns results
+/// that are about the query. Matching Wikipedia articles are mixed in (they're
+/// reliable for people, companies, places and things).
+pub async fn search(client: &reqwest::Client, cloud: Option<&crate::cloud::CloudClient>, query: &str, max: usize) -> AppResult<Searched> {
     let query = query.trim();
     if query.is_empty() {
         return Err(AppError::msg("empty search query"));
     }
-    let mut errors = Vec::new();
-    for engine in [Engine::DdgHtml, Engine::DdgLite, Engine::Bing] {
-        pace().await;
-        match engine.run(client, query).await {
-            Ok(results) if !results.is_empty() => return Ok(dedupe(results, max)),
-            Ok(_) => errors.push(format!("{}: no results", engine.name())),
-            Err(e) => errors.push(format!("{}: {e}", engine.name())),
+    // The same search in the last hour (a follow-up, Regenerate, research
+    // repeating a query): answer from memory.
+    let key = format!("{}|{max}|{}", cloud.is_some(), super::cache::norm(query));
+    if let Some(hit) = super::cache::SEARCHES.get(&key) {
+        return Ok(hit);
+    }
+    let found = search_uncached(client, cloud, query, max).await?;
+    let size = found.results.iter().map(|r| r.title.len() + r.url.len() + r.snippet.len()).sum::<usize>() + 64;
+    super::cache::SEARCHES.put(&key, found.clone(), size);
+    Ok(found)
+}
+
+async fn search_uncached(client: &reqwest::Client, cloud: Option<&crate::cloud::CloudClient>, query: &str, max: usize) -> AppResult<Searched> {
+    let wiki = wikipedia(client, query);
+    let web = async {
+        if let Some(c) = cloud {
+            if let Some(results) = cloud_search(c, query, max).await {
+                return Ok((results, "your BYTE cloud".to_string()));
+            }
+        }
+        let mut errors = Vec::new();
+        for engine in [Engine::DdgHtml, Engine::DdgLite, Engine::Bing] {
+            if engine.is_ddg() && DDG_BLOCKED_AT.lock().await.is_some_and(|t| t.elapsed() < DDG_COOLDOWN) {
+                errors.push(format!("{}: resting after a bot check", engine.name()));
+                continue;
+            }
+            pace(engine).await;
+            match engine.run(client, query).await {
+                Ok(results) => {
+                    let found = results.len();
+                    let relevant = on_topic(results, query);
+                    // Mostly unrelated results mean the engine is serving junk: try the next one.
+                    if !relevant.is_empty() && relevant.len() * 2 >= found.min(6) {
+                        return Ok((relevant, engine.name().to_string()));
+                    }
+                    errors.push(format!("{}: {} of {found} results on topic", engine.name(), relevant.len()));
+                }
+                Err(e) => {
+                    if engine.is_ddg() && e.to_string().contains("202") {
+                        *DDG_BLOCKED_AT.lock().await = Some(Instant::now());
+                    }
+                    errors.push(format!("{}: {e}", engine.name()));
+                }
+            }
+        }
+        Err(errors)
+    };
+    let (web, wiki) = tokio::join!(web, wiki);
+    // Wikipedia's own search already matched these; one topic word in the title or snippet is enough.
+    let wiki = keep_matching(wiki.unwrap_or_default(), query, 1);
+    match web {
+        Ok((results, source)) => Ok(Searched { results: dedupe(blend(results, wiki), max), source }),
+        Err(errors) => {
+            log::warn!("web search engines failed for {query:?}: {errors:?}");
+            if wiki.is_empty() {
+                Err(AppError::msg("web search is unavailable right now (the search engines didn't respond); try again in a minute"))
+            } else {
+                Ok(Searched { results: dedupe(wiki, max), source: "wikipedia".into() })
+            }
         }
     }
-    log::warn!("all search engines failed for {query:?}: {errors:?}");
-    Err(AppError::msg("web search is unavailable right now (the search engines didn't respond); try again in a minute"))
+}
+
+/// Web results with the best Wikipedia article second (after the top web
+/// result), so the pages BYTE reads include it.
+fn blend(mut web: Vec<SearchResult>, wiki: Vec<SearchResult>) -> Vec<SearchResult> {
+    if let Some(w) = wiki.into_iter().next() {
+        let already = web.iter().any(|r| r.url.contains("wikipedia.org/wiki/"));
+        if !already {
+            web.insert(1.min(web.len()), w);
+        }
+    }
+    web
+}
+
+/// Words that say nothing about the topic.
+const QUERY_NOISE: &[&str] = &[
+    "the", "and", "for", "are", "was", "were", "what", "whats", "when", "where", "which", "who", "whom", "why", "how",
+    "does", "did", "can", "could", "should", "would", "will", "much", "many", "with", "this", "that", "these",
+    "those", "there", "from", "about", "into", "than", "then", "have", "has", "had", "you", "your", "get", "got",
+    "is", "a", "an", "of", "to", "in", "on", "at", "by", "or", "it", "its", "my", "me", "i", "do", "be", "any",
+    "best", "good", "worth", "buy", "buying", "now", "current", "currently", "latest", "new", "today", "tell", "know",
+    "fix", "error", "make", "use", "using", "way", "ways", "some",
+];
+
+fn topic_words(query: &str) -> Vec<String> {
+    query
+        .to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty() && !QUERY_NOISE.contains(w) && (w.len() > 1 || w.chars().all(|c| c.is_ascii_digit())))
+        .map(str::to_string)
+        .collect()
+}
+
+/// Keeps results that mention enough of the topic words (two, or a third of a
+/// long query) in their title, address or snippet.
+pub fn on_topic(results: Vec<SearchResult>, query: &str) -> Vec<SearchResult> {
+    let n = topic_words(query).len();
+    keep_matching(results, query, if n <= 1 { 1 } else { 2.max(n.div_ceil(3)) })
+}
+
+fn keep_matching(results: Vec<SearchResult>, query: &str, need: usize) -> Vec<SearchResult> {
+    let words = topic_words(query);
+    if words.is_empty() {
+        return results;
+    }
+    results
+        .into_iter()
+        .filter(|r| {
+            let hay = format!("{} {} {}", r.title, r.url, r.snippet).to_lowercase();
+            words.iter().filter(|w| hay.contains(w.as_str())).count() >= need
+        })
+        .collect()
+}
+
+/// Wikipedia's search API: reliable and keyless. Returns article links.
+async fn wikipedia(client: &reqwest::Client, query: &str) -> AppResult<Vec<SearchResult>> {
+    let words = topic_words(query).join(" ");
+    if words.is_empty() {
+        return Ok(Vec::new());
+    }
+    let v: serde_json::Value = client
+        .get("https://en.wikipedia.org/w/api.php")
+        .query(&[("action", "query"), ("list", "search"), ("srsearch", words.as_str()), ("format", "json"), ("srlimit", "3"), ("utf8", "1")])
+        .header(reqwest::header::USER_AGENT, "BYTE/1.0 (desktop assistant; https://github.com/loganalexanderstarner-pixel/BYTE)")
+        .timeout(Duration::from_secs(8))
+        .send()
+        .await?
+        .json()
+        .await?;
+    Ok(parse_wikipedia(&v))
+}
+
+pub fn parse_wikipedia(v: &serde_json::Value) -> Vec<SearchResult> {
+    v["query"]["search"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|r| {
+                    let title = r["title"].as_str()?;
+                    let snippet = Html::parse_fragment(r["snippet"].as_str().unwrap_or("")).root_element().text().collect::<String>();
+                    Some(SearchResult {
+                        title: format!("{title} - Wikipedia"),
+                        url: format!("https://en.wikipedia.org/wiki/{}", title.replace(' ', "_")),
+                        snippet: snippet.split_whitespace().collect::<Vec<_>>().join(" "),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 #[derive(Clone, Copy)]
@@ -64,6 +267,10 @@ enum Engine {
 }
 
 impl Engine {
+    fn is_ddg(self) -> bool {
+        matches!(self, Engine::DdgHtml | Engine::DdgLite)
+    }
+
     fn name(self) -> &'static str {
         match self {
             Engine::DdgHtml => "duckduckgo",
@@ -201,6 +408,18 @@ fn dedupe(results: Vec<SearchResult>, max: usize) -> Vec<SearchResult> {
 mod tests {
     use super::*;
 
+    #[tokio::test]
+    async fn engines_are_paced_separately() {
+        // DuckDuckGo then Bing: no wait between different engines.
+        let t = Instant::now();
+        pace(Engine::DdgHtml).await;
+        pace(Engine::Bing).await;
+        assert!(t.elapsed() < Duration::from_millis(300), "{:?}", t.elapsed());
+        // The same engine twice waits for the gap.
+        pace(Engine::DdgLite).await;
+        assert!(t.elapsed() >= Duration::from_millis(1000), "{:?}", t.elapsed());
+    }
+
     fn fixture(name: &str) -> String {
         std::fs::read_to_string(format!("{}/tests/fixtures/{name}", env!("CARGO_MANIFEST_DIR"))).unwrap()
     }
@@ -247,6 +466,63 @@ mod tests {
         assert_eq!(clean_ddg_url("javascript:alert(1)"), None);
         // base64url of "https://tauri.app/"
         assert_eq!(clean_bing_url("https://www.bing.com/ck/a?!&u=a1aHR0cHM6Ly90YXVyaS5hcHAv&ntb=1").as_deref(), Some("https://tauri.app/"));
+    }
+
+    fn r(title: &str, url: &str) -> SearchResult {
+        SearchResult { title: title.into(), url: url.into(), snippet: String::new() }
+    }
+
+    #[test]
+    fn junk_results_are_dropped() {
+        // What Bing served for "How much does a Tesla Model 3 cost".
+        let junk = vec![
+            r("Create a Google Account for Gmail", "https://support.google.com/mail/answer/56256"),
+            r("Definition of MUCH", "https://www.merriam-webster.com/dictionary/much"),
+            r("Can I upgrade to Windows 11? | Microsoft Support", "https://support.microsoft.com/windows-11"),
+        ];
+        assert!(on_topic(junk, "How much does a Tesla Model 3 cost").is_empty());
+        let good = vec![r("Tesla Model 3 price and specs", "https://www.edmunds.com/tesla/model-3/"), r("Model 3 | Tesla", "https://www.tesla.com/model3")];
+        assert_eq!(on_topic(good, "How much does a Tesla Model 3 cost").len(), 2);
+        // "What is a CEO?" isn't about OpenAI's CEO.
+        let ceo = vec![r("What is a CEO? Roles and Responsibilities", "https://www.investopedia.com/terms/c/ceo.asp"), r("OpenAI - Wikipedia", "https://en.wikipedia.org/wiki/OpenAI")];
+        let kept = on_topic(ceo, "Who is the CEO of OpenAI");
+        assert!(kept.is_empty(), "each page has only one of the two topic words: {kept:?}");
+        let both = vec![r("Sam Altman returns as CEO of OpenAI", "https://www.theverge.com/openai-ceo")];
+        assert_eq!(on_topic(both, "Who is the CEO of OpenAI").len(), 1);
+        assert!(on_topic(vec![r("OpenAI", "https://openai.com")], "").len() == 1);
+    }
+
+    #[test]
+    fn wikipedia_articles_join_the_results_second() {
+        let v = serde_json::json!({ "query": { "search": [
+            { "title": "OpenAI", "snippet": "<span class=\"searchmatch\">OpenAI</span> is an American AI company" },
+            { "title": "Sam Altman", "snippet": "CEO of OpenAI" }
+        ]}});
+        let wiki = parse_wikipedia(&v);
+        assert_eq!(wiki[0].url, "https://en.wikipedia.org/wiki/OpenAI");
+        assert_eq!(wiki[0].snippet, "OpenAI is an American AI company");
+        assert_eq!(wiki[1].url, "https://en.wikipedia.org/wiki/Sam_Altman");
+        let web = vec![r("OpenAI leadership", "https://openai.com/about"), r("News", "https://news.example/openai")];
+        let mixed = blend(web, wiki);
+        assert_eq!(mixed[1].url, "https://en.wikipedia.org/wiki/OpenAI");
+        assert_eq!(mixed.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn the_cloud_answers_first_and_junk_falls_back() {
+        use wiremock::matchers::{method, path, query_param};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        let server = MockServer::start().await;
+        let reply = |engine: &str, title: &str, href: &str| {
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "engine": engine, "results": [{ "title": title, "body": "", "href": href }] }))
+        };
+        Mock::given(method("GET")).and(path("/api/search")).and(query_param("q", "steelers schedule")).respond_with(reply("searxng", "Steelers 2026 Schedule", "https://www.steelers.com/schedule/")).mount(&server).await;
+        Mock::given(method("GET")).and(path("/api/search")).and(query_param("q", "tesla model price")).respond_with(reply("ddgs", "Definition of MUCH", "https://www.merriam-webster.com/dictionary/much")).mount(&server).await;
+        let cloud = crate::cloud::CloudClient::new(&server.uri(), "byte_test_key");
+        let got = cloud_search(&cloud, "steelers schedule", 5).await.expect("searxng results are used");
+        assert_eq!(got[0].url, "https://www.steelers.com/schedule/");
+        // DuckDuckGo junk from the cloud's fallback: BYTE tries its own chain instead.
+        assert!(cloud_search(&cloud, "tesla model price", 5).await.is_none());
     }
 
     #[test]

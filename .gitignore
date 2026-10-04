@@ -25,3 +25,13 @@ dist-ssr
 
 # Local build caches
 .cache/
+
+# UI screenshot output
+tools/ui-shots/out/
+scripts/catalog-cards.json
+
+# Signing keys (Android keystores etc.): never commit
+*.jks
+*.keystore
+*.p12
+*.pfx
