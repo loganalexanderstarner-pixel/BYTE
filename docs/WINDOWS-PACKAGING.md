@@ -81,14 +81,22 @@ fall back to CPU that leaves them wondering why it is slow.
 ## Window chrome
 
 `tauri.conf.json` sets `titleBarStyle: Overlay` and `hiddenTitle: true`, both
-**macOS-only**. Windows ignored them and drew a standard titlebar where the Mac
-runs content under the window controls -- a visible divergence in a project
-whose rule is the same look everywhere.
+**macOS-only**. Windows ignores them and draws its standard title bar, with the title
+from the config. That is the right behaviour and needs no Windows override.
 
-`tauri.windows.conf.json` now states the Windows behaviour explicitly rather
-than leaving it accidental. Matching the Mac exactly means `decorations: false`
-with window controls drawn in React, which is work in the shared frontend, so
-it is deliberately the next step rather than half-done here.
+**Do not override `app.windows` in `tauri.windows.conf.json`.** Tauri merges platform
+configs as JSON merge patches, and a merge patch **replaces arrays wholesale instead of
+merging them**. An earlier version of that file listed one window with two keys, and on
+Windows the window silently lost its title, its 1240x820 size, its minimum size and its
+centring: it opened as "Tauri App" at about 800x600. Nothing failed and no test noticed;
+it was found by taking a screenshot of the running app. The same rule explains why
+`tauri.windows-release.conf.json` lists every `externalBin` and resource in full.
+
+The title bar's colour is a separate matter: Windows draws its own, light by default,
+which is a bright strip across a dark app. `lib/titlebar.ts` sets the native theme from the
+BYTE theme's real background colour, on Windows only, so the Mac's overlay is untouched.
+Matching the Mac exactly (no system title bar, controls drawn in React) is shared-frontend
+work and is deliberately left as a later step.
 
 ## WebView2
 
