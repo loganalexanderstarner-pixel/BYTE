@@ -157,10 +157,6 @@ pub fn run() {
                 log::error!("couldn't finish the restore/erase: {e}");
             }
             let state = AppState::new(paths);
-            let active = {
-                let s = state.settings.blocking_lock();
-                s.active_model.clone().map(|m| (m, s.context_size))
-            };
             let engine = state.engine.clone();
             engine.reap_stale();
             state.extras.reap_stale();
@@ -251,28 +247,57 @@ pub fn run() {
             // Preload the model at launch so the first answer is fast.
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                match active {
-                    Some((model, ctx)) => {
-                        let opts = tune::launch_opts(&handle.state::<AppState>(), &catalog, &model).await;
-                        if let Err(e) = engine.start(&handle, models_dir, &catalog, &model, ctx, 0, opts).await {
-                            log::warn!("engine did not start at launch: {e}");
-                            return;
-                        }
-                        // Bring back the models that were loaded alongside it.
-                        let state = handle.state::<AppState>();
-                        let extra = state.settings.lock().await.loaded_alongside.clone();
-                        for key in extra {
-                            if let Err(e) = commands::load_extra(&handle, &state, &key).await {
-                                log::warn!("couldn't reload {key} alongside the main model: {e}");
-                            }
-                        }
-                        // First time this model runs on this Mac: find its fastest settings.
-                        commands::auto_tune(&handle);
+                let state = handle.state::<AppState>();
+                let (chosen, ctx, tuned) = {
+                    let s = state.settings.lock().await;
+                    (s.active_model.clone(), s.context_size, s.tuning.keys().cloned().collect::<Vec<_>>())
+                };
+                // Use the chosen model, or another downloaded one when the choice is lost or its file is gone,
+                // so "No model" only ever means nothing is downloaded (an Android restart showed it wrongly).
+                let model = match models::choose_active(&catalog, &models_dir, chosen.as_deref(), &tuned) {
+                    models::Startup::Use(key) => {
+                        engine.set_note(format!("launch: using {key}")).await;
+                        key
                     }
-                    None => {
+                    models::Startup::Switched { key, from } => {
+                        engine.set_note(format!("launch: {} is not usable, switched to {key}", from.as_deref().unwrap_or("(no model chosen)"))).await;
+                        log::warn!("the chosen model {from:?} is not usable; starting {key} instead");
+                        let mut s = state.settings.lock().await;
+                        let mut next = s.clone();
+                        next.active_model = Some(key.clone());
+                        if next.save(&state.paths.settings_file).is_ok() {
+                            *s = next;
+                        }
+                        key
+                    }
+                    models::Startup::Missing(key) => {
+                        engine.set_note(format!("launch: {key} is chosen but its file is missing or differs from the catalog; nothing else is downloaded")).await;
+                        engine
+                            .set_status(&handle, engine::EngineStatus::Error { message: "The model file is missing or doesn't match the catalog. Download it again in Settings → Models.".into() })
+                            .await;
+                        return;
+                    }
+                    models::Startup::NothingDownloaded => {
+                        engine.set_note("launch: no chat model is downloaded").await;
                         let _ = tauri::Emitter::emit(&handle, engine::STATUS_EVENT, engine::EngineStatus::NoModel);
+                        return;
+                    }
+                };
+                let opts = tune::launch_opts(&state, &catalog, &model).await;
+                if let Err(e) = engine.start(&handle, models_dir, &catalog, &model, ctx, 0, opts).await {
+                    log::warn!("engine did not start at launch: {e}");
+                    engine.set_note(format!("launch: {model} did not start: {e}")).await;
+                    return;
+                }
+                // Bring back the models that were loaded alongside it.
+                let extra = state.settings.lock().await.loaded_alongside.clone();
+                for key in extra {
+                    if let Err(e) = commands::load_extra(&handle, &state, &key).await {
+                        log::warn!("couldn't reload {key} alongside the main model: {e}");
                     }
                 }
+                // First time this model runs on this Mac: find its fastest settings.
+                commands::auto_tune(&handle);
             });
             Ok(())
         })

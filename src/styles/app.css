@@ -858,6 +858,7 @@ a {
 
 .banner {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   max-width: var(--content-max);
@@ -874,8 +875,10 @@ a {
 .banner.warn {
   border-color: color-mix(in srgb, var(--warn) 45%, transparent);
 }
+/* On a narrow screen the text takes its own row and the buttons wrap below it. */
 .banner .grow {
-  flex: 1;
+  flex: 1 1 14rem;
+  min-width: 0;
 }
 
 /* ---------- modal ---------- */

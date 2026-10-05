@@ -23,6 +23,25 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — "No model" after the phone was closed and reopened: heal at launch, wake on return, honest banner
+- **Why:** the owner closed the Fold after using BYTE unfolded and, on reopening, the badge said "No model" and the banner
+  "BYTE needs a model" (text squeezed into one-word lines, cards hidden behind it) although a model was downloaded.
+  "No model" is only set when no model is chosen at launch or the chosen file isn't on disk (size differs from the
+  catalog). The cause isn't provable from the code, so this makes it visible and removes the dead end.
+- **What:**
+  - `models::choose_active` + `Startup`: the chosen model if its file is there, else a downloaded chat model (tuned
+    ones first, then the most capable); "No model" now means nothing is downloaded. Used by the launch task in
+    `lib.rs` and by `engine_restart` (`commands.rs`); a switch is saved to settings.
+  - `Engine::set_note/note`: what the last launch decision did; `diagnostics::startup_block` (chosen model, catalog
+    knows it, file on disk vs catalog size, models folder listing, last decision) is part of Copy diagnostics.
+  - `lib/engineWake.ts` + `store.wakeEngine`: when the app is visible/focused again and the engine isn't ready,
+    restart it (once per 20 s, not while answering, downloading or on the Cloud workspace).
+  - `Composer.tsx`/`EngineBadge.tsx`: "Your model isn't loaded" with a Load it button, "Not loaded" badge, placeholder
+    text; `.banner` wraps on narrow screens. Phone shot `*-7-banner` and its layout check in `shots.mjs`.
+- **Verify:** `cargo test` (choose_active x3, startup block), vitest (`shouldWake`), phone screenshots. On the Fold: leave
+  BYTE in the background, close and open the phone; the model loads by itself, or Load it does it.
+- **Undo:** `git revert <hash>`.
+
 ### (this commit) — Android layout check: use the runner's Chromium
 - **Why:** the first `android-ui.yml` runs failed in 3 seconds: `shots.mjs` hard-coded this container's Chromium path.
 - **What:** `CHROMIUM` env or `/opt/pw-browsers/chromium` when it exists, otherwise Playwright's own; the workflow

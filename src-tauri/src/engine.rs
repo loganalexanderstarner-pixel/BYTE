@@ -133,6 +133,8 @@ struct Inner {
     /// Safer settings that worked this session after a model failed to load
     /// ("id:quant" → context, CPU expert layers, GPU layers), reused on restarts.
     safer: std::collections::HashMap<String, (u32, u32, Option<u32>)>,
+    /// What the last start (or the launch decision) did, in words, for "Copy diagnostics".
+    note: String,
 }
 
 #[derive(Clone)]
@@ -172,6 +174,7 @@ impl Engine {
                 generation: 0,
                 restarts: 0,
                 safer: Default::default(),
+                note: String::new(),
                 log: VecDeque::with_capacity(LOG_LINES),
             })),
             http: crate::chat::local_client(),
@@ -195,7 +198,16 @@ impl Engine {
         self.inner.lock().await.loaded.clone()
     }
 
-    async fn set_status(&self, app: &AppHandle, status: EngineStatus) {
+    /// Remembers what the last start did (shown by "Copy diagnostics").
+    pub async fn set_note(&self, note: impl Into<String>) {
+        self.inner.lock().await.note = note.into();
+    }
+
+    pub async fn note(&self) -> String {
+        self.inner.lock().await.note.clone()
+    }
+
+    pub(crate) async fn set_status(&self, app: &AppHandle, status: EngineStatus) {
         self.inner.lock().await.status = status.clone();
         if self.primary {
             let _ = app.emit(STATUS_EVENT, status);
@@ -219,6 +231,7 @@ impl Engine {
         let LaunchOpts { draft, ngram, mut kv_f16, ubatch, mut flash_attn_off, draft_n_max, draft_p_min, mmproj, embedding, .. } = opts;
         let (model, variant) = catalog.resolve(key)?;
         if !models::is_installed(&models_dir, variant) {
+            self.set_note(format!("start {key}: its file is missing or differs in size from the catalog")).await;
             self.set_status(app, EngineStatus::NoModel).await;
             return Err(AppError::msg(format!("{} ({}) is not downloaded yet", model.name, variant.quant)));
         }

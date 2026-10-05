@@ -27,6 +27,37 @@ pub struct Inputs {
     pub kids_mode: bool,
     pub log: Vec<String>,
     pub i8mm: bool,
+    /// Why the model is (not) loaded: see `startup_block`.
+    pub startup: String,
+}
+
+/// What the launch decision saw: the chosen model, whether the catalog knows it, its files on disk against the
+/// catalog's sizes, and the models folder. This is what a "No model" report needs.
+pub fn startup_block(catalog: &crate::models::Catalog, models_dir: &std::path::Path, chosen: Option<&str>, note: &str) -> String {
+    let mut out = vec!["Startup:".to_string()];
+    if !note.is_empty() {
+        out.push(format!("  last decision: {note}"));
+    }
+    match chosen {
+        None => out.push("  chosen model: none".into()),
+        Some(k) => match catalog.resolve(k) {
+            Err(e) => out.push(format!("  chosen model: {k} (the catalog doesn't know it: {e})")),
+            Ok((_, v)) => {
+                out.push(format!("  chosen model: {k}, installed {}", crate::models::is_installed(models_dir, v)));
+                for f in &v.files {
+                    let have = std::fs::metadata(crate::models::file_path(models_dir, f)).map(|m| m.len().to_string()).unwrap_or_else(|_| "missing".into());
+                    out.push(format!("    {}: on disk {have}, catalog says {}", f.name, f.size));
+                }
+            }
+        },
+    }
+    let mut files: Vec<(String, u64)> = std::fs::read_dir(models_dir)
+        .map(|d| d.flatten().filter_map(|e| Some((e.file_name().to_string_lossy().into_owned(), e.metadata().ok()?.len()))).collect())
+        .unwrap_or_default();
+    files.sort();
+    out.push(format!("  models folder: {} files", files.len()));
+    out.extend(files.iter().take(30).map(|(n, l)| format!("    {n} {l}")));
+    out.join("\n")
 }
 
 fn gb(bytes: u64) -> String {
@@ -57,6 +88,7 @@ pub fn build(i: &Inputs) -> String {
             i.context_size.map(|c| c.to_string()).unwrap_or_else(|| "auto".into())
         ),
         format!("Settings: web {}, workspace {}, offline {}, kids mode {}", i.web_mode, i.workspace, i.offline, i.kids_mode),
+        i.startup.clone(),
         String::new(),
         "Engine log (latest):".to_string(),
     ];
@@ -154,7 +186,27 @@ mod tests {
             kids_mode: false,
             log: vec![],
             i8mm: true,
+            startup: String::new(),
         }
+    }
+
+    #[test]
+    fn the_startup_block_says_why_a_model_is_missing() {
+        let c = crate::models::Catalog::embedded();
+        let dir = tempfile::tempdir().unwrap();
+        // Chosen but missing, with an unrelated file in the folder.
+        std::fs::write(dir.path().join("something.gguf"), b"abc").unwrap();
+        let b = startup_block(&c, dir.path(), Some("qwen3.5-4b:Q6_K"), "launch: no chat model is downloaded");
+        assert!(b.contains("last decision: launch: no chat model is downloaded"), "{b}");
+        assert!(b.contains("installed false") && b.contains("on disk missing, catalog says"), "{b}");
+        assert!(b.contains("something.gguf 3"), "{b}");
+        // Unknown to the catalog, and nothing chosen.
+        assert!(startup_block(&c, dir.path(), Some("nope:Q4"), "").contains("the catalog doesn't know it"));
+        assert!(startup_block(&c, dir.path(), None, "").contains("chosen model: none"));
+        // A matching file counts as installed.
+        let (_, v) = c.resolve("qwen3.5-4b:Q6_K").unwrap();
+        std::fs::File::create(crate::models::file_path(dir.path(), &v.files[0])).unwrap().set_len(v.files[0].size).unwrap();
+        assert!(startup_block(&c, dir.path(), Some("qwen3.5-4b:Q6_K"), "").contains("installed true"));
     }
 
     #[test]

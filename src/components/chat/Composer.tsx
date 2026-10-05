@@ -1,4 +1,4 @@
-import { onDevice } from "../../lib/device";
+import { currentDevice, onDevice } from "../../lib/device";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { AppWindow, AudioLines, ArrowUp, Brain, GraduationCap, Cloud, FolderSearch, Images, Loader2, Paperclip, Columns2, Cpu, Gauge, Globe, Rocket, Sparkles, Square, Telescope, Zap, WifiOff } from "lucide-react";
@@ -155,6 +155,7 @@ export function Composer() {
   const filesOn = useStore((s) => !!s.settings?.kbEnabled);
   const loaded = useStore((s) => s.loaded);
   const models = useStore((s) => s.models);
+  const hasModel = models.some((m) => m.role === "chat" && m.variants.some((v) => v.installed));
   const answerWith = useStore((s) => s.answerWith);
   const setAnswerWith = useStore((s) => s.setAnswerWith);
   const readyModels = loaded.filter((l) => l.status.state === "ready");
@@ -287,7 +288,7 @@ export function Composer() {
       : engine.state === "starting"
       ? "Loading the model — one moment…"
       : engine.state === "noModel"
-        ? "Download a model in Settings to start chatting"
+        ? (hasModel ? "Tap Load it to wake BYTE's model" : "Download a model in Settings to start chatting")
         : "The AI engine isn't running — open Settings → Engine";
 
   return (
@@ -310,10 +311,15 @@ export function Composer() {
       {!ready && !tune && engine.state !== "starting" && !onCloud && (
         <div className={`banner ${engine.state === "error" ? "danger" : ""}`}>
           <span className="grow">
-            {engine.state === "error" ? engine.message : "BYTE needs a model before it can chat."}
+            {engine.state === "error" ? engine.message : hasModel ? (currentDevice() === "phone" ? "Your model isn't loaded. Android may close it while BYTE is in the background." : "Your model isn't loaded.") : "BYTE needs a model before it can chat."}
           </span>
-          <button className="btn sm primary" onClick={() => openSettings(engine.state === "error" ? "engine" : "models")}>
-            {engine.state === "error" ? "Fix it" : "Choose a model"}
+          {hasModel && engine.state !== "error" && (
+            <button className="btn sm primary" onClick={() => void useStore.getState().wakeEngine(true)}>
+              Load it
+            </button>
+          )}
+          <button className={`btn sm ${hasModel && engine.state !== "error" ? "" : "primary"}`} onClick={() => openSettings(engine.state === "error" ? "engine" : "models")}>
+            {engine.state === "error" ? "Fix it" : hasModel ? "Models" : "Choose a model"}
           </button>
           {engine.state === "error" && <DiagnosticsButton label="Copy details" />}
           <button className="btn sm" onClick={() => (cloudConnected ? void setWorkspace("cloud") : openSettings("cloud"))}>

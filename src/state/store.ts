@@ -1,5 +1,6 @@
 import { deviceOf, setDevice } from "../lib/device";
 import { create } from "zustand";
+import { shouldWake } from "../lib/engineWake";
 
 import { nextWeb, webState } from "../lib/web";
 import { chime } from "../lib/sounds";
@@ -235,6 +236,8 @@ interface State {
   settingsTab: SettingsTab | null;
 
   init(): Promise<void>;
+  /** The app is back on screen: start the model again if it was closed in the background. */
+  wakeEngine(force?: boolean): Promise<void>;
   updateSettings(patch: Partial<Settings>): Promise<void>;
   refreshModels(): Promise<void>;
   refreshLoaded(): Promise<void>;
@@ -428,6 +431,10 @@ const uid = () => crypto.randomUUID();
  * workspace (or imported from the cloud) start with "cloud-", chats in Both
  * with "both-"; everything else is This Mac.
  */
+/** Last automatic engine restart, and whether the return-to-app listeners are installed. */
+const lastWake = { at: 0 };
+const wakeListener = { on: false };
+
 export const spaceOf = (id: string): Workspace => (id.startsWith("cloud-") ? "cloud" : id.startsWith("both-") ? "both" : "local");
 
 /** The workspace in use (Cloud and Both need a connected account). */
@@ -960,6 +967,12 @@ export const useStore = create<State>((set, get) => {
         api.engineStatus(),
       ]);
       setDevice(deviceOf(system));
+      // Android may close the model while BYTE is in the background; load it again on return.
+      if (typeof document !== "undefined" && !wakeListener.on) {
+        wakeListener.on = true;
+        document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && void get().wakeEngine());
+        window.addEventListener("focus", () => void get().wakeEngine());
+      }
       set({
         ready: true,
         settings,
@@ -977,6 +990,26 @@ export const useStore = create<State>((set, get) => {
       const mine = conversations.filter((c) => spaceOf(c.id) === ws);
       const first = mine.find((c) => !c.pinned) ?? mine[0];
       if (first) await get().selectChat(first.id);
+    },
+
+    async wakeEngine(force = false) {
+      const st = get();
+      if (!shouldWake({
+        engine: st.engine,
+        answering: st.running.length > 0,
+        downloading: Object.values(st.downloads).some((d) => d.phase === "downloading" || d.phase === "verifying"),
+        onCloud: workspaceOf(st.settings) === "cloud",
+        hasDownloadedModel: st.models.some((m) => m.role === "chat" && m.variants.some((v) => v.installed)),
+        now: Date.now(),
+        lastWake: force ? 0 : lastWake.at,
+      })) return;
+      lastWake.at = Date.now();
+      // What the engine says now may be newer than what this screen last heard.
+      const fresh = await api.engineStatus().catch(() => st.engine);
+      set({ engine: fresh });
+      if (fresh.state === "ready" || fresh.state === "starting") return;
+      await api.engineRestart().catch(() => undefined);
+      set({ engine: await api.engineStatus().catch(() => get().engine) });
     },
 
     async updateSettings(patch) {

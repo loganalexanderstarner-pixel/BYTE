@@ -7,6 +7,7 @@ export function EngineBadge() {
   const models = useStore((s) => s.models);
   const openSettings = useStore((s) => s.openSettings);
   const settings = useStore((s) => s.settings);
+  const hasModel = models.some((m) => m.role === "chat" && m.variants.some((v) => v.installed));
   const currentId = useStore((s) => s.currentId);
   const privateChat = useStore((s) => s.conversations.find((c) => c.id === s.currentId)?.private ?? false);
   // In the Cloud workspace the answer doesn't come from the engine, so "Engine stopped" would read like an error.
@@ -35,8 +36,8 @@ export function EngineBadge() {
       title = engine.message;
       break;
     case "noModel":
-      label = "No model";
-      title = "Download a model in Settings → Models.";
+      label = hasModel ? "Not loaded" : "No model";
+      title = hasModel ? "Your model is downloaded but not loaded. Tap Load it." : "Download a model in Settings → Models.";
       break;
     default:
       label = "Engine stopped";

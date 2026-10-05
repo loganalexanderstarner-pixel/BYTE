@@ -141,6 +141,7 @@ function initScript({ data }) {
           return null;
         case "engine_status":
           if (data.engineError) return { state: "error", message: data.engineError };
+          if (data.engineStopped) return { state: "noModel" };
           return data.settings.onboardingComplete ? { state: "ready", model: "qwen3.5-9b:Q6_K", context: 16384, boosted: true, vision: !!data.vision } : { state: "noModel" };
         case "speed_boost_info":
           return { enabled: true, available: true, helperKey: "qwen3.5-0.8b:Q8_0", helperName: "Qwen3.5 0.8B", helperBytes: 812000000, installed: true, kind: "draft" };
@@ -1414,6 +1415,16 @@ if (process.env.PHONE) {
       await p.waitForTimeout(400);
       await shot(p, `phone-${width}-6-home`);
       for (const x of await layoutProblems(p)) problems.push(`${width}px home: ${x}`);
+    }
+    // The engine was closed in the background: the banner must wrap and offer to load the model.
+    {
+      const bp = await ctx.newPage();
+      await bp.addInitScript(initScript, { data: { ...phone(mock(true, "midnight")), engineStopped: true } });
+      await bp.goto(URL);
+      await bp.waitForTimeout(500);
+      await shot(bp, `phone-${width}-7-banner`);
+      for (const x of await layoutProblems(bp)) problems.push(`${width}px banner: ${x}`);
+      await bp.close();
     }
     console.log(`phone ${width} errors:`, errors);
     await ctx.close();

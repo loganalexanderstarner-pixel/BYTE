@@ -446,6 +446,44 @@ pub fn entry_path(models_dir: &Path, v: &Variant) -> PathBuf {
     file_path(models_dir, &v.files[0])
 }
 
+/// What to start when BYTE opens (see `choose_active`).
+#[derive(Debug, Clone, PartialEq)]
+pub enum Startup {
+    /// The chosen model is downloaded: start it.
+    Use(String),
+    /// The chosen model isn't usable (nothing chosen, file missing, unknown to the catalog) but another
+    /// downloaded chat model is: use that one and remember it.
+    Switched { key: String, from: Option<String> },
+    /// A model was chosen but its file is missing or differs from the catalog, and nothing else is downloaded.
+    Missing(String),
+    /// No chat model is downloaded at all.
+    NothingDownloaded,
+}
+
+/// Picks the model to start at launch. The chosen one wins when its file is on disk; otherwise a downloaded
+/// chat model (one that was tuned on this phone or Mac first, then the most capable), so a lost setting or a
+/// catalog change never leaves a downloaded model unused, and "No model" means nothing is downloaded.
+pub fn choose_active(catalog: &Catalog, models_dir: &Path, chosen: Option<&str>, tuned: &[String]) -> Startup {
+    if let Some(k) = chosen {
+        if catalog.resolve(k).is_ok_and(|(_, v)| is_installed(models_dir, v)) {
+            return Startup::Use(k.to_string());
+        }
+    }
+    let mut found: Vec<(bool, u32, String)> = catalog
+        .models
+        .iter()
+        .filter(|m| m.role == Role::Chat)
+        .flat_map(|m| m.variants.iter().filter(|v| is_installed(models_dir, v)).map(move |v| (key(m, v), m.quality)))
+        .map(|(k, q)| (tuned.contains(&k), q, k))
+        .collect();
+    found.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)).then(a.2.cmp(&b.2)));
+    match (found.into_iter().next(), chosen) {
+        (Some((_, _, key)), from) => Startup::Switched { key, from: from.map(String::from) },
+        (None, Some(k)) => Startup::Missing(k.to_string()),
+        (None, None) => Startup::NothingDownloaded,
+    }
+}
+
 pub fn is_installed(models_dir: &Path, v: &Variant) -> bool {
     v.files
         .iter()
@@ -1256,6 +1294,58 @@ mod tests {
         assert_eq!(best_variant(m, &mac(64), 16384).unwrap().quant, "Q6_K");
         let big = c.model("gpt-oss-120b").unwrap();
         assert!(best_variant(big, &mac(16), 16384).is_none());
+    }
+
+    /// Makes `key`'s files exist with the catalog's sizes (sparse, so it costs no disk).
+    fn install(c: &Catalog, dir: &Path, key: &str) {
+        let (_, v) = c.resolve(key).unwrap();
+        for f in &v.files {
+            std::fs::File::create(file_path(dir, f)).unwrap().set_len(f.size).unwrap();
+        }
+    }
+
+    #[test]
+    fn launch_uses_the_chosen_model_when_its_file_is_there() {
+        let c = Catalog::embedded();
+        let dir = tempfile::tempdir().unwrap();
+        install(&c, dir.path(), "qwen3.5-0.8b:Q8_0");
+        install(&c, dir.path(), "qwen3.5-4b:Q6_K");
+        let got = choose_active(&c, dir.path(), Some("qwen3.5-0.8b:Q8_0"), &[]);
+        assert_eq!(got, Startup::Use("qwen3.5-0.8b:Q8_0".into()));
+    }
+
+    #[test]
+    fn launch_switches_to_a_downloaded_model_instead_of_saying_no_model() {
+        let c = Catalog::embedded();
+        let dir = tempfile::tempdir().unwrap();
+        install(&c, dir.path(), "qwen3.5-0.8b:Q8_0");
+        install(&c, dir.path(), "qwen3.5-4b:Q6_K");
+        // Nothing chosen (a lost setting), or the chosen file is gone: a downloaded model is used.
+        for chosen in [None, Some("qwen3.5-9b:Q6_K"), Some("no-such-model:Q4_K_M")] {
+            match choose_active(&c, dir.path(), chosen, &[]) {
+                Startup::Switched { key, from } => {
+                    assert_eq!(from.as_deref(), chosen);
+                    assert!(key == "qwen3.5-4b:Q6_K" || key == "qwen3.5-0.8b:Q8_0", "{key}");
+                }
+                other => panic!("{chosen:?} gave {other:?}"),
+            }
+        }
+        // The one tuned on this device wins over a more capable one.
+        let tuned = vec!["qwen3.5-0.8b:Q8_0".to_string()];
+        assert_eq!(choose_active(&c, dir.path(), None, &tuned), Startup::Switched { key: "qwen3.5-0.8b:Q8_0".into(), from: None });
+    }
+
+    #[test]
+    fn no_model_only_means_nothing_is_downloaded() {
+        let c = Catalog::embedded();
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(choose_active(&c, dir.path(), None, &[]), Startup::NothingDownloaded);
+        // A chosen model whose file is missing, with nothing else downloaded, is a problem to explain.
+        assert_eq!(choose_active(&c, dir.path(), Some("qwen3.5-4b:Q6_K"), &[]), Startup::Missing("qwen3.5-4b:Q6_K".into()));
+        // A file of the wrong size doesn't count as downloaded.
+        let (_, v) = c.resolve("qwen3.5-4b:Q6_K").unwrap();
+        std::fs::File::create(file_path(dir.path(), &v.files[0])).unwrap().set_len(10).unwrap();
+        assert_eq!(choose_active(&c, dir.path(), Some("qwen3.5-4b:Q6_K"), &[]), Startup::Missing("qwen3.5-4b:Q6_K".into()));
     }
 
     #[test]

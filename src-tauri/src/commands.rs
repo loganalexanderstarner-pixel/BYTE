@@ -609,12 +609,25 @@ pub async fn engine_status(state: State<'_, AppState>) -> AppResult<EngineStatus
 
 #[tauri::command]
 pub async fn engine_restart(app: AppHandle, state: State<'_, AppState>) -> AppResult<()> {
-    let (model, ctx) = {
-        let s = state.settings.lock().await;
-        (s.active_model.clone(), s.context_size)
-    };
-    let model = model.ok_or_else(|| AppError::msg("choose a model first"))?;
     let catalog = state.catalog.get();
+    let (chosen, ctx, tuned) = {
+        let s = state.settings.lock().await;
+        (s.active_model.clone(), s.context_size, s.tuning.keys().cloned().collect::<Vec<_>>())
+    };
+    // The same choice as at launch: the chosen model, else a downloaded one (and remember it).
+    let model = match crate::models::choose_active(&catalog, &state.paths.models, chosen.as_deref(), &tuned) {
+        crate::models::Startup::Use(key) => key,
+        crate::models::Startup::Switched { key, .. } => {
+            let mut s = state.settings.lock().await;
+            let mut next = s.clone();
+            next.active_model = Some(key.clone());
+            if next.save(&state.paths.settings_file).is_ok() {
+                *s = next;
+            }
+            key
+        }
+        crate::models::Startup::Missing(_) | crate::models::Startup::NothingDownloaded => return Err(AppError::msg("choose a model first")),
+    };
     let reserved = state.extras.reserved().await;
     let opts = crate::tune::launch_opts(&state, &catalog, &model).await;
     state.engine.start(&app, state.paths.models.clone(), &catalog, &model, ctx, reserved, opts).await
@@ -639,6 +652,7 @@ pub async fn diagnostics_report(state: State<'_, AppState>) -> AppResult<String>
         kids_mode: s.kids_mode,
         log: state.engine.log_tail().await,
         i8mm: cfg!(target_os = "android") && crate::bundled::cpu_has_i8mm(),
+        startup: crate::diagnostics::startup_block(&state.catalog.get(), &state.paths.models, s.active_model.as_deref(), &state.engine.note().await),
     };
     Ok(crate::diagnostics::build(&inputs))
 }
