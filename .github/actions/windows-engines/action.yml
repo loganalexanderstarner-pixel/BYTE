@@ -14,12 +14,16 @@ runs:
   steps:
     # Third-party action in a public release pipeline: pinned to a commit hash,
     # not a tag, because a tag can be moved after you reviewed it. v0.2.36.
-    # The package list comes from NVIDIA's own manifest for this release
-    # (developer.download.nvidia.com/compute/cuda/redist/redistrib_13.3.1.json),
-    # not from memory: CUDA 13 split the crt headers (crt/host_config.h, which
-    # cuda_runtime.h includes) out of nvcc into their own cuda_crt component, and
-    # replaced thrust with cccl. The first list had nvcc and thrust and failed
-    # with "Cannot open include file: crt/host_config.h".
+    # The WHOLE toolkit, not a sub-package list, on purpose. Two attempts at a list
+    # failed: the first (nvcc, cudart, cublas, cublas_dev, thrust) installed but
+    # left out crt/host_config.h, which cuda_runtime.h includes; the second added
+    # "crt" and "cccl" from NVIDIA's component manifest and the installer REJECTED
+    # it. CUDA 13 renamed and split components (cuda_crt, cccl) and the Windows
+    # installer's package names do not follow the manifest: "thrust" was accepted
+    # although the manifest has no such component. Nothing documents the installer
+    # names, so each guess cost a CI run. The full toolkit is what the test PC has
+    # and it builds there, which makes it the known-good configuration. It is slower
+    # and larger; a release job that runs rarely can afford that.
     # 13.3.1 is the newest CUDA this action can install; the engine was first
     # measured on 13.4, same major version and same cublas64_13.dll names.
     - name: Install CUDA
@@ -27,7 +31,6 @@ runs:
       with:
         cuda: "13.3.1"
         method: network
-        sub-packages: '["nvcc", "crt", "cudart", "cublas", "cublas_dev", "cccl", "visual_studio_integration"]'
 
     # Vulkan SDK straight from LunarG, checked against a hash recorded when it
     # was reviewed, rather than through another third-party action.
