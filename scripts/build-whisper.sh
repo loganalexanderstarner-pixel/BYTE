@@ -58,7 +58,7 @@ if [ ! -f "$BUILD/bin/${BIN_SUBDIR}whisper-cli$EXE" ]; then
       # PATH, which means a developer prompt an SSH session lacks.
       # CPU only: speech-to-text runs on short clips, so a GPU build would add
       # a CUDA dependency to a binary that does not need one.
-      GEN=(-A x64)
+      case "$TRIPLE" in aarch64-*) GEN=(-A ARM64) ;; *) GEN=(-A x64) ;; esac
       JOBS="${NUMBER_OF_PROCESSORS:-8}"
       ;;
     *)

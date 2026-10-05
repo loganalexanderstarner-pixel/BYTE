@@ -16,7 +16,7 @@ is the one Microsoft licenses for redistribution:
   1. Visual Studio's own redist folder  (...\VC\Redist\MSVC\<ver>\x64\)
   2. System32, where the VC++ redistributable installs them
 #>
-param([switch]$Cuda)
+param([switch]$Cuda, [ValidateSet('x64', 'arm64')][string]$Arch = 'x64')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $dest = Join-Path $root 'vendor\windows-runtime'
@@ -32,13 +32,16 @@ if (Test-Path $vswhere) {
     $redist = Join-Path $vs 'VC\Redist\MSVC'
     if (Test-Path $redist) {
       Get-ChildItem $redist -Directory | Sort-Object Name -Descending | ForEach-Object {
-        $searchDirs += Join-Path $_.FullName 'x64\Microsoft.VC143.CRT'
-        $searchDirs += Join-Path $_.FullName 'x64\Microsoft.VC143.OpenMP'
+        $searchDirs += Join-Path $_.FullName "$Arch\Microsoft.VC143.CRT"
+        $searchDirs += Join-Path $_.FullName "$Arch\Microsoft.VC143.OpenMP"
       }
     }
   }
 }
-$searchDirs += (Join-Path $env:SystemRoot 'System32')
+# System32 holds the DLLs of the machine's own architecture. That is only the right copy when
+# it matches the one being built for: an ARM64 build made on an x64 runner must NOT take the
+# x64 files from here (it would ship an installer whose engine cannot load them).
+if ($Arch -eq 'x64') { $searchDirs += (Join-Path $env:SystemRoot 'System32') }
 
 $missing = @()
 foreach ($name in $need) {

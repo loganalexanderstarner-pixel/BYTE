@@ -53,7 +53,7 @@ if [ ! -f "$BIN" ] || [ ! -f "$TTS" ]; then
     *-windows-msvc)
       # No -G: CMake defaults to the newest Visual Studio it finds (see
       # build-llama-server.sh for why 17 2022 must not be hard-coded).
-      GEN=(-A x64)
+      case "$TRIPLE" in aarch64-*) GEN=(-A ARM64) ;; *) GEN=(-A x64) ;; esac
       JOBS="${NUMBER_OF_PROCESSORS:-8}"
       ;;
     *)

@@ -1,0 +1,183 @@
+name: Windows ARM64 test
+
+# Builds the Windows ARM64 app (Snapdragon laptops) and checks what it does on a real ARM64
+# machine. Publishes nothing: no release, no tag.
+#
+# The app and its engines are cross-compiled on an x64 runner, which already has the whole
+# toolchain, and then installed and run on a native ARM64 runner, because an ARM64 binary
+# proves nothing until something with an ARM64 processor has started it.
+#
+# The ARM64 build carries the CPU engine only. CUDA and the Vulkan build are x64, and a
+# Snapdragon's graphics chip is not used (src-tauri/src/gpu.rs: runs_on_cpu_only).
+on:
+  push:
+    branches: ["claude/windows-*", "claude/arm64-*"]
+    paths:
+      - ".github/workflows/windows-arm64.yml"
+      - "src-tauri/tauri.arm64-windows.conf.json"
+      - "scripts/build-llama-server.sh"
+      - "scripts/build-whisper.sh"
+      - "scripts/build-sherpa.sh"
+      - "scripts/fetch-windows-runtime.ps1"
+      - "scripts/LLAMA_TAG"
+      - "scripts/WHISPER_TAG"
+      - "scripts/SHERPA_TAG"
+  workflow_dispatch:
+
+concurrency:
+  group: windows-arm64-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  TARGET: aarch64-pc-windows-msvc
+
+jobs:
+  build:
+    name: Cross-build the ARM64 app and engines
+    runs-on: windows-2022
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: arm64
+
+      - name: Is the ARM64 C++ toolchain here?
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vs = & $vswhere -latest -property installationPath
+          Write-Host "Visual Studio: $vs"
+          $arm = & $vswhere -latest -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath
+          if (-not $arm) { throw "the runner's Visual Studio has no ARM64 C++ tools" }
+          Get-ChildItem (Join-Path $vs 'VC\Redist\MSVC') -Directory | ForEach-Object { Write-Host "redist $($_.Name): $((Get-ChildItem $_.FullName -Directory).Name -join ', ')" }
+
+      - name: Build llama-server (CPU, ARM64)
+        shell: bash
+        run: TARGET_TRIPLE="$TARGET" scripts/build-llama-server.sh
+
+      - name: Build whisper-cli (ARM64)
+        shell: bash
+        run: TARGET_TRIPLE="$TARGET" scripts/build-whisper.sh
+
+      # Speech output and speaker labels depend on sherpa-onnx, which has its own ARM64 story
+      # (a prebuilt runtime it downloads). Allowed to fail while that is learned, so the rest of
+      # the build still shows what works; a missing tool becomes an empty placeholder and the
+      # summary at the end says so.
+      - name: Build sherpa-onnx tools (ARM64)
+        id: sherpa
+        continue-on-error: true
+        shell: bash
+        run: TARGET_TRIPLE="$TARGET" scripts/build-sherpa.sh
+
+      - name: Placeholders for anything that did not build
+        shell: bash
+        run: |
+          for n in llama-server whisper-cli sherpa-diarize sherpa-tts; do
+            f="src-tauri/binaries/$n-$TARGET.exe"
+            if [ ! -s "$f" ]; then echo "MISSING: $n (empty placeholder so the bundle can proceed)"; : > "$f"; fi
+          done
+          ls -la src-tauri/binaries
+
+      - name: Stage the ARM64 runtime DLLs
+        shell: pwsh
+        run: scripts/fetch-windows-runtime.ps1 -Arch arm64
+
+      - run: npm ci
+
+      - name: Bundle the installer
+        run: npm run tauri build -- --target aarch64-pc-windows-msvc --config src-tauri/tauri.arm64-windows.conf.json --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: What was built
+        shell: pwsh
+        run: |
+          Get-ChildItem "src-tauri/target/$env:TARGET/release/bundle/nsis" | ForEach-Object { "{0}  {1} MB" -f $_.Name, [math]::Round($_.Length/1MB) }
+          Get-ChildItem src-tauri/binaries | ForEach-Object { "{0,-52} {1,8} MB" -f $_.Name, [math]::Round($_.Length/1MB,1) }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arm64-build
+          retention-days: 2
+          if-no-files-found: error
+          path: |
+            src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+            src-tauri/binaries/*-aarch64-pc-windows-msvc.exe
+
+  run:
+    name: Install and run it on an ARM64 machine
+    needs: build
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: arm64-build
+          path: artifact
+
+      - name: This really is an ARM64 machine
+        shell: pwsh
+        run: |
+          "PROCESSOR_ARCHITECTURE=$env:PROCESSOR_ARCHITECTURE"
+          if ($env:PROCESSOR_ARCHITECTURE -ne 'ARM64') { throw "not an ARM64 runner" }
+          Get-ChildItem -Recurse artifact | Where-Object { -not $_.PSIsContainer } | ForEach-Object { "{0}  {1} MB" -f $_.FullName.Substring($PWD.Path.Length+1), [math]::Round($_.Length/1MB,1) }
+
+      - name: Install it and check what landed
+        shell: pwsh
+        run: |
+          function Machine($p) { $b = [IO.File]::ReadAllBytes($p); '{0:X4}' -f [BitConverter]::ToUInt16($b, [BitConverter]::ToInt32($b, 0x3C) + 4) }
+          $setup = Get-ChildItem artifact -Recurse -Filter *-setup.exe | Select-Object -First 1
+          if (-not $setup) { throw "no installer in the artifact" }
+          $dir = Join-Path $env:RUNNER_TEMP "byte-installed"
+          Start-Process $setup.FullName -ArgumentList "/S", "/D=$dir" -Wait
+          Write-Host "=== install directory"
+          Get-ChildItem $dir | ForEach-Object { "{0,-30} {1,8} MB   {2}" -f $_.Name, [math]::Round($_.Length/1MB,1), $(if ($_.Extension -in '.exe','.dll') { Machine $_.FullName } else { '' }) }
+          $must = "byte.exe", "llama-server.exe", "whisper-cli.exe", "MSVCP140.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "VCOMP140.DLL"
+          $missing = $must | Where-Object { -not (Test-Path (Join-Path $dir $_)) }
+          if ($missing) { throw "missing from the installed app: $($missing -join ', ')" }
+          foreach ($n in "byte.exe", "llama-server.exe", "whisper-cli.exe") {
+            $m = Machine (Join-Path $dir $n)
+            if ($m -ne 'AA64') { throw "$n is machine type $m, not ARM64 (AA64)" }
+          }
+          "INSTALL_DIR=$dir" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          Write-Host "everything is here and ARM64"
+
+      - name: The installed engine answers a question
+        shell: pwsh
+        run: |
+          $model = Join-Path $env:RUNNER_TEMP "Qwen3-0.6B-Q8_0.gguf"
+          curl.exe -sSL --fail --retry 3 -o $model "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf"
+          $got = (Get-FileHash $model -Algorithm SHA256).Hash.ToLower()
+          if ($got -ne "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031") { throw "model checksum mismatch: $got" }
+          $exe = Join-Path $env:INSTALL_DIR "llama-server.exe"
+          & $exe --version 2>&1 | Select-Object -First 3
+          $p = Start-Process $exe -ArgumentList "-m", $model, "--port", "18080", "-c", "2048" -PassThru -RedirectStandardError "$env:RUNNER_TEMP\engine.err" -RedirectStandardOutput "$env:RUNNER_TEMP\engine.out"
+          try {
+            $up = $false
+            for ($i = 0; $i -lt 90; $i++) { Start-Sleep 2; try { if ((Invoke-RestMethod http://127.0.0.1:18080/health -TimeoutSec 3).status -eq 'ok') { $up = $true; break } } catch {} }
+            if (-not $up) { Get-Content "$env:RUNNER_TEMP\engine.err" -Tail 30; throw "the engine never became ready" }
+            $body = @{ messages = @(@{ role = "user"; content = "What is 12 plus 30? Answer with just the number." }); max_tokens = 200; temperature = 0 } | ConvertTo-Json -Depth 5
+            $r = Invoke-RestMethod http://127.0.0.1:18080/v1/chat/completions -Method Post -Body $body -ContentType "application/json" -TimeoutSec 120
+            $text = $r.choices[0].message.content
+            Write-Host "answer: $text"
+            Write-Host ("speed: {0:N1} tok/s generating, {1:N1} tok/s reading the prompt" -f $r.timings.predicted_per_second, $r.timings.prompt_per_second)
+            if ($text -notmatch '42') { throw "expected 42 in the answer" }
+          } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+
+      - name: The other engines start
+        shell: pwsh
+        run: |
+          foreach ($n in "whisper-cli", "sherpa-diarize", "sherpa-tts") {
+            $exe = Join-Path $env:INSTALL_DIR "$n.exe"
+            if (-not (Test-Path $exe) -or (Get-Item $exe).Length -eq 0) { Write-Host "::warning::$n is missing or empty in this build"; continue }
+            & $exe --help *> $null
+            Write-Host "$n exit code $LASTEXITCODE"
+          }

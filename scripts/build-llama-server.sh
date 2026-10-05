@@ -18,7 +18,13 @@ SRC="$WORK/src-$LLAMA_TAG"
 # build directory and its own output name, so both can exist and be compared on
 # the same machine -- which is the only way to answer whether the 500 MB of
 # CUDA libraries in the installer is worth what it buys.
-ENGINE_BACKEND="${ENGINE_BACKEND:-cuda}"
+# On ARM64 Windows (Snapdragon laptops) there is no CUDA and no Vulkan build: the engine is the
+# CPU one, and it takes the plain sidecar name.
+case "$TRIPLE" in
+  aarch64-*-windows-msvc) DEFAULT_BACKEND=cpu ;;
+  *)                      DEFAULT_BACKEND=cuda ;;
+esac
+ENGINE_BACKEND="${ENGINE_BACKEND:-$DEFAULT_BACKEND}"
 BUILD="$SRC/build-$ENGINE_BACKEND"
 # Set by the per-platform case below; empty elsewhere.
 GEN=()
@@ -62,7 +68,10 @@ if [ ! -f "$BUILD/bin/${BIN_SUBDIR}llama-server$EXE" ]; then
       # which is most of them. A shipped engine must run on the machines
       # people actually have, not the one that compiled it.
       FLAGS+=(-DGGML_NATIVE=OFF)
-      if [ "$ENGINE_BACKEND" = "vulkan" ]; then
+      if [ "$ENGINE_BACKEND" = "cpu" ]; then
+        # No accelerator: the processor runs the model (ARM64, where the CPU build is the engine).
+        :
+      elif [ "$ENGINE_BACKEND" = "vulkan" ]; then
         # Vulkan needs no vendor SDK at runtime: the user's own graphics driver
         # supplies the implementation. That is what lets one build cover
         # NVIDIA, AMD and Intel, including the two we have no hardware to test.
@@ -81,7 +90,8 @@ if [ ! -f "$BUILD/bin/${BIN_SUBDIR}llama-server$EXE" ]; then
       # failed outright when windows-latest moved to an image with only VS 2026.
       # A VS generator is still wanted over Ninja, which would need cl.exe on
       # PATH, which means a developer prompt an SSH session lacks.
-      GEN=(-A x64)
+      # The architecture follows the target, so an ARM64 engine can be built on an x64 runner.
+      case "$TRIPLE" in aarch64-*) GEN=(-A ARM64) ;; *) GEN=(-A x64) ;; esac
       JOBS="${NUMBER_OF_PROCESSORS:-8}"
       ;;
     *)
@@ -98,7 +108,7 @@ fi
 
 # The default backend keeps the plain name Tauri's externalBin expects; any
 # other backend is suffixed so it sits alongside rather than replacing it.
-if [ "$ENGINE_BACKEND" = "cuda" ]; then
+if [ "$ENGINE_BACKEND" = "$DEFAULT_BACKEND" ]; then
   DEST="$OUT_DIR/llama-server-$TRIPLE$EXE"
 else
   DEST="$OUT_DIR/llama-server-$ENGINE_BACKEND-$TRIPLE$EXE"
@@ -114,5 +124,8 @@ if [[ "$TRIPLE" == *-apple-darwin ]]; then
   fi
 fi
 
-"$DEST" --version 2>&1 | head -n 2 || true
+# An ARM64 binary cannot run on the x64 machine that built it; CI checks it on an ARM64 runner.
+if [ -z "${TARGET_TRIPLE:-}" ] || [ "$TRIPLE" = "$(rustc -vV | sed -n 's/^host: //p')" ]; then
+  "$DEST" --version 2>&1 | head -n 2 || true
+fi
 echo "==> Installed $DEST"
