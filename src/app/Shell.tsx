@@ -32,6 +32,7 @@ import { Sidebar } from "../components/Sidebar";
 import { KidsExit } from "../components/kids/KidsExit";
 import { useStore, type SettingsTab } from "../state/store";
 import { TABS } from "../components/settings/tabs";
+import { platformKeys as K } from "../lib/keys";
 
 // Panels opened on demand load on first use, so BYTE starts with less code to read.
 const DocumentsPanel = lazy(() =>
@@ -268,7 +269,7 @@ export function Shell() {
   const paletteItems = useMemo(() => {
     if (!paletteOpen) return [];
     const items: PaletteItem[] = [
-      { id: "new", label: "New chat", hint: "⌘N", group: "Actions" },
+      { id: "new", label: "New chat", hint: K("⌘N"), group: "Actions" },
       {
         id: "private",
         label: "New private chat",
@@ -278,7 +279,7 @@ export function Shell() {
       {
         id: "sidebar",
         label: "Show or hide the sidebar",
-        hint: "⌘\\",
+        hint: K("⌘\\"),
         group: "Actions",
       },
       {
@@ -359,7 +360,7 @@ export function Shell() {
     items.push({
       id: "help",
       label: "Help",
-      hint: "⌘?",
+      hint: K("⌘?"),
       keywords: "how to guide support faq",
       group: "Actions",
     });
@@ -394,7 +395,7 @@ export function Shell() {
       items.push({
         id: `settings:${t.id}`,
         label: `Settings: ${t.label}`,
-        hint: t.id === "models" ? "⌘," : undefined,
+        hint: t.id === "models" ? K("⌘,") : undefined,
         keywords: "preferences options",
         group: "Settings",
       });
@@ -513,14 +514,14 @@ export function Shell() {
                 <button
                   className="icon-btn"
                   onClick={toggleSidebar}
-                  title="Show sidebar (⌘\)"
+                  title={K("Show sidebar (⌘\\)")}
                 >
                   <PanelLeft size={18} />
                 </button>
                 <button
                   className="icon-btn"
                   onClick={() => newChat()}
-                  title="New chat (⌘N)"
+                  title={K("New chat (⌘N)")}
                 >
                   <SquarePen size={18} />
                 </button>
@@ -654,14 +655,14 @@ export function Shell() {
               <button
                 className="icon-btn"
                 onClick={() => useStore.getState().openHelp()}
-                title="Help (⌘?)"
+                title={K("Help (⌘?)")}
               >
                 <LifeBuoy size={18} />
               </button>
               <button
                 className="icon-btn"
                 onClick={() => openSettings("models")}
-                title="Settings (⌘,)"
+                title={K("Settings (⌘,)")}
               >
                 <SettingsIcon size={18} />
               </button>

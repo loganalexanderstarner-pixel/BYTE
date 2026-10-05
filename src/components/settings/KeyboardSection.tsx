@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { errorText } from "../../lib/api";
-import { keysFromEvent, keysProblem, prettyKeys } from "../../lib/keys";
+import { keysFromEvent, keysProblem, platformKeys as K, prettyKeys } from "../../lib/keys";
 import type { Settings } from "../../lib/types";
 import { useStore } from "../../state/store";
 
@@ -47,12 +47,12 @@ function KeyRecorder({ value, label, onSave, disabled }: { value: string; label:
 }
 
 const IN_APP: [string, string][] = [
-  ["⌘K", "Command palette: find any chat, setting, mode or theme"],
-  ["⌘N", "New chat"],
-  ["⌘,", "Settings"],
-  ["⌘\\", "Show or hide the sidebar"],
+  [K("⌘K"), "Command palette: find any chat, setting, mode or theme"],
+  [K("⌘N"), "New chat"],
+  [K("⌘,"), "Settings"],
+  [K("⌘\\"), "Show or hide the sidebar"],
   ["Esc", "Stop the answer (in Quick Ask: hide the window)"],
-  ["Enter / ⇧Enter", "Send / new line"],
+  [K("Enter / ⇧Enter"), "Send / new line"],
 ];
 
 /** Settings → About: Quick Ask, the menu-bar icon, the global shortcuts and the in-app keys. */

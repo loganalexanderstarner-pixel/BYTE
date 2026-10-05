@@ -6,6 +6,16 @@ export function isWindows(): boolean {
 }
 
 /**
+ * Rewrites Mac key glyphs inside UI text for Windows: "New chat (⌘N)" becomes
+ * "New chat (Ctrl+N)". The identity on a Mac. The in-app handlers already accept
+ * Ctrl as well as Command, so only what is SHOWN needed changing.
+ */
+export function platformKeys(text: string, windows: boolean = isWindows()): string {
+  if (!windows) return text;
+  return text.replace(/⌘/g, "Ctrl+").replace(/⌃/g, "Ctrl+").replace(/⌥/g, "Alt+").replace(/⇧/g, "Shift+");
+}
+
+/**
  * "Alt+Super+KeyB" → "⌥⌘B" on a Mac, "Alt+Win+B" on Windows. The platform is a
  * parameter so both forms can be checked anywhere; it defaults to the real one.
  * On Windows "Super" is the Windows key and "CmdOrCtrl" is Ctrl.

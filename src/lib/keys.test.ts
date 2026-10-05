@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { keysFromEvent, keysProblem, prettyKeys } from "./keys";
+import { keysFromEvent, keysProblem, platformKeys, prettyKeys } from "./keys";
 
 const ev = (code: string, m: Partial<{ alt: boolean; ctrl: boolean; meta: boolean; shift: boolean }> = {}) => ({
   code,
@@ -44,5 +44,16 @@ describe("shortcuts on Windows", () => {
   });
   it("say which keys to add in Windows' words", () => {
     expect(keysProblem("KeyA", true)).toBe("Add Ctrl, Alt or Win, so normal typing still works.");
+  });
+});
+
+describe("platformKeys", () => {
+  it("is the identity on a Mac", () => {
+    expect(platformKeys("New chat (⌘N)", false)).toBe("New chat (⌘N)");
+  });
+  it("writes Mac glyphs as Windows key names", () => {
+    expect(platformKeys("New chat (⌘N)", true)).toBe("New chat (Ctrl+N)");
+    expect(platformKeys("Enter / ⇧Enter", true)).toBe("Enter / Shift+Enter");
+    expect(platformKeys("⌥Space", true)).toBe("Alt+Space");
   });
 });

@@ -26,6 +26,7 @@ import type { ModelStatus, VariantStatus } from "../../lib/types";
 import { useStore } from "../../state/store";
 import { DownloadProgress, FitPill } from "../models/ModelCard";
 import { CloudKeySteps } from "../settings/CloudKeySteps";
+import { platformKeys as K } from "../../lib/keys";
 
 const STEPS = 5;
 
@@ -544,8 +545,8 @@ export function Onboarding() {
                     <div>
                       <b>Shortcuts.</b>{" "}
                       <span className="muted">
-                        <kbd>⌘N</kbd> new chat · <kbd>⌘,</kbd> settings ·{" "}
-                        <kbd>⌘\</kbd> sidebar · <kbd>Esc</kbd> stop
+                        <kbd>{K("⌘N")}</kbd> new chat · <kbd>{K("⌘,")}</kbd> settings ·{" "}
+                        <kbd>{K("⌘\\")}</kbd> sidebar · <kbd>Esc</kbd> stop
                       </span>
                     </div>
                   </li>

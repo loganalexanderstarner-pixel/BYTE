@@ -8,6 +8,7 @@ import { api, inTauri } from "../lib/api";
 import { prettyKeys } from "../lib/keys";
 import { currentConversation, useStore } from "../state/store";
 import { useAppearance } from "./App";
+import { platformKeys as K } from "../lib/keys";
 
 const focusBox = () => setTimeout(() => document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus(), 30);
 
@@ -86,7 +87,7 @@ export function QuickAsk() {
               newChat();
               focusBox();
             }}
-            title="New question (⌘N)"
+            title={K("New question (⌘N)")}
           >
             <SquarePen size={13} /> New
           </button>

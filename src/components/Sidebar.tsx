@@ -31,6 +31,7 @@ import { api, inTauri } from "../lib/api";
 import type { Project, SearchHit, Workspace } from "../lib/types";
 import { listSignature } from "../lib/throttle";
 import { hasMessages, spaceOf, useStore, workspaceOf, type CloudChat, type Conversation } from "../state/store";
+import { platformKeys as K } from "../lib/keys";
 
 function groupLabel(ts: number): string {
   const day = 86_400_000;
@@ -173,7 +174,7 @@ export function Sidebar() {
   return (
     <aside className="sidebar" aria-label="Conversations">
       <div className="titlebar" data-tauri-drag-region>
-        <button className="icon-btn" onClick={toggleSidebar} title="Hide sidebar (⌘\)">
+        <button className="icon-btn" onClick={toggleSidebar} title={K("Hide sidebar (⌘\\)")}>
           <PanelLeft size={18} />
         </button>
         {workspace === "local" && !kids && (
@@ -181,7 +182,7 @@ export function Sidebar() {
             <EyeOff size={17} />
           </button>
         )}
-        <button className="icon-btn" onClick={() => newChat()} title="New chat (⌘N)">
+        <button className="icon-btn" onClick={() => newChat()} title={K("New chat (⌘N)")}>
           <SquarePen size={18} />
         </button>
       </div>
