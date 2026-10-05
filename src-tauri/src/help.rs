@@ -2,7 +2,7 @@
 //! offered to the model when the user asks how to do something in BYTE, so even
 //! small models answer correctly about BYTE's own features.
 
-const ARTICLES: &[&str] = &[
+const SOURCES: &[&str] = &[
     include_str!("../../src/help/01-getting-started.md"),
     include_str!("../../src/help/02-models.md"),
     include_str!("../../src/help/03-modes-and-web.md"),
@@ -18,6 +18,13 @@ const ARTICLES: &[&str] = &[
     include_str!("../../src/help/13-shortcuts.md"),
     include_str!("../../src/help/14-troubleshooting.md"),
 ];
+
+/// The articles as the reader on this machine should see them (Mac steps on a Mac, Windows steps
+/// on Windows), worded once.
+fn articles() -> &'static [String] {
+    static RENDERED: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    RENDERED.get_or_init(|| SOURCES.iter().map(|a| crate::platform_text::localize(a, cfg!(windows))).collect())
+}
 
 /// A question about using BYTE itself ("how do I change BYTE's voice?", "can you read my files?").
 pub fn wants_app_help(q: &str) -> bool {
@@ -38,16 +45,23 @@ fn words(s: &str) -> Vec<String> {
 
 /// The (at most `n`) articles that best match the question, by shared words (title words count double).
 pub fn best(q: &str, n: usize) -> Vec<&'static str> {
+    best_among(articles(), q, n)
+}
+
+fn best_among<'a>(articles: &'a [String], q: &str, n: usize) -> Vec<&'a str> {
     // Words in most articles ("BYTE", "open") say nothing about which one fits.
-    let common = |w: &String| ARTICLES.iter().filter(|a| words(a).contains(w)).count() * 2 > ARTICLES.len();
-    let qw: Vec<String> = words(q).into_iter().filter(|w| !common(w)).collect();
-    let mut scored: Vec<(usize, &str)> = ARTICLES
+    let common = |w: &String| articles.iter().filter(|a| words(a).contains(w)).count() * 2 > articles.len();
+    // The name of the platform says nothing about which article fits either: a Windows reader's
+    // articles all mention Windows, as a Mac reader's mention macOS.
+    const PLATFORM_WORDS: &[&str] = &["windows", "macos", "apple", "microsoft"];
+    let qw: Vec<String> = words(q).into_iter().filter(|w| !common(w) && !PLATFORM_WORDS.contains(&w.as_str())).collect();
+    let mut scored: Vec<(usize, &str)> = articles
         .iter()
         .map(|a| {
             let title = words(a.lines().next().unwrap_or(""));
             let body = words(a);
             let s = qw.iter().map(|w| body.iter().filter(|b| *b == w).count() + if title.contains(w) { 3 } else { 0 }).sum();
-            (s, *a)
+            (s, a.as_str())
         })
         .filter(|(s, _)| *s > 0)
         .collect();
@@ -65,16 +79,41 @@ pub fn section(q: &str) -> String {
         return String::new();
     }
     let links = |a: &str| a.replace("](byte-setting:", "](#").replace("](help:", "](#");
-    format!(
+    let text = format!(
         "\n\nThe user is asking how to use BYTE (you). Answer from BYTE's help below; don't invent buttons or settings that aren't in it. \
 If it doesn't cover the question, say so and suggest the help center (⌘?).\n\n<<<\n{}\n>>>",
         found.iter().map(|a| links(a)).collect::<Vec<_>>().join("\n\n---\n\n")
-    )
+    );
+    if cfg!(windows) {
+        crate::platform_text::keys(&text)
+    } else {
+        text
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_windows_reader_is_never_told_a_mac_step() {
+        let mac_only = ["⌘", "⌥", "macOS", "Finder", "Touch ID", "Keychain", "iCloud", "Open Anyway", "System Settings", "menu bar", "Siri", "Gatekeeper"];
+        for source in SOURCES {
+            let text = crate::platform_text::localize(source, true);
+            for word in mac_only {
+                assert!(!text.contains(word), "{:?} mentions {word}", text.lines().next());
+            }
+        }
+    }
+
+    #[test]
+    fn the_articles_on_a_mac_are_what_was_written() {
+        for source in SOURCES {
+            assert!(!crate::platform_text::localize(source, false).contains("<!--"));
+        }
+        assert!(SOURCES.iter().any(|s| crate::platform_text::localize(s, false).contains("⌘K")));
+    }
+
 
     #[test]
     fn knows_app_questions() {
@@ -86,12 +125,30 @@ mod tests {
         }
     }
 
+    fn rendered(windows: bool) -> Vec<String> {
+        SOURCES.iter().map(|a| crate::platform_text::localize(a, windows)).collect()
+    }
+
     #[test]
     fn finds_the_right_article() {
         assert!(best("how do I change BYTE's voice", 1)[0].starts_with("# Voice"));
-        assert!(best("macOS says BYTE can't be opened, open anyway", 1)[0].starts_with("# Troubleshooting"));
         let s = section("How do I turn on Hey BYTE?");
         assert!(s.contains("Hey BYTE") && !s.contains("byte-setting:"), "{s}");
         assert_eq!(section("How do I make pancakes?"), "");
+    }
+
+    /// The same problem asked the way each platform's reader would, against that platform's articles
+    /// (so this holds whichever machine the tests run on): the model must be handed the fix.
+    #[test]
+    fn the_blocked_app_question_gets_the_fix_on_either_platform() {
+        for (windows, question, fix) in [
+            (false, "macOS says BYTE can't be opened, open anyway", "Open Anyway"),
+            (true, "SmartScreen protected my PC when I opened BYTE, run anyway", "Run anyway"),
+            (true, "Windows protected your PC when I opened BYTE", "Run anyway"),
+        ] {
+            let articles = rendered(windows);
+            let got = best_among(&articles, question, 2);
+            assert!(got.iter().any(|a| a.contains(fix)), "windows={windows} {question:?}: {:?}", got.iter().map(|a| a.lines().next()).collect::<Vec<_>>());
+        }
     }
 }

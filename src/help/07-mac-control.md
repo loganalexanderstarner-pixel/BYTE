@@ -1,3 +1,4 @@
+<!-- mac -->
 # Mac control and permissions
 
 BYTE can act on your Mac: reminders, calendar, notes, Mail drafts, texts, music, dark mode, files, Shortcuts and more.
@@ -9,3 +10,11 @@ BYTE can act on your Mac: reminders, calendar, notes, Mail drafts, texts, music,
 - The first time, macOS asks to let BYTE control an app. Click **OK**. To change it later: System Settings → Privacy & Security → Automation.
 - **⌥⌘B** on selected text in any app opens it in BYTE (reply, explain, rewrite). This needs Accessibility permission.
 - **Mac upkeep:** "what's taking up space?", "why is my Mac slow?", "uninstall Zoom".
+<!-- win -->
+# Hotkeys and clipboard
+
+BYTE works with the text you select in other apps and keeps a clipboard history. Controlling other apps, reminders, calendars and system settings by voice or text is a Mac feature that isn't available on Windows yet.
+
+- **Ctrl+Alt+B** on selected text in any app opens it in BYTE (reply, explain, rewrite), then **Paste into** puts the result back. It can't read an app that is running as administrator.
+- The clipboard history keeps your recent copies on this PC only, and never keeps what looks like a password or a secret.
+<!-- all -->

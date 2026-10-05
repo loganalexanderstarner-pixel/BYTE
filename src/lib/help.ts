@@ -1,4 +1,7 @@
 // BYTE's offline help center: articles bundled from src/help/*.md, searched and linked here.
+import { isWindows } from "./keys";
+import { localize } from "./helpText";
+
 const files = import.meta.glob("../help/*.md", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
 export interface Article {
@@ -8,13 +11,19 @@ export interface Article {
   body: string;
 }
 
-export const ARTICLES: Article[] = Object.entries(files)
-  .sort(([a], [b]) => a.localeCompare(b))
-  .map(([path, text]) => {
-    const id = path.split("/").pop()!.replace(/^\d+-/, "").replace(/\.md$/, "");
-    const title = /^#\s+(.+)$/m.exec(text)?.[1]?.trim() ?? id;
-    return { id, title, body: text.replace(/^#\s+.+\n+/, "") };
-  });
+/** The bundled articles, worded for a Mac or for Windows. */
+export function articlesFor(windows: boolean, sources: Record<string, string> = files): Article[] {
+  return Object.entries(sources)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([path, raw]) => {
+      const text = localize(raw, windows);
+      const id = path.split("/").pop()!.replace(/^\d+-/, "").replace(/\.md$/, "");
+      const title = /^#\s+(.+)$/m.exec(text)?.[1]?.trim() ?? id;
+      return { id, title, body: text.replace(/^#\s+.+\n+/, "") };
+    });
+}
+
+export const ARTICLES: Article[] = articlesFor(isWindows());
 
 /** Articles matching every word, title hits first, then how often the words appear. */
 export function searchHelp(query: string, articles: Article[] = ARTICLES): Article[] {

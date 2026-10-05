@@ -12,7 +12,11 @@ Turn on **Lock BYTE with Touch ID** and BYTE asks for Touch ID (or your Mac's pa
 
 ## Back up and restore
 
+<!-- mac -->
 **Back up now** makes one encrypted file with your chats, memories, settings and notes. If iCloud Drive is on, it goes to iCloud Drive → BYTE Backups, so it's safe even if your Mac is lost. Only your passphrase opens it: write it down somewhere safe. Turn on **Back up every week** (the passphrase is kept in your Keychain); the newest 5 backups are kept. To bring a backup back, press **Restore…** next to it (or **Restore from a file…**), type its passphrase, and BYTE restarts with it. Your current chats are set aside, not deleted. Models aren't in backups; they can be downloaded again.
+<!-- win -->
+**Back up now** makes one encrypted file with your chats, memories, settings and notes. Only your passphrase opens it: write it down somewhere safe. Turn on **Back up every week** (the passphrase is kept in Windows Credential Manager); the newest 5 backups are kept. To bring a backup back, press **Restore…** next to it (or **Restore from a file…**), type its passphrase, and BYTE restarts with it. Your current chats are set aside, not deleted. Models aren't in backups; they can be downloaded again.
+<!-- all -->
 
 ## Kids mode
 
@@ -26,14 +30,24 @@ Set a 4–6 digit PIN and turn on **Kids mode**: BYTE answers in a way that's ri
 
 The **Activity** list shows everything BYTE did for you: searches, pages read, Mac actions, terminal commands, files, connectors and automations. Search it, filter it, copy it as JSON, or clear it. It's kept on this Mac only.
 
+<!-- mac -->
 ## Mac permissions
 
 The Privacy tab lists the Mac permissions BYTE may use (Microphone, Accessibility, Automation, Calendars, Reminders, Notifications), what each is for, and whether it's allowed. **Open** takes you to the right page in System Settings.
+<!-- win -->
+## Windows permissions
+
+The Privacy tab shows the permissions Windows controls for BYTE (the Microphone, for dictation, voice and "Hey BYTE"), and whether each is allowed. **Open** takes you to the right page in Settings → Privacy & security.
+<!-- all -->
 
 ## Also
 
 - Chats, memories and settings are stored **encrypted** on your Mac.
 - **Private chats** aren't saved and don't use memories.
 - **Memory:** BYTE asks before remembering something about you. See and delete memories in [Settings → Memory & chats](byte-setting:memory).
+<!-- mac -->
 - The microphone is only used while you dictate, talk, or have "Hey BYTE" on (macOS shows its orange dot). Nothing is recorded or kept.
+<!-- win -->
+- The microphone is only used while you dictate, talk, or have "Hey BYTE" on (Windows shows a microphone icon in the taskbar). Nothing is recorded or kept.
+<!-- all -->
 - Web searches go to search engines; nothing else leaves your Mac unless you use BYTE Cloud.

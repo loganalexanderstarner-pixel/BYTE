@@ -201,6 +201,20 @@ how every item below was found; none of them showed in a test.
   listed. Closing one posts `WM_CLOSE` to its windows, the same as the X button, so it can still ask to
   save. Verified against the real desktop (it found the one big app and named it correctly). **Not
   verified live:** the close itself, because it would close a real app; it is a single `PostMessageW`.
+- **Opening Help blanked the whole app on Windows.** `useEffect(() => body.current?.scrollTo(0, 0), [id])`
+  hands React whatever `scrollTo` returns as the effect's cleanup; on Windows' web view that is not
+  `undefined`, so React threw "destroy is not a function" when the panel changed and the window went empty.
+  Found only by clicking through the real app (an on-screen error handler showed the message). The effect is
+  braced, so are the three other effects written as bare calls, and `src/lib/effects.test.ts` fails if any
+  `useEffect(() => expression)` comes back. A cleanup returned on purpose (`() => () => flush()`) is fine.
+- **Help in the words of the machine.** Articles had Mac steps throughout (Open Anyway, ⌘K, Touch ID, iCloud,
+  System Settings). They now carry `<!-- mac -->` / `<!-- win -->` / `<!-- all -->` blocks where the steps
+  differ (SmartScreen's "Run anyway", the microphone setting, Ctrl+Alt+B, Credential Manager) and are
+  reworded mechanically elsewhere (`src/lib/helpText.ts`; the same rules in `src-tauri/src/platform_text.rs`
+  for the copy the model quotes). The Mac text of every article is byte-for-byte what it was (checked
+  against the old files). A test fails if a Windows article mentions ⌘, macOS, Finder, iCloud, Keychain,
+  Touch ID, Open Anyway, System Settings or the menu bar. Retrieval ignores platform names ("Windows"
+  appeared in every article and drowned the real match) and is tested to hand the model the fix on both.
 - **Driver trap:** Task Scheduler rejects a `/tr` command over 261 characters and the script hid the error, so a
   longer click list silently did nothing for ten minutes. The step list now goes through a file.
 - **Disk lesson.** My builds took the PC's C: from 58 GB free to 6 GB in a day

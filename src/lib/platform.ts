@@ -91,6 +91,7 @@ export function osText(text: string, windows: boolean = isWindows()): string {
   return text
     .replace(/\b(?:[Yy]our|[Tt]he|[Tt]his) (?:Mac|macOS)'s Keychain\b/g, "Windows Credential Manager")
     .replace(/\bthe macOS Keychain\b/g, "Windows Credential Manager")
+    .replace(/\b[Yy]our Keychain\b/g, "Windows Credential Manager")
     .replace(/\bKeychain\b/g, "Credential Manager")
     .replace(/\bApple Silicon GPU\b/g, "graphics card or processor")
     .replace(/\bShow in Finder\b/g, "Show in File Explorer")

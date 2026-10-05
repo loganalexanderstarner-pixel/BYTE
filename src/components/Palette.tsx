@@ -9,7 +9,9 @@ export function Palette({ items, onRun, onClose }: { items: PaletteItem[]; onRun
   const [sel, setSel] = useState(0);
   const list = useMemo(() => rankItems(items, q, 14), [items, q]);
   const listRef = useRef<HTMLUListElement>(null);
-  useEffect(() => setSel(0), [q]);
+  useEffect(() => {
+    setSel(0);
+  }, [q]);
   useEffect(() => {
     listRef.current?.querySelector<HTMLElement>(`[data-i="${sel}"]`)?.scrollIntoView({ block: "nearest" });
   }, [sel]);

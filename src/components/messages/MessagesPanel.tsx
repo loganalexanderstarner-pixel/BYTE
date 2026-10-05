@@ -66,7 +66,9 @@ export function MessagesPanel({
     setSent(null);
     loadThread(chat);
   }, [chat, loadThread]);
-  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [msgs]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end" });
+  }, [msgs]);
 
   const current = threads?.find((t) => t.chat === chat) ?? null;
   const draftReply = useCallback(async () => {

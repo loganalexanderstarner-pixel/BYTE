@@ -31,6 +31,7 @@ mod filectl;
 mod files;
 mod gguf;
 mod ocr;
+mod platform_text;
 #[cfg(windows)]
 mod recycle;
 mod memory;

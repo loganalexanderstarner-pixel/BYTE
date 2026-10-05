@@ -30,7 +30,9 @@ export function HelpCenter() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  useEffect(() => body.current?.scrollTo(0, 0), [id]);
+  useEffect(() => {
+    body.current?.scrollTo(0, 0);
+  }, [id]);
 
   // Links inside an article: other articles, a Settings tab, or the web (opened outside).
   const onClick = (e: MouseEvent) => {

@@ -147,7 +147,9 @@ export function Composer() {
     });
     return () => void off.then((f) => f());
   }, [newChat]);
-  useEffect(() => setTutor(false), [currentId]);
+  useEffect(() => {
+    setTutor(false);
+  }, [currentId]);
   const toggleWeb = useStore((s) => s.toggleWeb);
   const toggleFiles = useStore((s) => s.toggleFiles);
   const hasFiles = useStore((s) => (s.kb?.sources ?? []).some((x) => x.chunks > 0));
