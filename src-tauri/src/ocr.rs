@@ -89,7 +89,7 @@ mod mac {
 
 #[cfg(windows)]
 mod win {
-    use windows::core::Error;
+    use windows::core::{Error, Interface};
     use windows::Data::Pdf::{PdfDocument, PdfPageRenderOptions};
     use windows::Graphics::Imaging::{BitmapDecoder, BitmapTransform, ColorManagementMode, ExifOrientationMode};
     use windows::Media::Ocr::OcrEngine;
@@ -122,8 +122,8 @@ mod win {
         let stream = InMemoryRandomAccessStream::new().map_err(msg)?;
         let writer = DataWriter::CreateDataWriter(&stream).map_err(msg)?;
         writer.WriteBytes(bytes).map_err(msg)?;
-        writer.StoreAsync().map_err(msg)?.get().map_err(msg)?;
-        writer.FlushAsync().map_err(msg)?.get().map_err(msg)?;
+        writer.StoreAsync().map_err(msg)?.join().map_err(msg)?;
+        writer.FlushAsync().map_err(msg)?.join().map_err(msg)?;
         // Hand the stream back instead of closing it along with the writer.
         writer.DetachStream().map_err(msg)?;
         stream.Seek(0).map_err(msg)?;
@@ -132,7 +132,7 @@ mod win {
 
     /// Lines of text in an encoded image held in `stream`.
     fn read_image(stream: &IRandomAccessStream, engine: &OcrEngine) -> Result<String, String> {
-        let decoder = BitmapDecoder::CreateAsync(stream).map_err(msg)?.get().map_err(msg)?;
+        let decoder = BitmapDecoder::CreateAsync(stream).map_err(msg)?.join().map_err(msg)?;
         let (w, h) = (decoder.PixelWidth().map_err(msg)?, decoder.PixelHeight().map_err(msg)?);
         // The engine refuses anything past its own limit (about 10,000 px), which
         // a photo from a modern phone can exceed. Scale down rather than fail.
@@ -151,12 +151,12 @@ mod win {
                     ColorManagementMode::DoNotColorManage,
                 )
                 .map_err(msg)?
-                .get()
+                .join()
                 .map_err(msg)?
         } else {
-            decoder.GetSoftwareBitmapAsync().map_err(msg)?.get().map_err(msg)?
+            decoder.GetSoftwareBitmapAsync().map_err(msg)?.join().map_err(msg)?
         };
-        let result = engine.RecognizeAsync(&bitmap).map_err(msg)?.get().map_err(msg)?;
+        let result = engine.RecognizeAsync(&bitmap).map_err(msg)?.join().map_err(msg)?;
         let mut lines = Vec::new();
         for line in result.Lines().map_err(msg)? {
             lines.push(line.Text().map_err(msg)?.to_string());
@@ -177,7 +177,7 @@ mod win {
         let source = stream_of(bytes)?;
         let doc = PdfDocument::LoadFromStreamAsync(&source)
             .map_err(msg)?
-            .get()
+            .join()
             .map_err(|_| "not a readable PDF (it may be password protected)".to_string())?;
         let total = doc.PageCount().map_err(msg)? as usize;
         let mut pages = Vec::new();
@@ -185,12 +185,12 @@ mod win {
             let page = doc.GetPage(i as u32).map_err(msg)?;
             let size = page.Size().map_err(msg)?;
             // About 200 dpi for a letter page: sharp enough for small print.
-            let scale = (2200.0 / size.Width.max(size.Height).max(1.0)).min(3.0);
+            let scale: f32 = (2200.0_f32 / size.Width.max(size.Height).max(1.0)).min(3.0);
             let opts = PdfPageRenderOptions::new().map_err(msg)?;
             opts.SetDestinationWidth((size.Width * scale) as u32).map_err(msg)?;
             opts.SetDestinationHeight((size.Height * scale) as u32).map_err(msg)?;
             let rendered = InMemoryRandomAccessStream::new().map_err(msg)?;
-            page.RenderWithOptionsToStreamAsync(&rendered, &opts).map_err(msg)?.get().map_err(msg)?;
+            page.RenderWithOptionsToStreamAsync(&rendered, &opts).map_err(msg)?.join().map_err(msg)?;
             rendered.Seek(0).map_err(msg)?;
             pages.push(read_image(&rendered.cast().map_err(msg)?, &engine)?);
         }

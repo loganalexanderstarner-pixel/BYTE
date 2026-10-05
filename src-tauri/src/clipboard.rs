@@ -113,12 +113,12 @@ const WINDOWS_HISTORY_FORMAT: &str = "CanIncludeInClipboardHistory";
 #[cfg(windows)]
 pub mod board {
     use windows::core::PCWSTR;
-    use windows::Win32::Foundation::{HANDLE, HGLOBAL};
+    use windows::Win32::Foundation::{GlobalFree, HANDLE, HGLOBAL};
     use windows::Win32::System::DataExchange::{
         CloseClipboard, EmptyClipboard, GetClipboardData, GetClipboardSequenceNumber, IsClipboardFormatAvailable,
         OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
     };
-    use windows::Win32::System::Memory::{GlobalAlloc, GlobalFree, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE};
+    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE};
 
     /// CF_UNICODETEXT. Spelled out so this needs no extra windows-crate feature.
     const CF_UNICODETEXT: u32 = 13;

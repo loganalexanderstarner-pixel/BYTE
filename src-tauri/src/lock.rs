@@ -188,13 +188,13 @@ mod win {
     /// Whether Windows Hello is set up for this account.
     pub fn can_check() -> bool {
         ensure_winrt();
-        UserConsentVerifier::CheckAvailabilityAsync().and_then(|op| op.get()).map(|a| a == A::Available).unwrap_or(false)
+        UserConsentVerifier::CheckAvailabilityAsync().and_then(|op| op.join()).map(|a| a == A::Available).unwrap_or(false)
     }
 
     /// Blocks until the person confirms or cancels.
     pub fn authenticate(reason: &str) -> Result<(), String> {
         ensure_winrt();
-        let availability = UserConsentVerifier::CheckAvailabilityAsync().and_then(|op| op.get()).map_err(|e| e.message())?;
+        let availability = UserConsentVerifier::CheckAvailabilityAsync().and_then(|op| op.join()).map_err(|e| e.message())?;
         if availability != A::Available {
             return Err(match availability {
                 A::DeviceBusy => "Windows Hello is busy right now. Try again in a moment.".into(),
@@ -203,7 +203,7 @@ mod win {
             });
         }
         let result = UserConsentVerifier::RequestVerificationAsync(&HSTRING::from(reason))
-            .and_then(|op| op.get())
+            .and_then(|op| op.join())
             .map_err(|e| e.message())?;
         match result {
             R::Verified => Ok(()),
