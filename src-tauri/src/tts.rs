@@ -326,7 +326,7 @@ fn spawn_maker(app: AppHandle, p: &'static Package, dir: PathBuf, speaker: Speak
                         // The cloud stopped answering: the rest is spoken on this Mac (when a voice is there).
                         log::warn!("cloud voice: {}", crate::error::AppError::from(e));
                         cloud = None;
-                        if local_ready { synthesize(Some(&app), p, &dir, &speaker, pace, &chunk.text).await } else { Err(AppError::msg("no voice on this Mac")) }
+                        if local_ready { synthesize(Some(&app), p, &dir, &speaker, pace, &chunk.text).await } else { Err(AppError::msg(crate::platform_text::here("no voice on this Mac"))) }
                     }
                 },
                 None => synthesize(Some(&app), p, &dir, &speaker, pace, &chunk.text).await,

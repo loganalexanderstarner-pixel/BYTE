@@ -261,7 +261,7 @@ impl Engine {
             let message = if reserved > 0 {
                 format!("{} doesn't fit next to the models already loaded. Unload one first, or pick a smaller version.", model.name)
             } else {
-                format!("{} can't run on this Mac. {}", model.name, plan.note)
+                format!("{} can't run on {}. {}", model.name, crate::platform_text::here("this Mac"), plan.note)
             };
             self.set_status(app, EngineStatus::Error { message: message.clone() }).await;
             return Err(AppError::msg(message));
@@ -859,7 +859,7 @@ fn free_port() -> AppResult<u16> {
 pub fn diagnose(log: &[String]) -> String {
     let text = log.join("\n").to_lowercase();
     if text.contains("failed to allocate") || text.contains("out of memory") || text.contains("insufficient memory") {
-        " Your Mac ran out of memory — quit other apps or choose a smaller model in Settings → Models.".into()
+        crate::platform_text::here(" Your Mac ran out of memory — quit other apps or choose a smaller model in Settings → Models.")
     } else if text.contains("failed to load model") || text.contains("invalid magic") || text.contains("gguf") && text.contains("error") {
         " The model file looks damaged — delete it in Settings → Models and download it again.".into()
     } else if text.contains("address already in use") {

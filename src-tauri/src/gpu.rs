@@ -128,10 +128,22 @@ fn vulkan_loader_present() -> bool {
 pub fn effective_backend() -> crate::chip::Backend {
     use crate::chip::Backend;
     static B: std::sync::OnceLock<Backend> = std::sync::OnceLock::new();
-    *B.get_or_init(|| match backend_for(detect()) {
-        Backend::Vulkan if !vulkan_loader_present() => Backend::Cpu,
-        b => b,
+    *B.get_or_init(|| {
+        if runs_on_cpu_only(cfg!(windows), cfg!(target_arch = "aarch64")) {
+            return Backend::Cpu;
+        }
+        match backend_for(detect()) {
+            Backend::Vulkan if !vulkan_loader_present() => Backend::Cpu,
+            b => b,
+        }
     })
+}
+
+/// The Windows build for ARM64 (Snapdragon laptops) carries the CPU engine only: the CUDA and
+/// Vulkan builds are x64, so a graphics chip it finds is never what runs the model. Saying
+/// Vulkan there would also make speed estimates assume a GPU that is not being used.
+pub fn runs_on_cpu_only(windows: bool, arm64: bool) -> bool {
+    windows && arm64
 }
 
 /// Which bundled engine binary serves a backend. The CUDA build is the default and also runs
@@ -236,6 +248,15 @@ pub fn detect() -> &'static [Gpu] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_arm64_windows_build_runs_on_the_cpu_whatever_graphics_it_finds() {
+        assert!(runs_on_cpu_only(true, true));
+        // x64 Windows, and every Mac and Linux machine, choose by hardware as before.
+        assert!(!runs_on_cpu_only(true, false));
+        assert!(!runs_on_cpu_only(false, true));
+        assert!(!runs_on_cpu_only(false, false));
+    }
 
     const NVIDIA: u32 = 0x10DE;
     const AMD: u32 = 0x1002;

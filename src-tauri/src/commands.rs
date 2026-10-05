@@ -25,7 +25,7 @@ async fn reference_text(path: Option<String>) -> AppResult<String> {
 }
 
 async fn main_endpoint(state: &AppState) -> AppResult<crate::engine::Endpoint> {
-    state.engine.endpoint().await.ok_or_else(|| AppError::msg("The model on this Mac isn't ready yet. Load one in Settings → Models, or use BYTE Cloud."))
+    state.engine.endpoint().await.ok_or_else(|| AppError::msg(crate::platform_text::here("The model on this Mac isn't ready yet. Load one in Settings → Models, or use BYTE Cloud.")))
 }
 
 #[tauri::command]

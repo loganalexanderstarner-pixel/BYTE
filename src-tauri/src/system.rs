@@ -367,7 +367,8 @@ pub fn plan_fit(
         let need_gb = (base + per_tok * MIN_CONTEXT as u64) as f64 / GB as f64;
         let ram_needed = ((need_gb * 1.5 / 8.0).ceil() * 8.0) as u64;
         return too_big(format!(
-            "Needs about {need_gb:.1} GB of GPU memory. A Mac with {}+ GB of RAM is required.",
+            "Needs about {need_gb:.1} GB of GPU memory. A {} with {}+ GB of RAM is required.",
+            crate::platform_text::here("Mac"),
             ram_needed.max(16)
         ));
     }
@@ -378,7 +379,7 @@ pub fn plan_fit(
     let needed = base + per_tok * context as u64;
     let left = total_ram.saturating_sub(needed);
     let (fit, note) = if left >= comfort_reserve(total_ram) && context >= desired {
-        (Fit::Great, "Runs comfortably on this Mac.".to_string())
+        (Fit::Great, crate::platform_text::here("Runs comfortably on this Mac."))
     } else if context < desired {
         (
             Fit::Tight,

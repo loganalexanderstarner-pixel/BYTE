@@ -70,7 +70,7 @@ impl LabModel {
             "tags": ["added"],
             "thinking": self.thinking,
             "paramsB": self.params_b,
-            "tagline": format!("Added by you · {}", if self.source == "huggingface" { self.repo.as_str() } else { "a file on this Mac" }),
+            "tagline": format!("Added by you · {}", if self.source == "huggingface" { self.repo.clone() } else { crate::platform_text::here("a file on this Mac") }),
             "arch": self.arch(),
             "variants": [Variant {
                 quant: self.quant.clone(),
@@ -253,7 +253,7 @@ pub fn lab_list(state: State<'_, AppState>) -> Vec<LabModel> {
 #[tauri::command]
 pub fn lab_add(state: State<'_, AppState>, model: LabModel) -> AppResult<String> {
     if model.fit == "no" {
-        return Err(AppError::msg("That model is too big for this Mac."));
+        return Err(AppError::msg(crate::platform_text::here("That model is too big for this Mac.")));
     }
     if model.id.is_empty() || model.quant.is_empty() {
         return Err(AppError::msg("Check the model first."));

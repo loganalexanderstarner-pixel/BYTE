@@ -479,7 +479,7 @@ pub async fn run(turn: &Turn<'_>, question: &str, used_tokens: usize, cancel: &C
     let n = book.add(&format!("{} ({})", info.title, info.channel), &link(&id, 0), "");
     book.mark_read(&link(&id, 0), &format!("{} ({})", info.title, info.channel));
     (c.send)(ChatEvent::Sources { sources: book.sources.clone() })?;
-    let captions = if track.url.is_empty() { "none; BYTE transcribed its audio on this Mac (may have small mistakes)" } else if track.asr { "auto-generated" } else { "human-made" };
+    let captions = if track.url.is_empty() { crate::platform_text::here("none; BYTE transcribed its audio on this Mac (may have small mistakes)") } else if track.asr { "auto-generated".to_string() } else { "human-made".to_string() };
     let head = format!("Video [{n}]: “{}” by {} ({}), id {id}. Captions: {captions}.", info.title, info.channel, stamp(info.seconds));
 
     match ask {

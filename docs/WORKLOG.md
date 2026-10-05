@@ -215,6 +215,22 @@ how every item below was found; none of them showed in a test.
   against the old files). A test fails if a Windows article mentions ⌘, macOS, Finder, iCloud, Keychain,
   Touch ID, Open Anyway, System Settings or the menu bar. Retrieval ignores platform names ("Windows"
   appeared in every article and drowned the real match) and is tested to hand the model the fix on both.
+- **The whole journey, in the real app, on the real GPU.** Real CUDA engine beside the debug app, a 0.6B model
+  in the models folder, `activeModel` in settings; the driver (now with a `type:` step) waited for the engine,
+  typed a message and pressed Enter. The engine started by itself (pill: "Qwen3 0.6B · 16k"), the reply
+  streamed at about 510 tokens/s, the chat got a title, and it was still there after restarting the app.
+  Also `chat::e2e_streams_from_real_llama_server` and `agent::e2e_agent_uses_calculator_tool` pass on the PC
+  (thinking on and off, a tool call, 1234 × 5678 = 7,006,652).
+- **Rust-side sentences said "Mac" on a PC** ("Your Mac can run Qwen3.8 27B…", "can't run on this Mac",
+  "Your Mac ran out of memory", "BYTE is offline, so this answer was written on this Mac"). `platform_text::here()`
+  rewords the fixed part of a message on Windows and is the identity on a Mac; model names are kept out of it.
+- **ARM64 backend rule.** The Windows ARM64 build will carry the CPU engine only (CUDA and Vulkan are x64), so
+  `gpu::effective_backend()` answers CPU there whatever graphics it finds; otherwise a Snapdragon's integrated
+  GPU would have made the speed estimates assume a GPU that is not used. The build, packaging and CI for
+  ARM64 are next, after the x64 installer run (they share the scripts it watches).
+- **Test data shares the real app's folder.** The dev app and the installed app both use
+  `%APPDATA%\com.loganstarner.byte`, so a test model, `settings.json` and chat database left there would
+  appear in the person's real BYTE. Clean them after every driven test (settings, `byte.db*`, `db.key`, models).
 - **Driver trap:** Task Scheduler rejects a `/tr` command over 261 characters and the script hid the error, so a
   longer click list silently did nothing for ten minutes. The step list now goes through a file.
 - **Disk lesson.** My builds took the PC's C: from 58 GB free to 6 GB in a day

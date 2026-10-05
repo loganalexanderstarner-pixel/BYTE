@@ -77,6 +77,18 @@ pub fn os_text(text: &str) -> String {
     replace_word(&s, "Mac", "PC")
 }
 
+/// Text the app wrote for a Mac, worded for the machine it is on: the identity on a Mac,
+/// "this PC" for "this Mac" on Windows. Only for the app's own sentences, never for what a
+/// person or a model wrote, and for the fixed part of a message rather than the whole of one
+/// that has a model or file name in it.
+pub fn here(text: impl AsRef<str>) -> String {
+    if cfg!(windows) {
+        os_text(text.as_ref())
+    } else {
+        text.as_ref().to_string()
+    }
+}
+
 /// An article as the reader on this machine should see it.
 pub fn localize(text: &str, windows: bool) -> String {
     let picked = for_platform(text, windows);

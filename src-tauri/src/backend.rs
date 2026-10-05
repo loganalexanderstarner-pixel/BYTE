@@ -100,11 +100,11 @@ pub async fn answer(state: &AppState, mut request: ChatRequest, on_event: &Chann
         return match fallback {
             Some(local) => {
                 if !kids {
-                    let _ = on_event.send(ChatEvent::Notice { text: "BYTE is offline, so this answer was written on this Mac.".into() });
+                    let _ = on_event.send(ChatEvent::Notice { text: crate::platform_text::here("BYTE is offline, so this answer was written on this Mac.") });
                 }
                 finish(LocalLlama.answer(state, &local, on_event).await)
             }
-            None if kids => Err(AppError::msg("Kids mode answers on this Mac only.")),
+            None if kids => Err(AppError::msg(crate::platform_text::here("Kids mode answers on this Mac only."))),
             None => Err(AppError::msg(crate::offline::MESSAGE)),
         };
     }
@@ -178,16 +178,16 @@ pub async fn with_fallback<P: ModelBackend, S: ModelBackend>(
     on_event: &Channel<ChatEvent>,
 ) -> AppResult<()> {
     if request.private && !primary.capabilities().private {
-        return Err(AppError::msg("Private chats stay on this Mac. Switch to a model on this Mac, or turn off Private."));
+        return Err(AppError::msg(crate::platform_text::here("Private chats stay on this Mac. Switch to a model on this Mac, or turn off Private.")));
     }
     match primary.answer(state, request, on_event).await {
         Err(BackendError::Unreachable(why)) => match fallback {
             Some(local) => {
                 log::warn!("{} unreachable, answering on {}: {why}", primary.name(), secondary.name());
-                let _ = on_event.send(ChatEvent::Notice { text: "The BYTE cloud couldn't be reached, so this answer was written on this Mac.".into() });
+                let _ = on_event.send(ChatEvent::Notice { text: crate::platform_text::here("The BYTE cloud couldn't be reached, so this answer was written on this Mac.") });
                 finish(secondary.answer(state, local, on_event).await)
             }
-            None => Err(AppError::msg(format!("Your BYTE cloud can't be reached right now ({why}). The answer from this Mac is beside this one."))),
+            None => Err(AppError::msg(format!("Your BYTE cloud can't be reached right now ({why}). The answer from {} is beside this one.", crate::platform_text::here("this Mac")))),
         },
         other => finish(other),
     }
@@ -233,7 +233,7 @@ async fn reuse_earlier_answer(state: &AppState, request: &ChatRequest, ep: &crat
 
 async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<ChatEvent>) -> AppResult<()> {
     if state.tuning.load(std::sync::atomic::Ordering::SeqCst) {
-        return Err(AppError::msg("BYTE is tuning itself for this Mac (about a minute). Try again when it's done."));
+        return Err(AppError::msg(crate::platform_text::here("BYTE is tuning itself for this Mac (about a minute). Try again when it's done.")));
     }
     let main_key = state.engine.loaded().await.map(|l| l.key);
     let ep = match request.model.as_deref() {
@@ -463,7 +463,7 @@ async fn better_model_hint(state: &AppState, ep: &crate::engine::Endpoint, on_ev
     let info = crate::models::calibrate(crate::system::system_info(&state.paths.data).with_settings(&settings), &catalog);
     let Some(better) = crate::models::better_model(&catalog, &info, ctx, &ep.model) else { return };
     let _ = on_event.send(ChatEvent::Notice {
-        text: format!("Your Mac can run {}, which gives noticeably better answers and cards than the small model in use. You can download it in Settings → Models.", better.name),
+        text: format!("{} can run {}, which gives noticeably better answers and cards than the small model in use. You can download it in Settings → Models.", crate::platform_text::here("Your Mac"), better.name),
     });
     let mut s = state.settings.lock().await;
     let mut next = s.clone();
