@@ -1333,6 +1333,11 @@ export interface LockStatus {
   available: boolean;
   enabled: boolean;
   locked: boolean;
+  /** The platform's own wording; absent from an older backend, so every use falls back to the Mac text. */
+  method?: string;
+  asks?: string;
+  hint?: string;
+  unavailable?: string;
 }
 
 /** A Mac permission BYTE may use (privacy.rs). */

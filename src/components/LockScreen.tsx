@@ -35,10 +35,24 @@ export function useLock(): boolean | null {
   return locked;
 }
 
-/** The whole window while BYTE is locked: Touch ID or the Mac's password opens it. */
+/** The whole window while BYTE is locked: Touch ID or the Mac's password (Windows Hello on a PC) opens it. */
 export function LockScreen({ compact = false }: { compact?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The platform's own wording comes from Rust; these are the Mac words, used
+  // until it answers and by any older backend that does not send them.
+  const [method, setMethod] = useState("Touch ID");
+  const [hint, setHint] = useState("No Touch ID? macOS asks for your password instead.");
+  useEffect(() => {
+    if (!inTauri) return;
+    void api.lockStatus().then(
+      (s) => {
+        if (s.method) setMethod(s.method);
+        if (s.hint) setHint(s.hint);
+      },
+      () => undefined,
+    );
+  }, []);
 
   const unlock = useCallback(async () => {
     setBusy(true);
@@ -64,9 +78,9 @@ export function LockScreen({ compact = false }: { compact?: boolean }) {
         <h2>BYTE is locked</h2>
         <p className="faint">Your chats, notes and memories stay hidden until you unlock.</p>
         <button className="btn primary" onClick={() => void unlock()} disabled={busy} autoFocus>
-          {busy ? <Loader2 size={16} className="spin" /> : <Fingerprint size={16} />} Unlock with Touch ID
+          {busy ? <Loader2 size={16} className="spin" /> : <Fingerprint size={16} />} Unlock with {method}
         </button>
-        <p className="faint small">No Touch ID? macOS asks for your password instead.</p>
+        <p className="faint small">{hint}</p>
         {error && <p className="lock-error small">{error}</p>}
       </div>
     </div>

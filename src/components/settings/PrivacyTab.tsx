@@ -187,8 +187,8 @@ function LockSection() {
       </h3>
       {status && !status.available ? (
         <p className="faint small">
-          This Mac can't confirm it's you (no Touch ID and no password set up),
-          so BYTE can't be locked here.
+          {status.unavailable ??
+            "This Mac can't confirm it's you (no Touch ID and no password set up), so BYTE can't be locked here."}
         </p>
       ) : (
         <>
@@ -198,9 +198,9 @@ function LockSection() {
               style={{ alignItems: "flex-start", gap: 12 }}
             >
               <span className="grow">
-                Lock BYTE with Touch ID
+                Lock BYTE with {status?.method ?? "Touch ID"}
                 <small>
-                  BYTE asks for Touch ID (or your Mac's password) when it opens,
+                  BYTE asks for {status?.asks ?? "Touch ID (or your Mac's password)"} when it opens,
                   and after it sits unused. While locked, chats, notes, memories
                   and the activity log stay hidden, and Quick Ask asks too.
                 </small>
@@ -210,7 +210,7 @@ function LockSection() {
                 checked={on}
                 disabled={busy}
                 onChange={(e) => void toggle(e.target.checked)}
-                aria-label="Lock BYTE with Touch ID"
+                aria-label={`Lock BYTE with ${status?.method ?? "Touch ID"}`}
               />
             </label>
           </div>

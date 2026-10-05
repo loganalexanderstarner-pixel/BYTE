@@ -1,5 +1,5 @@
-//! The lock: BYTE asks for Touch ID (or the Mac's password) when it opens and
-//! after it has been idle for a while. While locked, the commands that read
+//! The lock: BYTE asks for Touch ID (or the Mac's password) -- or Windows Hello on
+//! a PC -- when it opens and after it has been idle for a while. While locked, the commands that read
 //! chats, notes and other personal data refuse, so nothing shows behind the
 //! lock screen even if the UI were bypassed.
 //!
@@ -18,8 +18,10 @@ use crate::state::AppState;
 pub const EVENT: &str = "lock://changed";
 const LOCKED: &str = "BYTE is locked. Unlock it with Touch ID or your Mac's password.";
 
-/// Whether this system can lock BYTE (Touch ID / the Mac password: macOS only).
-pub const AVAILABLE: bool = cfg!(target_os = "macos");
+/// Whether this build has a way to lock BYTE at all (Touch ID or the Mac
+/// password; Windows Hello). Whether THIS machine can use it is a separate
+/// question, answered at run time by `can_check`.
+pub const AVAILABLE: bool = cfg!(any(target_os = "macos", windows));
 
 pub struct Lock {
     locked: AtomicBool,
@@ -115,10 +117,14 @@ async fn authenticate(reason: String) -> AppResult<()> {
     {
         tauri::async_runtime::spawn_blocking(move || mac::authenticate(&reason)).await.map_err(|e| AppError::msg(e.to_string()))?.map_err(AppError::msg)
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(windows)]
+    {
+        tauri::async_runtime::spawn_blocking(move || win::authenticate(&reason)).await.map_err(|e| AppError::msg(e.to_string()))?.map_err(AppError::msg)
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
     {
         let _ = reason;
-        Err(AppError::msg("Locking BYTE needs a Mac for now."))
+        Err(AppError::msg("Locking BYTE isn't available on this system yet."))
     }
 }
 
@@ -158,22 +164,100 @@ mod mac {
     }
 }
 
+/// Windows Hello: PIN, fingerprint or face. This is the app-lock gate, not an
+/// encryption key, which is how the macOS side uses Touch ID too.
+///
+/// Honest difference from the Mac: macOS accepts the account password as a
+/// fallback, Windows Hello needs a PIN, fingerprint or face to be set up. An
+/// account that only has a password cannot use the lock, and says so rather than
+/// failing mysteriously.
+#[cfg(windows)]
+mod win {
+    use windows::core::HSTRING;
+    use windows::Security::Credentials::UI::{
+        UserConsentVerificationResult as R, UserConsentVerifier, UserConsentVerifierAvailability as A,
+    };
+    use windows::Win32::System::WinRT::{RoInitialize, RO_INIT_MULTITHREADED};
+
+    /// WinRT needs COM on the calling thread; an error here only means the thread
+    /// already has it. Same reasoning as ocr.rs.
+    fn ensure_winrt() {
+        let _ = unsafe { RoInitialize(RO_INIT_MULTITHREADED) };
+    }
+
+    /// Whether Windows Hello is set up for this account.
+    pub fn can_check() -> bool {
+        ensure_winrt();
+        UserConsentVerifier::CheckAvailabilityAsync().and_then(|op| op.get()).map(|a| a == A::Available).unwrap_or(false)
+    }
+
+    /// Blocks until the person confirms or cancels.
+    pub fn authenticate(reason: &str) -> Result<(), String> {
+        ensure_winrt();
+        let availability = UserConsentVerifier::CheckAvailabilityAsync().and_then(|op| op.get()).map_err(|e| e.message())?;
+        if availability != A::Available {
+            return Err(match availability {
+                A::DeviceBusy => "Windows Hello is busy right now. Try again in a moment.".into(),
+                A::DisabledByPolicy => "Windows Hello is turned off by your organisation's policy.".into(),
+                _ => "Windows Hello isn't set up on this PC. Add a PIN, fingerprint or face in Settings \u{2192} Accounts \u{2192} Sign-in options.".into(),
+            });
+        }
+        let result = UserConsentVerifier::RequestVerificationAsync(&HSTRING::from(reason))
+            .and_then(|op| op.get())
+            .map_err(|e| e.message())?;
+        match result {
+            R::Verified => Ok(()),
+            R::Canceled => Err("Not unlocked.".into()),
+            R::RetriesExhausted => Err("Too many wrong tries. Wait a moment and try again.".into()),
+            R::DeviceBusy => Err("Windows Hello is busy right now. Try again in a moment.".into()),
+            _ => Err("Windows couldn't confirm it's you.".into()),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LockStatus {
     pub available: bool,
     pub enabled: bool,
     pub locked: bool,
+    /// What the person is asked for, in the platform's own words. The frontend
+    /// shows these rather than hard-coding "Touch ID", which is wrong on a PC.
+    pub method: &'static str,
+    /// "BYTE asks for ___ when it opens".
+    pub asks: &'static str,
+    /// The small line under the unlock button.
+    pub hint: &'static str,
+    /// Shown instead of the toggle when this machine cannot confirm the owner.
+    pub unavailable: &'static str,
 }
+
+#[cfg(windows)]
+const WORDING: (&str, &str, &str, &str) = (
+    "Windows Hello",
+    "Windows Hello (your PIN, fingerprint or face)",
+    "No fingerprint or camera? Windows asks for your PIN instead.",
+    "Windows Hello isn't set up on this PC, so BYTE can't be locked here. Add a PIN, fingerprint or face in Settings \u{2192} Accounts \u{2192} Sign-in options, then come back.",
+);
+#[cfg(not(windows))]
+const WORDING: (&str, &str, &str, &str) = (
+    "Touch ID",
+    "Touch ID (or your Mac's password)",
+    "No Touch ID? macOS asks for your password instead.",
+    "This Mac can't confirm it's you (no Touch ID and no password set up), so BYTE can't be locked here.",
+);
 
 #[tauri::command]
 pub async fn lock_status(state: State<'_, AppState>) -> AppResult<LockStatus> {
     let enabled = state.settings.lock().await.lock_enabled;
     #[cfg(target_os = "macos")]
     let available = mac::can_check();
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(windows)]
+    let available = tauri::async_runtime::spawn_blocking(win::can_check).await.unwrap_or(false);
+    #[cfg(not(any(target_os = "macos", windows)))]
     let available = false;
-    Ok(LockStatus { available, enabled: enabled && AVAILABLE, locked: state.lock.is_locked() })
+    let (method, asks, hint, unavailable) = WORDING;
+    Ok(LockStatus { available, enabled: enabled && AVAILABLE, locked: state.lock.is_locked(), method, asks, hint, unavailable })
 }
 
 /// The user did something; restarts the idle time.
@@ -236,6 +320,15 @@ mod tests {
     #[test]
     fn the_mac_says_whether_it_can_check() {
         eprintln!("can check the owner: {}", mac::can_check());
+    }
+
+    /// On Windows: asking whether Hello is set up works and does not panic (the
+    /// prompt itself cannot be automated). Both answers are valid: a CI runner has
+    /// no Hello, a client PC usually does.
+    #[cfg(windows)]
+    #[test]
+    fn windows_says_whether_it_can_check() {
+        eprintln!("Windows Hello available: {}", win::can_check());
     }
 
     #[test]
