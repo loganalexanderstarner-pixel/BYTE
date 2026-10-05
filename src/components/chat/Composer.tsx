@@ -376,6 +376,7 @@ export function Composer() {
           spellCheck
         />
         <div className="composer-bar">
+          <div className="composer-tools">
           {voiceOn && <MicButton ref={mic} onText={onSpoken} onNothing={() => {
                 wakeTurn.current = false;
                 if (talk) setTalk(false);
@@ -540,7 +541,7 @@ export function Composer() {
               </select>
             </label>
           )}
-          <span className="spacer" />
+          </div>
           {generating ? (
             <button className="send-btn stop" onClick={() => void stop()} title="Stop (Esc)" aria-label="Stop generating">
               <Square size={14} fill="currentColor" />

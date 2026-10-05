@@ -747,11 +747,22 @@ a {
 }
 .composer-bar {
   display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: 6px 8px 8px 10px;
+}
+/* Everything but Send: wraps on wide screens, one sideways-scrolling line on a folded phone. */
+.composer-tools {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   row-gap: 6px;
-  padding: 6px 8px 8px 10px;
+}
+.composer-bar .send-btn {
+  flex: none;
 }
 .composer-bar .spacer {
   flex: 1;
@@ -1070,6 +1081,22 @@ select {
   gap: var(--space-2);
   font-weight: 700;
   font-size: 1.02em;
+}
+/* The header wraps on narrow screens: title above, actions below, never overlapping. */
+.model-head {
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
+}
+.model-head > .grow {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+.model-head > .model-actions {
+  flex: none;
+  flex-wrap: wrap;
+}
+.model-card .title {
+  flex-wrap: wrap;
 }
 .model-card .meta {
   display: flex;
@@ -6558,6 +6585,26 @@ kbd {
   }
   .composer-hint {
     display: none;
+  }
+}
+
+/* A folded phone (about 360 px): the tools are one line that scrolls sideways, with Send always
+   visible at the end, so the chat box keeps most of the screen. */
+@container main (max-width: 620px) {
+  .composer-tools {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    align-self: center;
+  }
+  .composer-tools::-webkit-scrollbar {
+    display: none;
+  }
+  .composer-tools > * {
+    flex: none;
+  }
+  .composer-bar .segmented {
+    overflow: visible;
   }
 }
 

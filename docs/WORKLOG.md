@@ -23,6 +23,27 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Android test-6 fixes from the owner's test-5 screenshots (Fold, "the functions seem to work")
+- **Why:** test-5 works (taps, status bar, folded and unfolded layouts, BYTE Cloud connected). Its screenshots showed
+  leftovers: "null left" in the cloud chip, "Your Mac can run…" on a phone, the 350M model reading BYTE's formatting
+  rules back as its answer, a model card whose header collapsed (the Download button overlapped the title badges), the
+  folded home greeting cut off at the top, a chat box taking about 40% of the cover screen, and "Engine stopped" on the
+  Cloud workspace.
+- **What:**
+  - `lib/cloudDocs.ts`: a null budget value is no row (test added).
+  - `backend.rs`: `hint_text(better, device)` says phone or Mac (test); `prompt.rs`: `device()` is `pub(crate)`.
+  - `prompt.rs` `compact_prompt` + `TINY_B` (1B): models under 1B get a short prompt, and `Setup` skips the personality,
+    help and Mac-control sections for them (test: no formatting rules, under 300 characters; the full prompt is unchanged).
+  - `ModelCard.tsx` + `app.css`: `.model-head` wraps, the title and actions never overlap.
+  - `ChatView.tsx`: an empty chat opens at the top (it scrolled to the bottom and cut the greeting off).
+  - `Composer.tsx` + `app.css`: the tools sit in `.composer-tools`; on a folded phone they are one sideways-scrolling
+    line with Send always visible. On wide screens they wrap as before and Send sits at the right.
+  - `EngineBadge.tsx`: shows "BYTE Cloud" in the Cloud workspace instead of "Engine stopped".
+  - `tools/ui-shots/shots.mjs`: phone shots of a model card and the home screen at each width.
+- **Verify:** `scripts/check-all.sh`, and the phone screenshots at 320/390/690/840 px (greeting visible, composer one
+  line, header not overlapping). The owner checks the same screens on the Fold.
+- **Undo:** `git revert <hash>`; the pieces are independent.
+
 ### (this commit) — Cheaper Android testing: Copy diagnostics, layout check in CI, emulator check
 - **Why:** the owner is the bottleneck for Android: every fix needs a build installed and a description of what is
   wrong. He agreed to a diagnostics button and automatic checks, and to direct phone access later, only if A4 needs it.

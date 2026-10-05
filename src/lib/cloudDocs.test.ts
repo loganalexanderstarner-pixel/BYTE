@@ -49,5 +49,8 @@ describe("budgets", () => {
     expect(b?.detail).toContain("extended per day: 5");
     expect(budgetSummary({ daily_tokens: 100000 })?.short).toBe("daily tokens: 100000");
     expect(budgetSummary(null)).toBeNull();
+    // A null value is not a row: no "null left".
+    expect(budgetSummary({ extended_per_day: { used: 1, remaining: null } })?.short).toBe("extended per day · used: 1");
+    expect(budgetSummary({ extended_per_day: { remaining: null } })).toBeNull();
   });
 });

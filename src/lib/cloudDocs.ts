@@ -106,6 +106,8 @@ export function budgetRows(b: unknown, prefix = ""): [string, string][] {
   if (b === null || b === undefined) return [];
   if (typeof b !== "object") return [[prefix || "Budget", String(b)]];
   return Object.entries(b as Row).flatMap(([k, v]) => {
+    // A budget the server sends as null has nothing to show ("null left" was shown once).
+    if (v === null || v === undefined) return [];
     const label = `${prefix}${prefix ? " · " : ""}${k.replace(/_/g, " ")}`;
     return v && typeof v === "object" ? budgetRows(v, label) : [[label, String(v)] as [string, string]];
   });

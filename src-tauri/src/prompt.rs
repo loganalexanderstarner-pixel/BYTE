@@ -6,12 +6,30 @@ use chrono::{DateTime, Local};
 use crate::settings::Mode;
 
 /// What BYTE runs on, in the words it should use about itself.
-fn device() -> &'static str {
+pub(crate) fn device() -> &'static str {
     if cfg!(target_os = "android") {
         "phone"
     } else {
         "Mac"
     }
+}
+
+/// A models under this many billion parameters get `compact_prompt`: the full
+/// prompt's formatting rules confuse them (a 350M model read them back as its answer).
+pub const TINY_B: f32 = 1.0;
+
+/// The short prompt for tiny models: who BYTE is, the date, and to answer plainly.
+pub fn compact_prompt(now: DateTime<Local>, user_name: Option<&str>) -> String {
+    let date = now.format("%A, %B %-d, %Y");
+    let device = device();
+    let mut p = format!(
+        "You are BYTE, a friendly AI assistant that runs on the user's {device}. Today is {date}. \
+Answer the question briefly and plainly. If you don't know, say so. Never make up facts."
+    );
+    if let Some(name) = user_name.map(str::trim).filter(|n| !n.is_empty()) {
+        p.push_str(&format!(" The user's name is {name}."));
+    }
+    p
 }
 
 pub fn system_prompt(now: DateTime<Local>, mode: Mode, web_available: bool, user_name: Option<&str>) -> String {
@@ -69,6 +87,19 @@ out of date.",
 mod tests {
     use super::*;
     use chrono::TimeZone;
+
+    #[test]
+    fn tiny_models_get_a_short_prompt_without_the_formatting_rules() {
+        let now = Local.with_ymd_and_hms(2026, 10, 5, 12, 0, 0).unwrap();
+        let tiny = compact_prompt(now, Some("Logan"));
+        assert!(tiny.contains("You are BYTE") && tiny.contains("Logan") && tiny.contains("Monday, October 5, 2026"));
+        for rule in ["TL;DR", "headings", "calculator", "Markdown"] {
+            assert!(!tiny.contains(rule), "{rule} leaked into the compact prompt");
+        }
+        assert!(tiny.len() < 300, "{}", tiny.len());
+        // Bigger models keep the full prompt.
+        assert!(system_prompt(now, Mode::Auto, false, None).contains("TL;DR"));
+    }
 
     #[test]
     fn personality_adds_only_what_changed() {

@@ -205,7 +205,7 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
 
   return (
     <div className={`model-card ${active ? "active" : ""}`}>
-      <div className="row" style={{ alignItems: "flex-start" }}>
+      <div className="row model-head" style={{ alignItems: "flex-start" }}>
         <div className="grow">
           <div className="title">
             {model.name}
@@ -227,7 +227,7 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
             </div>
           )}
         </div>
-        <div className="row" style={{ gap: 6, flex: "none" }}>
+        <div className="row model-actions" style={{ gap: 6 }}>
           {canChat && !active && !extra && v.fitsAlongside && onLoad && (
             <button className="btn sm" onClick={() => onLoad(v.key)} title="Keep this model in memory next to the main one, to switch instantly or compare answers">
               <Layers size={14} /> Load alongside

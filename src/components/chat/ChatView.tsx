@@ -24,12 +24,14 @@ export function ChatView() {
 
   useEffect(() => {
     pinned.current = true;
-    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "auto" });
+    // An empty chat shows the home screen from its top (folded, it is taller than the screen).
+    if (conv?.messages.length) scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "auto" });
+    else scroller.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [conv?.id]);
 
   useEffect(() => {
     const el = scroller.current;
-    if (el && pinned.current) el.scrollTop = el.scrollHeight;
+    if (el && pinned.current && conv?.messages.length) el.scrollTop = el.scrollHeight;
   }, [lastLen, conv?.messages.length]);
 
   const privateNote = conv?.private && (

@@ -1390,6 +1390,30 @@ if (process.env.PHONE) {
     await p.waitForTimeout(400);
     await shot(p, `phone-${width}-4-settings`);
     for (const x of await layoutProblems(p)) problems.push(`${width}px settings: ${x}`);
+    // A model card (the header used to collapse on a phone) and the home screen of a new chat.
+    const card = p.locator(".model-card").first();
+    if (await card.count()) {
+      await card.scrollIntoViewIfNeeded();
+      await p.waitForTimeout(200);
+      await shot(p, `phone-${width}-5-modelcard`);
+      for (const x of await layoutProblems(p)) problems.push(`${width}px model card: ${x}`);
+    }
+    await p.getByRole("button", { name: "Close settings" }).click();
+    await p.waitForTimeout(300);
+    // The visible New chat button (the sidebar drawer has one too, off to the side).
+    const clicked = await p.evaluate(() => {
+      const b = [...document.querySelectorAll('button[title^="New chat"]')].find((x) => {
+        const r = x.getBoundingClientRect();
+        return r.width > 0 && r.right > 0 && r.left < window.innerWidth;
+      });
+      b?.click();
+      return !!b;
+    });
+    if (clicked) {
+      await p.waitForTimeout(400);
+      await shot(p, `phone-${width}-6-home`);
+      for (const x of await layoutProblems(p)) problems.push(`${width}px home: ${x}`);
+    }
     console.log(`phone ${width} errors:`, errors);
     await ctx.close();
   }

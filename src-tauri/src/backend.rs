@@ -365,16 +365,24 @@ impl Setup {
             modules.trackers = false;
             modules.connectors = false;
         }
-        let mut system = prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref());
-        system.push_str(&prompt::personality_section(&state.settings.lock().await.personality));
+        // Tiny models (under 1B) get a short prompt and nothing optional: they read long rules back as the answer.
+        let tiny = ep.cloud.is_none() && catalog.resolve(&ep.model).ok().and_then(|(m, _)| m.params_b).is_some_and(|b| b < prompt::TINY_B);
+        let mut system = if tiny {
+            prompt::compact_prompt(chrono::Local::now(), user_name.as_deref())
+        } else {
+            prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref())
+        };
+        if !tiny {
+            system.push_str(&prompt::personality_section(&state.settings.lock().await.personality));
+        }
         if kids {
             system.push_str(crate::kids::PROMPT);
         }
         let last_question = request.messages.iter().rev().find(|m| m.role == "user").map(|m| chat::question_text(&m.content)).unwrap_or_default();
-        if cfg!(target_os = "macos") && modules.mac && !crate::router::creative_only(&last_question) {
+        if !tiny && cfg!(target_os = "macos") && modules.mac && !crate::router::creative_only(&last_question) {
             system.push_str(prompt::MAC_CONTROL);
         }
-        if let Some(q) = request.messages.iter().rev().find(|m| m.role == "user") {
+        if let (false, Some(q)) = (tiny, request.messages.iter().rev().find(|m| m.role == "user")) {
             system.push_str(&crate::help::section(chat::question_text(&q.content)));
         }
         if memory {
@@ -452,6 +460,11 @@ async fn prepare_for_cloud(state: &AppState, request: &ChatRequest, on_event: &C
     r
 }
 
+/// "Your phone/Mac can run a clearly better model", in the words for this device.
+fn hint_text(better: &str, device: &str) -> String {
+    format!("Your {device} can run {better}, which gives noticeably better answers and cards than the small model in use. You can download it in Settings → Models.")
+}
+
 /// Once per small model: "your Mac can run a clearly better model" (Settings → Models).
 async fn better_model_hint(state: &AppState, ep: &crate::engine::Endpoint, on_event: &Channel<ChatEvent>) {
     let settings = state.settings.lock().await.clone();
@@ -463,7 +476,7 @@ async fn better_model_hint(state: &AppState, ep: &crate::engine::Endpoint, on_ev
     let info = crate::models::calibrate(crate::system::system_info(&state.paths.data).with_settings(&settings), &catalog);
     let Some(better) = crate::models::better_model(&catalog, &info, ctx, &ep.model) else { return };
     let _ = on_event.send(ChatEvent::Notice {
-        text: format!("Your Mac can run {}, which gives noticeably better answers and cards than the small model in use. You can download it in Settings → Models.", better.name),
+        text: hint_text(&better.name, prompt::device()),
     });
     let mut s = state.settings.lock().await;
     let mut next = s.clone();
@@ -538,6 +551,12 @@ pub(crate) async fn cloud_cards(state: &AppState) -> Option<crate::engine::Endpo
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_better_model_hint_names_the_device() {
+        assert!(super::hint_text("Qwen3.5 9B", "phone").starts_with("Your phone can run Qwen3.5 9B"));
+        assert!(super::hint_text("Qwen3.5 9B", "Mac").starts_with("Your Mac can run"));
+    }
+
     use super::*;
     use crate::chat::e2e_support::collecting_channel;
     use crate::settings::{Mode, ThinkingPref};
