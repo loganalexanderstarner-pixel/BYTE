@@ -58,6 +58,30 @@ for p in "${infra[@]}"; do
   fi
 done
 
+# Phrases that identify the OWNER's machines, in any tracked file and not just Markdown.
+# The infrastructure scan above is scoped to prose on purpose (source legitimately
+# contains private address ranges in its SSRF tests), which left a hole: code comments,
+# test names and fixtures can say "the test PC" or name a machine. Nearly a day of work
+# put exactly that into public Rust before anyone looked. Deliberately narrow, so a GPU
+# lookup table full of real product names cannot trip it.
+#
+# Two documents are allowed because they predate this check and are an open owner
+# decision (the specs of the PC the port is built on); fixing them is the owner's call.
+owner=(
+  '\b(ryzen|intel|gaming|pi)-node\b'
+  '\b[Tt]he test PC\b'
+  '\bParsec\b'
+)
+for p in "${owner[@]}"; do
+  hits=$(git grep --untracked -nIE -e "$p" -- . ':!scripts/check-secrets.sh' ':!docs/PORTING-WINDOWS-LINUX.md' ':!docs/WORKLOG.md' ':!src-tauri/catalog/models.json' 2>/dev/null | head -5 || true)
+  if [ -n "$hits" ]; then
+    echo "Owner-specific hardware detail in a public file ($p):"
+    echo "$hits" | sed 's/\(.\{160\}\).*/\1…/'
+    echo "  Say what the code needs (a 16 GB card, a development PC), not whose machine it is."
+    found=1
+  fi
+done
+
 # Commit messages are published with the repository and are not files, so the
 # scans above never saw them. They need to be, for the same reason: a message
 # saying which machine has which GPU is disclosure whether it sits in a doc or
