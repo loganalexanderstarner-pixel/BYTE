@@ -1,0 +1,68 @@
+name: Build the Windows ARM64 engines
+description: >
+  llama-server (CPU), whisper-cli and the two sherpa-onnx tools for Windows on ARM64, cross-built
+  on an x64 runner, plus the ARM64 redistributable DLLs. Shared by the release job and the test
+  workflow so the two cannot drift apart. The runner needs the ARM64 C++ tools and clang, which
+  windows-2022 has (the first step checks).
+
+runs:
+  using: composite
+  steps:
+    - name: Is the ARM64 C++ toolchain here?
+      shell: pwsh
+      run: |
+        $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+        $vs = & $vswhere -latest -property installationPath
+        Write-Host "Visual Studio: $vs"
+        $arm = & $vswhere -latest -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath
+        if (-not $arm) { throw "the runner's Visual Studio has no ARM64 C++ tools" }
+        Get-ChildItem (Join-Path $vs 'VC\Redist\MSVC') -Directory | ForEach-Object { Write-Host "redist $($_.Name): $((Get-ChildItem $_.FullName -Directory).Name -join ', ')" }
+
+    - name: Tools for the clang cross-build
+      shell: pwsh
+      run: |
+        foreach ($t in "clang", "clang++", "lld-link", "ninja", "cmake") { $c = Get-Command $t -ErrorAction SilentlyContinue; "{0,-9} {1}" -f $t, $(if ($c) { $c.Source } else { "NOT ON PATH" }) }
+        clang --version | Select-Object -First 2
+
+    # ggml needs clang on ARM, and clang needs the ARM64 libraries, which come from the Visual
+    # Studio developer environment for x64_arm64. It is loaded inside each engine step rather than
+    # for the whole job: with it on PATH, cl.exe would be the cross compiler and every
+    # build script that compiles for the host (Rust's) would break.
+    - name: Build llama-server (CPU, ARM64)
+      shell: cmd
+      run: |
+        for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set VSDIR=%%i
+        call "%VSDIR%\VC\Auxiliary\Build\vcvarsall.bat" x64_arm64 || exit /b 1
+        set TARGET_TRIPLE=aarch64-pc-windows-msvc
+        "C:\Program Files\Git\bin\bash.exe" scripts/build-llama-server.sh
+
+    - name: Build whisper-cli (ARM64)
+      shell: cmd
+      run: |
+        for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set VSDIR=%%i
+        call "%VSDIR%\VC\Auxiliary\Build\vcvarsall.bat" x64_arm64 || exit /b 1
+        set TARGET_TRIPLE=aarch64-pc-windows-msvc
+        "C:\Program Files\Git\bin\bash.exe" scripts/build-whisper.sh
+
+    # Speech output and speaker labels depend on sherpa-onnx, which has its own ARM64 story
+    # (a prebuilt runtime it downloads). Allowed to fail while that is learned, so the rest of
+    # the build still shows what works; a missing tool becomes an empty placeholder and the
+    # summary at the end says so.
+    - name: Build sherpa-onnx tools (ARM64)
+      id: sherpa
+      continue-on-error: true
+      shell: bash
+      run: TARGET_TRIPLE=aarch64-pc-windows-msvc scripts/build-sherpa.sh
+
+    - name: Placeholders for anything that did not build
+      shell: bash
+      run: |
+        for n in llama-server whisper-cli sherpa-diarize sherpa-tts; do
+          f="src-tauri/binaries/$n-aarch64-pc-windows-msvc.exe"
+          if [ ! -s "$f" ]; then echo "MISSING: $n (empty placeholder so the bundle can proceed)"; : > "$f"; fi
+        done
+        ls -la src-tauri/binaries
+
+    - name: Stage the ARM64 runtime DLLs
+      shell: pwsh
+      run: scripts/fetch-windows-runtime.ps1 -Arch arm64

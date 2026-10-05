@@ -18,6 +18,7 @@ GEN=()
 # Windows: the executable has a suffix and the Visual Studio generator writes
 # into a per-configuration subdirectory.
 case "$TRIPLE" in
+  aarch64-*-windows-msvc) EXE=".exe"; BIN_SUBDIR="" ;;
   *-windows-msvc) EXE=".exe"; BIN_SUBDIR="Release/" ;;
   *)              EXE="";     BIN_SUBDIR="" ;;
 esac
@@ -58,7 +59,11 @@ if [ ! -f "$BUILD/bin/${BIN_SUBDIR}whisper-cli$EXE" ]; then
       # PATH, which means a developer prompt an SSH session lacks.
       # CPU only: speech-to-text runs on short clips, so a GPU build would add
       # a CUDA dependency to a binary that does not need one.
-      GEN=(-A x64)
+      # ARM64 is clang + Ninja, as in build-llama-server.sh (ggml rejects MSVC on ARM).
+      case "$TRIPLE" in
+        aarch64-*) GEN=(-G Ninja); FLAGS+=(-DCMAKE_TOOLCHAIN_FILE="$(cygpath -m "$ROOT/scripts/arm64-windows-llvm.cmake" 2>/dev/null || echo "$ROOT/scripts/arm64-windows-llvm.cmake")" -DGGML_OPENMP=OFF) ;;
+        *)         GEN=(-A x64) ;;
+      esac
       JOBS="${NUMBER_OF_PROCESSORS:-8}"
       ;;
     *)

@@ -225,3 +225,78 @@ jobs:
           name: BYTE-${{ env.TAG }}-windows
           path: src-tauri/target/release/bundle/nsis/*-setup.exe
           if-no-files-found: ignore
+
+  # Windows on ARM64 (Snapdragon laptops). Cross-built here and checked on a real ARM64 machine by
+  # windows-arm64.yml, which runs the same steps without publishing. It never blocks the Mac and x64
+  # release: if it fails, the release is simply without an ARM64 installer. The first run of this
+  # exact job needs a test tag, because publishing cannot be tried any other way.
+  windows-arm64:
+    name: Build Windows (ARM64)
+    needs: macos
+    runs-on: windows-2022
+    continue-on-error: true
+    timeout-minutes: 180
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: arm64
+
+      - name: Check versions match the tag
+        shell: bash
+        run: node scripts/bump.mjs --check "${TAG#v}"
+
+      - uses: ./.github/actions/windows-arm64-engines
+
+      - run: npm ci
+
+      - name: Signed updates (when the signing key is set up)
+        id: updater
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: scripts/updater-key.sh
+
+      - name: Updater config as a file
+        id: updcfg
+        shell: bash
+        run: |
+          if [ -n "${{ steps.updater.outputs.args }}" ]; then
+            echo '{"bundle":{"createUpdaterArtifacts":true}}' > src-tauri/tauri.updater.conf.json
+            echo "args=--config src-tauri/tauri.updater.conf.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ env.TAG }}
+          releaseDraft: false
+          prerelease: ${{ contains(env.TAG, '-') }}
+          args: --target aarch64-pc-windows-msvc --config src-tauri/tauri.arm64-windows.conf.json ${{ steps.updcfg.outputs.args }}
+
+      - name: Keep the installer as a run artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BYTE-${{ env.TAG }}-windows-arm64
+          path: src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+          if-no-files-found: ignore

@@ -16,13 +16,17 @@ is the one Microsoft licenses for redistribution:
   1. Visual Studio's own redist folder  (...\VC\Redist\MSVC\<ver>\x64\)
   2. System32, where the VC++ redistributable installs them
 #>
-param([switch]$Cuda)
+param([switch]$Cuda, [ValidateSet('x64', 'arm64')][string]$Arch = 'x64')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $dest = Join-Path $root 'vendor\windows-runtime'
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 
 $need = @('MSVCP140.dll', 'VCRUNTIME140.dll', 'VCRUNTIME140_1.dll', 'VCOMP140.DLL')
+# VCRUNTIME140_1 belongs to x64 exception handling. A native ARM64 program never imports it, and the
+# copy in the ARM64 redistributable folder is an x64 file (machine type 8664, found by checking what
+# the installer carried), so it is not shipped there.
+if ($Arch -eq 'arm64') { $need = $need | Where-Object { $_ -ne 'VCRUNTIME140_1.dll' } }
 
 $searchDirs = @()
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
@@ -32,13 +36,16 @@ if (Test-Path $vswhere) {
     $redist = Join-Path $vs 'VC\Redist\MSVC'
     if (Test-Path $redist) {
       Get-ChildItem $redist -Directory | Sort-Object Name -Descending | ForEach-Object {
-        $searchDirs += Join-Path $_.FullName 'x64\Microsoft.VC143.CRT'
-        $searchDirs += Join-Path $_.FullName 'x64\Microsoft.VC143.OpenMP'
+        $searchDirs += Join-Path $_.FullName "$Arch\Microsoft.VC143.CRT"
+        $searchDirs += Join-Path $_.FullName "$Arch\Microsoft.VC143.OpenMP"
       }
     }
   }
 }
-$searchDirs += (Join-Path $env:SystemRoot 'System32')
+# System32 holds the DLLs of the machine's own architecture. That is only the right copy when
+# it matches the one being built for: an ARM64 build made on an x64 runner must NOT take the
+# x64 files from here (it would ship an installer whose engine cannot load them).
+if ($Arch -eq 'x64') { $searchDirs += (Join-Path $env:SystemRoot 'System32') }
 
 $missing = @()
 foreach ($name in $need) {
