@@ -14,6 +14,12 @@ runs:
   steps:
     # Third-party action in a public release pipeline: pinned to a commit hash,
     # not a tag, because a tag can be moved after you reviewed it. v0.2.36.
+    # The package list comes from NVIDIA's own manifest for this release
+    # (developer.download.nvidia.com/compute/cuda/redist/redistrib_13.3.1.json),
+    # not from memory: CUDA 13 split the crt headers (crt/host_config.h, which
+    # cuda_runtime.h includes) out of nvcc into their own cuda_crt component, and
+    # replaced thrust with cccl. The first list had nvcc and thrust and failed
+    # with "Cannot open include file: crt/host_config.h".
     # 13.3.1 is the newest CUDA this action can install; the engine was first
     # measured on 13.4, same major version and same cublas64_13.dll names.
     - name: Install CUDA
@@ -21,7 +27,7 @@ runs:
       with:
         cuda: "13.3.1"
         method: network
-        sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "visual_studio_integration", "thrust"]'
+        sub-packages: '["nvcc", "crt", "cudart", "cublas", "cublas_dev", "cccl", "visual_studio_integration"]'
 
     # Vulkan SDK straight from LunarG, checked against a hash recorded when it
     # was reviewed, rather than through another third-party action.
