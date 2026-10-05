@@ -209,7 +209,18 @@ mod tests {
     #[cfg_attr(not(any(target_os = "macos", windows)), ignore)]
     fn e2e_reads_text_from_a_rendered_page() {
         let pdf = crate::files::tests::test_pdf(&["Invoice number 48213 for BYTE"]);
-        let (pages, total) = super::pdf_text(&pdf).unwrap();
+        let read = super::pdf_text(&pdf);
+        // A Windows Server image (a CI runner) can have no OCR language at all. That
+        // is a fact about the machine, not about the code, so say so and stop rather
+        // than fail; a client Windows has one and runs the whole test.
+        #[cfg(windows)]
+        if let Err(e) = &read {
+            if e.to_string().contains("no text-recognition language") {
+                eprintln!("skipping: {e}");
+                return;
+            }
+        }
+        let (pages, total) = read.unwrap();
         assert_eq!(total, 1);
         assert!(pages[0].contains("48213") && pages[0].to_lowercase().contains("invoice"), "{pages:?}");
     }

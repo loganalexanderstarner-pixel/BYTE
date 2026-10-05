@@ -84,3 +84,17 @@ jobs:
         env:
           PERL: C:\Strawberry\perl\bin\perl.exe
         run: cargo check --locked --all-targets
+
+      # The first Rust tests ever run on Windows (2026-10-04); before this the job
+      # only compiled. A test executable has no Common Controls v6 manifest, so it
+      # imports TaskDialogIndirect and dies at load with 0xC0000139 before any test
+      # runs. Delay-loading comctl32 fixes that, and it is done through RUSTFLAGS
+      # for this step only: it cannot go in build.rs, because Cargo has no way to
+      # apply a link argument to test binaries alone, and the shipped app must not
+      # be built with it.
+      - name: cargo test (lib)
+        working-directory: src-tauri
+        env:
+          PERL: C:\Strawberry\perl\bin\perl.exe
+          RUSTFLAGS: -C link-arg=/DELAYLOAD:comctl32.dll -C link-arg=delayimp.lib
+        run: cargo test --locked --lib

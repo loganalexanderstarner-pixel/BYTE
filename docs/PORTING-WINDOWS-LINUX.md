@@ -385,3 +385,28 @@ Report to Logan after each one: what works, screenshots, numbers, what's next.
 After each milestone, write to Logan in plain words: what you tried, what works (with screenshots), speed
 numbers, what doesn't yet and why. Log commits in `docs/WORKLOG.md`. Update `docs/HANDOFF.md` §2's table with
 a Windows and a Linux row.
+
+## Running the Rust tests on Windows
+
+`cargo test` on Windows needs two extra linker flags, or the test executable dies
+at load with `0xC0000139` (STATUS_ENTRYPOINT_NOT_FOUND) before any test runs:
+
+    set RUSTFLAGS=-C link-arg=/DELAYLOAD:comctl32.dll -C link-arg=delayimp.lib
+    cd src-tauri
+    cargo test --lib
+
+Why: Tauri's UI crates import `TaskDialogIndirect`, which only exists in Common
+Controls v6, and Windows gives v6 only to an executable whose manifest asks for
+it. `byte.exe` has that manifest and a test executable does not (checked with a
+real PC, 2026-10-04). Delay-loading the DLL lets the test start; no test calls a
+task dialog.
+
+Do not move this into `build.rs`. Cargo has no instruction that applies a link
+argument to test binaries alone (`rustc-link-arg-tests` is rejected), and the
+general `rustc-link-arg` would also change the shipped app. A build-script change
+that tried it broke the Windows build for two hours.
+
+State on 2026-10-05: 514 passed, 0 failed, 57 ignored. Four `upkeep` tests are
+ignored on Windows because Upkeep is the Mac housekeeping feature; its protection
+list is Mac paths and its `/../` traversal check would not match `\..\`, so both
+need Windows equivalents before the feature is offered there.

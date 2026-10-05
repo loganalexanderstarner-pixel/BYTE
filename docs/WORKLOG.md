@@ -94,8 +94,12 @@ hardware descriptions to the planner, which is pure arithmetic. It found:
   `Windows.Data.Pdf`; the app lock via Windows Hello; the clipboard via Win32.
   Known limits: HEIC photos need Microsoft's HEIF extension; Windows Hello needs a
   PIN, fingerprint or face, where macOS accepts a password.
-- **Not yet verified:** all three of those at run time. They need a Windows run
-  and, for Hello and OCR, a person at the screen.
+- **Verified at run time (2026-10-05, on the PC):** OCR renders a PDF page and
+  reads "48213" back; the clipboard round-trips accented, Chinese and emoji text
+  through UTF-16 (a real round trip, not a skip); Windows Hello reports available.
+  The full Rust suite is **514 passed, 0 failed, 57 ignored**, the first it has
+  ever run on Windows. Still needs a person: the Hello prompt itself, and OCR on a
+  real photo.
 
 ### Still open
 - **The layout is device-class, not continuous.** Breakpoints stop at 560px; a
