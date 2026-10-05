@@ -49,22 +49,31 @@ done
 LOG_DIR="${LOG_DIR:-$ROOT/.cache/android-logs}"
 mkdir -p "$LOG_DIR"
 
+# On GitHub Actions, also show a failing step's lines as one error annotation:
+# it can be read through the API when the full log can't be downloaded.
+fail() { # <log> <grep pattern for the cause>
+  local log="$1" pat="$2" lines msg
+  lines=$(grep -E -A15 "$pat" "$log" | head -40)
+  echo "$lines"
+  echo "---- last lines of $log ----"; tail -25 "$log"
+  if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    # GitHub keeps only 10 annotations per step, so one multi-line one: % and newlines encoded.
+    msg=$( { echo "$lines"; echo "----"; tail -25 "$log"; } | tail -45 | sed 's/\x1b\[[0-9;]*m//g; s/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')
+    echo "::error title=Android build failed::$msg"
+  fi
+  exit 1
+}
+
 MODE=(--debug)
 [ "${1:-}" = "--release" ] && MODE=()
 
 echo "==> Engines (log: $LOG_DIR/engines.log)"
-"$ROOT/scripts/build-llama-android.sh" >"$LOG_DIR/engines.log" 2>&1 || { tail -20 "$LOG_DIR/engines.log"; exit 1; }
+"$ROOT/scripts/build-llama-android.sh" >"$LOG_DIR/engines.log" 2>&1 || fail "$LOG_DIR/engines.log" "error|Error"
 
 echo "==> APK (log: $LOG_DIR/apk.log)"
 cd "$ROOT"
-npx tauri android build --apk ${MODE[@]+"${MODE[@]}"} --target aarch64 >"$LOG_DIR/apk.log" 2>&1 || {
-  # Show the real cause when it can be found, and the end of the log when it
-  # cannot. The grep alone printed nothing at all when it matched nothing, so a
-  # failed build looked like a silent success -- in CI and by hand.
-  grep -A15 "What went wrong\|^error\|doesn't exist\|not found" "$LOG_DIR/apk.log" | head -40
-  echo "---- last lines of $LOG_DIR/apk.log ----"; tail -25 "$LOG_DIR/apk.log"
-  exit 1
-}
+npx tauri android build --apk ${MODE[@]+"${MODE[@]}"} --target aarch64 >"$LOG_DIR/apk.log" 2>&1 \
+  || fail "$LOG_DIR/apk.log" "What went wrong|^error|error\\[|doesn't exist|not found"
 
 find "$ROOT/src-tauri/gen/android/app/build/outputs/apk" -name "*.apk" -exec ls -lh {} \;
 echo "==> Install on a connected phone: adb install -r <apk>"

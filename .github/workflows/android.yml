@@ -56,6 +56,12 @@ jobs:
           for b in llama-server whisper-cli sherpa-diarize sherpa-tts; do touch src-tauri/binaries/$b-aarch64-linux-android; done
       - name: Build engines and APK
         run: scripts/build-android.sh
+      - name: Keep the build logs when it fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-logs
+          path: .cache/android-logs
       - name: Name the APK
         id: apk
         run: |

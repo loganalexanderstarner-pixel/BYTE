@@ -23,6 +23,16 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Android build failures readable from anywhere
+- **Why:** the first `android.yml` run failed in "Build engines and APK", and its log can't be downloaded from a
+  session (the log host is refused); the annotations said only "exit code 1".
+- **What:**
+  - `scripts/build-android.sh` `fail()` prints the failing step's interesting lines and, on Actions, emits them as
+    one multi-line `::error` annotation (readable through the API).
+  - `android.yml` uploads `.cache/android-logs` on failure.
+- **Verify:** `bash -n scripts/build-android.sh`; a failing run shows its error in the check run's annotations.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — Android test builds published by GitHub, for installing straight on the phone
 - **Why:** the owner tried installing from the cluster node. The node has no checkout of BYTE and no `adb`, and my
   commands had placeholders meant for a session, not a person. Building in Actions removes the node, adb and the PC
