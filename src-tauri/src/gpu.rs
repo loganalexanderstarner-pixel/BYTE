@@ -94,11 +94,29 @@ pub fn backend_for(gpus: &[Gpu]) -> crate::chip::Backend {
         return Backend::Metal;
     }
     match best_discrete(gpus) {
-        Some(g) if g.vendor == Vendor::Nvidia => Backend::Cuda,
+        Some(g) if g.vendor == Vendor::Nvidia && cuda_can_run(&g.name) => Backend::Cuda,
         Some(_) => Backend::Vulkan,
         None if !gpus.is_empty() => Backend::Vulkan,
         None => Backend::Cpu,
     }
+}
+
+/// Whether the bundled CUDA build can run on this NVIDIA card. It is compiled for the Turing
+/// generation (RTX 20 series, GTX 16 series) and newer, which is as far back as CUDA 13 goes:
+/// older cards (GTX 900 and 10 series, the Titan X, older Quadro and Tesla, the MX150 to MX350)
+/// have no kernels in it and no PTX to fall back on, so the engine would start and then find
+/// nothing to run on. They are sent to the Vulkan engine instead, which every such card's
+/// driver supports. Only names that are known to be older are refused; an unknown card gets
+/// CUDA, as before.
+pub fn cuda_can_run(name: &str) -> bool {
+    let n = name.to_uppercase();
+    const OLDER: &[&str] = &[
+        "GTX 9", "GTX 10", "GTX 8", "GTX 7", "GTX 6", "GTX 5", "GTX 4", "GTX TITAN", "TITAN X", "TITAN V",
+        "GT 10", "GT 9", "GT 7", "GT 6", "GT 5", "GT 4",
+        "QUADRO P", "QUADRO M", "QUADRO K", "QUADRO GP100", "QUADRO GV100", "TESLA P", "TESLA K", "TESLA M", "TESLA V100",
+        "MX1", "MX2", "MX3",
+    ];
+    !OLDER.iter().any(|p| n.contains(p))
 }
 
 /// Whether the Vulkan loader is installed. vulkan-1.dll comes with a graphics DRIVER, not
@@ -303,6 +321,26 @@ mod tests {
         assert_eq!(backend_for(&[]), Backend::Cpu, "no GPU at all");
         // A discrete NVIDIA card beside an integrated GPU still uses CUDA.
         assert_eq!(backend_for(&[ig, nv]), Backend::Cuda);
+    }
+
+    #[test]
+    fn older_nvidia_cards_get_the_engine_that_can_run_on_them() {
+        use crate::chip::Backend;
+        for old in ["NVIDIA GeForce GTX 1060", "GeForce GTX 1080 Ti", "GeForce GTX 980 Ti", "GeForce GTX 750 Ti", "TITAN X (Pascal)", "TITAN Xp", "TITAN V",
+                    "Quadro P2000", "Quadro M4000", "Tesla P100", "Tesla V100", "GeForce MX250", "GeForce MX150", "GeForce GT 1030", "GeForce GTX TITAN Black"] {
+            assert!(!cuda_can_run(old), "{old} is older than the CUDA build supports");
+        }
+        for new in ["NVIDIA GeForce GTX 1650", "GeForce GTX 1660 SUPER", "GeForce RTX 2060", "GeForce RTX 3050", "GeForce RTX 4060 Ti", "GeForce RTX 5080",
+                    "TITAN RTX", "Tesla T4", "A100-SXM4-40GB", "NVIDIA L4", "Quadro RTX 4000", "RTX A2000", "GeForce MX450", "Some Future NVIDIA Card"] {
+            assert!(cuda_can_run(new), "{new} is Turing or newer, or unknown");
+        }
+        if cfg!(target_os = "macos") {
+            return;
+        }
+        let pascal = classify("GeForce GTX 1060", NVIDIA, 6 * GIB, 0, 0).unwrap();
+        let turing = classify("GeForce GTX 1650", NVIDIA, 4 * GIB, 0, 0).unwrap();
+        assert_eq!(backend_for(&[pascal]), Backend::Vulkan, "no CUDA kernels exist for it");
+        assert_eq!(backend_for(&[turing]), Backend::Cuda);
     }
 
     #[test]

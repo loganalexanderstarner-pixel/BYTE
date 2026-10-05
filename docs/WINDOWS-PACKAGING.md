@@ -78,7 +78,15 @@ What that leaves is a trade-off, not a necessity, and it is **the owner's call**
 | Other NVIDIA generations | CUDA is the mature path | **unmeasured**: only one card was tested, and older cards without cooperative-matrix support may lose more on Vulkan |
 | No GPU or no driver | CPU through the CUDA build | CPU build (needs an AVX2 baseline build to be written) |
 
-Until that is decided, both engines ship as before, and nothing here changes what the
+**Decided (owner, 2026-10-05): keep CUDA bundled.** About 1 GB installed is acceptable for what the
+app does, and "everything works" matters more than the installer's size. Both engines ship, as
+before. The cost to keep in mind: an auto-update re-downloads the whole installer, so updates need a
+smarter path (not built yet). One correction came out of the discussion and applies either way:
+the CUDA build starts at the Turing generation (RTX 20, GTX 16), so older NVIDIA cards (GTX 900 and
+10 series, the Titan X, older Quadro and Tesla, the MX150 to MX350) are sent to the Vulkan engine
+(`gpu::cuda_can_run`); before, they would have been given a CUDA build with no kernels for them.
+
+Until that was decided, both engines shipped as before, and nothing here changes what the
 installer carries. The owner's decision of 2026-10-04 to bundle rather than fetch on demand
 stands either way.
 
