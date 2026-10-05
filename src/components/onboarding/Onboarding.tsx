@@ -27,6 +27,7 @@ import { useStore } from "../../state/store";
 import { DownloadProgress, FitPill } from "../models/ModelCard";
 import { CloudKeySteps } from "../settings/CloudKeySteps";
 import { platformKeys as K } from "../../lib/keys";
+import { cpuName, graphicsLabel, hardwareNote, isPc, machine } from "../../lib/platform";
 
 const STEPS = 5;
 
@@ -149,29 +150,11 @@ export function Onboarding() {
     }
   };
 
-  const macNote = useMemo(() => {
-    if (!system) return null;
-    const gb = system.totalRamBytes / 2 ** 30;
-    if (!system.appleSilicon)
-      return {
-        ok: false,
-        text: "BYTE is built for Apple Silicon Macs (M1 or newer). It may not run well here.",
-      };
-    if (gb < 12)
-      return {
-        ok: false,
-        text: "With 8 GB of memory, BYTE will use the smaller Fast model.",
-      };
-    if (gb < 20)
-      return {
-        ok: true,
-        text: "Your Mac can run BYTE's Smart model comfortably.",
-      };
-    return {
-      ok: true,
-      text: "Your Mac has plenty of memory — every BYTE model will run well.",
-    };
-  }, [system]);
+  // Wording that depends on the machine: the backend says which one it is (a PC is never
+  // told its hardware is unsupported; that used to be said to every PC).
+  const here = machine(system);
+  const pc = isPc(system);
+  const macNote = useMemo(() => (system ? hardwareNote(system) : null), [system]);
 
   return (
     <div className="onboarding">
@@ -191,7 +174,7 @@ export function Onboarding() {
                 <Logo size={84} />
                 <h1>Meet BYTE.</h1>
                 <p className="lead">
-                  A powerful AI assistant that lives entirely on your Mac.
+                  A powerful AI assistant that lives entirely on your {here}.
                 </p>
                 <ul className="tips">
                   <li>
@@ -199,7 +182,7 @@ export function Onboarding() {
                     <div>
                       <b>Private by design.</b>{" "}
                       <span className="muted">
-                        Your chats and files never leave this Mac. No account,
+                        Your chats and files never leave this {here}. No account,
                         no subscription.
                       </span>
                     </div>
@@ -217,9 +200,9 @@ export function Onboarding() {
                   <li>
                     <Cpu size={18} />
                     <div>
-                      <b>Uses your Mac's hardware.</b>{" "}
+                      <b>Uses your {here}'s hardware.</b>{" "}
                       <span className="muted">
-                        Runs on the Apple Silicon GPU, even offline.
+                        {pc ? "Runs on your graphics card or processor, even offline." : "Runs on the Apple Silicon GPU, even offline."}
                       </span>
                     </div>
                   </li>
@@ -235,17 +218,25 @@ export function Onboarding() {
 
             {step === 1 && system && (
               <>
-                <h1>Checking your Mac</h1>
+                <h1>Checking your {here}</h1>
                 <p className="lead">
                   BYTE picks the best model for your hardware.
                 </p>
                 <div className="spec-grid">
                   <div className="spec">
                     <div className="k">
-                      <Cpu size={14} /> Chip
+                      <Cpu size={14} /> {pc ? "Processor" : "Chip"}
                     </div>
-                    <div className="v">{system.chip.replace("Apple ", "")}</div>
+                    <div className="v">{pc ? cpuName(system.chip) : system.chip.replace("Apple ", "")}</div>
                   </div>
+                  {pc && (
+                    <div className="spec">
+                      <div className="k">
+                        <Cpu size={14} /> Graphics
+                      </div>
+                      <div className="v">{graphicsLabel(system)}</div>
+                    </div>
+                  )}
                   <div className="spec">
                     <div className="k">
                       <MemoryStick size={14} /> Memory
@@ -291,7 +282,7 @@ export function Onboarding() {
                 <h1>Choose your model</h1>
                 <p className="lead">
                   This is BYTE's brain. These run well on your{" "}
-                  {system ? ramSize(system.totalRamBytes) : ""} Mac — the first
+                  {system ? ramSize(system.totalRamBytes) : ""} {here} — the first
                   one is BYTE's pick. You can try others any time in Settings →
                   Models.
                 </p>
@@ -308,7 +299,7 @@ export function Onboarding() {
                           {m.name}
                           {i === 0 && (
                             <span className="pill accent">
-                              Best for this Mac
+                              Best for this {here}
                             </span>
                           )}
                           {v.installed && (
@@ -373,7 +364,7 @@ export function Onboarding() {
                   </div>
                   <div className="muted" style={{ fontSize: "0.92em" }}>
                     {options.length === 0
-                      ? "No model fits this Mac well. With a BYTE Cloud account, bigger models answer from the cloud; nothing to download."
+                      ? `No model fits this ${here} well. With a BYTE Cloud account, bigger models answer from the cloud; nothing to download.`
                       : "Answers come from bigger models on the BYTE cloud; nothing to download. Needs an account (by invite) and an API key."}
                   </div>
                 </button>
@@ -493,7 +484,7 @@ export function Onboarding() {
                   />
                 </div>
                 <p className="faint" style={{ fontSize: "0.88em" }}>
-                  No invite? Pick a model instead: everything runs on this Mac.
+                  No invite? Pick a model instead: everything runs on this {here}.
                   You can connect the cloud later in Settings → Cloud.
                 </p>
                 {error && <div className="banner danger">{error}</div>}
