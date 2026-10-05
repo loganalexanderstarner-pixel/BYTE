@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import type { ModelStatus } from "../../lib/types";
 import { runnable } from "./Onboarding";
 
-const model = (id: string, bits: number, quality: number, size: number, tags: string[] = []) =>
+const model = (id: string, bits: number, quality: number, size: number, tags: string[] = [], spill = false) =>
   ({
     id,
     tags,
     role: "chat",
     best: `${id}:q`,
-    variants: [{ key: `${id}:q`, bits, quality, sizeBytes: size }],
+    variants: [{ key: `${id}:q`, bits, quality, sizeBytes: size, fit: spill ? { cpuMoeLayers: 20 } : {} }],
   }) as unknown as ModelStatus;
 
 describe("runnable", () => {
@@ -24,5 +24,27 @@ describe("runnable", () => {
   it("skips models with no version that fits", () => {
     const none = { ...model("x", 6, 90, 1e9), best: null } as unknown as ModelStatus;
     expect(runnable([none])).toEqual([]);
+  });
+  describe("on a PC with its own graphics memory", () => {
+    // A model that spills onto the CPU is the best on paper and several times slower in use.
+    const spilled = model("spilled", 6.5, 90, 23e9, [], true);
+    const onCard = model("oncard", 6.5, 80, 7e9);
+    const squeezed = model("squeezed", 3, 85, 11e9);
+    it("lists models that stay on the card before ones that spill", () => {
+      const list = runnable([spilled, onCard, squeezed], { pick: null });
+      expect(list.map((x) => x.model.id)).toEqual(["oncard", "spilled", "squeezed"]);
+    });
+    it("puts BYTE's pick first, so the first card is what Continue downloads", () => {
+      const list = runnable([spilled, onCard, squeezed], { pick: "squeezed:q" });
+      expect(list.map((x) => x.model.id)).toEqual(["squeezed", "oncard", "spilled"]);
+    });
+    it("ignores a pick that is not on the list", () => {
+      const list = runnable([onCard, squeezed], { pick: "gone:q" });
+      expect(list.map((x) => x.model.id)).toEqual(["oncard", "squeezed"]);
+    });
+    it("leaves a Mac's order alone", () => {
+      const list = runnable([spilled, onCard, squeezed]);
+      expect(list.map((x) => x.model.id)).toEqual(["spilled", "oncard", "squeezed"]);
+    });
   });
 });

@@ -479,10 +479,36 @@ pub fn plan(model: &CatalogModel, v: &Variant, info: &SystemInfo, desired_ctx: u
     system::plan_offload(v.size_bytes, model.arch, desired_ctx, info.total_ram_bytes, info.gpu_budget_bytes, expert_share(model)).unwrap_or(p)
 }
 
-/// Speed factor when part of the model runs on the CPU: expert layers cost
-/// little (few experts per token), dense layers on the CPU cost more.
-pub fn offload_slowdown(model: &CatalogModel, p: &FitPlan) -> f64 {
+/// Effective speed (GB/s) at which a CPU reads model weights from system memory next to a
+/// discrete card. An assumption, not a measurement of this machine: dual-channel DDR5
+/// measured 50-55 GB/s here, DDR4 is about 25, so 40 keeps the first estimate honest for
+/// both. Tuning replaces it with a real figure.
+const PC_SYSTEM_MEMORY_GBPS: f64 = 40.0;
+
+/// Share of the weights read per token that are expert layers (the part that moves to the CPU).
+const EXPERT_SHARE_OF_READS: f64 = 0.7;
+
+/// Speed factor when part of the model runs on the CPU.
+///
+/// With one pool of memory (a Mac) expert layers cost little, because each token uses few
+/// experts and the CPU reads the same memory the GPU does. Next to a discrete card the CPU
+/// part reads ordinary system memory, an order of magnitude slower than the card's, and
+/// that part sets the speed: the time per token is the sum of the two reads.
+pub fn offload_slowdown(model: &CatalogModel, p: &FitPlan, info: &SystemInfo) -> f64 {
     let layers = model.arch.n_layer.max(1) as f64;
+    if info.has_discrete_card() {
+        let moe = matches!((model.params_b, model.active_b), (Some(t), Some(a)) if a < t);
+        // Fraction of the bytes read per token that now come from system memory.
+        let on_cpu = if p.cpu_moe_layers > 0 {
+            (p.cpu_moe_layers as f64 / layers).min(1.0) * EXPERT_SHARE_OF_READS
+        } else if let Some(on) = p.gpu_layers {
+            (layers - on as f64).max(0.0) / layers
+        } else {
+            return 1.0;
+        };
+        let card = crate::chip::achievable_gbps(&info.chip_info, moe, info.backend);
+        return 1.0 / ((1.0 - on_cpu) + on_cpu * (card / PC_SYSTEM_MEMORY_GBPS).max(1.0));
+    }
     if p.cpu_moe_layers > 0 {
         1.0 / (1.0 + 0.8 * p.cpu_moe_layers as f64 / layers)
     } else if let Some(on) = p.gpu_layers {
@@ -782,7 +808,7 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
                         min_ram_gb: system::ram_tier_gb(min_plan.needed_bytes),
                         speed: {
                             let mut e = crate::chip::estimate_on(&lc.info.chip_info, v.size_bytes, m.params_b, m.active_b, lc.info.backend);
-                            let f = offload_slowdown(m, &fit);
+                            let f = offload_slowdown(m, &fit, lc.info);
                             e.tokens_per_sec *= f;
                             e.reply_secs /= f;
                             e.reply_thinking_secs /= f;
@@ -1188,6 +1214,72 @@ mod tests {
         }
     }
 
+    fn pc(ram_gib: u64, vram_gib: u64, bw: f64, tflops: f64) -> SystemInfo {
+        let total = ram_gib * GIB;
+        let mut chip = crate::chip::identify("AMD Ryzen 7 8-core desktop", None);
+        chip.bandwidth_gbps = bw;
+        chip.gpu_tflops = tflops;
+        SystemInfo {
+            chip: "PC".into(),
+            total_ram_bytes: total,
+            gpu_budget_bytes: system::gpu_budget_for(total, Some(vram_gib * GIB), None),
+            free_disk_bytes: 500_000_000_000,
+            os_version: String::new(),
+            cpu_cores: 16,
+            apple_silicon: false,
+            chip_info: chip,
+            gpus: vec![crate::gpu::Gpu {
+                name: "Test discrete card".into(),
+                vendor: crate::gpu::Vendor::Nvidia,
+                dedicated_bytes: vram_gib * GIB,
+                shared_bytes: 0,
+                integrated: false,
+            }],
+            backend: crate::chip::Backend::Cuda,
+            platform: "windows",
+            speed_pref: Default::default(),
+            boost: false,
+            measured: Default::default(),
+            calibration: None,
+        }
+    }
+
+    /// A 16 GB card with 31 GB of system memory, the common enthusiast PC.
+    fn pc16() -> SystemInfo {
+        pc(31, 16, 960.0, 112.0)
+    }
+
+    #[test]
+    fn spilling_onto_the_cpu_is_slow_next_to_a_discrete_card() {
+        let c = Catalog::embedded();
+        let info = pc16();
+        assert!(info.has_discrete_card() && !mac(16).has_discrete_card());
+        // Gemma 4 26B A4B at Q6 (23 GB) does not fit the card: most expert layers go to system memory.
+        let (m, v) = c.resolve("gemma-4-26b-a4b:UD-Q6_K").unwrap();
+        let p = plan(m, v, &info, 16384);
+        assert!(p.cpu_moe_layers > 0, "{p:?}");
+        let f = offload_slowdown(m, &p, &info);
+        // One pool of memory costs a Mac ~40%; here the CPU's share dominates, so it is several times slower.
+        assert!(f < 0.3, "slowdown {f}");
+        assert!(f > 0.05, "slowdown {f} is too pessimistic to be useful");
+        // A model that stays on the card is untouched.
+        let (m, v) = c.resolve("qwen3.5-9b:Q6_K").unwrap();
+        let p = plan(m, v, &info, 16384);
+        assert!(!p.offloaded());
+        assert_eq!(offload_slowdown(m, &p, &info), 1.0);
+    }
+
+    #[test]
+    fn a_pc_is_recommended_a_model_that_fits_its_card() {
+        let c = Catalog::embedded();
+        let info = pc16();
+        let (m, v) = recommend(&c, &info, 16384).expect("a 16 GB card can run something");
+        let p = plan(m, v, &info, 16384);
+        assert_eq!(p.fit, Fit::Great, "{} {}: {p:?}", m.id, v.quant);
+        assert!(!p.offloaded());
+        assert!(expected_tps(m, v, &info) >= 20.0);
+    }
+
     #[test]
     fn best_variant_prefers_quality_then_size() {
         let c = Catalog::embedded();
@@ -1352,7 +1444,7 @@ mod tests {
         let p = plan(m, v, &m16, 16384);
         assert_eq!(p.fit, Fit::Tight);
         assert!(p.cpu_moe_layers > 0 && p.cpu_moe_layers < m.arch.n_layer / 2 && p.gpu_layers.is_none(), "{p:?}");
-        assert!(offload_slowdown(m, &p) > 0.6, "{p:?} {}", offload_slowdown(m, &p));
+        assert!(offload_slowdown(m, &p, &m16) > 0.6, "{p:?} {}", offload_slowdown(m, &p, &m16));
         // Dense models slightly too big run in stretch mode but are never recommended.
         let stretched: Vec<_> = c
             .models

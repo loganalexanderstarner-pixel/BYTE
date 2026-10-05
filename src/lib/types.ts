@@ -364,6 +364,10 @@ export interface FitPlan {
   gpuBudgetBytes: number;
   totalRamBytes: number;
   note: string;
+  /** Expert layers kept on the CPU (a mixture-of-experts model bigger than the graphics memory). */
+  cpuMoeLayers?: number;
+  /** Layers on the GPU when part of a dense model runs on the CPU; absent when all of it is on the GPU. */
+  gpuLayers?: number | null;
 }
 
 export interface VariantStatus {

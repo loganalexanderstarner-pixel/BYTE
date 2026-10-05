@@ -139,6 +139,50 @@ hardware descriptions to the planner, which is pure arithmetic. It found:
 - **Trap I fell into:** piping a build to `tail` hides its exit code. Redirect to a
   file and print `$?` instead.
 
+### 2026-10-05 (evening): the PC's first screens, looked at on a real PC
+A driver on the PC (a script run through Task Scheduler's interactive session)
+clicks through the real app and saves a screenshot of only BYTE's window. That is
+how every item below was found; none of them showed in a test.
+- **Window override (`f2189a4`, `77661d1`).** `tauri.windows.conf.json` had an
+  `app.windows` array. Tauri merges configs as a JSON merge patch, and a patch
+  *replaces* arrays, so the whole window definition (title, size, minimum size)
+  was lost and the app opened as an untitled default window. Now the file holds
+  only `bundle`; the rule is in `docs/WINDOWS-PACKAGING.md`.
+- **Wording (`4071312`, `c98b16d`).** 143 Mac-only strings go through `osText()`
+  (identity on a Mac). A regex pass corrupted JSX text containing apostrophes, so
+  it was redone as a TypeScript-AST codemod, and `scripts/audit-ui-text.cjs`
+  finds any string that still reads wrong for the machine.
+- **Features (`171616e`).** Windows no longer offers what only a Mac does (lock
+  with Touch ID, Mac control, Messages inbox, ...) and defaults the shortcuts to
+  Ctrl/Alt.
+- **Model screen: "Best for this PC" was not BYTE's pick, and its speed was a
+  fiction (this commit).** Checked on a real 16 GB card with 31 GB of RAM:
+  - Onboarding sorted by quality alone, so the first card (a 23 GB model that
+    mostly runs on the CPU) was not what *Continue* downloaded (`recommend()`'s
+    pick, an 11 GB model that fits the card and runs at about 50 tokens/s). That pick was not even among the four
+    cards shown. On a PC the list now puts the pick first and models that spill
+    onto the CPU after those that stay on the card (`runnable` in
+    `Onboarding.tsx`). A Mac's order is unchanged on purpose; only a 64 GB Mac
+    would differ (its first card is not `recommend()`'s pick), left alone for now.
+  - `offload_slowdown` was written for one pool of memory (a Mac), where expert
+    layers on the CPU cost ~40%. Next to a discrete card the CPU reads ordinary
+    RAM, so it now adds the two reads: the spilled model's estimate falls from
+    about 73 to about 19 tokens/s. `PC_SYSTEM_MEMORY_GBPS = 40` is an assumption
+    (dual-channel DDR5 measured 50-55 on the cluster's own PC, DDR4 is ~25);
+    tuning replaces it with a measurement. `chip::achievable_gbps` is the old
+    `estimate_on` efficiency arithmetic, moved out unchanged so both use one source.
+  - Onboarding fetches the pick itself: the store only has it after the engine starts, so the
+    first version of this fix silently did nothing (seen in the screenshot, not in a test).
+  - Verify: on the PC the first card is the pick, selected, and the next three all stay on the
+    card. Undo: `git revert` this commit; Mac behaviour does not depend on it.
+  - Tests: `models::tests::spilling_onto_the_cpu_is_slow_next_to_a_discrete_card`,
+    `a_pc_is_recommended_a_model_that_fits_its_card`, and four `runnable` cases.
+- **Disk lesson.** My builds took the PC's C: from 58 GB free to 6 GB in a day
+  (several target dirs, incremental caches, downloaded models). One target dir,
+  delete `incremental`, check free space before a build. Saved to memory.
+- **Trap:** on the PC, `cargo test` rebuilds OpenSSL when RUSTFLAGS differ, which
+  needs Strawberry Perl on PATH. Use `scripts/windows-dev.bat`'s PATH.
+
 ### Still open
 - **The layout is device-class, not continuous.** Breakpoints stop at 560px; a
   folded cover screen is ~320px and Android split-screen is arbitrary. The owner

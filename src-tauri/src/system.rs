@@ -42,6 +42,15 @@ pub struct SystemInfo {
 }
 
 impl SystemInfo {
+    /// The model runs on a card with memory of its own (a PC with a GPU), so whatever
+    /// spills to the CPU is read from ordinary system memory. False on a Mac (one pool),
+    /// with graphics built into the processor, or with no GPU.
+    pub fn has_discrete_card(&self) -> bool {
+        self.platform != "macos"
+            && matches!(self.backend, crate::chip::Backend::Cuda | crate::chip::Backend::Vulkan)
+            && crate::gpu::best_discrete(&self.gpus).is_some()
+    }
+
     /// This Mac with `bytes` already taken by other loaded models, for
     /// planning a model that runs alongside them.
     #[cfg(test)]

@@ -221,6 +221,26 @@ pub fn estimate(chip: &ChipInfo, file_bytes: u64, total_b: Option<f32>, active_b
     estimate_on(chip, file_bytes, total_b, active_b, Backend::Metal)
 }
 
+/// Memory bandwidth (GB/s) a backend actually reaches on `chip`, a share of the peak figure.
+pub fn achievable_gbps(chip: &ChipInfo, moe: bool, backend: Backend) -> f64 {
+    // Achievable share of peak bandwidth (MoE routing is less efficient).
+    let mut efficiency = if moe { 0.6 } else { 0.8 };
+    // Discrete cards reach a smaller share of peak bandwidth than unified
+    // memory does (measured 0.62 CUDA / 0.58 Vulkan against a predicted 0.8).
+    if matches!(backend, Backend::Cuda | Backend::Vulkan) {
+        efficiency *= 0.75;
+    }
+    // Running on CPU reaches a smaller share again. Measured on a Cortex-A76
+    // (Pi 5, 4 cores, no GPU) with Qwen3 4B Q4_K_M: 3.26 tok/s against about
+    // 17 GB/s of real memory bandwidth, so roughly 0.46 of peak -- and that is
+    // with three threads, where more threads stop helping because the limit is
+    // memory, not arithmetic.
+    if matches!(backend, Backend::Cpu) {
+        efficiency *= 0.58;
+    }
+    chip.bandwidth_gbps * efficiency
+}
+
 /// As `estimate`, told which engine will serve the model.
 ///
 /// The two correction factors below are measured, not assumed, and that matters
@@ -245,22 +265,7 @@ pub fn estimate_on(
     let moe = active < total;
     // Bytes of weights touched per generated token.
     let bytes_per_token = file_bytes as f64 * (active / total);
-    // Achievable share of peak bandwidth (MoE routing is less efficient).
-    let mut efficiency = if moe { 0.6 } else { 0.8 };
-    // Discrete cards reach a smaller share of peak bandwidth than unified
-    // memory does (measured 0.62 CUDA / 0.58 Vulkan against a predicted 0.8).
-    if matches!(backend, Backend::Cuda | Backend::Vulkan) {
-        efficiency *= 0.75;
-    }
-    // Running on CPU reaches a smaller share again. Measured on a Cortex-A76
-    // (Pi 5, 4 cores, no GPU) with Qwen3 4B Q4_K_M: 3.26 tok/s against about
-    // 17 GB/s of real memory bandwidth, so roughly 0.46 of peak -- and that is
-    // with three threads, where more threads stop helping because the limit is
-    // memory, not arithmetic.
-    if matches!(backend, Backend::Cpu) {
-        efficiency *= 0.58;
-    }
-    let tokens_per_sec = (chip.bandwidth_gbps * 1e9 * efficiency / bytes_per_token.max(1.0)).min(250.0);
+    let tokens_per_sec = (achievable_gbps(chip, moe, backend) * 1e9 / bytes_per_token.max(1.0)).min(250.0);
 
     // Prompt processing is where the backends diverge, and by a lot. CUDA's
     // measured 9,827 tok/s sat above the old 5,000 ceiling, so the ceiling was

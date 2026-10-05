@@ -31,11 +31,20 @@ import { cpuName, graphicsLabel, hardwareNote, isPc, machine, osText } from "../
 
 const STEPS = 5;
 
+/** Part of the model runs on the CPU instead of the graphics card. */
+const spills = (v: VariantStatus) => (v.fit.cpuMoeLayers ?? 0) > 0 || v.fit.gpuLayers != null;
+
 /** Chat models with a version that runs on this Mac, best first. Versions squeezed below 4 bits (a big model
  *  made to fit) come after the good-quality ones, and community remixes (uncensored and other fine-tunes) last,
- *  so a new user's first choices are the makers' own models at good quality. */
+ *  so a new user's first choices are the makers' own models at good quality.
+ *
+ *  On a PC (`pc`) the card has its own memory, and a model too big for it spills onto the CPU and system
+ *  memory, which is several times slower. Those come after the ones that stay on the card, and BYTE's own
+ *  pick (`pc.pick`, what Continue would download) is the first card, so "the first one is BYTE's pick" is
+ *  true. A Mac shares one pool of memory, so its order is unchanged. */
 export function runnable(
   models: ModelStatus[],
+  pc?: { pick: string | null },
 ): { model: ModelStatus; variant: VariantStatus }[] {
   const tier = (m: ModelStatus, v: VariantStatus) =>
     m.tags.includes("community") || m.tags.includes("uncensored")
@@ -43,7 +52,8 @@ export function runnable(
       : v.bits < 4
         ? 1
         : 0;
-  return models
+  const slow = (v: VariantStatus) => (pc && spills(v) ? 1 : 0);
+  const list = models
     .filter((m) => m.role === "chat" && m.best)
     .map((m) => ({
       model: m,
@@ -52,9 +62,13 @@ export function runnable(
     .sort(
       (a, b) =>
         tier(a.model, a.variant) - tier(b.model, b.variant) ||
+        slow(a.variant) - slow(b.variant) ||
         b.variant.quality - a.variant.quality ||
         a.variant.sizeBytes - b.variant.sizeBytes,
     );
+  const at = pc?.pick ? list.findIndex((x) => x.variant.key === pc.pick) : -1;
+  if (at > 0) list.unshift(...list.splice(at, 1));
+  return list;
 }
 
 export function Onboarding() {
@@ -91,6 +105,13 @@ export function Onboarding() {
     }
   };
 
+  // BYTE's pick, asked for here because the store only has it once the engine has started.
+  const [pick, setPick] = useState<string | null>(null);
+  const haveModels = models.length > 0;
+  useEffect(() => {
+    if (haveModels) api.modelRecommend().then(setPick, () => undefined);
+  }, [haveModels]);
+
   useEffect(() => {
     if (choice || !models.length) return;
     // Prefer something already downloaded, else BYTE's recommendation.
@@ -99,13 +120,13 @@ export function Onboarding() {
       .find((v) => v.installed && v.fit.fit !== "toobig");
     if (installed) setChoice(installed.key);
     else {
-      const fallback = () => runnable(models)[0]?.variant.key ?? null;
+      const fallback = () => runnable(models, isPc(system) ? { pick: null } : undefined)[0]?.variant.key ?? null;
       api
         .modelRecommend()
         .then((k) => setChoice(k ?? fallback()))
         .catch(() => setChoice(fallback()));
     }
-  }, [models, choice]);
+  }, [models, choice, system]);
 
   const hit = findVariant(models, choice);
   const chosen = hit?.variant;
@@ -113,7 +134,7 @@ export function Onboarding() {
   const dl = choice ? downloads[choice] : undefined;
   const installed = !!chosen?.installed || dl?.phase === "finished";
   const [showAll, setShowAll] = useState(false);
-  const options = runnable(models);
+  const options = runnable(models, isPc(system) ? { pick } : undefined);
 
   // Move on automatically once the download completes.
   useEffect(() => {
