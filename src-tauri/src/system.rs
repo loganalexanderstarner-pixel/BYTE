@@ -97,7 +97,7 @@ pub fn system_info(data_dir: &std::path::Path) -> SystemInfo {
     SystemInfo {
         chip_info: if cfg!(target_os = "macos") { crate::chip::identify(&chip, *GPU_CORES) } else { crate::chip::identify_pc(&chip, gpus) },
         gpus: gpus.to_vec(),
-        backend: crate::gpu::backend_for(gpus),
+        backend: crate::gpu::effective_backend(),
         platform: if cfg!(target_os = "macos") { "macos" } else if cfg!(windows) { "windows" } else { "linux" },
         speed_pref: Default::default(),
         boost: false,

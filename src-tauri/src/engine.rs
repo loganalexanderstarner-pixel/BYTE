@@ -358,7 +358,16 @@ impl Engine {
         let mut args = server_args(&launch.path, port, &api_key, &launch.key, context);
         apply_opts(&mut args, &launch.opts);
 
-        let command = match app.shell().sidecar(SIDECAR) {
+        // The build that suits this hardware, falling back to the default one when it is not
+        // there (a development build does not bundle the Vulkan engine).
+        let wanted = crate::gpu::engine_sidecar(crate::gpu::effective_backend());
+        let picked = app.shell().sidecar(wanted).or_else(|e| {
+            if wanted != SIDECAR {
+                log::warn!("{wanted} is not available ({e}); using {SIDECAR}");
+            }
+            app.shell().sidecar(SIDECAR)
+        });
+        let command = match picked {
             Ok(c) => c,
             Err(e) => {
                 let message = format!("The AI engine is missing from this build ({e}).");

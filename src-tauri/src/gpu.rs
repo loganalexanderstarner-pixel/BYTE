@@ -99,6 +99,51 @@ pub fn backend_for(gpus: &[Gpu]) -> crate::chip::Backend {
     }
 }
 
+/// Whether the Vulkan loader is installed. vulkan-1.dll comes with a graphics DRIVER, not
+/// with Windows, so a machine with no GPU driver (a VM, a basic display adapter) lacks it,
+/// and an engine linked against it cannot even start. Checked by loading it, which is also
+/// exactly what the engine will do.
+#[cfg(windows)]
+fn vulkan_loader_present() -> bool {
+    use windows::core::w;
+    use windows::Win32::Foundation::FreeLibrary;
+    use windows::Win32::System::LibraryLoader::LoadLibraryW;
+    match unsafe { LoadLibraryW(w!("vulkan-1.dll")) } {
+        Ok(h) => {
+            let _ = unsafe { FreeLibrary(h) };
+            true
+        }
+        Err(_) => false,
+    }
+}
+
+#[cfg(not(windows))]
+fn vulkan_loader_present() -> bool {
+    true
+}
+
+/// The backend that will actually run: `backend_for`'s answer, unless it is Vulkan on a
+/// machine that cannot load Vulkan, in which case the model runs on the CPU through the
+/// other build. Choosing Vulkan there would leave the person with no engine at all.
+pub fn effective_backend() -> crate::chip::Backend {
+    use crate::chip::Backend;
+    static B: std::sync::OnceLock<Backend> = std::sync::OnceLock::new();
+    *B.get_or_init(|| match backend_for(detect()) {
+        Backend::Vulkan if !vulkan_loader_present() => Backend::Cpu,
+        b => b,
+    })
+}
+
+/// Which bundled engine binary serves a backend. The CUDA build is the default and also runs
+/// on the CPU, with the runtime it needs bundled beside it; the Vulkan build exists only for
+/// Windows, where it is the one that covers AMD and Intel.
+pub fn engine_sidecar(backend: crate::chip::Backend) -> &'static str {
+    match backend {
+        crate::chip::Backend::Vulkan if cfg!(windows) => "llama-server-vulkan",
+        _ => "llama-server",
+    }
+}
+
 /// (memory bandwidth in GB/s, FP16 TFLOPS), approximate and from published specs. They
 /// seed the FIRST speed estimate a user sees; BYTE's own tuning measures the real machine
 /// and replaces them, which is why they are not presented as exact.
@@ -227,6 +272,21 @@ mod tests {
         assert_eq!(backend_for(&[]), Backend::Cpu, "no GPU at all");
         // A discrete NVIDIA card beside an integrated GPU still uses CUDA.
         assert_eq!(backend_for(&[ig, nv]), Backend::Cuda);
+    }
+
+    #[test]
+    fn each_backend_has_the_engine_binary_that_suits_it() {
+        use crate::chip::Backend;
+        assert_eq!(engine_sidecar(Backend::Cuda), "llama-server");
+        assert_eq!(engine_sidecar(Backend::Metal), "llama-server");
+        assert_eq!(engine_sidecar(Backend::Cpu), "llama-server", "no GPU runs on the build that bundles its own runtime");
+        let vk = engine_sidecar(Backend::Vulkan);
+        assert_eq!(vk, if cfg!(windows) { "llama-server-vulkan" } else { "llama-server" });
+    }
+
+    #[test]
+    fn the_effective_backend_is_reported() {
+        eprintln!("effective backend: {:?} -> {}", effective_backend(), engine_sidecar(effective_backend()));
     }
 
     #[test]
