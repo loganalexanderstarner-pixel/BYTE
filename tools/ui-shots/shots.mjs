@@ -1314,9 +1314,34 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
 
 // Phone sizes (docs/LAYOUT-ANY-SCREEN.md): PHONE=1 node shots.mjs takes only these.
 // 320 = a folded Galaxy Z Fold cover screen at its narrowest, 390 = a typical
-// phone, 720 = an unfolded Fold. Android user agent, touch, 3x pixels.
+// phone, 690 and 840 = an unfolded Fold at two densities. Android user agent, touch, 2x pixels.
+// Besides screenshots, every screen is checked: nothing may overflow sideways or
+// sit outside the screen (a nonzero exit fails android-ui.yml).
 if (process.env.PHONE) {
-  for (const width of [320, 390, 690]) {
+  const problems = [];
+  const layoutProblems = (p) =>
+    p.evaluate(() => {
+      const out = [];
+      const w = window.innerWidth;
+      if (document.documentElement.scrollWidth > w + 1) out.push(`page scrolls sideways (${document.documentElement.scrollWidth} > ${w})`);
+      for (const b of document.querySelectorAll("button, a[href], input, select, textarea")) {
+        const r = b.getBoundingClientRect();
+        if (!r.width || !r.height || getComputedStyle(b).visibility === "hidden") continue;
+        // Off-canvas panels (the closed sidebar drawer) and scrolling strips (settings tabs) are meant to be partly outside.
+        let skip = false;
+        for (let a = b.parentElement; a && a !== document.body; a = a.parentElement) {
+          const ar = a.getBoundingClientRect();
+          const ox = getComputedStyle(a).overflowX;
+          if (ar.width && (ar.right <= 0 || ar.left >= w)) skip = true;
+          if (ox === "auto" || ox === "scroll") skip = true;
+        }
+        if (skip) continue;
+        const name = (b.getAttribute("aria-label") || b.getAttribute("title") || b.textContent || b.tagName).trim().slice(0, 30);
+        if (r.right > w + 1 || r.left < -1) out.push(`"${name}" is outside the screen (${Math.round(r.left)}..${Math.round(r.right)} of ${w})`);
+      }
+      return out;
+    });
+  for (const width of [320, 390, 690, 840]) {
     const ctx = await browser.newContext({
       viewport: { width, height: width < 700 ? 780 : 860 },
       deviceScaleFactor: 2,
@@ -1344,6 +1369,7 @@ if (process.env.PHONE) {
     await p.goto(URL);
     await p.waitForTimeout(500);
     await shot(p, `phone-${width}-1-chat`);
+    for (const x of await layoutProblems(p)) problems.push(`${width}px chat: ${x}`);
     const show = p.getByTitle(/Show sidebar/);
     if (await show.count()) {
       await show.first().click();
@@ -1357,16 +1383,19 @@ if (process.env.PHONE) {
       await more.click();
       await p.waitForTimeout(300);
       await shot(p, `phone-${width}-3-more`);
+      for (const x of await layoutProblems(p)) problems.push(`${width}px More menu: ${x}`);
       await p.keyboard.press("Escape");
     }
     await p.getByTitle(/^Settings/).click();
     await p.waitForTimeout(400);
     await shot(p, `phone-${width}-4-settings`);
+    for (const x of await layoutProblems(p)) problems.push(`${width}px settings: ${x}`);
     console.log(`phone ${width} errors:`, errors);
     await ctx.close();
   }
   await browser.close();
-  process.exit(0);
+  if (problems.length) console.log("LAYOUT PROBLEMS:\n" + problems.join("\n"));
+  process.exit(problems.length ? 1 : 0);
 }
 
 // Onboarding flow

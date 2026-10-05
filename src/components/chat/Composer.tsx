@@ -10,6 +10,7 @@ import { budgetSummary } from "../../lib/cloudDocs";
 import { displayName } from "../../lib/models";
 import { AttachmentChips, LibraryPicker, LocalFileChips } from "./Attachments";
 import { MemoryHelper } from "../MemoryHelper";
+import { DiagnosticsButton } from "../DiagnosticsButton";
 import { MicButton, type MicHandle } from "./MicButton";
 import { isStopPhrase, isDone } from "../../lib/handsfree";
 import type { Mode, ThinkingPref } from "../../lib/types";
@@ -314,6 +315,7 @@ export function Composer() {
           <button className="btn sm primary" onClick={() => openSettings(engine.state === "error" ? "engine" : "models")}>
             {engine.state === "error" ? "Fix it" : "Choose a model"}
           </button>
+          {engine.state === "error" && <DiagnosticsButton label="Copy details" />}
           <button className="btn sm" onClick={() => (cloudConnected ? void setWorkspace("cloud") : openSettings("cloud"))}>
             <Cloud size={14} /> {cloudConnected ? "Use BYTE Cloud" : "Connect BYTE Cloud"}
           </button>

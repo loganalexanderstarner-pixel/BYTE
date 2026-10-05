@@ -95,6 +95,7 @@ mod trackers;
 mod connectors;
 mod dashboard;
 mod bundled;
+mod diagnostics;
 
 use tauri::{Manager, RunEvent};
 
@@ -447,6 +448,7 @@ pub fn run() {
             commands::engine_status,
             commands::engine_restart,
             commands::engine_log,
+            commands::diagnostics_report,
             automations::automations_list,
             automations::automation_save,
             automations::automation_delete,

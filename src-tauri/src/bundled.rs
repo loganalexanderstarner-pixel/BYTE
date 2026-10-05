@@ -51,7 +51,7 @@ fn lib_dir_in_maps(maps: &str) -> Option<PathBuf> {
         .and_then(|p| Path::new(p).parent().map(Path::to_path_buf))
 }
 
-fn cpu_has_i8mm() -> bool {
+pub fn cpu_has_i8mm() -> bool {
     std::fs::read_to_string("/proc/cpuinfo").map(|c| has_i8mm(&c)).unwrap_or(false)
 }
 

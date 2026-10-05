@@ -1,0 +1,59 @@
+name: Android layout check
+
+# Cheap and fast (no Android build): renders the UI at phone and Fold widths in
+# headless Chromium and fails when anything overflows sideways or sits outside
+# the screen. Screenshots are kept as an artifact so they can be looked at from
+# a chat session. The emulator check on the real APK is in android.yml.
+on:
+  push:
+    branches: ["claude/android-port"]
+    paths:
+      - "src/**"
+      - "tools/ui-shots/**"
+      - "index.html"
+      - ".github/workflows/android-ui.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: android-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  layout:
+    name: Phone and Fold layout
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Serve the build
+        run: npx vite preview --port 4173 &
+      - name: Playwright
+        working-directory: tools/ui-shots
+        run: |
+          npm i --no-save playwright@^1.63
+          npx playwright install --with-deps chromium
+      - name: Screenshots and layout checks
+        working-directory: tools/ui-shots
+        env:
+          PHONE: "1"
+          OUT: ${{ github.workspace }}/phone-shots
+        run: |
+          sleep 3
+          node shots.mjs 2>&1 | tee ../../phone-shots.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            msg=$(sed -n '/LAYOUT PROBLEMS/,$p' ../../phone-shots.log | head -30 | sed 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')
+            echo "::error title=Phone layout::$msg"
+          fi
+          exit $status
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phone-shots
+          path: phone-shots

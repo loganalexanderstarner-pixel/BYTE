@@ -2,6 +2,7 @@ import { currentDevice, onDevice, ramLabel } from "../../lib/device";
 import { ByteVoicesRow, SpeakerLabelsRow, SpeechRows, VideoHelperRow, WakeRow } from "./VoiceExtras";
 import { VoiceModels } from "../chat/VoiceModels";
 import { KeyboardSection } from "./KeyboardSection";
+import { DiagnosticsButton } from "../DiagnosticsButton";
 import { prettyKeys } from "../../lib/keys";
 import { open as openDialog, ask } from "@tauri-apps/plugin-dialog";
 import { Download, Gauge, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X, Zap, Pencil } from "lucide-react";
@@ -708,7 +709,12 @@ function EngineTab() {
     <>
       <h3>Engine</h3>
       <p className="muted" style={{ marginTop: 0 }}>{currentDevice() === "phone" ? "BYTE's built-in AI engine (llama.cpp) runs on this phone's processor." : "BYTE's built-in AI engine (llama.cpp with Apple Metal) runs on this Mac."}</p>
-      {engine.state === "error" && <div className="banner danger">{engine.message}</div>}
+      {engine.state === "error" && (
+        <div className="banner danger">
+          <span className="grow">{engine.message}</span>
+          <DiagnosticsButton />
+        </div>
+      )}
       {error && <div className="banner danger">{error}</div>}
       <div className="field">
         <label>
@@ -816,6 +822,16 @@ function AboutTab() {
         </div>
       </div>
       <UpdateRow />
+      <div className="section">
+        <h4>Something wrong?</h4>
+        <div className="field">
+          <label>
+            Diagnostics
+            <small>Copies your device, memory, engine status and recent engine log. Nothing from your chats, no keys.</small>
+          </label>
+          <DiagnosticsButton />
+        </div>
+      </div>
       <div className="section">
         <h4>You</h4>
         <div className="field">

@@ -353,6 +353,29 @@ Built, not yet run on a phone (that needs the Fold on adb).
   - whisper and sherpa Android builds (A3);
   - Jetpack WindowManager posture events (A4, Flex mode).
 
+## Testing without Logan (added 2026-10-05)
+Logan installs a build and reports what he sees, which is the slow part. These cut that down:
+- **Copy diagnostics** (Settings → About, and next to engine and download errors): copies the device, memory,
+  engine state and recent engine log as text. No chats, memories or keys: `diagnostics.rs` strips BYTE keys, bearer
+  tokens and home folders, and drops engine log lines that could hold message text (tests pin this). Logan pastes it
+  into the chat instead of describing the problem.
+- **Layout check** (`.github/workflows/android-ui.yml`): renders the UI at 320, 390, 690 and 840 px (cover screen,
+  phone, unfolded Fold) and fails when anything overflows sideways or sits outside the screen. Screenshots are kept
+  as the `phone-shots` artifact. Locally: `PHONE=1 node tools/ui-shots/shots.mjs` (see `tools/ui-shots/README.md`).
+- **Emulator check** (`emulator` job in `android.yml`, `scripts/android-emulator-check.sh`): starts the real APK at
+  phone and Fold sizes, "folds" and "unfolds" it while it runs, and checks the page starts below the status bar,
+  stays on screen and doesn't crash. Informational (the APK is published first). Screenshots and the view tree are
+  the `emulator-shots` artifact.
+  - **Cannot cover:** the real hinge and posture, real speed (the emulator runs our ARM engine through translation,
+    so no model is loaded), the real keyboard, the camera, anything in A4. Those need the Fold.
+- **Direct access to the Fold (use when A4 needs it, not before):** the only way for a Claude session to drive the
+  real phone. Not set up, and untested from the cloud container, whose outbound network may block it.
+  1. On the phone: Developer options → Wireless debugging on; install Tailscale and sign in.
+  2. On a machine the session can reach (a PC or the owner's cluster, with `adb` installed): install Tailscale, then
+     `adb pair <phone-tailscale-ip>:<pair-port>` and `adb connect <phone-tailscale-ip>:<port>`.
+  3. The session then runs `adb install`, `adb shell input`, `screencap` and `logcat` there.
+  4. Turn wireless debugging off when done. Never leave it on unattended.
+
 ## Testing
 - **Rust unit tests** next to the code, as always: memory budget maths, the chip table, the posture and layout
   choice, Android `SecretStore` (in-memory fake), update JSON parsing.

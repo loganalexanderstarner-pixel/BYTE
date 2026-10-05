@@ -23,6 +23,25 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Cheaper Android testing: Copy diagnostics, layout check in CI, emulator check
+- **Why:** the owner is the bottleneck for Android: every fix needs a build installed and a description of what is
+  wrong. He agreed to a diagnostics button and automatic checks, and to direct phone access later, only if A4 needs it.
+- **What:**
+  - `src-tauri/src/diagnostics.rs` + `commands::diagnostics_report` (also `bundled::cpu_has_i8mm` made public): device,
+    memory, engine state, settings basics and the engine log tail, with keys, bearer tokens and home folders redacted
+    and log lines that could hold message text dropped. Works on every platform.
+  - `src/components/DiagnosticsButton.tsx`, `src/lib/diagnostics.ts` (+ test): Settings → About, the engine error
+    banners (Settings → Engine, the chat box) and the onboarding download error. The clipboard may refuse in a
+    web view, so the text is shown to copy by hand then.
+  - `tools/ui-shots/shots.mjs` (`PHONE=1`): widths 320/390/690/840 and a layout check (page scrolling sideways,
+    controls outside the screen; the closed drawer and scrolling tab strips are exempt). Nonzero exit on problems.
+  - `.github/workflows/android-ui.yml` (layout check, artifact `phone-shots`), `emulator` job in `android.yml` and
+    `scripts/android-emulator-check.sh` (phone, unfold, fold while the app runs; informational).
+  - `docs/ANDROID.md`: "Testing without Logan", including the direct-access steps for later.
+- **Verify:** `cargo test diagnostics` (5), `npx vitest run src/lib/diagnostics.test.ts` (3), typecheck, and
+  `PHONE=1 node tools/ui-shots/shots.mjs` passes at all four widths. The emulator job's first run is the real test.
+- **Undo:** `git revert <hash>`. Nothing else depends on it.
+
 ### (this commit) — Android: taps land (system-bar insets), fold-aware layout, phone prompt, sane model pick
 - **Why:** the owner's test-4 screenshots on the Fold. Many buttons did nothing and scaling was bad folded and
   unfolded. The top bar was drawn under the status bar. The answer worked at 18.8 to 31 tok/s.

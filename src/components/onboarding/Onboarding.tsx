@@ -21,6 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Logo } from "../../design/Logo";
 import { api, errorText } from "../../lib/api";
+import { DiagnosticsButton } from "../DiagnosticsButton";
 import { bytes, contextLabel } from "../../lib/format";
 import { findVariant, quantLabel, shortQuant } from "../../lib/models";
 import type { ModelStatus, VariantStatus } from "../../lib/types";
@@ -436,6 +437,7 @@ export function Onboarding() {
                 {dl?.phase === "failed" && (
                   <div className="banner danger" style={{ marginTop: 12 }}>
                     <span className="grow">{dl.error}</span>
+                    <DiagnosticsButton label="Copy details" />
                     <button className="btn sm" onClick={startDownload}>
                       Retry
                     </button>

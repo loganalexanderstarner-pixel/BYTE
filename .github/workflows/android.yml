@@ -82,3 +82,38 @@ jobs:
             --target "${{ github.sha }}" --prerelease \
             --title "BYTE for Android — test build ${{ github.run_number }}" \
             --notes "A test build of BYTE for Android (docs/ANDROID.md), from \`${{ github.sha }}\`. Open this page on the phone, tap the .apk, then Install (allow installing from your browser when Android asks). Each test build is signed with a new test key, so uninstall the previous one first. Not for daily use yet."
+
+  emulator:
+    # Starts the APK on an emulator at phone and Fold sizes (folding while it runs)
+    # and checks it lays out below the status bar. Informational: the APK is
+    # already published above, and an emulator can be flaky. It runs the app's
+    # ARM engine through translation, so it never loads a model.
+    name: Emulator check (informational)
+    needs: apk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: BYTE-android-apk
+          path: apk
+      - name: Allow KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Run the check on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          script: scripts/android-emulator-check.sh apk/BYTE-android-test-*.apk android-ui-out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-shots
+          path: android-ui-out

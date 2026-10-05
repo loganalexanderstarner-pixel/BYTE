@@ -148,6 +148,8 @@ export const api = {
   engineStatus: () => invoke<EngineStatus>("engine_status"),
   engineRestart: () => invoke<void>("engine_restart"),
   engineLog: () => invoke<string[]>("engine_log"),
+  /** Device, memory, engine and recent log as text to paste into a chat (no chats, no keys). */
+  diagnosticsReport: () => invoke<string>("diagnostics_report"),
   speedBoostInfo: () => invoke<BoostInfo>("speed_boost_info"),
   gpuShareInfo: () => invoke<GpuShare>("gpu_share_info"),
   gpuShareSet: (raise: boolean) => invoke<GpuShare>("gpu_share_set", { raise }),

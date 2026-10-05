@@ -620,6 +620,29 @@ pub async fn engine_restart(app: AppHandle, state: State<'_, AppState>) -> AppRe
     state.engine.start(&app, state.paths.models.clone(), &catalog, &model, ctx, reserved, opts).await
 }
 
+/// Text the user can paste into a chat to show what is going on (no chats, no keys).
+#[tauri::command]
+pub async fn diagnostics_report(state: State<'_, AppState>) -> AppResult<String> {
+    let mut sys = sysinfo::System::new();
+    sys.refresh_memory();
+    let s = state.settings.lock().await.clone();
+    let inputs = crate::diagnostics::Inputs {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        system: system::system_info(&state.paths.data),
+        available_ram: sys.available_memory(),
+        engine: state.engine.status().await,
+        active_model: s.active_model.clone(),
+        context_size: s.context_size,
+        web_mode: s.web_mode.clone(),
+        workspace: s.workspace.clone(),
+        offline: s.offline,
+        kids_mode: s.kids_mode,
+        log: state.engine.log_tail().await,
+        i8mm: cfg!(target_os = "android") && crate::bundled::cpu_has_i8mm(),
+    };
+    Ok(crate::diagnostics::build(&inputs))
+}
+
 #[tauri::command]
 pub async fn engine_log(state: State<'_, AppState>) -> AppResult<Vec<String>> {
     Ok(state.engine.log_tail().await)
