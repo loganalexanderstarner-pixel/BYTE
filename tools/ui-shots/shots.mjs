@@ -1328,7 +1328,19 @@ if (process.env.PHONE) {
     const p = await ctx.newPage();
     const errors = [];
     p.on("pageerror", (e) => errors.push(e.message));
-    await p.addInitScript(initScript, { data: mock(true, "midnight") });
+    // A phone as BYTE sees one: the owner's Fold reported SM8850 and 11 GB.
+    const phone = (d) => ({ ...d, system: { ...d.system, phone: true, appleSilicon: false, chip: "SM8850", totalRamBytes: 11.1 * 2 ** 30, gpuBudgetBytes: 8.3 * 2 ** 30 } });
+    if (width === 390) {
+      const op = await ctx.newPage();
+      await op.addInitScript(initScript, { data: phone(mock(false, "midnight")) });
+      await op.goto(URL);
+      await op.waitForTimeout(500);
+      await op.getByRole("button", { name: "Get started" }).click();
+      await op.waitForTimeout(400);
+      await shot(op, `phone-${width}-0-check`);
+      await op.close();
+    }
+    await p.addInitScript(initScript, { data: phone(mock(true, "midnight")) });
     await p.goto(URL);
     await p.waitForTimeout(500);
     await shot(p, `phone-${width}-1-chat`);

@@ -1,3 +1,4 @@
+import { deviceOf, ramLabel } from "../../lib/device";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowUp,
@@ -20,7 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Logo } from "../../design/Logo";
 import { api, errorText } from "../../lib/api";
-import { bytes, contextLabel, ramSize } from "../../lib/format";
+import { bytes, contextLabel } from "../../lib/format";
 import { findVariant, quantLabel, shortQuant } from "../../lib/models";
 import type { ModelStatus, VariantStatus } from "../../lib/types";
 import { useStore } from "../../state/store";
@@ -148,9 +149,15 @@ export function Onboarding() {
     }
   };
 
+  const device = deviceOf(system);
   const macNote = useMemo(() => {
     if (!system) return null;
     const gb = system.totalRamBytes / 2 ** 30;
+    if (system.phone)
+      return {
+        ok: true,
+        text: "Models run on this phone's own processor, so nothing you ask leaves it. The first answer takes a moment while the model loads.",
+      };
     if (!system.appleSilicon)
       return {
         ok: false,
@@ -190,7 +197,7 @@ export function Onboarding() {
                 <Logo size={84} />
                 <h1>Meet BYTE.</h1>
                 <p className="lead">
-                  A powerful AI assistant that lives entirely on your Mac.
+                  A powerful AI assistant that lives entirely on your {device}.
                 </p>
                 <ul className="tips">
                   <li>
@@ -198,7 +205,7 @@ export function Onboarding() {
                     <div>
                       <b>Private by design.</b>{" "}
                       <span className="muted">
-                        Your chats and files never leave this Mac. No account,
+                        Your chats and files never leave this {device}. No account,
                         no subscription.
                       </span>
                     </div>
@@ -216,9 +223,11 @@ export function Onboarding() {
                   <li>
                     <Cpu size={18} />
                     <div>
-                      <b>Uses your Mac's hardware.</b>{" "}
+                      <b>Uses your {device}'s hardware.</b>{" "}
                       <span className="muted">
-                        Runs on the Apple Silicon GPU, even offline.
+                        {device === "phone"
+                          ? "Runs on the phone's own processor, even offline."
+                          : "Runs on the Apple Silicon GPU, even offline."}
                       </span>
                     </div>
                   </li>
@@ -234,7 +243,7 @@ export function Onboarding() {
 
             {step === 1 && system && (
               <>
-                <h1>Checking your Mac</h1>
+                <h1>Checking your {device}</h1>
                 <p className="lead">
                   BYTE picks the best model for your hardware.
                 </p>
@@ -249,7 +258,7 @@ export function Onboarding() {
                     <div className="k">
                       <MemoryStick size={14} /> Memory
                     </div>
-                    <div className="v">{ramSize(system.totalRamBytes)}</div>
+                    <div className="v">{ramLabel(system)}</div>
                   </div>
                   <div className="spec">
                     <div className="k">
@@ -290,7 +299,7 @@ export function Onboarding() {
                 <h1>Choose your model</h1>
                 <p className="lead">
                   This is BYTE's brain. These run well on your{" "}
-                  {system ? ramSize(system.totalRamBytes) : ""} Mac — the first
+                  {system ? ramLabel(system) : ""} {device} — the first
                   one is BYTE's pick. You can try others any time in Settings →
                   Models.
                 </p>
@@ -307,7 +316,7 @@ export function Onboarding() {
                           {m.name}
                           {i === 0 && (
                             <span className="pill accent">
-                              Best for this Mac
+                              Best for this {device}
                             </span>
                           )}
                           {v.installed && (
@@ -372,7 +381,7 @@ export function Onboarding() {
                   </div>
                   <div className="muted" style={{ fontSize: "0.92em" }}>
                     {options.length === 0
-                      ? "No model fits this Mac well. With a BYTE Cloud account, bigger models answer from the cloud; nothing to download."
+                      ? `No model fits this ${device} well. With a BYTE Cloud account, bigger models answer from the cloud; nothing to download.`
                       : "Answers come from bigger models on the BYTE cloud; nothing to download. Needs an account (by invite) and an API key."}
                   </div>
                 </button>
@@ -492,7 +501,7 @@ export function Onboarding() {
                   />
                 </div>
                 <p className="faint" style={{ fontSize: "0.88em" }}>
-                  No invite? Pick a model instead: everything runs on this Mac.
+                  No invite? Pick a model instead: everything runs on this {device}.
                   You can connect the cloud later in Settings → Cloud.
                 </p>
                 {error && <div className="banner danger">{error}</div>}

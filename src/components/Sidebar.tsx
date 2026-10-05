@@ -1,3 +1,4 @@
+import { onDevice } from "../lib/device";
 import { ask } from "@tauri-apps/plugin-dialog";
 import {
   Briefcase,
@@ -192,11 +193,11 @@ export function Sidebar() {
       {settings?.cloudConnected && (
         <div className="sidebar-section">
           <div className="segmented workspace-switch" role="tablist" aria-label="Workspace">
-            {WORKSPACES.map(({ id, label, hint, icon: Icon }) => (
+            {WORKSPACES.map(({ id, label: macLabel, hint: macHint, icon: Icon }) => { const label = onDevice(macLabel), hint = onDevice(macHint); return (
               <button key={id} role="tab" aria-selected={workspace === id} title={hint} onClick={() => workspace !== id && void setWorkspace(id)}>
                 <Icon size={13} /> {label}
               </button>
-            ))}
+            ); })}
           </div>
         </div>
       )}
@@ -237,7 +238,7 @@ export function Sidebar() {
                     ? "Loading your cloud chats…"
                     : "No chats on your cloud yet. Start one with the new-chat button."
                   : workspace === "both"
-                    ? "Ask anything: this Mac and your cloud both answer, and you keep the better one."
+                    ? onDevice("Ask anything: this Mac and your cloud both answer, and you keep the better one.")
                     : "Your conversations will appear here."}
               </p>
             )}

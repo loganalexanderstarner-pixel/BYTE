@@ -66,6 +66,13 @@ quick-xml = "0.37"
 zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
 
 # Cloud mode: the API key lives in the macOS Keychain, never in files.
+# Phones (docs/ANDROID.md): Android has no certificate store at the paths
+# rustls-native-certs reads, so with native roots alone every HTTPS request
+# failed ("error sending request") and models couldn't download. The Mozilla
+# root set bundled in the app is added for Android only; desktops are unchanged.
+[target.'cfg(target_os = "android")'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots"] }
+
 # Desktop only (docs/ANDROID.md): global shortcuts, opening at login, signed updates.
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = "2"

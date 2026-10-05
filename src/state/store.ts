@@ -1,3 +1,4 @@
+import { deviceOf, setDevice } from "../lib/device";
 import { create } from "zustand";
 
 import { nextWeb, webState } from "../lib/web";
@@ -958,6 +959,7 @@ export const useStore = create<State>((set, get) => {
         api.modelsList(),
         api.engineStatus(),
       ]);
+      setDevice(deviceOf(system));
       set({
         ready: true,
         settings,

@@ -1,3 +1,4 @@
+import { currentDevice, onDevice, ramLabel } from "../../lib/device";
 import { ByteVoicesRow, SpeakerLabelsRow, SpeechRows, VideoHelperRow, WakeRow } from "./VoiceExtras";
 import { VoiceModels } from "../chat/VoiceModels";
 import { KeyboardSection } from "./KeyboardSection";
@@ -12,7 +13,7 @@ import { api, errorText, inTauri } from "../../lib/api";
 import { BOOKMARKLET } from "../../lib/notes";
 import { BALANCED, PRESETS, presetOf, SLIDERS, sliderWord } from "../../lib/personality";
 import { topicList } from "../../lib/tasks";
-import { bytes, contextLabel, ramSize } from "../../lib/format";
+import { bytes, contextLabel } from "../../lib/format";
 import { displayName } from "../../lib/models";
 import type { BoostInfo, GpuShare, LookerStatus, Memory, Profiles, Settings, Usage } from "../../lib/types";
 import { bars } from "../../lib/dashboard";
@@ -77,7 +78,7 @@ function ModelsTab() {
     <>
       <h3>Models</h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        Pick the brain BYTE runs on. Everything runs on this Mac's GPU; files download from Hugging Face only when you choose them.
+        {onDevice(currentDevice() === "phone" ? "Pick the brain BYTE runs on. Everything runs on this phone's own processor; files download from Hugging Face only when you choose them." : "Pick the brain BYTE runs on. Everything runs on this Mac's GPU; files download from Hugging Face only when you choose them.")}
       </p>
       <SpeedPrefPicker />
       <CatalogBrowser />
@@ -178,7 +179,7 @@ function MemoryTab() {
     <>
       <h3>Memory & chats</h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        What BYTE remembers about you, and your saved chats. Everything is stored encrypted on this Mac only.
+        What BYTE remembers about you, and your saved chats. {onDevice("Everything is stored encrypted on this Mac only.")}
       </p>
       {error && <div className="banner danger">{error}</div>}
       {notice && <div className="banner">{notice}</div>}
@@ -446,7 +447,7 @@ function SpeedSection() {
       <div className="field">
         <label>
           <span className="row" style={{ gap: 6 }}>
-            <Gauge size={14} style={{ color: "var(--accent)" }} /> Tuned for this Mac
+            <Gauge size={14} style={{ color: "var(--accent)" }} /> {onDevice("Tuned for this Mac")}
           </span>
           <small>
             {tune
@@ -496,7 +497,7 @@ function SpeedSection() {
       <div className="field">
         <label>
           Tune all downloaded models
-          <small>Runs the thorough tune on every downloaded model that fits this Mac, one after another, then goes back to the one you use.</small>
+          <small>{onDevice("Runs the thorough tune on every downloaded model that fits this Mac, one after another, then goes back to the one you use.")}</small>
         </label>
         <button
           className="btn sm"
@@ -515,7 +516,7 @@ function SpeedSection() {
       <div className="field">
         <label>
           Tune new models automatically
-          <small>The first time a model loads, BYTE spends a minute or two finding its fastest settings on this Mac.</small>
+          <small>{onDevice("The first time a model loads, BYTE spends a minute or two finding its fastest settings on this Mac.")}</small>
         </label>
         <input type="checkbox" checked={settings.autoTune} onChange={(e) => void update({ autoTune: e.target.checked })} aria-label="Tune new models automatically" />
       </div>
@@ -706,7 +707,7 @@ function EngineTab() {
   return (
     <>
       <h3>Engine</h3>
-      <p className="muted" style={{ marginTop: 0 }}>BYTE's built-in AI engine (llama.cpp with Apple Metal) runs on this Mac.</p>
+      <p className="muted" style={{ marginTop: 0 }}>{currentDevice() === "phone" ? "BYTE's built-in AI engine (llama.cpp) runs on this phone's processor." : "BYTE's built-in AI engine (llama.cpp with Apple Metal) runs on this Mac."}</p>
       {engine.state === "error" && <div className="banner danger">{engine.message}</div>}
       {error && <div className="banner danger">{error}</div>}
       <div className="field">
@@ -767,7 +768,7 @@ function UsageSection() {
     <div className="section">
       <h4>Your usage</h4>
       <p className="muted small" style={{ marginTop: 0 }}>
-        Counted from the chats on this Mac; nothing is sent anywhere.
+        {onDevice("Counted from the chats on this Mac; nothing is sent anywhere.")}
       </p>
       <div className="usage-grid">
         <div>
@@ -1058,9 +1059,9 @@ function AboutTab() {
       </div>
       {system && (
         <div className="section">
-          <h4>This Mac</h4>
+          <h4>{onDevice("This Mac")}</h4>
           <div className="field"><label>Chip</label><span className="muted">{system.chip}</span></div>
-          <div className="field"><label>Memory</label><span className="muted">{ramSize(system.totalRamBytes)} · {bytes(system.gpuBudgetBytes)} usable by the GPU</span></div>
+          <div className="field"><label>Memory</label><span className="muted">{ramLabel(system)} · {bytes(system.gpuBudgetBytes)} {system.phone ? "BYTE can use for models" : "usable by the GPU"}</span></div>
           <div className="field"><label>macOS</label><span className="muted">{system.osVersion}</span></div>
         </div>
       )}

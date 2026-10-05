@@ -23,6 +23,25 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Android: downloads work (bundled TLS roots), and the phone is called a phone
+- **Why:** the owner's first run of android-test-3 on the Fold. Model downloads failed with "network error: error
+  sending request". Onboarding said "Checking your Mac" and warned "BYTE is built for Apple Silicon Macs".
+- **What:**
+  - `Cargo.toml`: on Android, `reqwest` also gets `rustls-tls-webpki-roots`. With native roots only, there are no
+    trusted certificates on Android, so every HTTPS request failed: downloads, web search and the cloud. Desktop
+    builds are unchanged (`cargo tree -i webpki-roots` is empty on the host).
+  - `src/lib/device.ts` (+ tests):
+    - `deviceOf`, giving "phone" / "Mac" / "computer" from `system.phone`;
+    - `ramLabel`, giving a phone's size from the box: 11 GiB reported is shown as 12 GB;
+    - `onDevice`, which rewrites "this/your Mac".
+
+    These are used in onboarding (title, a phone note instead of the Apple warning), Settings → Models, the catalog,
+    model cards, the sidebar workspace label and the composer. Mac-only feature text is unchanged.
+  - The phone screenshots use a phone mock (SM8850, 11 GiB) and include onboarding.
+- **Verify:** vitest `device.test.ts`; `cargo check --target aarch64-linux-android`; `PHONE=1 node
+  tools/ui-shots/shots.mjs` shows "Checking your phone" and "12 GB"; on the Fold, the model download completes.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — Android build failures readable from anywhere
 - **Why:** the first `android.yml` run failed in "Build engines and APK", and its log can't be downloaded from a
   session (the log host is refused); the annotations said only "exit code 1".

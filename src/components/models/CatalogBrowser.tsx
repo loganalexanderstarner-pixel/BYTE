@@ -1,9 +1,10 @@
+import { onDevice, ramLabel } from "../../lib/device";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { ChevronRight, Cpu, HardDrive, Layers, MemoryStick, RefreshCw, Search, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { api, errorText } from "../../lib/api";
-import { bytes, ramSize } from "../../lib/format";
+import { bytes } from "../../lib/format";
 import { COMMUNITY_CAPS, displayName, fitGroup, RAM_TIERS, TAG_LABELS } from "../../lib/models";
 import type { ModelStatus, VariantStatus } from "../../lib/types";
 import { useStore } from "../../state/store";
@@ -106,8 +107,8 @@ export function CatalogBrowser() {
   const groups: { id: string; title: string; hint: string; items: ModelStatus[] }[] =
     tier === "mine"
       ? [
-          { id: "great", title: "Runs great on this Mac", hint: "Fast, with room for your other apps.", items: chat.filter((m) => fitGroup(m) === "great") },
-          { id: "tight", title: "Runs on this Mac", hint: "Close other heavy apps for best speed.", items: chat.filter((m) => fitGroup(m) === "tight") },
+          { id: "great", title: onDevice("Runs great on this Mac"), hint: "Fast, with room for your other apps.", items: chat.filter((m) => fitGroup(m) === "great") },
+          { id: "tight", title: onDevice("Runs on this Mac"), hint: "Close other heavy apps for best speed.", items: chat.filter((m) => fitGroup(m) === "tight") },
           { id: "toobig", title: "Needs a Mac with more memory", hint: "Shown so you know what bigger Macs can run.", items: chat.filter((m) => fitGroup(m) === "toobig") },
         ]
       : tier === "downloaded"
@@ -121,7 +122,7 @@ export function CatalogBrowser() {
     <>
       <div className="mac-strip">
         <span><Cpu size={15} /> {chip?.name ?? system?.chip ?? "This Mac"}{chip?.gpuCores ? ` · ${chip.gpuCores}-core GPU` : ""}</span>
-        <span><MemoryStick size={15} /> {system ? ramSize(system.totalRamBytes) : "?"}</span>
+        <span><MemoryStick size={15} /> {system ? ramLabel(system) : "?"}</span>
         {chip && chip.neuralEngineTops > 0 && (
           <span className="faint" title="The Neural Engine powers on-device OCR and voice. Chat models run on the GPU.">
             <Sparkles size={14} /> Neural Engine {chip.neuralEngineTops} TOPS
@@ -155,7 +156,7 @@ export function CatalogBrowser() {
             <Layers size={15} style={{ color: "var(--accent)" }} />
             <b>In memory now</b>
             <span className="faint">
-              · {bytes(loaded.reduce((s, l) => s + l.neededBytes, 0))} of {system ? ramSize(system.totalRamBytes) : "?"}
+              · {bytes(loaded.reduce((s, l) => s + l.neededBytes, 0))} of {system ? ramLabel(system) : "?"}
             </span>
           </div>
           {loaded.map((l) => (
@@ -197,7 +198,7 @@ export function CatalogBrowser() {
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search models (e.g. coder, gemma, 27B)" aria-label="Search models" />
         </label>
         <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort">
-          <option value="best">Best for this Mac</option>
+          <option value="best">{onDevice("Best for this Mac")}</option>
           <option value="newest">Newest</option>
           <option value="smallest">Smallest</option>
           <option value="fastest">Fastest</option>
@@ -206,7 +207,7 @@ export function CatalogBrowser() {
 
       <div className="filters">
         <div className="chips" role="group" aria-label="Memory">
-          <button className="chip" aria-pressed={tier === "mine"} onClick={() => setTier("mine")}>This Mac</button>
+          <button className="chip" aria-pressed={tier === "mine"} onClick={() => setTier("mine")}>{onDevice("This Mac")}</button>
           <button className="chip" aria-pressed={tier === "downloaded"} onClick={() => setTier("downloaded")}>Downloaded ({installed.length})</button>
           {RAM_TIERS.map((t) => (
             <button key={t} className="chip" aria-pressed={tier === t} onClick={() => setTier(t)}>{t} GB</button>

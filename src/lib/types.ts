@@ -317,6 +317,8 @@ export interface SystemInfo {
   osVersion: string;
   cpuCores: number;
   appleSilicon: boolean;
+  /** Android: memory is planned for a phone, and the UI says "phone". */
+  phone?: boolean;
   chipInfo: ChipInfo;
 }
 

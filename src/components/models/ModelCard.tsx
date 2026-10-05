@@ -1,3 +1,4 @@
+import { onDevice } from "../../lib/device";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Brain, ChevronDown, CircleCheck, Clock, Download, ExternalLink, Eye, Gauge, Layers, Pause, Play, Sparkles, Trash2, TriangleAlert, Users, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -279,7 +280,7 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
               {shortQuant(x.quant)} · {bytes(x.sizeBytes)} · {quantLabel(x.bits)}
               {x.fit.fit === "toobig" ? ` · needs ${x.minRamGb} GB` : ""}
               {x.installed ? " · downloaded" : ""}
-              {x.key === model.best ? " · best for this Mac" : ""}
+              {x.key === model.best ? onDevice(" · best for this Mac") : ""}
             </option>
           ))}
         </select>
@@ -290,12 +291,12 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
       {!tooBig && (
         <div
           className={`speed-row ${speedClass(v.measuredTps ?? v.speed.tokensPerSec)}`}
-          title={v.measuredTps ? "Measured on this Mac by tuning, with its fastest settings." : "Estimated from this Mac's chip; actual speed varies with prompt length and other apps."}
+          title={onDevice(v.measuredTps ? "Measured on this Mac by tuning, with its fastest settings." : "Estimated from this Mac's chip; actual speed varies with prompt length and other apps.")}
         >
           {v.measuredTps ? (
-            <span><Gauge size={13} /> {v.measuredTps.toFixed(1)} tokens/sec measured on this Mac</span>
+            <span><Gauge size={13} /> {v.measuredTps.toFixed(1)} {onDevice("tokens/sec measured on this Mac")}</span>
           ) : (
-            <span><Gauge size={13} /> ≈ {Math.round(v.speed.tokensPerSec)} tokens/sec on this Mac</span>
+            <span><Gauge size={13} /> ≈ {Math.round(v.speed.tokensPerSec)} {onDevice("tokens/sec on this Mac")}</span>
           )}
           <span><Clock size={13} /> Typical answer {approxDuration(v.speed.replySecs)}</span>
           {model.thinking && <span className="faint">({approxDuration(v.speed.replyThinkingSecs)} with thinking)</span>}
