@@ -69,7 +69,7 @@ export function EmptyState() {
     space === "cloud"
       ? "Answers come from your BYTE cloud."
       : space === "both"
-        ? "This Mac and your cloud both answer; keep the better one."
+        ? onDevice("This Mac and your cloud both answer; keep the better one.")
         : onDevice("Everything stays on this Mac.");
   return (
     <div className="empty">

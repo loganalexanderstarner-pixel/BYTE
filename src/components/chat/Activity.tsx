@@ -1,4 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { onDevice } from "../../lib/device";
 import { Clapperboard, GraduationCap, Layers as LayersIcon, Gamepad2, ShieldCheck, Store, Star, Layers, AppWindow, ArrowLeft, Download, Eye, FileDown, Keyboard, MousePointerClick, ListCollapse, MoveVertical, BookOpen, Calculator, CalendarDays, Check, ChefHat, Lightbulb as IdeaIcon, ChevronRight, Columns3, ListTree, MapPin, Plane, Scale, CircleCheck, CloudSun, Copy, FolderSearch, Globe, ListChecks, ListFilter, LoaderCircle, Quote, Search, SearchCheck, TriangleAlert, Languages, Laptop, ListTodo, Newspaper, Rss, CalendarClock, Workflow } from "lucide-react";
 import { Fragment, useState } from "react";
 
@@ -61,7 +62,7 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
     case "get_transcript":
       return { icon: Clapperboard, text: "Read the video's captions" };
     case "transcribe_video":
-      return { icon: Clapperboard, text: "Transcribed the video's audio on this Mac" };
+      return { icon: Clapperboard, text: onDevice("Transcribed the video's audio on this Mac") };
     case "summarize_video":
       return { icon: ListChecks, text: "Summarized the video" };
     // The web agent: once a step finished, its result says exactly what happened.

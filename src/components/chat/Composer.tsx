@@ -557,7 +557,7 @@ export function Composer() {
         {onCloud
           ? onDevice("Answered on your BYTE cloud (falls back to this Mac if it's unreachable)")
           : onBoth
-            ? "This Mac and your cloud answer side by side; keep the better one"
+            ? onDevice("This Mac and your cloud answer side by side; keep the better one")
             : onDevice("Runs entirely on your Mac")} · <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line
       </div>
     </div>

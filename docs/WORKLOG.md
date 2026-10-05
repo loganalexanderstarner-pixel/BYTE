@@ -23,6 +23,14 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Android: "Mac" wording sweep in shared screens
+- **Why:** the owner asked why screenshots say MacBook. The screenshot harness uses made-up Mac sample data (a MacBook
+  chat, an Apple M4 card; the phone mock now overrides the chip), but the real app still said "this Mac" / "your Mac" on a
+  phone in places (model lists, workspace hint, voices, documents, cloud tab, model lab).
+- **What:** the remaining "this Mac / your Mac" strings in shared screens go through `onDevice()` (CatalogBrowser
+  also says phones/"a phone with more memory"). Mac-only features (Mac control, Keychain, permissions) keep Mac wording.
+- **Verify:** typecheck, vitest, phone screenshots. **Undo:** `git revert <hash>`.
+
 ### (this commit) — Android test-6 fixes from the owner's test-5 screenshots (Fold, "the functions seem to work")
 - **Why:** test-5 works (taps, status bar, folded and unfolded layouts, BYTE Cloud connected). Its screenshots showed
   leftovers: "null left" in the cloud chip, "Your Mac can run…" on a phone, the 350M model reading BYTE's formatting

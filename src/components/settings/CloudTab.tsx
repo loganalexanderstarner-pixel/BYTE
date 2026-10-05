@@ -1,4 +1,5 @@
 import { CloudKeySteps } from "./CloudKeySteps";
+import { onDevice } from "../../lib/device";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { Cloud, Download, KeyRound, LogOut, RefreshCw } from "lucide-react";
 import { useState } from "react";
@@ -47,7 +48,7 @@ export function CloudTab() {
   const disconnect = () =>
     run("disconnect", async () => {
       const yes = await ask(
-        "Remove your BYTE cloud key from this Mac? Chats already here stay.",
+        onDevice("Remove your BYTE cloud key from this Mac? Chats already here stay."),
         { title: "Disconnect BYTE Cloud", kind: "warning" },
       ).catch(() => true);
       if (!yes) return;
@@ -205,7 +206,7 @@ export function CloudTab() {
                     onClick={() => void setWorkspace(ws)}
                   >
                     {ws === "local"
-                      ? "This Mac"
+                      ? onDevice("This Mac")
                       : ws === "cloud"
                         ? "Cloud"
                         : "Both"}

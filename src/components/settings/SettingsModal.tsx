@@ -708,7 +708,7 @@ function EngineTab() {
   return (
     <>
       <h3>Engine</h3>
-      <p className="muted" style={{ marginTop: 0 }}>{currentDevice() === "phone" ? "BYTE's built-in AI engine (llama.cpp) runs on this phone's processor." : "BYTE's built-in AI engine (llama.cpp with Apple Metal) runs on this Mac."}</p>
+      <p className="muted" style={{ marginTop: 0 }}>{currentDevice() === "phone" ? "BYTE's built-in AI engine (llama.cpp) runs on this phone's processor." : onDevice("BYTE's built-in AI engine (llama.cpp with Apple Metal) runs on this Mac.")}</p>
       {engine.state === "error" && (
         <div className="banner danger">
           <span className="grow">{engine.message}</span>

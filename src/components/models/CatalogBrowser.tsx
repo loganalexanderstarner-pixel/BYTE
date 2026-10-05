@@ -1,4 +1,4 @@
-import { onDevice, ramLabel } from "../../lib/device";
+import { currentDevice, onDevice, ramLabel } from "../../lib/device";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { ChevronRight, Cpu, HardDrive, Layers, MemoryStick, RefreshCw, Search, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -109,11 +109,11 @@ export function CatalogBrowser() {
       ? [
           { id: "great", title: onDevice("Runs great on this Mac"), hint: "Fast, with room for your other apps.", items: chat.filter((m) => fitGroup(m) === "great") },
           { id: "tight", title: onDevice("Runs on this Mac"), hint: "Close other heavy apps for best speed.", items: chat.filter((m) => fitGroup(m) === "tight") },
-          { id: "toobig", title: "Needs a Mac with more memory", hint: "Shown so you know what bigger Macs can run.", items: chat.filter((m) => fitGroup(m) === "toobig") },
+          { id: "toobig", title: onDevice("Needs a Mac with more memory").replace("a Mac", `a ${currentDevice() === "Mac" ? "Mac" : currentDevice()}`), hint: currentDevice() === "phone" ? "Shown so you know what bigger phones can run." : "Shown so you know what bigger Macs can run.", items: chat.filter((m) => fitGroup(m) === "toobig") },
         ]
       : tier === "downloaded"
         ? [{ id: "dl", title: "Downloaded models", hint: "Delete versions you no longer use to free up disk space.", items: chat }]
-        : [{ id: "all", title: `Models for Macs with ${tier} GB or less`, hint: "Filtered by the memory they need.", items: chat }];
+        : [{ id: "all", title: `Models for ${currentDevice() === "phone" ? "phones" : "Macs"} with ${tier} GB or less`, hint: "Filtered by the memory they need.", items: chat }];
 
   const helpers = models.filter((m) => m.role !== "chat");
   const chip = system?.chipInfo;
@@ -121,7 +121,7 @@ export function CatalogBrowser() {
   return (
     <>
       <div className="mac-strip">
-        <span><Cpu size={15} /> {chip?.name ?? system?.chip ?? "This Mac"}{chip?.gpuCores ? ` · ${chip.gpuCores}-core GPU` : ""}</span>
+        <span><Cpu size={15} /> {chip?.name ?? system?.chip ?? onDevice("This Mac")}{chip?.gpuCores ? ` · ${chip.gpuCores}-core GPU` : ""}</span>
         <span><MemoryStick size={15} /> {system ? ramLabel(system) : "?"}</span>
         {chip && chip.neuralEngineTops > 0 && (
           <span className="faint" title="The Neural Engine powers on-device OCR and voice. Chat models run on the GPU.">

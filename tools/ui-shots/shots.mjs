@@ -1354,7 +1354,7 @@ if (process.env.PHONE) {
     const errors = [];
     p.on("pageerror", (e) => errors.push(e.message));
     // A phone as BYTE sees one: the owner's Fold reported SM8850 and 11 GB.
-    const phone = (d) => ({ ...d, system: { ...d.system, phone: true, appleSilicon: false, chip: "SM8850", totalRamBytes: 11.1 * 2 ** 30, gpuBudgetBytes: 8.3 * 2 ** 30 } });
+    const phone = (d) => ({ ...d, system: { ...d.system, phone: true, appleSilicon: false, chip: "SM8850", chipInfo: { ...d.system.chipInfo, name: "SM8850", gpuCores: null, neuralEngineTops: 0 }, totalRamBytes: 11.1 * 2 ** 30, gpuBudgetBytes: 8.3 * 2 ** 30 } });
     if (width === 390) {
       const op = await ctx.newPage();
       await op.addInitScript(initScript, { data: phone(mock(false, "midnight")) });

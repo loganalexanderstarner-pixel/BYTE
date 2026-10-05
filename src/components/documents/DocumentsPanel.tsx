@@ -1,4 +1,5 @@
 import { BETA_NOTE, BetaTag } from "./BetaTag";
+import { onDevice } from "../../lib/device";
 import { documentDir, join } from "@tauri-apps/api/path";
 import {
   open as openDialog,
@@ -133,7 +134,7 @@ export function DocumentsPanel({ onClose }: { onClose(): void }) {
           >
             {where === "cloud"
               ? "Made on your BYTE cloud."
-              : "Made by the model on this Mac. Private, works offline."}
+              : onDevice("Made by the model on this Mac. Private, works offline.")}
           </p>
         </nav>
         <section className="modal-body">

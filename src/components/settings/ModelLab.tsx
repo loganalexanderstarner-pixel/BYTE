@@ -1,4 +1,5 @@
 import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
+import { onDevice } from "../../lib/device";
 import { Brain, FileUp, FlaskConical, Link2, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -70,7 +71,7 @@ export function ModelLab() {
     });
 
   const remove = async (model: LabModel) => {
-    const ok = await ask(`Remove ${model.name} from BYTE? ${model.source === "huggingface" ? "Its downloaded file is deleted too." : "The file on your Mac stays where it is."}`, {
+    const ok = await ask(`Remove ${model.name} from BYTE? ${model.source === "huggingface" ? "Its downloaded file is deleted too." : onDevice("The file on your Mac stays where it is.")}`, {
       title: "Remove model",
       kind: "warning",
     });
@@ -147,7 +148,7 @@ export function ModelLab() {
               <div className="grow">
                 <b>{m.name}</b>
                 <span className="faint">
-                  {m.architecture} · {paramsLabel(m.paramsB)} · {m.quant} · {bytes(m.sizeBytes)} · {m.source === "huggingface" ? "Hugging Face" : "file on this Mac"}
+                  {m.architecture} · {paramsLabel(m.paramsB)} · {m.quant} · {bytes(m.sizeBytes)} · {m.source === "huggingface" ? "Hugging Face" : onDevice("file on this Mac")}
                 </span>
               </div>
               <span className={`pill ${fitTone(m.fit)}`}>{fitLabel(m.fit)}</span>
@@ -208,7 +209,7 @@ function LabCard({ model, busy, onAdd, onDismiss }: { model: LabModel; busy: boo
         <button className="btn sm ghost" onClick={onDismiss}>
           Cancel
         </button>
-        <button className="btn sm primary" onClick={onAdd} disabled={busy || model.fit === "no" || model.added} title={model.fit === "no" ? "Too big to run on this Mac" : undefined}>
+        <button className="btn sm primary" onClick={onAdd} disabled={busy || model.fit === "no" || model.added} title={model.fit === "no" ? onDevice("Too big to run on this Mac") : undefined}>
           {busy ? <Loader2 size={14} className="spin" /> : <Plus size={14} />} {model.added ? "Already added" : "Add to BYTE"}
         </button>
       </div>

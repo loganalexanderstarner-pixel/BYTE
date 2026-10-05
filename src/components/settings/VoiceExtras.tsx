@@ -1,4 +1,5 @@
 import { Download, RefreshCw, Trash2, Volume2 } from "lucide-react";
+import { onDevice } from "../../lib/device";
 import { useCallback, useEffect, useState } from "react";
 
 import { api, errorText, inTauri } from "../../lib/api";
@@ -181,7 +182,7 @@ export function WakeRow() {
             ? "“Hey BYTE” needs a Mac for now."
             : ready === false
               ? "Download a speech model above first."
-              : "Say “Hey BYTE, …” from anywhere and BYTE answers out loud, then listens a few seconds for a follow-up (say “thanks” to end). While this is on, the microphone stays on (macOS shows its orange dot); only short bursts of speech are checked, on this Mac, and nothing is kept. It pauses while BYTE talks or you record."}
+              : onDevice("Say “Hey BYTE, …” from anywhere and BYTE answers out loud, then listens a few seconds for a follow-up (say “thanks” to end). While this is on, the microphone stays on (macOS shows its orange dot); only short bursts of speech are checked, on this Mac, and nothing is kept. It pauses while BYTE talks or you record.")}
         </small>
         {mac && settings?.wakeWord && !settings.openAtLogin && (
           <small>
@@ -249,7 +250,7 @@ export function ByteVoicesRow() {
               ? `${current.speaker.name} · ${current.pkg.name}${current.pkg.name.startsWith(current.pkg.provider.split(" ")[0]) ? "" : ` (${current.pkg.provider})`}. Natural voices made on this Mac, free and open source; BYTE starts speaking while an answer is still being written, without gaps.`
               : status?.ready.length
                 ? "Pick a downloaded voice below."
-                : "Natural, human-sounding voices instead of the Mac's robotic one: over 2,000 to choose from, free and open source, made on this Mac. Browse them and download the ones you like (from about 30 MB)."}
+                : onDevice("Natural, human-sounding voices instead of the Mac's robotic one: over 2,000 to choose from, free and open source, made on this Mac. Browse them and download the ones you like (from about 30 MB).")}
           </small>
           {lowRam && (
             <small className="warn">
@@ -282,10 +283,10 @@ export function ByteVoicesRow() {
           <>
             <span className="faint">Made</span>
             <div className="segmented" role="group" aria-label="Where BYTE's voice is made">
-              <button aria-pressed={where === "mac"} onClick={() => void update({ voiceWhere: "mac" })} title="Free voices on this Mac: private, work offline">
+              <button aria-pressed={where === "mac"} onClick={() => void update({ voiceWhere: "mac" })} title={onDevice("Free voices on this Mac: private, work offline")}>
                 On this Mac
               </button>
-              <button aria-pressed={where === "cloud"} onClick={() => void update({ voiceWhere: "cloud" })} title="Voices on the BYTE cloud's GPU: no memory used on this Mac. Private chats always use this Mac.">
+              <button aria-pressed={where === "cloud"} onClick={() => void update({ voiceWhere: "cloud" })} title={onDevice("Voices on the BYTE cloud's GPU: no memory used on this Mac. Private chats always use this Mac.")}>
                 BYTE Cloud
               </button>
             </div>
