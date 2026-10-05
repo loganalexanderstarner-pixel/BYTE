@@ -1,0 +1,13 @@
+# Line endings are part of the content for anything a tool parses, and a Windows
+# checkout otherwise converts them according to each machine's own git config.
+# That bit already: a test matching a plist across "\n" failed on Windows.
+#
+# Shell scripts must be LF or bash fails with "$'\r': command not found". Batch
+# files go the other way: cmd mishandles goto labels in LF-only files.
+*.sh    text eol=lf
+*.plist text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf

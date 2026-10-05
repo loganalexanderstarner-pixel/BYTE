@@ -481,7 +481,11 @@ mod tests {
         assert_eq!(names(specs(true, false, false, true)), vec![WEB_SEARCH, ACADEMIC_SEARCH, FIND_PLACES, WEATHER, READ_PAGE, CALCULATE]);
         // Papers need the web.
         assert_eq!(names(specs(false, false, false, true)), vec![CALCULATE]);
-        assert_eq!(file_url("/Users/me/My Lease.pdf", Some(3)), "file:///Users/me/My%20Lease.pdf#page=3");
+        if cfg!(windows) {
+            assert_eq!(file_url(r"C:\Users\me\My Lease.pdf", Some(3)), "file:///C:/Users/me/My%20Lease.pdf#page=3");
+        } else {
+            assert_eq!(file_url("/Users/me/My Lease.pdf", Some(3)), "file:///Users/me/My%20Lease.pdf#page=3");
+        }
     }
 
     #[tokio::test]

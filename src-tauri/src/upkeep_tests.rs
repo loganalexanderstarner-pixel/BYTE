@@ -59,6 +59,7 @@ fn age(p: &Path, days: u64) {
 const SMALL: Limits = Limits { big: 40_000, dup_min: 10_000, old_days: 365, installer_days: 30 };
 
 #[test]
+#[cfg_attr(windows, ignore = "Upkeep is the Mac housekeeping feature: its fixtures, protection list and path handling are Mac-shaped. Not ported to Windows yet; it must be before the feature is offered there.")]
 fn the_scan_sizes_folders_finds_copies_and_leaves_library_alone() {
     let d = tempfile::tempdir().unwrap();
     let home = d.path();
@@ -118,6 +119,7 @@ fn offerable_files_skip_hidden_library_and_package_contents() {
 }
 
 #[test]
+#[cfg_attr(windows, ignore = "Upkeep is the Mac housekeeping feature: its fixtures, protection list and path handling are Mac-shaped. Not ported to Windows yet; it must be before the feature is offered there.")]
 fn system_and_top_folders_are_never_trashed() {
     let h = Path::new("/Users/ada");
     for p in ["/System/Library/x", "/usr/bin/zsh", "/Applications", "/Applications/Utilities/Terminal.app", "/Users/ada", "/Users/ada/Documents", "/Users/ada/Library", "relative/path", "/Users/ada/Downloads/../Documents", "/"] {
@@ -200,6 +202,7 @@ fn busy_programs_match_their_apps() {
 }
 
 #[test]
+#[cfg_attr(windows, ignore = "Upkeep is the Mac housekeeping feature: its fixtures, protection list and path handling are Mac-shaped. Not ported to Windows yet; it must be before the feature is offered there.")]
 fn apps_are_found_and_their_leftovers_listed() {
     let d = tempfile::tempdir().unwrap();
     let apps = d.path().join("Applications");
@@ -399,6 +402,7 @@ async fn a_storage_question_shows_the_card_and_remembers_what_may_go() {
 }
 
 #[tokio::test]
+#[cfg_attr(windows, ignore = "Upkeep is the Mac housekeeping feature: its fixtures, protection list and path handling are Mac-shaped. Not ported to Windows yet; it must be before the feature is offered there.")]
 async fn uninstalling_asks_first_trashes_app_and_leftovers_and_can_be_undone() {
     let d = tempfile::tempdir().unwrap();
     let home = d.path();

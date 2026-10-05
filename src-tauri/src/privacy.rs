@@ -205,13 +205,14 @@ mod tests {
     /// refuses silently and BYTE never shows up in Privacy & Security), and every prompt needs its wording.
     #[test]
     fn mac_permissions_are_declared() {
-        let ent = include_str!("../Entitlements.plist");
+        // A Windows checkout can convert line endings; the file's content is the same.
+        let ent = include_str!("../Entitlements.plist").replace("\r\n", "\n");
         for key in ["com.apple.security.device.audio-input", "com.apple.security.automation.apple-events"] {
             assert!(ent.contains(&format!("<key>{key}</key>\n  <true/>")), "{key}");
         }
         let conf: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
         assert_eq!(conf["bundle"]["macOS"]["entitlements"], "Entitlements.plist");
-        let info = include_str!("../Info.plist");
+        let info = include_str!("../Info.plist").replace("\r\n", "\n");
         for key in ["NSMicrophoneUsageDescription", "NSAppleEventsUsageDescription", "NSContactsUsageDescription"] {
             assert!(info.contains(key), "{key}");
         }

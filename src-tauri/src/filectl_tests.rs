@@ -48,7 +48,8 @@ fn tidying_moves_loose_files_and_undo_puts_them_back() {
     touch(&d.join("Documents"), "f.pdf"); // already there: the moved one gets a new name
     let later = SystemTime::now() + Duration::from_secs(3600);
     let plan = tidy_plan(d, By::Kind, later).unwrap();
-    let names: Vec<String> = plan.iter().map(|(_, to)| to.strip_prefix(d).unwrap().display().to_string()).collect();
+    // Windows spells the separator with a backslash; the test is about WHERE files go.
+    let names: Vec<String> = plan.iter().map(|(_, to)| to.strip_prefix(d).unwrap().display().to_string().replace('\\', "/")).collect();
     assert_eq!(names, ["Images/a.jpg", "Documents/b.pdf", "Installers/c.dmg", "Archives/d.zip", "Documents/f 2.pdf"]);
     assert_eq!(plan_summary(&plan), "Documents: 2 · Archives: 1 · Images: 1 · Installers: 1");
     // Just-downloaded files are left alone.

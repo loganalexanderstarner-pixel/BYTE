@@ -225,7 +225,8 @@ mod tests {
         assert_eq!(a[a.len() - 2], "--");
         assert_eq!(a.last().unwrap(), "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
         assert!(a.contains(&"duration <= 10800".to_string()));
-        assert!(a.contains(&"/tmp/v/audio.%(ext)s".to_string()));
+        let out = Path::new("/tmp/v").join("audio.%(ext)s").display().to_string();
+        assert!(a.contains(&out), "{out} not in {a:?}");
     }
 
     #[test]

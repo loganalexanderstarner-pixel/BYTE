@@ -156,7 +156,16 @@ mod tests {
         assert_eq!(p2, v.join("BYTE/Grocery list today 2.md"), "never overwrites");
         assert_eq!(std::fs::read_to_string(&p).unwrap(), "# Grocery / list: today?\n\n- milk\n");
         assert_eq!(stem("../../.ssh/id"), ".. .. .ssh id".trim_start_matches('.').trim());
-        assert!(open_link(&p).starts_with("obsidian://open?path=/"));
+        let link = open_link(&p);
+        if cfg!(windows) {
+            // A Windows path starts with a drive, not "/", and its separators and the
+            // colon must be percent-encoded for Obsidian to read the link.
+            assert!(link.starts_with("obsidian://open?path="), "{link}");
+            assert!(!link.contains('\\') && !link.contains(' '), "unencoded character in {link}");
+            assert!(link.contains("%5C"), "backslashes are encoded: {link}");
+        } else {
+            assert!(link.starts_with("obsidian://open?path=/"));
+        }
         assert!(check("/definitely/not/here").is_err());
     }
 }
