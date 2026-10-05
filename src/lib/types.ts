@@ -318,6 +318,21 @@ export interface SystemInfo {
   cpuCores: number;
   appleSilicon: boolean;
   chipInfo: ChipInfo;
+  /** The graphics cards (empty on a Mac, whose memory is unified). Absent from an older backend. */
+  gpus?: GpuInfo[];
+  /** Which engine serves the model. Absent from an older backend. */
+  backend?: "metal" | "cuda" | "vulkan" | "cpu";
+  /** The machine the app is on, for wording. Absent from an older backend. */
+  platform?: "macos" | "windows" | "linux";
+}
+
+export interface GpuInfo {
+  name: string;
+  vendor: "nvidia" | "amd" | "intel" | "other";
+  dedicatedBytes: number;
+  sharedBytes: number;
+  /** Shares system memory instead of having its own. */
+  integrated: boolean;
 }
 
 export interface ChipInfo {

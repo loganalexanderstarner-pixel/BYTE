@@ -17,8 +17,15 @@ pub struct SystemInfo {
     pub os_version: String,
     pub cpu_cores: usize,
     pub apple_silicon: bool,
-    /// Chip generation, tier, bandwidth and Neural Engine (for speed estimates).
+    /// Chip generation, tier, bandwidth and Neural Engine (for speed estimates). On a PC
+    /// this describes the graphics card that will run the model.
     pub chip_info: crate::chip::ChipInfo,
+    /// The machine's graphics cards (empty on a Mac, whose memory is unified).
+    pub gpus: Vec<crate::gpu::Gpu>,
+    /// Which engine build will serve the model; speed estimates depend on it.
+    pub backend: crate::chip::Backend,
+    /// "macos", "windows" or "linux", so the UI can word things for the machine it is on.
+    pub platform: &'static str,
     /// What the user asked BYTE to favour when recommending (set from settings).
     #[serde(skip)]
     pub speed_pref: crate::settings::SpeedPref,
@@ -55,7 +62,11 @@ impl SystemInfo {
     /// Name of this Mac's chip, to know when tuning was done on another Mac.
     pub fn chip_id(&self) -> String {
         let c = &self.chip_info;
-        format!("{} {}", c.name, c.gpu_cores.map(|g| format!("{g}-core GPU")).unwrap_or_default()).trim().to_string()
+        // On a PC the processor matters as well as the card (a model that spills to RAM
+        // runs at the speed of that RAM), and swapping either must not reuse tuning that
+        // was measured on the old hardware.
+        let cpu = if self.platform == "macos" { String::new() } else { format!(" + {}", self.chip) };
+        format!("{} {}{cpu}", c.name, c.gpu_cores.map(|g| format!("{g}-core GPU")).unwrap_or_default()).trim().to_string()
     }
 
     pub fn minus(mut self, bytes: u64) -> Self {
@@ -77,14 +88,23 @@ pub fn system_info(data_dir: &std::path::Path) -> SystemInfo {
         .filter(|b| !b.is_empty())
         .unwrap_or_else(|| "Unknown".into());
     static GPU_CORES: once_cell::sync::Lazy<Option<u32>> = once_cell::sync::Lazy::new(crate::chip::gpu_core_count);
+    let apple = cfg!(all(target_os = "macos", target_arch = "aarch64"));
+    let gpus = crate::gpu::detect();
+    // A discrete card has its own memory, so the budget comes from the card, not from system
+    // RAM. Everywhere else (a Mac, integrated graphics, no GPU) memory is shared with the
+    // CPU and the existing share-of-RAM arithmetic still describes it.
+    let vram = if cfg!(target_os = "macos") { None } else { crate::gpu::best_discrete(gpus).map(|g| g.dedicated_bytes) };
     SystemInfo {
-        chip_info: crate::chip::identify(&chip, *GPU_CORES),
+        chip_info: if cfg!(target_os = "macos") { crate::chip::identify(&chip, *GPU_CORES) } else { crate::chip::identify_pc(&chip, gpus) },
+        gpus: gpus.to_vec(),
+        backend: crate::gpu::backend_for(gpus),
+        platform: if cfg!(target_os = "macos") { "macos" } else if cfg!(windows) { "windows" } else { "linux" },
         speed_pref: Default::default(),
         boost: false,
         measured: Default::default(),
         calibration: None,
-        apple_silicon: cfg!(all(target_os = "macos", target_arch = "aarch64")),
-        gpu_budget_bytes: gpu_budget(total, wired_limit_override()),
+        apple_silicon: apple,
+        gpu_budget_bytes: gpu_budget_for(total, vram, wired_limit_override()),
         free_disk_bytes: free_disk_for(data_dir),
         os_version: System::long_os_version().unwrap_or_default(),
         cpu_cores: sys.cpus().len(),
@@ -109,7 +129,7 @@ pub fn gpu_budget(total_ram: u64, override_bytes: Option<u64>) -> u64 {
 /// * **A discrete card** (every PC with a real GPU): VRAM is a separate, fixed
 ///   pool with no relationship to system RAM. Deriving the budget from RAM
 ///   over-commits the card badly -- on a 32 GB PC the old arithmetic offered
-///   21.3 GB to a 16 GB RTX 5080, so BYTE would recommend a model, the user
+///   21.3 GB to a 16 GB card, so BYTE would recommend a model, the user
 ///   would pick it, and the load would fail. Found by the fixtures in
 ///   `hardware_fixtures_tests.rs`, which is the whole reason they exist.
 ///
@@ -572,6 +592,24 @@ mod battery_tests {
         let full = "Now drawing from 'AC Power'\n -InternalBattery-0 (id=1)\t100%; charged; 0:00 remaining present: true";
         assert_eq!(parse_pmset(full), Some((100, true)));
         assert_eq!(parse_pmset("Now drawing from 'AC Power'\n"), None, "a desktop Mac has no battery");
+    }
+
+    /// The machine the tests run on is described sensibly: prints it, and checks the one
+    /// property that must hold anywhere. A discrete card's budget never exceeds the card.
+    #[test]
+    fn this_machine_is_described_sensibly() {
+        let dir = tempfile::tempdir().unwrap();
+        let i = super::system_info(dir.path());
+        eprintln!(
+            "platform={} backend={:?} chip='{}' | profile '{}': {:.0} GB/s, {:.0} TFLOPS exact={} | RAM {:.1} GiB, GPU budget {:.1} GiB | gpus: {:?}",
+            i.platform, i.backend, i.chip, i.chip_info.name, i.chip_info.bandwidth_gbps, i.chip_info.gpu_tflops, i.chip_info.exact,
+            i.total_ram_bytes as f64 / super::GIB as f64, i.gpu_budget_bytes as f64 / super::GIB as f64, i.gpus.iter().map(|g| (&g.name, g.dedicated_bytes >> 20)).collect::<Vec<_>>()
+        );
+        assert!(i.gpu_budget_bytes > 0);
+        if let Some(card) = crate::gpu::best_discrete(&i.gpus) {
+            assert!(i.gpu_budget_bytes < card.dedicated_bytes, "a card's budget must leave room: {} of {}", i.gpu_budget_bytes, card.dedicated_bytes);
+        }
+        assert_eq!(i.platform == "macos", cfg!(target_os = "macos"));
     }
 }
 

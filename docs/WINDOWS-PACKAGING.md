@@ -1,6 +1,6 @@
 # Packaging BYTE for Windows
 
-What the installer has to carry, and why. Measured on the test PC rather than
+What the installer has to carry, and why. Measured on a development PC rather than
 assumed.
 
 ## The MSVC runtime DLLs are not optional

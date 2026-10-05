@@ -537,7 +537,7 @@ pub fn expected_tps(model: &CatalogModel, v: &Variant, info: &SystemInfo) -> f64
     if let Some(&m) = info.measured.get(&key(model, v)) {
         return m;
     }
-    let raw = |v: &Variant| crate::chip::estimate(&info.chip_info, v.size_bytes, model.params_b, model.active_b).tokens_per_sec;
+    let raw = |v: &Variant| crate::chip::estimate_on(&info.chip_info, v.size_bytes, model.params_b, model.active_b, info.backend).tokens_per_sec;
     // Another version of this model was measured: scale by how far off the
     // estimate was for it (same architecture, same Mac).
     if let Some((other, m)) = model.variants.iter().find_map(|o| info.measured.get(&key(model, o)).map(|m| (o, *m))) {
@@ -559,7 +559,7 @@ pub fn calibrate(mut info: SystemInfo, catalog: &Catalog) -> SystemInfo {
         .iter()
         .filter_map(|(k, m)| {
             let (model, v) = catalog.resolve(k).ok()?;
-            let est = crate::chip::estimate(&info.chip_info, v.size_bytes, model.params_b, model.active_b).tokens_per_sec;
+            let est = crate::chip::estimate_on(&info.chip_info, v.size_bytes, model.params_b, model.active_b, info.backend).tokens_per_sec;
             (est > 0.0).then(|| m / est)
         })
         .collect();
@@ -781,7 +781,7 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
                         quality: effective_quality(m, v),
                         min_ram_gb: system::ram_tier_gb(min_plan.needed_bytes),
                         speed: {
-                            let mut e = crate::chip::estimate(&lc.info.chip_info, v.size_bytes, m.params_b, m.active_b);
+                            let mut e = crate::chip::estimate_on(&lc.info.chip_info, v.size_bytes, m.params_b, m.active_b, lc.info.backend);
                             let f = offload_slowdown(m, &fit);
                             e.tokens_per_sec *= f;
                             e.reply_secs /= f;
@@ -1114,6 +1114,9 @@ mod tests {
             cpu_cores: 10,
             apple_silicon: true,
             chip_info: crate::chip::identify("Apple M4", Some(10)),
+            gpus: vec![],
+            backend: crate::chip::Backend::Metal,
+            platform: "macos",
             speed_pref: Default::default(),
             boost: false,
             measured: Default::default(),
@@ -1568,6 +1571,9 @@ fn dump_models_for_ui() {
         boost: false,
         measured: Default::default(),
         calibration: None,
+        gpus: vec![],
+        backend: crate::chip::Backend::Metal,
+        platform: "macos",
         chip_info: crate::chip::identify(
             &std::env::var("BYTE_DUMP_CHIP").unwrap_or_else(|_| {
                 match gb {

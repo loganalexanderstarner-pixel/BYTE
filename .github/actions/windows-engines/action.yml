@@ -21,7 +21,7 @@ runs:
     # it. CUDA 13 renamed and split components (cuda_crt, cccl) and the Windows
     # installer's package names do not follow the manifest: "thrust" was accepted
     # although the manifest has no such component. Nothing documents the installer
-    # names, so each guess cost a CI run. The full toolkit is what the test PC has
+    # names, so each guess cost a CI run. The full toolkit is what a development machine has
     # and it builds there, which makes it the known-good configuration. It is slower
     # and larger; a release job that runs rarely can afford that.
     # 13.3.1 is the newest CUDA this action can install; the engine was first

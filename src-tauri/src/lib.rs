@@ -10,6 +10,7 @@ mod commands;
 mod db;
 mod decide;
 mod docs;
+mod gpu;
 mod drafts;
 mod games;
 mod prices;

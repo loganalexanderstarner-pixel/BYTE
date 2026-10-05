@@ -33,7 +33,7 @@ const MACHINES: &[Machine] = &[
     Machine { name: "MacBook Pro M4 Pro",   cpu_brand: "Apple M4 Pro",   total_ram: 24 * GIB, vram: None },
     Machine { name: "Mac Studio M4 Max",    cpu_brand: "Apple M4 Max",   total_ram: 64 * GIB, vram: None },
     // --- PC: discrete VRAM, a pool with no relationship to system RAM -------
-    Machine { name: "RTX 5080 desktop",     cpu_brand: "AMD Ryzen 7 7800X3D",      total_ram: 32 * GIB, vram: Some(16 * GIB) },
+    Machine { name: "RTX 4080 SUPER desktop", cpu_brand: "AMD Ryzen 7 7700X",       total_ram: 32 * GIB, vram: Some(16 * GIB) },
     Machine { name: "GTX 1060 budget PC",   cpu_brand: "Intel Core i5-8400",       total_ram: 16 * GIB, vram: Some(6 * GIB) },
     Machine { name: "Arc A770 PC",          cpu_brand: "Intel Core Ultra 7 265K",  total_ram: 32 * GIB, vram: Some(16 * GIB) },
     Machine { name: "RX 7900 GRE PC",       cpu_brand: "AMD Ryzen 9 7900X",        total_ram: 32 * GIB, vram: Some(16 * GIB) },
@@ -124,16 +124,29 @@ fn amd_ryzen_pro_is_not_an_apple_pro() {
 }
 
 #[test]
-#[ignore = "chip::identify has no PC data source: bandwidth, TFLOPS and core counts \
-            all come from an Apple lookup table, so every PC gets zeroes or \
-            extrapolations."]
 fn pc_chips_report_usable_bandwidth() {
+    use crate::gpu::{classify, Gpu};
+    // Build each fixture machine's real card the way detection would, vendor from the name.
+    let card = |m: &Machine| -> Option<Gpu> {
+        let vram = m.vram?;
+        let vendor = if m.name.contains("RTX") || m.name.contains("GTX") { 0x10DE } else if m.name.contains("RX ") { 0x1002 } else { 0x8086 };
+        classify(m.name, vendor, vram, 0, 0)
+    };
     for m in MACHINES {
         if m.cpu_brand.starts_with("Apple") { continue }
-        let c = chip::identify(m.cpu_brand, None);
-        assert!(c.bandwidth_gbps > 0.0,
-                "{}: bandwidth must be known or estimated, not zero -- the planner \
-                 predicts speed from it", m.name);
+        let gpus: Vec<Gpu> = card(m).into_iter().collect();
+        let c = chip::identify_pc(m.cpu_brand, &gpus);
+        assert!(c.bandwidth_gbps > 0.0, "{}: bandwidth must be known or estimated, not zero -- the planner predicts speed from it", m.name);
+        assert!(!c.exact, "{}: a PC profile is an estimate until the machine has been measured", m.name);
+        match m.name {
+            "RTX 4080 SUPER desktop" => assert_eq!(c.bandwidth_gbps, 736.0),
+            "RX 7900 GRE PC" => assert_eq!(c.bandwidth_gbps, 576.0),
+            "GTX 1060 budget PC" => assert_eq!(c.bandwidth_gbps, 192.0),
+            "Arc A770 PC" => assert_eq!(c.bandwidth_gbps, 560.0),
+            // No GPU: the conservative CPU default, which a thin laptop or an ARM board is not above.
+            "office laptop" | "Snapdragon X Elite" => assert!(c.bandwidth_gbps <= 30.0, "{}: {}", m.name, c.bandwidth_gbps),
+            _ => {}
+        }
     }
 }
 
@@ -176,16 +189,16 @@ fn small_cards_keep_a_usable_share() {
 }
 
 // ---------------------------------------------------------------------------
-// Measured on an RTX 5080, Qwen3 4B Q4_K_M, llama.cpp b11205:
+// Measured on a 16 GB NVIDIA desktop card, Qwen3 4B Q4_K_M, llama.cpp b11205:
 //   CUDA    generation 204.8 tok/s   prompt 9,827 tok/s over 1,701 tokens
 //   VULKAN  generation 192.1 tok/s   prompt   251 tok/s over 1,701 tokens
 // The estimates must land near those, or every recommendation built on them
 // misleads the user.
 // ---------------------------------------------------------------------------
 
-/// An RTX 5080: 960 GB/s, roughly 225 TFLOPS FP16 dense.
-fn rtx_5080() -> chip::ChipInfo {
-    let mut c = chip::identify("AMD Ryzen 7 7800X3D", None);
+/// The 960 GB/s card those figures were measured on, roughly 225 TFLOPS FP16 dense.
+fn measured_card() -> chip::ChipInfo {
+    let mut c = chip::identify("AMD Ryzen 7 8-core desktop", None);
     c.bandwidth_gbps = 960.0;
     c.gpu_tflops = 225.0;
     c
@@ -195,7 +208,7 @@ const QWEN3_4B_Q4: u64 = 2_330_000_000;
 
 #[test]
 fn generation_estimate_is_near_the_measured_rate() {
-    let c = rtx_5080();
+    let c = measured_card();
     for (backend, measured) in [(Backend::Cuda, 204.8), (Backend::Vulkan, 192.1)] {
         let e = chip::estimate_on(&c, QWEN3_4B_Q4, Some(4.0), None, backend);
         let ratio = e.tokens_per_sec / measured;
@@ -209,7 +222,7 @@ fn generation_estimate_is_near_the_measured_rate() {
 fn vulkan_prompt_speed_is_not_predicted_like_cuda() {
     // The whole point: the same card reads a document 39x slower on Vulkan, and
     // an estimate that misses that is wrong by an order of magnitude.
-    let c = rtx_5080();
+    let c = measured_card();
     let cuda = chip::estimate_on(&c, QWEN3_4B_Q4, Some(4.0), None, Backend::Cuda);
     let vk = chip::estimate_on(&c, QWEN3_4B_Q4, Some(4.0), None, Backend::Vulkan);
     assert!(cuda.prompt_per_sec > 10.0 * vk.prompt_per_sec,

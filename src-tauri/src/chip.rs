@@ -139,6 +139,29 @@ pub fn identify(brand: &str, gpu_cores: Option<u32>) -> ChipInfo {
     }
 }
 
+/// What speed estimates need to know about a PC: the card that will run the model, or the
+/// processor when there is none.
+///
+/// The figures are approximate and always `exact: false`. They exist so the FIRST estimate
+/// a user sees is sensible; BYTE's own tuning measures the real machine and replaces them.
+pub fn identify_pc(cpu_brand: &str, gpus: &[crate::gpu::Gpu]) -> ChipInfo {
+    let gpu = crate::gpu::best_discrete(gpus).or_else(|| gpus.first());
+    let (name, bandwidth_gbps, gpu_tflops) = match gpu {
+        Some(g) => {
+            let (bw, tf) = crate::gpu::profile(&g.name).unwrap_or_else(|| crate::gpu::guess(g));
+            (g.name.clone(), bw, tf)
+        }
+        // No usable GPU: the CPU runs the model out of system memory. The conservative
+        // default from `identify`, since a thin laptop and a small ARM board both sit well
+        // below a desktop here.
+        None => {
+            let c = identify(cpu_brand, None);
+            (c.name, c.bandwidth_gbps, c.gpu_tflops)
+        }
+    };
+    ChipInfo { name, generation: 0, tier: Tier::Base, gpu_cores: None, bandwidth_gbps, gpu_tflops, neural_engine_tops: 0.0, exact: false }
+}
+
 /// Reads the GPU core count from IOKit (macOS only).
 pub fn gpu_core_count() -> Option<u32> {
     #[cfg(target_os = "macos")]
@@ -156,7 +179,7 @@ pub fn gpu_core_count() -> Option<u32> {
 
 /// Which engine will actually serve the model. It belongs in a speed estimate
 /// because the same GPU is a different machine depending on the answer:
-/// measured on an RTX 5080 with Qwen3 4B Q4_K_M, generation came out 204.8
+/// measured on a 16 GB NVIDIA desktop card with Qwen3 4B Q4_K_M, generation came out 204.8
 /// tok/s on CUDA and 192.1 on Vulkan -- near enough identical -- while prompt
 /// processing was 9,827 tok/s against 251, a factor of **39**. Predicting from
 /// hardware alone is therefore right about generation and wrong by more than an
@@ -202,7 +225,7 @@ pub fn estimate(chip: &ChipInfo, file_bytes: u64, total_b: Option<f32>, active_b
 ///
 /// The two correction factors below are measured, not assumed, and that matters
 /// because the uncorrected arithmetic is badly wrong off Apple hardware. For
-/// Qwen3 4B Q4_K_M (2.33 GB) on an RTX 5080 (960 GB/s) the bandwidth model
+/// Qwen3 4B Q4_K_M (2.33 GB) on a 960 GB/s card the bandwidth model
 /// predicts 329 tok/s at the Apple efficiency of 0.8; the card actually
 /// delivered 204.8 on CUDA and 192.1 on Vulkan, so the achievable share of peak
 /// on a discrete card is nearer 0.6 than 0.8 -- it overpredicted by 45%.
