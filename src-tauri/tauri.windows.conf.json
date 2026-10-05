@@ -1,17 +1,15 @@
 {
-  "app": {
-    "windows": [
-      {
-        "decorations": true,
-        "titleBarStyle": "Visible"
-      }
-    ]
-  },
   "bundle": {
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "windows": {
-      "webviewInstallMode": { "type": "downloadBootstrapper" },
-      "nsis": { "installMode": "currentUser" }
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser"
+      }
     }
   }
 }
