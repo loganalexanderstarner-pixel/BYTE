@@ -1,0 +1,78 @@
+name: Android test build
+
+# Builds BYTE for Android (docs/ANDROID.md) on every push to the Android branch
+# and publishes the APK as a pre-release, so it can be downloaded and installed
+# straight on the phone: no adb, PC or terminal needed. Pre-releases never
+# become "latest", so the Mac app's update check (releases/latest) is untouched.
+on:
+  push:
+    branches: ["claude/android-port"]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: APK (arm64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: NDK r27c
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.2.12479018" >/dev/null
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+      - name: Cache the engine build
+        uses: actions/cache@v4
+        with:
+          path: .cache/llama.cpp
+          key: llama-android-${{ hashFiles('scripts/LLAMA_TAG', 'scripts/build-llama-android.sh') }}
+      - name: Placeholder desktop sidecars (tauri-build requires the files)
+        run: |
+          mkdir -p src-tauri/binaries
+          for b in llama-server whisper-cli sherpa-diarize sherpa-tts; do touch src-tauri/binaries/$b-aarch64-linux-android; done
+      - name: Build engines and APK
+        run: scripts/build-android.sh
+      - name: Name the APK
+        id: apk
+        run: |
+          short=$(git rev-parse --short HEAD)
+          cp src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk "BYTE-android-test-$short.apk"
+          ls -lh BYTE-android-test-*.apk
+          echo "file=BYTE-android-test-$short.apk" >> "$GITHUB_OUTPUT"
+          echo "tag=android-test-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BYTE-android-apk
+          path: ${{ steps.apk.outputs.file }}
+      - name: Publish as a pre-release (download on the phone)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.apk.outputs.tag }}" "${{ steps.apk.outputs.file }}" \
+            --target "${{ github.sha }}" --prerelease \
+            --title "BYTE for Android — test build ${{ github.run_number }}" \
+            --notes "A test build of BYTE for Android (docs/ANDROID.md), from \`${{ github.sha }}\`. Open this page on the phone, tap the .apk, then Install (allow installing from your browser when Android asks). Each test build is signed with a new test key, so uninstall the previous one first. Not for daily use yet."

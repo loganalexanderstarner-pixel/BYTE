@@ -23,6 +23,19 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Android test builds published by GitHub, for installing straight on the phone
+- **Why:** the owner tried installing from the cluster node. The node has no checkout of BYTE and no `adb`, and my
+  commands had placeholders meant for a session, not a person. Building in Actions removes the node, adb and the PC
+  from the loop.
+- **What:**
+  - `.github/workflows/android.yml`: on every push to `claude/android-port`, build the engines and the APK
+    (`scripts/build-android.sh`, NDK r27c, JDK 17), upload it as an artifact, and publish a **pre-release**
+    `android-test-N` with the APK.
+  - Pre-releases never become "latest", so the Mac updater's `releases/latest/download/latest.json` is untouched.
+  - Debug symbols are no longer kept in the APK (157 MB → much smaller).
+- **Verify:** the workflow's run; the pre-release page opens on the phone and the APK installs.
+- **Undo:** `git revert` this commit, and delete the `android-test-*` pre-releases.
+
 ### (this commit) — Android A1: the app builds as an APK; a phone-sized layout
 - **Why:** A1 in `docs/ANDROID.md`. Also the Windows session's warning that the layout wasn't ready for a phone.
 - **What:**

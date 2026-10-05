@@ -343,6 +343,8 @@ Built, not yet run on a phone (that needs the Fold on adb).
   - The sidebar becomes a drawer below 640px, and the reader and panels become full-screen sheets.
   - Settings tabs sit above the page, and hover-only controls show on touch.
   - Checked with `PHONE=1 node tools/ui-shots/shots.mjs` at 320, 390 and 720px.
+- **Test builds on the phone without adb:** every push to `claude/android-port` publishes a pre-release
+  `android-test-N` with the APK (`.github/workflows/android.yml`). Open it on the phone, tap the APK, then Install.
 - **One command:** `scripts/build-android.sh`. A debug APK built (`app-universal-debug.apk`, 157 MB with debug
   symbols).
 - **Not done yet:**

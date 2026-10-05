@@ -31,12 +31,8 @@ android {
             isDebuggable = true
             isJniDebuggable = true
             isMinifyEnabled = false
-            packaging {
-                jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
-                jniLibs.keepDebugSymbols.add("*/armeabi-v7a/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86_64/*.so")
-            }
+            // Symbols are stripped even in test builds: they made the APK 157 MB, too
+            // big to download to a phone comfortably. `adb logcat` still shows panics.
         }
         getByName("release") {
             optimization {
