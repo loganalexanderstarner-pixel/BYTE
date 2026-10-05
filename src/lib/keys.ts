@@ -1,27 +1,39 @@
-/** Global shortcuts in Tauri's syntax ("Alt+Super+KeyB"), shown the Mac way ("⌥⌘B"). Rust: `quick::parse_keys`, `quick::pretty`. */
+/** Global shortcuts in Tauri's syntax ("Alt+Super+KeyB"), shown the Mac way ("⌥⌘B") or the Windows way ("Alt+Win+B"). Rust: `quick::parse_keys`, `quick::pretty`. */
 
-const MODS: [string, string][] = [
-  ["Control", "⌃"],
-  ["Alt", "⌥"],
-  ["Shift", "⇧"],
-  ["Super", "⌘"],
-];
+/** True in the Windows app (WebView2 reports "Win32"); false on a Mac and in tests. */
+export function isWindows(): boolean {
+  return typeof navigator !== "undefined" && /^Win/i.test(navigator.platform ?? "");
+}
 
-/** "Alt+Super+KeyB" → "⌥⌘B". */
-export function prettyKeys(keys: string): string {
-  let mods = "";
+/**
+ * "Alt+Super+KeyB" → "⌥⌘B" on a Mac, "Alt+Win+B" on Windows. The platform is a
+ * parameter so both forms can be checked anywhere; it defaults to the real one.
+ * On Windows "Super" is the Windows key and "CmdOrCtrl" is Ctrl.
+ */
+export function prettyKeys(keys: string, windows: boolean = isWindows()): string {
+  let ctrl = false;
+  let alt = false;
+  let shift = false;
+  let meta = false;
   let key = "";
   for (const part of keys.split("+").map((p) => p.trim())) {
     const l = part.toLowerCase();
-    if (l === "ctrl" || l === "control") mods += "⌃";
-    else if (l === "alt" || l === "option") mods += "⌥";
-    else if (l === "shift") mods += "⇧";
-    else if (["super", "cmd", "command", "meta", "cmdorctrl", "commandorcontrol"].includes(l)) mods += "⌘";
+    if (l === "ctrl" || l === "control") ctrl = true;
+    else if (l === "alt" || l === "option") alt = true;
+    else if (l === "shift") shift = true;
+    else if (["cmdorctrl", "commandorcontrol"].includes(l)) {
+      if (windows) ctrl = true;
+      else meta = true;
+    } else if (["super", "cmd", "command", "meta"].includes(l)) meta = true;
     else key = part.replace(/^Key/, "").replace(/^Digit/, "");
   }
+  const shown = key.toLowerCase() === "space" ? "Space" : key;
+  if (windows) {
+    // Windows names its modifiers, in the order Windows itself lists them.
+    return [ctrl && "Ctrl", alt && "Alt", shift && "Shift", meta && "Win", shown].filter(Boolean).join("+");
+  }
   // The modifiers in the Mac's own order (⌃⌥⇧⌘).
-  const ordered = MODS.map(([, s]) => s).filter((s) => mods.includes(s)).join("");
-  return ordered + (key.toLowerCase() === "space" ? "Space" : key);
+  return (ctrl ? "⌃" : "") + (alt ? "⌥" : "") + (shift ? "⇧" : "") + (meta ? "⌘" : "") + shown;
 }
 
 /**
@@ -40,9 +52,11 @@ export function keysFromEvent(e: Pick<KeyboardEvent, "code" | "altKey" | "ctrlKe
 }
 
 /** Why these keys can't be a global shortcut (null when they can). */
-export function keysProblem(keys: string): string | null {
+export function keysProblem(keys: string, windows: boolean = isWindows()): string | null {
   const parts = keys.split("+");
-  if (!parts.some((p) => ["Control", "Alt", "Super"].includes(p))) return "Add ⌘, ⌥ or ⌃, so normal typing still works.";
+  if (!parts.some((p) => ["Control", "Alt", "Super"].includes(p))) {
+    return windows ? "Add Ctrl, Alt or Win, so normal typing still works." : "Add ⌘, ⌥ or ⌃, so normal typing still works.";
+  }
   if (parts.length < 2) return "Press a key with the modifiers.";
   return null;
 }

@@ -42,22 +42,50 @@ pub fn parse_keys(keys: &str) -> Result<Shortcut, String> {
     Ok(sc)
 }
 
-/// "Alt+Super+KeyB" → "⌥⌘B" (for messages; the UI has its own copy in lib/keys.ts).
+/// "Alt+Super+KeyB" → "⌥⌘B" on a Mac, "Alt+Win+B" on Windows (for messages; the UI
+/// has its own copy in lib/keys.ts).
 pub fn pretty(keys: &str) -> String {
-    let mut out = String::new();
+    pretty_for(keys, cfg!(windows))
+}
+
+/// As `pretty`, for a chosen platform, so both forms are testable on any machine.
+pub fn pretty_for(keys: &str, windows: bool) -> String {
+    let (mut ctrl, mut alt, mut shift, mut meta) = (false, false, false, false);
     let mut key = String::new();
     for part in keys.split('+').map(str::trim) {
         match part.to_lowercase().as_str() {
-            "ctrl" | "control" => out.push('⌃'),
-            "alt" | "option" => out.push('⌥'),
-            "shift" => out.push('⇧'),
-            "super" | "cmd" | "command" | "meta" | "cmdorctrl" | "commandorcontrol" => out.push('⌘'),
+            "ctrl" | "control" => ctrl = true,
+            "alt" | "option" => alt = true,
+            "shift" => shift = true,
+            // Command on a Mac; on Windows CmdOrCtrl is Ctrl and Super is the Windows key.
+            "cmdorctrl" | "commandorcontrol" => {
+                if windows {
+                    ctrl = true
+                } else {
+                    meta = true
+                }
+            }
+            "super" | "cmd" | "command" | "meta" => meta = true,
             _ => key = part.trim_start_matches("Key").trim_start_matches("Digit").to_string(),
         }
     }
     if key.eq_ignore_ascii_case("space") {
         key = "Space".into();
     }
+    if windows {
+        let mut parts: Vec<&str> = Vec::new();
+        if ctrl { parts.push("Ctrl") }
+        if alt { parts.push("Alt") }
+        if shift { parts.push("Shift") }
+        if meta { parts.push("Win") }
+        parts.push(&key);
+        return parts.join("+");
+    }
+    let mut out = String::new();
+    if ctrl { out.push('⌃') }
+    if alt { out.push('⌥') }
+    if shift { out.push('⇧') }
+    if meta { out.push('⌘') }
     out + &key
 }
 
@@ -313,9 +341,14 @@ mod tests {
         // ⇧ alone, or no modifier, would take keys away from typing.
         assert!(parse_keys("Shift+A").unwrap_err().contains("⌘, ⌥ or ⌃"));
         assert!(parse_keys("KeyA").is_err());
-        assert_eq!(pretty("Alt+Space"), "⌥Space");
-        assert_eq!(pretty("Alt+Super+KeyB"), "⌥⌘B");
-        assert_eq!(pretty("Control+Shift+Digit1"), "⌃⇧1");
+        assert_eq!(pretty_for("Alt+Space", false), "⌥Space");
+        assert_eq!(pretty_for("Alt+Super+KeyB", false), "⌥⌘B");
+        assert_eq!(pretty_for("Control+Shift+Digit1", false), "⌃⇧1");
+        // Windows names its modifiers, and Super is the Windows key.
+        assert_eq!(pretty_for("Control+Alt+KeyB", true), "Ctrl+Alt+B");
+        assert_eq!(pretty_for("Alt+Super+KeyB", true), "Alt+Win+B");
+        assert_eq!(pretty_for("CmdOrCtrl+Shift+KeyK", true), "Ctrl+Shift+K");
+        assert_eq!(pretty_for("CmdOrCtrl+Shift+KeyK", false), "⇧⌘K");
     }
 
     #[test]
