@@ -120,6 +120,8 @@ jobs:
           if ($missing) { throw "missing from the installed app: $($missing -join ', ')" }
 
           Write-Host "=== the INSTALLED engine starts"
-          & (Join-Path $dir "llama-server.exe") --version 2>&1 | Select-Object -First 2
-          if ($LASTEXITCODE -ne 0) { throw "installed llama-server failed to start" }
+          $out = & (Join-Path $dir "llama-server.exe") --version 2>&1
+          $code = $LASTEXITCODE
+          $out | Select-Object -First 6
+          if ($code -ne 0) { throw "installed llama-server failed to start (exit $code)" }
           Write-Host "everything the app needs is beside the executable"
