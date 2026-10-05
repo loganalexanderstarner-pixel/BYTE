@@ -349,7 +349,10 @@ pub async fn note_delete(app: AppHandle, id: String) -> AppResult<()> {
             return Err(AppError::msg(t.error.unwrap_or_else(|| "BYTE couldn't move that note to the Trash.".into())));
         }
     }
-    #[cfg(not(target_os = "macos"))]
+    // Windows: into the Recycle Bin, like the Trash on a Mac, so a deleted note can be got back.
+    #[cfg(windows)]
+    crate::recycle::move_to_recycle_bin(&p)?;
+    #[cfg(not(any(target_os = "macos", windows)))]
     std::fs::remove_file(&p)?;
     refresh_kb(&app, r);
     Ok(())

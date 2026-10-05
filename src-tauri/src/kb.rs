@@ -409,8 +409,8 @@ pub fn walk(dir: &Path) -> Vec<PathBuf> {
 fn readable(p: &Path) -> bool {
     let size_ok = std::fs::metadata(p).map(|m| m.len() > 0 && m.len() <= files::MAX_FILE_BYTES).unwrap_or(false);
     match files::kind_of(p) {
-        // Photos add text only through text recognition (macOS).
-        Some(FileKind::Image) => cfg!(target_os = "macos") && size_ok,
+        // Photos add text only through text recognition (macOS Vision, Windows OCR).
+        Some(FileKind::Image) => cfg!(any(target_os = "macos", windows)) && size_ok,
         Some(_) => size_ok,
         None => false,
     }

@@ -31,6 +31,8 @@ mod filectl;
 mod files;
 mod gguf;
 mod ocr;
+#[cfg(windows)]
+mod recycle;
 mod memory;
 mod error;
 mod offline;

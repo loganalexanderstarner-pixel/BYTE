@@ -191,6 +191,16 @@ how every item below was found; none of them showed in a test.
   saved. Test (ignored, writes to the real store): `cloud::keychain::windows_tests::credential_manager_round_trips`;
   it passes in the desktop session and fails over SSH with `ERROR_NO_SUCH_LOGON_SESSION` (a network logon has
   no credential store), so run it through `schtasks /IT` like the app.
+- **Three more Mac-only gates opened for Windows.** (1) Deleting a note now moves it to the Recycle Bin
+  (`recycle.rs`, `SHFileOperationW` with undo), like the Mac's Trash; before it erased the file for good.
+  Checked in the real bin, and the test leftover removed. (2) The knowledge base reads text in photos on
+  Windows too (`kb.rs`: it was gated to Mac although `ocr.rs` has done Windows OCR since earlier). (3) The
+  "what is using memory" advice, blank on Windows because it only recognised Mac `.app` bundles, now lists
+  programs that have a window on the desktop, named from their file description ("Google Chrome") as Task
+  Manager does, all of an app's processes summed; Windows itself, Explorer, BYTE and its web view are never
+  listed. Closing one posts `WM_CLOSE` to its windows, the same as the X button, so it can still ask to
+  save. Verified against the real desktop (it found the one big app and named it correctly). **Not
+  verified live:** the close itself, because it would close a real app; it is a single `PostMessageW`.
 - **Driver trap:** Task Scheduler rejects a `/tr` command over 261 characters and the script hid the error, so a
   longer click list silently did nothing for ten minutes. The step list now goes through a file.
 - **Disk lesson.** My builds took the PC's C: from 58 GB free to 6 GB in a day
