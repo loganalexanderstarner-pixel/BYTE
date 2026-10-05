@@ -6,6 +6,7 @@ import { api, errorText } from "../../lib/api";
 import { bytes } from "../../lib/format";
 import type { KbSource } from "../../lib/types";
 import { useStore } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 /** "3 min ago", "yesterday"… for when a folder was last read. */
 export function ago(ms: number | null, now = Date.now()): string {
@@ -61,8 +62,7 @@ export function KnowledgeTab() {
     <>
       <h3>Knowledge base</h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        Add folders and BYTE can answer from your own documents, notes and PDFs, citing the file and page. Everything is read and
-        stored on this Mac, encrypted.
+        {osText("Add folders and BYTE can answer from your own documents, notes and PDFs, citing the file and page. Everything is read and stored on this Mac, encrypted.")}
       </p>
       {error && <div className="banner danger">{error}</div>}
 

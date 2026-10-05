@@ -6,6 +6,7 @@ import { STEP_KINDS, blankAutomation, moveStep, newStep, problem, runStatus, ste
 import { dueText } from "../../lib/tasks";
 import type { AutoStep, Automation, RunView, ShortcutMade } from "../../lib/types";
 import { useStore } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 type When = "manual" | "launch" | "schedule";
 
@@ -220,7 +221,7 @@ export function AutomationsSection({ onClose }: { onClose: () => void }) {
                   <div className="small prompt">{a.steps.map(stepLabel).join(" → ")}</div>
                   {made?.id === a.id &&
                     (made.result.opened ? (
-                      <div className="small">Shortcuts is open: click “Add Shortcut”. Then it can go in the menu bar, or ask Siri to run “{a.name}”.</div>
+                      <div className="small">{osText("Shortcuts is open: click “Add Shortcut”. Then it can go in the menu bar, or ask Siri to run “")}{a.name}”.</div>
                     ) : (
                       <div className="small auto-manual">
                         {made.result.message} In Shortcuts: new shortcut → add “Open URLs” → paste this link:
@@ -239,7 +240,7 @@ export function AutomationsSection({ onClose }: { onClose: () => void }) {
                 <button className="btn sm ghost" disabled={busy} onClick={() => void guard(() => api.automationRun(a.id))} title="Run it now">
                   <Play size={13} /> {busy ? "Running…" : "Run now"}
                 </button>
-                <button className="icon-btn sm" onClick={() => shortcut(a)} title="Add to Shortcuts (menu bar, Siri)" aria-label={`Make a Shortcut for ${a.name}`}>
+                <button className="icon-btn sm" onClick={() => shortcut(a)} title={osText("Add to Shortcuts (menu bar, Siri)")} aria-label={`Make a Shortcut for ${a.name}`}>
                   <Link2 size={13} />
                 </button>
                 <button className="icon-btn sm" onClick={() => setEditing(a)} title="Edit" aria-label={`Edit ${a.name}`}>

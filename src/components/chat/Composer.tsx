@@ -13,6 +13,7 @@ import { MicButton, type MicHandle } from "./MicButton";
 import { isStopPhrase, isDone } from "../../lib/handsfree";
 import type { Mode, ThinkingPref } from "../../lib/types";
 import { canSpeak, spaceOf, useStore, workspaceOf } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 const MODES: { id: Mode; label: string; icon: typeof Zap; hint: string }[] = [
   { id: "fast", label: "Fast", icon: Zap, hint: "Quick, short answers. No thinking." },
@@ -277,11 +278,11 @@ export function Composer() {
   const placeholder = onCloud
     ? "Ask BYTE anything (answered on your BYTE cloud)…"
     : onBoth
-    ? "Ask BYTE anything (this Mac and your cloud both answer)…"
+    ? osText("Ask BYTE anything (this Mac and your cloud both answer)…")
     : ready
     ? "Ask BYTE anything…"
     : tune
-      ? "Tuning BYTE for this Mac — one moment…"
+      ? osText("Tuning BYTE for this Mac — one moment…")
       : engine.state === "starting"
       ? "Loading the model — one moment…"
       : engine.state === "noModel"
@@ -293,7 +294,7 @@ export function Composer() {
       {tune && !onCloud && (
         <div className="banner tune-banner">
           <span className="grow">
-            <b>Tuning BYTE for this Mac</b>
+            <b>{osText("Tuning BYTE for this Mac")}</b>
             {tune.modelCount > 1 ? ` (model ${tune.modelIndex} of ${tune.modelCount}, step ${tune.step} of ${tune.total})` : ` (step ${tune.step} of ${tune.total})`}: {tune.label}… This finds the fastest settings for your chip and is saved for next time.
           </span>
           <div className="progress" style={{ width: 120 }}>
@@ -551,10 +552,10 @@ export function Composer() {
       </div>
       <div className="composer-hint">
         {onCloud
-          ? "Answered on your BYTE cloud (falls back to this Mac if it's unreachable)"
+          ? osText("Answered on your BYTE cloud (falls back to this Mac if it's unreachable)")
           : onBoth
-            ? "This Mac and your cloud answer side by side; keep the better one"
-            : "Runs entirely on your Mac"} · <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line
+            ? osText("This Mac and your cloud answer side by side; keep the better one")
+            : osText("Runs entirely on your Mac")} · <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line
       </div>
     </div>
   );

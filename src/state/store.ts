@@ -7,6 +7,7 @@ import { idOf, isImage, listOf, str, titleOf } from "../lib/cloudDocs";
 import { branchAt, switchVersion, versionsAt } from "../lib/branches";
 import { titleFrom } from "../lib/format";
 import { endBrowsing } from "../lib/agent";
+import { isWindows } from "../lib/keys";
 import type {
   NoteInput,
   ChatEvent,
@@ -1467,6 +1468,7 @@ export const useStore = create<State>((set, get) => {
 });
 
 /** macOS voices read answers aloud (`say`); elsewhere there's no speech yet. */
-export const canSpeak = () => inTauri && /Mac/i.test(navigator.userAgent);
+/** BYTE can speak aloud here: on a Mac, and on Windows now that its audio backend exists. */
+export const canSpeak = () => inTauri && (/Mac/i.test(navigator.userAgent) || isWindows());
 
 export const currentConversation = (s: State) => s.conversations.find((c) => c.id === s.currentId) ?? null;

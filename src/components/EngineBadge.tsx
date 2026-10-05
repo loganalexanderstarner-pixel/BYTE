@@ -1,6 +1,7 @@
 import { contextLabel } from "../lib/format";
 import { displayName } from "../lib/models";
 import { useStore } from "../state/store";
+import { osText } from "../lib/platform";
 
 export function EngineBadge() {
   const engine = useStore((s) => s.engine);
@@ -16,7 +17,7 @@ export function EngineBadge() {
     case "ready":
       cls += " ok";
       label = `${engine.boosted ? "⚡ " : ""}${name(engine.model)} · ${contextLabel(engine.context)}`;
-      title = `Running on this Mac with a ${engine.context.toLocaleString()}-token context window.${engine.boosted ? " Speed boost is on." : ""}`;
+      title = osText(`Running on this Mac with a ${engine.context.toLocaleString()}-token context window.${engine.boosted ? " Speed boost is on." : ""}`);
       break;
     case "starting":
       cls += " warn";

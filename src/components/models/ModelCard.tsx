@@ -6,6 +6,7 @@ import { bytes, contextLabel, eta } from "../../lib/format";
 import { approxDuration, paramsLabel, quantLabel, shortQuant, speedClass, TAG_LABELS } from "../../lib/models";
 import type { LoadedModel, ModelDetails, ModelStatus, VariantStatus } from "../../lib/types";
 import type { DownloadState } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 /** How well one version fits this Mac. */
 export function FitPill({ v }: { v: VariantStatus }) {
@@ -279,7 +280,7 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
               {shortQuant(x.quant)} · {bytes(x.sizeBytes)} · {quantLabel(x.bits)}
               {x.fit.fit === "toobig" ? ` · needs ${x.minRamGb} GB` : ""}
               {x.installed ? " · downloaded" : ""}
-              {x.key === model.best ? " · best for this Mac" : ""}
+              {x.key === model.best ? osText(" · best for this Mac") : ""}
             </option>
           ))}
         </select>
@@ -290,12 +291,12 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
       {!tooBig && (
         <div
           className={`speed-row ${speedClass(v.measuredTps ?? v.speed.tokensPerSec)}`}
-          title={v.measuredTps ? "Measured on this Mac by tuning, with its fastest settings." : "Estimated from this Mac's chip; actual speed varies with prompt length and other apps."}
+          title={v.measuredTps ? osText("Measured on this Mac by tuning, with its fastest settings.") : osText("Estimated from this Mac's chip; actual speed varies with prompt length and other apps.")}
         >
           {v.measuredTps ? (
-            <span><Gauge size={13} /> {v.measuredTps.toFixed(1)} tokens/sec measured on this Mac</span>
+            <span><Gauge size={13} /> {v.measuredTps.toFixed(1)} {osText("tokens/sec measured on this Mac")}</span>
           ) : (
-            <span><Gauge size={13} /> ≈ {Math.round(v.speed.tokensPerSec)} tokens/sec on this Mac</span>
+            <span><Gauge size={13} /> ≈ {Math.round(v.speed.tokensPerSec)} {osText("tokens/sec on this Mac")}</span>
           )}
           <span><Clock size={13} /> Typical answer {approxDuration(v.speed.replySecs)}</span>
           {model.thinking && <span className="faint">({approxDuration(v.speed.replyThinkingSecs)} with thinking)</span>}

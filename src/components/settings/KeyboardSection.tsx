@@ -4,6 +4,7 @@ import { errorText } from "../../lib/api";
 import { keysFromEvent, keysProblem, platformKeys as K, prettyKeys } from "../../lib/keys";
 import type { Settings } from "../../lib/types";
 import { useStore } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 /** Click, then press the keys: records a global shortcut (Rust checks it again). */
 function KeyRecorder({ value, label, onSave, disabled }: { value: string; label: string; onSave: (keys: string) => Promise<void>; disabled?: boolean }) {
@@ -62,7 +63,7 @@ export function KeyboardSection({ settings }: { settings: Settings | null }) {
   const selOn = settings?.selectionHotkey !== false && settings?.macControl !== false;
   return (
     <div className="section">
-      <h4>Keyboard and menu bar</h4>
+      <h4>{osText("Keyboard and menu bar")}</h4>
       <div className="field">
         <span>
           <label style={{ cursor: "pointer" }}>
@@ -75,13 +76,13 @@ export function KeyboardSection({ settings }: { settings: Settings | null }) {
       <div className="field">
         <span>
           Selected text hotkey
-          <small>Select text in any app and press it: the writing studio opens with that text. Turned on or off with Mac control above.</small>
+          <small>{osText("Select text in any app and press it: the writing studio opens with that text. Turned on or off with Mac control above.")}</small>
         </span>
         <KeyRecorder value={settings?.selectionKeys ?? "Alt+Super+KeyB"} label="Selected text" disabled={!selOn} onSave={(k) => update({ selectionKeys: k })} />
       </div>
       <label className="field">
         <span>
-          BYTE in the menu bar
+          {osText("BYTE in the menu bar")}
           <small>Click the icon for Quick Ask; its menu shows BYTE or quits it.</small>
         </span>
         <input type="checkbox" checked={settings?.menuBarIcon !== false} onChange={(e) => void update({ menuBarIcon: e.target.checked })} />

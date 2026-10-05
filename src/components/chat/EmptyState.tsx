@@ -8,6 +8,7 @@ import type { Assistant } from "../../lib/types";
 import { Logo } from "../../design/Logo";
 import { Deck } from "./Deck";
 import { canSpeak, spaceOf, useStore, workspaceOf } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 const ICONS = [Lightbulb, Telescope, Sparkles, Rocket];
 const DEFAULT_SUGGESTIONS = [
@@ -68,8 +69,8 @@ export function EmptyState() {
     space === "cloud"
       ? "Answers come from your BYTE cloud."
       : space === "both"
-        ? "This Mac and your cloud both answer; keep the better one."
-        : "Everything stays on this Mac.";
+        ? osText("This Mac and your cloud both answer; keep the better one.")
+        : osText("Everything stays on this Mac.");
   return (
     <div className="empty">
       <Logo size={64} />

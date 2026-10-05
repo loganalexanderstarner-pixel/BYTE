@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Logo } from "../design/Logo";
 import { api, errorText, inTauri } from "../lib/api";
+import { osText } from "../lib/platform";
 
 /**
  * Keeps track of the lock (lock.rs): whether BYTE is locked now, and tells
@@ -41,8 +42,8 @@ export function LockScreen({ compact = false }: { compact?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   // The platform's own wording comes from Rust; these are the Mac words, used
   // until it answers and by any older backend that does not send them.
-  const [method, setMethod] = useState("Touch ID");
-  const [hint, setHint] = useState("No Touch ID? macOS asks for your password instead.");
+  const [method, setMethod] = useState(osText("Touch ID"));
+  const [hint, setHint] = useState(osText("No Touch ID? macOS asks for your password instead."));
   useEffect(() => {
     if (!inTauri) return;
     void api.lockStatus().then(

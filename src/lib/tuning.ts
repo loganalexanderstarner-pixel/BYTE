@@ -1,4 +1,5 @@
 import type { LabModel, ModelOverride } from "./types";
+import { osText } from "../lib/platform";
 
 /** Theme tone for a model-lab fit: great → ok, tight → warn, no → danger. */
 export function fitTone(fit: LabModel["fit"]): "ok" | "warn" | "danger" {
@@ -7,7 +8,7 @@ export function fitTone(fit: LabModel["fit"]): "ok" | "warn" | "danger" {
 
 /** Plain label for a fit. */
 export function fitLabel(fit: LabModel["fit"]): string {
-  return fit === "great" ? "Fits well" : fit === "tight" ? "Tight fit" : "Too big for this Mac";
+  return fit === "great" ? "Fits well" : fit === "tight" ? "Tight fit" : osText("Too big for this Mac");
 }
 
 /** 8.03 → "8.0B", 0.6 → "0.6B", 235 → "235B", null → "Unknown size". */

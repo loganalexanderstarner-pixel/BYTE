@@ -38,6 +38,7 @@ import type {
   Permission,
 } from "../../lib/types";
 import { useStore, type SettingsTab } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 /** Settings → Privacy: the offline switch, the lock, Mac permissions and everything BYTE did. */
 export function PrivacyTab() {
@@ -117,10 +118,7 @@ function OfflineSection() {
           <span className="grow">
             Work offline
             <small>
-              Nothing leaves this Mac while this is on: no web search, no cloud,
-              no downloads, no background checks. Chats, voices, your files and
-              notes keep working with the model on this Mac. Also in the
-              menu-bar icon's menu and ⌘K.
+              {osText("Nothing leaves this Mac while this is on: no web search, no cloud, no downloads, no background checks. Chats, voices, your files and notes keep working with the model on this Mac. Also in the menu-bar icon's menu and ⌘K.")}
             </small>
           </span>
           <input
@@ -188,7 +186,7 @@ function LockSection() {
       {status && !status.available ? (
         <p className="faint small">
           {status.unavailable ??
-            "This Mac can't confirm it's you (no Touch ID and no password set up), so BYTE can't be locked here."}
+            osText("This Mac can't confirm it's you (no Touch ID and no password set up), so BYTE can't be locked here.")}
         </p>
       ) : (
         <>
@@ -198,9 +196,9 @@ function LockSection() {
               style={{ alignItems: "flex-start", gap: 12 }}
             >
               <span className="grow">
-                Lock BYTE with {status?.method ?? "Touch ID"}
+                Lock BYTE with {status?.method ?? osText("Touch ID")}
                 <small>
-                  BYTE asks for {status?.asks ?? "Touch ID (or your Mac's password)"} when it opens,
+                  BYTE asks for {status?.asks ?? osText("Touch ID (or your Mac's password)")} when it opens,
                   and after it sits unused. While locked, chats, notes, memories
                   and the activity log stay hidden, and Quick Ask asks too.
                 </small>
@@ -210,7 +208,7 @@ function LockSection() {
                 checked={on}
                 disabled={busy}
                 onChange={(e) => void toggle(e.target.checked)}
-                aria-label={`Lock BYTE with ${status?.method ?? "Touch ID"}`}
+                aria-label={osText(`Lock BYTE with ${status?.method ?? "Touch ID"}`)}
               />
             </label>
           </div>
@@ -244,10 +242,7 @@ function LockSection() {
           )}
           {error && <div className="banner danger">{error}</div>}
           <p className="faint small">
-            Your chats are already encrypted on this Mac. The lock keeps someone
-            using your unlocked Mac out of BYTE. (Tying the encryption key
-            itself to Touch ID needs a paid Apple developer signature, which
-            BYTE doesn't use.)
+            {osText("Your chats are already encrypted on this Mac. The lock keeps someone using your unlocked Mac out of BYTE. (Tying the encryption key itself to Touch ID needs a paid Apple developer signature, which BYTE doesn't use.)")}
           </p>
         </>
       )}
@@ -275,10 +270,9 @@ function PermissionsSection() {
   }, [load]);
   return (
     <section className="settings-section">
-      <h3>Mac permissions</h3>
+      <h3>{osText("Mac permissions")}</h3>
       <p className="faint small">
-        macOS asks the first time BYTE needs each one. Change them any time in
-        System Settings → Privacy &amp; Security.
+        {osText("macOS asks the first time BYTE needs each one. Change them any time in System Settings → Privacy & Security.")}
       </p>
       <ul className="privacy-list perms">
         {perms.map((p) => (
@@ -345,8 +339,7 @@ function ActivitySection() {
     <section className="settings-section">
       <h3>Activity</h3>
       <p className="faint small">
-        Everything BYTE did for you: searches, pages read, Mac actions,
-        commands, files, connectors and automations. Kept on this Mac only.
+        {osText("Everything BYTE did for you: searches, pages read, Mac actions, commands, files, connectors and automations. Kept on this Mac only.")}
       </p>
       <div
         className="row"
@@ -475,10 +468,7 @@ function KidsSection() {
         <Baby size={16} /> Kids mode
       </h3>
       <p className="faint small">
-        A simple BYTE for children: answers written for kids, bigger text, and
-        no web, Mac control, files, terminal or connectors. Settings can't be
-        changed while it's on. A grown-up turns it off with the PIN (the
-        Grown-ups button at the top).
+        {osText("A simple BYTE for children: answers written for kids, bigger text, and no web, Mac control, files, terminal or connectors. Settings can't be changed while it's on. A grown-up turns it off with the PIN (the Grown-ups button at the top).")}
       </p>
       <div
         className="row"
@@ -578,7 +568,7 @@ function BackupSection() {
       <p className="faint small">
         One encrypted file with your chats, memories, settings and notes
         {info?.icloud
-          ? ", kept in iCloud Drive so it's safe if this Mac is lost"
+          ? osText(", kept in iCloud Drive so it's safe if this Mac is lost")
           : ""}
         . Only your passphrase opens it, so don't forget it. Models aren't
         included (they can be downloaded again).
@@ -621,7 +611,7 @@ function BackupSection() {
           type="password"
           placeholder={
             info?.remembered
-              ? "Passphrase (saved in your Keychain; type to change)"
+              ? osText("Passphrase (saved in your Keychain; type to change)")
               : "Passphrase (at least 8 characters)"
           }
           value={pass}
@@ -634,7 +624,7 @@ function BackupSection() {
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
           />{" "}
-          Remember in Keychain
+          {osText("Remember in Keychain")}
         </label>
         <button
           className="btn sm primary"
@@ -649,8 +639,7 @@ function BackupSection() {
           <span className="grow">
             Back up every week
             <small>
-              Uses the passphrase saved in your Keychain. The newest 5 backups
-              are kept.
+              {osText("Uses the passphrase saved in your Keychain. The newest 5 backups are kept.")}
               {settings?.lastBackup
                 ? ` Last backup: ${backupAge(settings.lastBackup)}.`
                 : ""}
@@ -849,10 +838,7 @@ function MessagesSection() {
           <span className="grow">
             Show texts I receive
             <small>
-              New iMessages and texts show up in BYTE (the speech-bubble button)
-              with Draft a reply and Reply. BYTE reads your Messages history on
-              this Mac, read-only; nothing leaves your Mac. Needs Full Disk
-              Access. Sending always waits for you to press Send.
+              {osText("New iMessages and texts show up in BYTE (the speech-bubble button) with Draft a reply and Reply. BYTE reads your Messages history on this Mac, read-only; nothing leaves your Mac. Needs Full Disk Access. Sending always waits for you to press Send.")}
             </small>
           </span>
           <input

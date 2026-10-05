@@ -59,3 +59,34 @@ export function hardwareNote(system: SystemInfo): { ok: boolean; text: string } 
   if (gb < 12) return { ok: false, text: `No graphics card found and ${Math.round(gb)} GB of memory, so BYTE will use its smallest models on your processor. Answers will be slower.` };
   return { ok: true, text: "No dedicated graphics card found, so BYTE will run on your processor. The smaller models are the best fit, and answers will be slower than on a card." };
 }
+
+/**
+ * Static UI copy, worded for the machine it is on. The identity on a Mac, so the Mac text is
+ * exactly what it was; on Windows it swaps the Mac words for the PC ones: "this Mac" becomes
+ * "this PC", Finder becomes File Explorer, the menu bar the system tray, the Keychain
+ * Windows' Credential Manager, Touch ID Windows Hello.
+ *
+ * ONLY for strings the app itself wrote. Never run it over something a person or a model
+ * wrote (a chat message, a note title): rewriting what someone typed is a bug. Rules apply in
+ * order, because "your Mac's Keychain" has to become one phrase, not "your PC's Credential
+ * Manager".
+ */
+export function osText(text: string, windows: boolean = isWindows()): string {
+  if (!windows) return text;
+  return text
+    .replace(/\b(?:[Yy]our|[Tt]he|[Tt]his) (?:Mac|macOS)'s Keychain\b/g, "Windows Credential Manager")
+    .replace(/\bthe macOS Keychain\b/g, "Windows Credential Manager")
+    .replace(/\bKeychain\b/g, "Credential Manager")
+    .replace(/\bApple Silicon GPU\b/g, "graphics card or processor")
+    .replace(/\bShow in Finder\b/g, "Show in File Explorer")
+    .replace(/\bFinder\b/g, "File Explorer")
+    .replace(/\bmenu[- ]bar\b/gi, (m) => (m[0] === "M" ? "System tray" : "system tray"))
+    .replace(/\bTouch ID\b/g, "Windows Hello")
+    .replace(/\bMac control\b/g, "PC control")
+    .replace(/\bSystem Settings\b/g, "Settings")
+    .replace(/\bPrivacy & Security\b/g, "Privacy & security")
+    .replace(/\bmacOS\b/g, "Windows")
+    .replace(/\bMacs\b/g, "PCs")
+    .replace(/\bMac(?='s\b)/g, "PC")
+    .replace(/\bMac\b/g, "PC");
+}

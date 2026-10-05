@@ -27,7 +27,7 @@ import { useStore } from "../../state/store";
 import { DownloadProgress, FitPill } from "../models/ModelCard";
 import { CloudKeySteps } from "../settings/CloudKeySteps";
 import { platformKeys as K } from "../../lib/keys";
-import { cpuName, graphicsLabel, hardwareNote, isPc, machine } from "../../lib/platform";
+import { cpuName, graphicsLabel, hardwareNote, isPc, machine, osText } from "../../lib/platform";
 
 const STEPS = 5;
 
@@ -202,7 +202,7 @@ export function Onboarding() {
                     <div>
                       <b>Uses your {here}'s hardware.</b>{" "}
                       <span className="muted">
-                        {pc ? "Runs on your graphics card or processor, even offline." : "Runs on the Apple Silicon GPU, even offline."}
+                        {pc ? "Runs on your graphics card or processor, even offline." : osText("Runs on the Apple Silicon GPU, even offline.")}
                       </span>
                     </div>
                   </li>

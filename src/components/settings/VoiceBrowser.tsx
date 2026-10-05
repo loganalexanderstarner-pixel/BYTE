@@ -6,6 +6,7 @@ import { bytes } from "../../lib/format";
 import type { VoicePackage, VoicesStatus } from "../../lib/types";
 import { filterVoices, languages, NO_FILTER, pick, providers, ramLabel, speakerLine, speakersFor, voiceSetting, type VoiceFilter } from "../../lib/voices";
 import { useStore, type DownloadState } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 const busy = (d?: DownloadState) => !!d && (d.phase === "downloading" || d.phase === "resuming" || d.phase === "verifying");
 const PAGE = 12;
@@ -71,8 +72,7 @@ export function VoiceBrowser({ catalog, status, onChanged }: { catalog: VoicePac
   return (
     <div className="voice-browser">
       <p className="faint" style={{ margin: "0 0 8px", fontSize: "0.88em" }}>
-        {catalog.length} free voice downloads with {total.toLocaleString()} voices from {provs.length} open projects. All made on this Mac by BYTE's speech engine: no
-        account, nothing sent anywhere. They run on the CPU, not the GPU your chat model uses, and only while BYTE is talking.
+        {catalog.length} free voice downloads with {total.toLocaleString()} voices from {provs.length} {osText("open projects. All made on this Mac by BYTE's speech engine: no account, nothing sent anywhere. They run on the CPU, not the GPU your chat model uses, and only while BYTE is talking.")}
       </p>
       <div className="catalog-tools">
         <label className="search">

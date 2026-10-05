@@ -7,6 +7,7 @@ import type { CloudVoice, MediaStatus, SpeakersStatus, SpeechVoice, VoicePackage
 import { pick } from "../../lib/voices";
 import { canSpeak, useStore, type DownloadState } from "../../state/store";
 import { VoiceBrowser } from "./VoiceBrowser";
+import { osText } from "../../lib/platform";
 
 const busy = (d?: DownloadState) => !!d && (d.phase === "downloading" || d.phase === "resuming" || d.phase === "verifying");
 const pct = (ds: (DownloadState | undefined)[]) => {
@@ -79,7 +80,7 @@ export function VideoHelperRow() {
       <span>
         Video helper
         <small>
-          For YouTube videos without captions: BYTE gets the video's audio with yt-dlp (free and open source, {st ? bytes(st.approxBytes) : "about 36 MB"} from its official GitHub release, checked before use) and transcribes it on this Mac.
+          For YouTube videos without captions: BYTE gets the video's audio with yt-dlp (free and open source, {st ? bytes(st.approxBytes) : "about 36 MB"} {osText("from its official GitHub release, checked before use) and transcribes it on this Mac.")}
           {st?.version && ` Installed: ${st.version}.`}
         </small>
         {loading && (
@@ -127,19 +128,19 @@ export function SpeechRows() {
       <label className="field">
         <span>
           Read answers aloud
-          <small>{mac ? "BYTE reads each answer aloud, with BYTE's voices when they're downloaded, otherwise the Mac's (the 🔊 on any answer does it once). Code and tables stay on screen." : "Reading aloud needs a Mac for now."}</small>
+          <small>{mac ? osText("BYTE reads each answer aloud, with BYTE's voices when they're downloaded, otherwise the Mac's (the 🔊 on any answer does it once). Code and tables stay on screen.") : osText("Reading aloud needs a Mac for now.")}</small>
         </span>
         <input type="checkbox" disabled={!mac} checked={!!settings?.readAloud} onChange={(e) => void update({ readAloud: e.target.checked })} />
       </label>
       {mac && (
         <div className="field">
           <span>
-            Speed, and the Mac's voice
-            <small>The Mac's voice is used until BYTE's voices are downloaded. Better Mac voices (free): System Settings → Accessibility → Spoken Content → System voice → Manage Voices.</small>
+            {osText("Speed, and the Mac's voice")}
+            <small>{osText("The Mac's voice is used until BYTE's voices are downloaded. Better Mac voices (free): System Settings → Accessibility → Spoken Content → System voice → Manage Voices.")}</small>
           </span>
           <span className="row" style={{ gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
             <select value={settings?.speechVoice ?? ""} onChange={(e) => void update({ speechVoice: e.target.value })} aria-label="Voice">
-              <option value="">Mac's default voice</option>
+              <option value="">{osText("Mac's default voice")}</option>
               {shown.map((v) => (
                 <option key={v.name} value={v.name}>
                   {v.name}
@@ -178,10 +179,10 @@ export function WakeRow() {
         Listen for “Hey BYTE”
         <small>
           {!mac
-            ? "“Hey BYTE” needs a Mac for now."
+            ? osText("“Hey BYTE” needs a Mac for now.")
             : ready === false
               ? "Download a speech model above first."
-              : "Say “Hey BYTE, …” from anywhere and BYTE answers out loud, then listens a few seconds for a follow-up (say “thanks” to end). While this is on, the microphone stays on (macOS shows its orange dot); only short bursts of speech are checked, on this Mac, and nothing is kept. It pauses while BYTE talks or you record."}
+              : osText("Say “Hey BYTE, …” from anywhere and BYTE answers out loud, then listens a few seconds for a follow-up (say “thanks” to end). While this is on, the microphone stays on (macOS shows its orange dot); only short bursts of speech are checked, on this Mac, and nothing is kept. It pauses while BYTE talks or you record.")}
         </small>
         {mac && settings?.wakeWord && !settings.openAtLogin && (
           <small>
@@ -189,7 +190,7 @@ export function WakeRow() {
             <button type="button" className="linklike" onClick={(e) => (e.preventDefault(), void update({ openAtLogin: true }))}>
               also open BYTE at login
             </button>{" "}
-            (it starts hidden, in the menu bar).
+            {osText("(it starts hidden, in the menu bar).")}
           </small>
         )}
         {mac && settings?.wakeWord && settings.openAtLogin && <small>BYTE opens when you log in, so “Hey BYTE” works right away.</small>}
@@ -246,14 +247,16 @@ export function ByteVoicesRow() {
           BYTE's voice
           <small>
             {ready && current
-              ? `${current.speaker.name} · ${current.pkg.name}${current.pkg.name.startsWith(current.pkg.provider.split(" ")[0]) ? "" : ` (${current.pkg.provider})`}. Natural voices made on this Mac, free and open source; BYTE starts speaking while an answer is still being written, without gaps.`
+              ? // Only the fixed sentence is reworded, never the voice and provider names in front of it.
+                `${current.speaker.name} · ${current.pkg.name}${current.pkg.name.startsWith(current.pkg.provider.split(" ")[0]) ? "" : ` (${current.pkg.provider})`}` +
+                osText(". Natural voices made on this Mac, free and open source; BYTE starts speaking while an answer is still being written, without gaps.")
               : status?.ready.length
                 ? "Pick a downloaded voice below."
-                : "Natural, human-sounding voices instead of the Mac's robotic one: over 2,000 to choose from, free and open source, made on this Mac. Browse them and download the ones you like (from about 30 MB)."}
+                : osText("Natural, human-sounding voices instead of the Mac's robotic one: over 2,000 to choose from, free and open source, made on this Mac. Browse them and download the ones you like (from about 30 MB).")}
           </small>
           {lowRam && (
             <small className="warn">
-              Your Mac is short on free memory right now. A lighter voice (Light on memory: Kitten nano or Piper, about 150 MB) leaves more room for the chat model.
+              {osText("Your Mac is short on free memory right now. A lighter voice (Light on memory: Kitten nano or Piper, about 150 MB) leaves more room for the chat model.")}
             </small>
           )}
           {error && <small className="bad">{error}</small>}
@@ -282,10 +285,10 @@ export function ByteVoicesRow() {
           <>
             <span className="faint">Made</span>
             <div className="segmented" role="group" aria-label="Where BYTE's voice is made">
-              <button aria-pressed={where === "mac"} onClick={() => void update({ voiceWhere: "mac" })} title="Free voices on this Mac: private, work offline">
-                On this Mac
+              <button aria-pressed={where === "mac"} onClick={() => void update({ voiceWhere: "mac" })} title={osText("Free voices on this Mac: private, work offline")}>
+                {osText("On this Mac")}
               </button>
-              <button aria-pressed={where === "cloud"} onClick={() => void update({ voiceWhere: "cloud" })} title="Voices on the BYTE cloud's GPU: no memory used on this Mac. Private chats always use this Mac.">
+              <button aria-pressed={where === "cloud"} onClick={() => void update({ voiceWhere: "cloud" })} title={osText("Voices on the BYTE cloud's GPU: no memory used on this Mac. Private chats always use this Mac.")}>
                 BYTE Cloud
               </button>
             </div>
@@ -304,7 +307,7 @@ export function ByteVoicesRow() {
               ))}
             </select>
           ) : (
-            <small className="faint">Your BYTE Cloud doesn't offer voices yet, so BYTE speaks with the voice on this Mac. Private chats always do.</small>
+            <small className="faint">{osText("Your BYTE Cloud doesn't offer voices yet, so BYTE speaks with the voice on this Mac. Private chats always do.")}</small>
           )}
         </div>
       )}

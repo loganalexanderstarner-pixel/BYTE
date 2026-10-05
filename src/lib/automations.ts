@@ -1,10 +1,11 @@
 import type { AutoStep, Automation, StepRun } from "./types";
+import { osText } from "../lib/platform";
 
 /** The kinds of step the builder offers, in menu order. */
 export const STEP_KINDS: { type: AutoStep["type"]; label: string; hint: string }[] = [
   { type: "ask", label: "Ask BYTE", hint: "A question or instruction. “it” means the text from the step before." },
   { type: "briefing", label: "Daily briefing", hint: "Calendar, reminders, to-dos, weather and news." },
-  { type: "notify", label: "Notification", hint: "A Mac notification with the text so far." },
+  { type: "notify", label: "Notification", hint: osText("A Mac notification with the text so far.") },
   { type: "addTask", label: "Add a to-do", hint: "Leave empty to use the first line of the text so far." },
   { type: "saveFile", label: "Save to a file", hint: "A Markdown file in Documents → BYTE → Automations." },
   { type: "shortcut", label: "Run a Shortcut", hint: "One of your Shortcuts, given the text so far (its output goes on)." },

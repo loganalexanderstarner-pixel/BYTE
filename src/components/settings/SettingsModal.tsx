@@ -28,6 +28,7 @@ import { ConnectorsTab } from "./ConnectorsTab";
 import { KnowledgeTab } from "./KnowledgeTab";
 import { ModelLab } from "./ModelLab";
 import { TuningPanel } from "./TuningPanel";
+import { osText } from "../../lib/platform";
 
 
 
@@ -77,7 +78,7 @@ function ModelsTab() {
     <>
       <h3>Models</h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        Pick the brain BYTE runs on. Everything runs on this Mac's GPU; files download from Hugging Face only when you choose them.
+        {osText("Pick the brain BYTE runs on. Everything runs on this Mac's GPU; files download from Hugging Face only when you choose them.")}
       </p>
       <SpeedPrefPicker />
       <CatalogBrowser />
@@ -118,7 +119,7 @@ function VoiceSection() {
       <label className="field">
         <span>
           Voice input
-          <small>Click 🎤 in the message box, or hold Space in an empty box, and talk; what you say is typed out for you to check and send. Audio files you attach (WAV, MP3, M4A…) become transcripts, with who said what when speaker labels are on. It all happens on this Mac.</small>
+          <small>{osText("Click 🎤 in the message box, or hold Space in an empty box, and talk; what you say is typed out for you to check and send. Audio files you attach (WAV, MP3, M4A…) become transcripts, with who said what when speaker labels are on. It all happens on this Mac.")}</small>
         </span>
         <input type="checkbox" checked={on} onChange={(e) => void update({ voiceEnabled: e.target.checked })} />
       </label>
@@ -178,7 +179,7 @@ function MemoryTab() {
     <>
       <h3>Memory & chats</h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        What BYTE remembers about you, and your saved chats. Everything is stored encrypted on this Mac only.
+        {osText("What BYTE remembers about you, and your saved chats. Everything is stored encrypted on this Mac only.")}
       </p>
       {error && <div className="banner danger">{error}</div>}
       {notice && <div className="banner">{notice}</div>}
@@ -446,7 +447,7 @@ function SpeedSection() {
       <div className="field">
         <label>
           <span className="row" style={{ gap: 6 }}>
-            <Gauge size={14} style={{ color: "var(--accent)" }} /> Tuned for this Mac
+            <Gauge size={14} style={{ color: "var(--accent)" }} /> {osText("Tuned for this Mac")}
           </span>
           <small>
             {tune
@@ -496,7 +497,7 @@ function SpeedSection() {
       <div className="field">
         <label>
           Tune all downloaded models
-          <small>Runs the thorough tune on every downloaded model that fits this Mac, one after another, then goes back to the one you use.</small>
+          <small>{osText("Runs the thorough tune on every downloaded model that fits this Mac, one after another, then goes back to the one you use.")}</small>
         </label>
         <button
           className="btn sm"
@@ -515,7 +516,7 @@ function SpeedSection() {
       <div className="field">
         <label>
           Tune new models automatically
-          <small>The first time a model loads, BYTE spends a minute or two finding its fastest settings on this Mac.</small>
+          <small>{osText("The first time a model loads, BYTE spends a minute or two finding its fastest settings on this Mac.")}</small>
         </label>
         <input type="checkbox" checked={settings.autoTune} onChange={(e) => void update({ autoTune: e.target.checked })} aria-label="Tune new models automatically" />
       </div>
@@ -550,8 +551,8 @@ function GpuShareRow({ onError }: { onError: (e: string | null) => void }) {
         Bigger GPU memory share
         <small>
           {share.raised
-            ? `Raised: the GPU may use ${bytes(share.currentBytes)} (normally ${bytes(share.defaultBytes)}). Bigger models run fully on the GPU. Resets when the Mac restarts.`
-            : `macOS lets the GPU use ${bytes(share.defaultBytes)} of memory. Raising it to ${bytes(share.raisedBytes)} lets bigger models run fully on the GPU (faster). Needs your Mac password; lasts until restart.`}
+            ? osText(`Raised: the GPU may use ${bytes(share.currentBytes)} (normally ${bytes(share.defaultBytes)}). Bigger models run fully on the GPU. Resets when the Mac restarts.`)
+            : osText(`macOS lets the GPU use ${bytes(share.defaultBytes)} of memory. Raising it to ${bytes(share.raisedBytes)} lets bigger models run fully on the GPU (faster). Needs your Mac password; lasts until restart.`)}
         </small>
       </label>
       <button className="btn sm" disabled={busy} onClick={() => void set(!share.raised)}>
@@ -615,7 +616,7 @@ function AppearanceTab() {
         <div className="field">
           <label>
             Reduce motion
-            <small>Fewer animations. Auto follows macOS (System Settings → Accessibility → Display).</small>
+            <small>{osText("Fewer animations. Auto follows macOS (System Settings → Accessibility → Display).")}</small>
           </label>
           <div className="segmented">
             {(["auto", "reduce"] as const).map((m) => (
@@ -706,7 +707,7 @@ function EngineTab() {
   return (
     <>
       <h3>Engine</h3>
-      <p className="muted" style={{ marginTop: 0 }}>BYTE's built-in AI engine (llama.cpp with Apple Metal) runs on this Mac.</p>
+      <p className="muted" style={{ marginTop: 0 }}>{osText("BYTE's built-in AI engine (llama.cpp with Apple Metal) runs on this Mac.")}</p>
       {engine.state === "error" && <div className="banner danger">{engine.message}</div>}
       {error && <div className="banner danger">{error}</div>}
       <div className="field">
@@ -767,7 +768,7 @@ function UsageSection() {
     <div className="section">
       <h4>Your usage</h4>
       <p className="muted small" style={{ marginTop: 0 }}>
-        Counted from the chats on this Mac; nothing is sent anywhere.
+        {osText("Counted from the chats on this Mac; nothing is sent anywhere.")}
       </p>
       <div className="usage-grid">
         <div>
@@ -918,8 +919,8 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
-            Mac control
-            <small>“Remind me to call Mom tomorrow at 3pm”, “make a note: …”, “what's on my calendar today?”, “turn on dark mode”, “play some jazz”, “run my Morning shortcut”, “check my email”, “reply to Sam’s email saying I can make it”, “text Mom that I’m running late”, “find my tax return pdf”, “organize my Downloads”, “convert the selected photos to jpg”, “run a command to show my disk space”. BYTE asks before adding or changing anything, never sends email or texts itself (you press Send), and macOS asks once per app.</small>
+            {osText("Mac control")}
+            <small>{osText("“Remind me to call Mom tomorrow at 3pm”, “make a note: …”, “what's on my calendar today?”, “turn on dark mode”, “play some jazz”, “run my Morning shortcut”, “check my email”, “reply to Sam’s email saying I can make it”, “text Mom that I’m running late”, “find my tax return pdf”, “organize my Downloads”, “convert the selected photos to jpg”, “run a command to show my disk space”. BYTE asks before adding or changing anything, never sends email or texts itself (you press Send), and macOS asks once per app.")}</small>
           </span>
           <input type="checkbox" checked={settings?.macControl ?? true} onChange={(e) => void update({ macControl: e.target.checked })} />
         </label>
@@ -955,35 +956,35 @@ function AboutTab() {
         <label className="field">
           <span>
             Automations
-            <small>Steps BYTE does one after another (“every weekday at 8am, find AI news, then summarize it, then save it to a file”), when you run them, on a schedule or when BYTE opens. Build them in the ✅ panel; add one to Shortcuts to run it from the menu bar or with Siri.</small>
+            <small>{osText("Steps BYTE does one after another (“every weekday at 8am, find AI news, then summarize it, then save it to a file”), when you run them, on a schedule or when BYTE opens. Build them in the ✅ panel; add one to Shortcuts to run it from the menu bar or with Siri.")}</small>
           </span>
           <input type="checkbox" checked={settings?.automationsEnabled ?? true} onChange={(e) => void update({ automationsEnabled: e.target.checked })} />
         </label>
         <label className="field">
           <span>
             Trackers
-            <small>Packages (“track 1Z…”), bills and subscriptions (“add Netflix $15.49 a month on the 12th”, “what subscriptions do I have?”), birthdays with gift ideas (“Sam's birthday is March 3”) and car and home maintenance (“change the furnace filter every 3 months”), with notifications ahead of time. All kept on this Mac.</small>
+            <small>{osText("Packages (“track 1Z…”), bills and subscriptions (“add Netflix $15.49 a month on the 12th”, “what subscriptions do I have?”), birthdays with gift ideas (“Sam's birthday is March 3”) and car and home maintenance (“change the furnace filter every 3 months”), with notifications ahead of time. All kept on this Mac.")}</small>
           </span>
           <input type="checkbox" checked={settings?.trackersEnabled ?? true} onChange={(e) => void update({ trackersEnabled: e.target.checked })} />
         </label>
         <label className="field">
           <span>
-            Mac upkeep
-            <small>“What's taking up space?”, “find duplicate files”, “why is my Mac slow?”, “what's draining my battery?”, “check my Mac”, “uninstall Zoom”, “what opens at login?”. Anything removed goes to the Trash (Undo puts it back); BYTE never empties the Trash or touches macOS itself.</small>
+            {osText("Mac upkeep")}
+            <small>{osText("“WhatosText('s taking up space?”, “find duplicate files”, “why is my Mac slow?”, “what')s draining my battery?”, “check my Mac”, “uninstall Zoom”, “what opens at login?”. Anything removed goes to the Trash (Undo puts it back); BYTE never empties the Trash or touches macOS itself.")}</small>
           </span>
           <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.macUpkeep ?? true} onChange={(e) => void update({ macUpkeep: e.target.checked })} />
         </label>
         <label className="field">
           <span>
             Selected text hotkey ({prettyKeys(settings?.selectionKeys ?? "Alt+Super+KeyB")})
-            <small>Select text in any app and press the hotkey (Keyboard and menu bar, in About, changes it): it opens in the writing studio to rewrite, fix, translate, reply to or explain, then “Paste into” puts the result back. macOS asks once to allow BYTE in Accessibility.</small>
+            <small>{osText("Select text in any app and press the hotkey (Keyboard and menu bar, in About, changes it): it opens in the writing studio to rewrite, fix, translate, reply to or explain, then “Paste into” puts the result back. macOS asks once to allow BYTE in Accessibility.")}</small>
           </span>
           <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.selectionHotkey ?? true} onChange={(e) => void update({ selectionHotkey: e.target.checked })} />
         </label>
         <label className="field">
           <span>
             Clipboard history
-            <small>Keeps the last 200 things you copy, searchable (📋 in the top bar). Off until you switch it on. Passwords from password managers and text that looks like a password or key are never kept; it's stored encrypted on this Mac.</small>
+            <small>{osText("Keeps the last 200 things you copy, searchable (📋 in the top bar). Off until you switch it on. Passwords from password managers and text that looks like a password or key are never kept; it's stored encrypted on this Mac.")}</small>
           </span>
           <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.clipboardHistory ?? false} onChange={(e) => void update({ clipboardHistory: e.target.checked })} />
         </label>
@@ -1050,18 +1051,16 @@ function AboutTab() {
         <p className="row" style={{ alignItems: "flex-start" }}>
           <ShieldCheck size={18} style={{ color: "var(--ok)", flex: "none", marginTop: 3 }} />
           <span>
-            Your conversations and files never leave this Mac. The AI model runs locally on your GPU. BYTE only goes online to download models
-            and to search and read the web when a question needs current information (turn this off with the Web button). Searches are
-            sent to DuckDuckGo (or Bing as a fallback) without any account or identifying data.
+            {osText("Your conversations and files never leave this Mac. The AI model runs locally on your GPU. BYTE only goes online to download models and to search and read the web when a question needs current information (turn this off with the Web button). Searches are sent to DuckDuckGo (or Bing as a fallback) without any account or identifying data.")}
           </span>
         </p>
       </div>
       {system && (
         <div className="section">
-          <h4>This Mac</h4>
+          <h4>{osText("This Mac")}</h4>
           <div className="field"><label>Chip</label><span className="muted">{system.chip}</span></div>
           <div className="field"><label>Memory</label><span className="muted">{ramSize(system.totalRamBytes)} · {bytes(system.gpuBudgetBytes)} usable by the GPU</span></div>
-          <div className="field"><label>macOS</label><span className="muted">{system.osVersion}</span></div>
+          <div className="field"><label>{osText("macOS")}</label><span className="muted">{system.osVersion}</span></div>
         </div>
       )}
       <div className="section">

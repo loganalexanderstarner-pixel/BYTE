@@ -6,6 +6,7 @@ import { api, errorText } from "../../lib/api";
 import type { ConnectorsStatus } from "../../lib/types";
 import { useStore } from "../../state/store";
 import { shortPath } from "./KnowledgeTab";
+import { osText } from "../../lib/platform";
 
 /** Obsidian, Notion and calendar links (Rust `connectors/`). Secrets go to the macOS Keychain, never to settings. */
 export function ConnectorsTab() {
@@ -46,11 +47,11 @@ export function ConnectorsTab() {
     <>
       <h3>Connectors</h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        Let BYTE use your notes and calendars. Each one is off until you set it up here. Secrets stay in your Mac's Keychain, and BYTE only reads or adds things when you ask.
+        {osText("Let BYTE use your notes and calendars. Each one is off until you set it up here. Secrets stay in your Mac's Keychain, and BYTE only reads or adds things when you ask.")}
       </p>
       {error && <div className="banner danger">{error}</div>}
       {notice && <div className="banner">{notice}</div>}
-      {st && !st.keychain && <div className="banner">Notion and calendar links keep their secrets in the macOS Keychain, so they need a Mac for now.</div>}
+      {st && !st.keychain && <div className="banner">{osText("Notion and calendar links keep their secrets in the macOS Keychain, so they need a Mac for now.")}</div>}
 
       <div className="section">
         <label className="row" style={{ gap: 10, cursor: "pointer" }}>
@@ -106,7 +107,7 @@ export function ConnectorsTab() {
               Connected. Ask “search Notion for…”, or “add a page to Notion: Title — text”. BYTE sees only pages you've shared with your integration (in Notion: ••• → Connections).
               {!st.notionParent && " To add pages, connect again with the link of the page they should go under."}
             </p>
-            <button className="btn sm ghost" disabled={busy} onClick={() => void guard(() => api.notionDisconnect(), "Notion disconnected; the secret was removed from the Keychain.")}>
+            <button className="btn sm ghost" disabled={busy} onClick={() => void guard(() => api.notionDisconnect(), osText("Notion disconnected; the secret was removed from the Keychain."))}>
               <Unplug size={13} /> Disconnect
             </button>
           </>
@@ -132,7 +133,7 @@ export function ConnectorsTab() {
                     setSecret("");
                     setParent("");
                     return next;
-                  }, "Notion is connected. The secret is in your Keychain.")
+                  }, osText("Notion is connected. The secret is in your Keychain."))
                 }
               >
                 Connect
@@ -147,7 +148,7 @@ export function ConnectorsTab() {
           <CalendarDays size={15} /> Calendar links
         </h4>
         <p className="muted small">
-          Read-only calendars from a private address, like Google Calendar's <b>Secret address in iCal format</b> (Settings → your calendar → Integrate calendar). They show in your daily briefing and, when Mac control is off, in “what's on my calendar”. The address is kept in the Keychain.
+          Read-only calendars from a private address, like Google CalendarosText('s <b>Secret address in iCal format</b> {osText("(Settings → your calendar → Integrate calendar). They show in your daily briefing and, when Mac control is off, in “what')s on my calendar”. The address is kept in the Keychain.")}
         </p>
         {st && st.calendars.length > 0 && (
           <ul className="schedule-list">

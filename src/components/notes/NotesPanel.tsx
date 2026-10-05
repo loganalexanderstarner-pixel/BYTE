@@ -7,6 +7,7 @@ import { renderMarkdown } from "../../lib/markdown";
 import { allTags, filterNotes, noteAge, parseTags } from "../../lib/notes";
 import type { Note, NoteInput, NotesInfo } from "../../lib/types";
 import { useStore } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 const EMPTY: NoteInput = { title: "", folder: "Inbox", tags: [], body: "" };
 
@@ -196,7 +197,7 @@ export function NotesPanel() {
                   <span className="grow" />
                   {current && (
                     <button className="btn sm ghost" onClick={() => void revealItemInDir(current.path).catch(() => undefined)}>
-                      <FolderOpen size={13} /> Show in Finder
+                      <FolderOpen size={13} /> {osText("Show in Finder")}
                     </button>
                   )}
                   <button className="icon-btn sm" onClick={() => void remove()} aria-label="Delete note" title={edit.id ? "Move this note to the Trash" : "Discard"}>

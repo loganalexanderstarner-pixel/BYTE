@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { api, errorText } from "../../lib/api";
 import type { Health, Storage, Trashed } from "../../lib/types";
 import { sizeText, treemap, usedPercent } from "../../lib/upkeep";
+import { osText } from "../../lib/platform";
 
 type TrashState = { phase: "idle" } | { phase: "confirm" } | { phase: "busy" } | { phase: "done"; result: Trashed; undone?: boolean } | { phase: "error"; message: string };
 
@@ -73,7 +74,7 @@ export function StorageCard({ storage }: { storage: Storage }) {
   const max = storage.folders[0]?.bytes ?? 1;
   const reveal = (id: string) => void api.upkeepReveal(storage.scanId, id).catch((e) => setError(errorText(e)));
   return (
-    <div className="shop-card upkeep-card" role="region" aria-label="Storage on this Mac">
+    <div className="shop-card upkeep-card" role="region" aria-label={osText("Storage on this Mac")}>
       <div className="shop-head">
         <HardDrive size={16} />
         <b>Storage</b>
@@ -152,7 +153,7 @@ export function StorageCard({ storage }: { storage: Storage }) {
                     {b.name}
                   </span>
                   <span className="size">{sizeText(b.bytes)}</span>
-                  <button className="icon-btn sm" onClick={() => reveal(b.id)} title="Show in Finder" aria-label={`Show ${b.name} in Finder`}>
+                  <button className="icon-btn sm" onClick={() => reveal(b.id)} title={osText("Show in Finder")} aria-label={osText(`Show ${b.name} in Finder`)}>
                     <FolderSearch size={13} />
                   </button>
                   <TrashButton scanId={storage.scanId} id={b.id} what={b.name} />

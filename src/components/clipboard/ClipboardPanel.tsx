@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText } from "../../lib/api";
 import { clipAge, clipPreview } from "../../lib/clips";
 import type { Clip } from "../../lib/types";
+import { osText } from "../../lib/platform";
 
 /** Clipboard history (Mac control): what you copied lately, searchable; copy an item back with one click. */
 export function ClipboardPanel({ onClose }: { onClose: () => void }) {
@@ -81,7 +82,7 @@ export function ClipboardPanel({ onClose }: { onClose: () => void }) {
           </ul>
         )}
         <p className="faint small" style={{ marginTop: 12 }}>
-          Kept encrypted on this Mac only. Turn it off in Settings → About → Features → Clipboard history.
+          {osText("Kept encrypted on this Mac only. Turn it off in Settings → About → Features → Clipboard history.")}
         </p>
       </div>
     </div>

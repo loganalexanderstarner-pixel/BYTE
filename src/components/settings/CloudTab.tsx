@@ -7,6 +7,7 @@ import { api, errorText } from "../../lib/api";
 import { budgetRows, listOf } from "../../lib/cloudDocs";
 import { CloudAccount } from "./CloudAccount";
 import { useStore, workspaceOf } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 export function CloudTab() {
   const settings = useStore((s) => s.settings);
@@ -47,7 +48,7 @@ export function CloudTab() {
   const disconnect = () =>
     run("disconnect", async () => {
       const yes = await ask(
-        "Remove your BYTE cloud key from this Mac? Chats already here stay.",
+        osText("Remove your BYTE cloud key from this Mac? Chats already here stay."),
         { title: "Disconnect BYTE Cloud", kind: "warning" },
       ).catch(() => true);
       if (!yes) return;
@@ -92,9 +93,7 @@ export function CloudTab() {
     <>
       <h3>Cloud</h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        Use your own BYTE cluster when this Mac is too small or you want its
-        bigger models. Answers stream from the cloud; if it can't be reached,
-        BYTE answers on this Mac instead. Private chats never leave this Mac.
+        {osText("Use your own BYTE cluster when this Mac is too small or you want its bigger models. Answers stream from the cloud; if it can't be reached, BYTE answers on this Mac instead. Private chats never leave this Mac.")}
       </p>
       {error && <div className="banner danger">{error}</div>}
       {note && <div className="banner">{note}</div>}
@@ -188,8 +187,7 @@ export function CloudTab() {
               <label>
                 Where BYTE answers
                 <small>
-                  Also switchable at the top of the sidebar. Both asks this Mac
-                  and the cloud at once so you can keep the better answer.
+                  {osText("Also switchable at the top of the sidebar. Both asks this Mac and the cloud at once so you can keep the better answer.")}
                 </small>
               </label>
               <div
@@ -205,7 +203,7 @@ export function CloudTab() {
                     onClick={() => void setWorkspace(ws)}
                   >
                     {ws === "local"
-                      ? "This Mac"
+                      ? osText("This Mac")
                       : ws === "cloud"
                         ? "Cloud"
                         : "Both"}
@@ -217,8 +215,7 @@ export function CloudTab() {
               <label>
                 Cloud chats
                 <small>
-                  Copy the conversations from your BYTE cloud into this Mac's
-                  sidebar (and search).
+                  {osText("Copy the conversations from your BYTE cloud into this Mac's sidebar (and search).")}
                 </small>
               </label>
               <button
@@ -234,8 +231,7 @@ export function CloudTab() {
               <label>
                 Account
                 <small>
-                  Refresh after changing your plan. Disconnecting removes the
-                  key from this Mac's Keychain.
+                  {osText("Refresh after changing your plan. Disconnecting removes the key from this Mac's Keychain.")}
                 </small>
               </label>
               <div className="row" style={{ gap: 6 }}>

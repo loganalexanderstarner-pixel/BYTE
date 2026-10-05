@@ -6,6 +6,7 @@ import { SilenceDetector } from "../../lib/handsfree";
 import { startRecording, type Recording } from "../../lib/recorder";
 import { clock, toBase64 } from "../../lib/wav";
 import { VoiceModels } from "./VoiceModels";
+import { osText } from "../../lib/platform";
 
 export interface MicHandle {
   /** Starts recording (holding Space); false when voice isn't set up yet. `auto`: stops by itself after a pause
@@ -133,7 +134,7 @@ export const MicButton = forwardRef<MicHandle, { onText: (text: string, auto: bo
               <X size={13} />
             </button>
           </div>
-          <p className="muted small">A one-time download. Speech is turned into text on this Mac; your voice never leaves it.</p>
+          <p className="muted small">{osText("A one-time download. Speech is turned into text on this Mac; your voice never leaves it.")}</p>
           <VoiceModels compact onReady={() => setPhase({ kind: "idle" })} />
         </div>
       )}

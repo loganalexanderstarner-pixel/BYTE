@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, errorText, inTauri } from "../../lib/api";
 import { locate } from "../../lib/reader";
 import { useStore } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 /** Side panel with a file's text and the cited passage highlighted. */
 export function Reader() {
@@ -53,7 +54,7 @@ export function Reader() {
           {doc.page != null && <div className="faint">Page {doc.page}</div>}
         </div>
         {doc.path && (
-          <button className="icon-btn" onClick={() => void revealItemInDir(doc.path!).catch(() => {})} title="Show in Finder">
+          <button className="icon-btn" onClick={() => void revealItemInDir(doc.path!).catch(() => {})} title={osText("Show in Finder")}>
             <FolderOpen size={16} />
           </button>
         )}

@@ -2,6 +2,7 @@ import { ExternalLink } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { inTauri } from "../../lib/api";
+import { osText } from "../../lib/platform";
 
 export const CLOUD_SITE = "https://byteai.bytebylogan.xyz";
 
@@ -25,8 +26,7 @@ export function CloudKeySteps() {
         key is there.
       </li>
       <li>
-        Copy the key and paste it below. BYTE checks it with the cloud, then
-        keeps it in your Mac's Keychain, never in a file.
+        {osText("Copy the key and paste it below. BYTE checks it with the cloud, then keeps it in your Mac's Keychain, never in a file.")}
       </li>
     </ol>
   );

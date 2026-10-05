@@ -8,6 +8,7 @@ import { api } from "../../lib/api";
 import { DOC_THEMES, fileName } from "../../lib/docs/spec";
 import { stamp, videoDocSpec, videoLink, videoText } from "../../lib/video";
 import type { VideoCard as Video } from "../../lib/types";
+import { osText } from "../../lib/platform";
 
 /** A YouTube video's summary: thumbnail, TL;DR, key points and chapters, each opening the video at that moment. */
 export function VideoCard({ video }: { video: Video }) {
@@ -54,7 +55,7 @@ export function VideoCard({ video }: { video: Video }) {
               <FileDown size={13} /> PDF
             </button>
             {video.transcribed ? (
-              <span className="hint">No captions, so BYTE transcribed the audio on this Mac: names may be misheard</span>
+              <span className="hint">{osText("No captions, so BYTE transcribed the audio on this Mac: names may be misheard")}</span>
             ) : (
               video.autoCaptions && <span className="hint">From auto-generated captions: names may be misheard</span>
             )}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { cpuName, graphicsLabel, hardwareNote, isPc, machine } from "./platform";
+import { cpuName, graphicsLabel, hardwareNote, isPc, machine, osText } from "./platform";
 import type { SystemInfo } from "./types";
 
 const base = { chip: "", freeDiskBytes: 0, osVersion: "", cpuCores: 8, chipInfo: {} as SystemInfo["chipInfo"], gpuBudgetBytes: 0 };
@@ -47,5 +47,38 @@ describe("platform words", () => {
     expect(graphicsLabel(pc(32, [card("NVIDIA GeForce RTX 4070", 12)]))).toBe("NVIDIA GeForce RTX 4070 · 12 GB");
     expect(graphicsLabel(pc(16))).toBe("None found");
     expect(graphicsLabel(pc(16, [{ ...card("AMD Radeon(TM) Graphics", 0), integrated: true }]))).toBe("AMD Radeon(TM) Graphics (integrated)");
+  });
+});
+
+describe("osText(): UI copy worded for the machine", () => {
+  it("is the identity on a Mac, so nothing there changes", () => {
+    for (const s of ["Runs on this Mac", "Show in Finder", "your Mac's Keychain", "Touch ID", "Everything stays on this Mac."]) {
+      expect(osText(s, false)).toBe(s);
+    }
+  });
+  it("says PC where the Mac was named", () => {
+    expect(osText("Runs on this Mac", true)).toBe("Runs on this PC");
+    expect(osText("This Mac and your cloud answer side by side", true)).toBe("This PC and your cloud answer side by side");
+    expect(osText("Models for Macs with 8 GB or less", true)).toBe("Models for PCs with 8 GB or less");
+    expect(osText("Estimated from this Mac's chip", true)).toBe("Estimated from this PC's chip");
+    expect(osText("Needs a Mac with more memory", true)).toBe("Needs a PC with more memory");
+  });
+  it("names the Windows equivalent of a Mac feature", () => {
+    expect(osText("Show in Finder", true)).toBe("Show in File Explorer");
+    expect(osText("BYTE in the menu bar", true)).toBe("BYTE in the system tray");
+    expect(osText("Unlock with Touch ID", true)).toBe("Unlock with Windows Hello");
+    expect(osText("No Touch ID? macOS asks for your password instead.", true)).toBe("No Windows Hello? Windows asks for your password instead.");
+  });
+  it("names the Windows Settings app and writes its sections the way Windows does", () => {
+    expect(osText("Change them in System Settings → Privacy & Security.", true)).toBe("Change them in Settings → Privacy & security.");
+  });
+  it("turns a possessive Keychain into one phrase, not two substitutions", () => {
+    expect(osText("keeps it in your Mac's Keychain, never in a file", true)).toBe("keeps it in Windows Credential Manager, never in a file");
+    expect(osText("secrets in the macOS Keychain", true)).toBe("secrets in Windows Credential Manager");
+    expect(osText("a key in the Keychain", true)).toBe("a key in the Credential Manager");
+  });
+  it("leaves text with no Mac wording alone, including near-misses", () => {
+    expect(osText("Machine learning on a Macintosh-style layout", true)).toBe("Machine learning on a Macintosh-style layout");
+    expect(osText("Nothing to change here", true)).toBe("Nothing to change here");
   });
 });

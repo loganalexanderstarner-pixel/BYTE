@@ -1,9 +1,10 @@
 // Settings → Privacy: labels and grouping for the activity log (privacy.rs).
 import type { Activity, ActivityKind } from "./types";
+import { osText } from "../lib/platform";
 
 export const KINDS: { id: ActivityKind; label: string }[] = [
   { id: "web", label: "Web" },
-  { id: "mac", label: "Mac control" },
+  { id: "mac", label: osText("Mac control") },
   { id: "terminal", label: "Terminal" },
   { id: "files", label: "Your files" },
   { id: "connectors", label: "Connectors" },

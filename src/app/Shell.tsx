@@ -33,6 +33,7 @@ import { KidsExit } from "../components/kids/KidsExit";
 import { useStore, type SettingsTab } from "../state/store";
 import { TABS } from "../components/settings/tabs";
 import { platformKeys as K } from "../lib/keys";
+import { osText } from "../lib/platform";
 
 // Panels opened on demand load on first use, so BYTE starts with less code to read.
 const DocumentsPanel = lazy(() =>
@@ -558,8 +559,8 @@ export function Shell() {
                 onClick={() => setDocsOpen(true)}
                 title={
                   cloudConnected
-                    ? "Documents (beta): PDFs, slides and Word files, made on your BYTE cloud or this Mac"
-                    : "Documents (beta): PDFs, slides and Word files, made on this Mac"
+                    ? osText("Documents (beta): PDFs, slides and Word files, made on your BYTE cloud or this Mac")
+                    : osText("Documents (beta): PDFs, slides and Word files, made on this Mac")
                 }
               >
                 <FileText size={18} />

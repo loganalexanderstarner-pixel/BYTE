@@ -8,6 +8,7 @@ import { COMMUNITY_CAPS, displayName, fitGroup, RAM_TIERS, TAG_LABELS } from "..
 import type { ModelStatus, VariantStatus } from "../../lib/types";
 import { useStore } from "../../state/store";
 import { ModelCard } from "./ModelCard";
+import { osText } from "../../lib/platform";
 
 const CAPABILITIES = ["reasoning", "coding", "writing", "multilingual", "fast", "small", "moe", "community", "stories", "uncensored"] as const;
 const PAGE = 20;
@@ -106,13 +107,13 @@ export function CatalogBrowser() {
   const groups: { id: string; title: string; hint: string; items: ModelStatus[] }[] =
     tier === "mine"
       ? [
-          { id: "great", title: "Runs great on this Mac", hint: "Fast, with room for your other apps.", items: chat.filter((m) => fitGroup(m) === "great") },
-          { id: "tight", title: "Runs on this Mac", hint: "Close other heavy apps for best speed.", items: chat.filter((m) => fitGroup(m) === "tight") },
-          { id: "toobig", title: "Needs a Mac with more memory", hint: "Shown so you know what bigger Macs can run.", items: chat.filter((m) => fitGroup(m) === "toobig") },
+          { id: "great", title: osText("Runs great on this Mac"), hint: "Fast, with room for your other apps.", items: chat.filter((m) => fitGroup(m) === "great") },
+          { id: "tight", title: osText("Runs on this Mac"), hint: "Close other heavy apps for best speed.", items: chat.filter((m) => fitGroup(m) === "tight") },
+          { id: "toobig", title: osText("Needs a Mac with more memory"), hint: osText("Shown so you know what bigger Macs can run."), items: chat.filter((m) => fitGroup(m) === "toobig") },
         ]
       : tier === "downloaded"
         ? [{ id: "dl", title: "Downloaded models", hint: "Delete versions you no longer use to free up disk space.", items: chat }]
-        : [{ id: "all", title: `Models for Macs with ${tier} GB or less`, hint: "Filtered by the memory they need.", items: chat }];
+        : [{ id: "all", title: osText(`Models for Macs with ${tier} GB or less`), hint: "Filtered by the memory they need.", items: chat }];
 
   const helpers = models.filter((m) => m.role !== "chat");
   const chip = system?.chipInfo;
@@ -120,7 +121,7 @@ export function CatalogBrowser() {
   return (
     <>
       <div className="mac-strip">
-        <span><Cpu size={15} /> {chip?.name ?? system?.chip ?? "This Mac"}{chip?.gpuCores ? ` · ${chip.gpuCores}-core GPU` : ""}</span>
+        <span><Cpu size={15} /> {chip?.name ?? system?.chip ?? osText("This Mac")}{chip?.gpuCores ? ` · ${chip.gpuCores}-core GPU` : ""}</span>
         <span><MemoryStick size={15} /> {system ? ramSize(system.totalRamBytes) : "?"}</span>
         {chip && chip.neuralEngineTops > 0 && (
           <span className="faint" title="The Neural Engine powers on-device OCR and voice. Chat models run on the GPU.">
@@ -197,7 +198,7 @@ export function CatalogBrowser() {
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search models (e.g. coder, gemma, 27B)" aria-label="Search models" />
         </label>
         <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort">
-          <option value="best">Best for this Mac</option>
+          <option value="best">{osText("Best for this Mac")}</option>
           <option value="newest">Newest</option>
           <option value="smallest">Smallest</option>
           <option value="fastest">Fastest</option>
@@ -206,7 +207,7 @@ export function CatalogBrowser() {
 
       <div className="filters">
         <div className="chips" role="group" aria-label="Memory">
-          <button className="chip" aria-pressed={tier === "mine"} onClick={() => setTier("mine")}>This Mac</button>
+          <button className="chip" aria-pressed={tier === "mine"} onClick={() => setTier("mine")}>{osText("This Mac")}</button>
           <button className="chip" aria-pressed={tier === "downloaded"} onClick={() => setTier("downloaded")}>Downloaded ({installed.length})</button>
           {RAM_TIERS.map((t) => (
             <button key={t} className="chip" aria-pressed={tier === t} onClick={() => setTier(t)}>{t} GB</button>

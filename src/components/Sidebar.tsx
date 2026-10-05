@@ -32,6 +32,7 @@ import type { Project, SearchHit, Workspace } from "../lib/types";
 import { listSignature } from "../lib/throttle";
 import { hasMessages, spaceOf, useStore, workspaceOf, type CloudChat, type Conversation } from "../state/store";
 import { platformKeys as K } from "../lib/keys";
+import { osText } from "../lib/platform";
 
 function groupLabel(ts: number): string {
   const day = 86_400_000;
@@ -88,9 +89,9 @@ export function onlyOnCloud(cloudChats: CloudChat[] | null, conversations: Conve
 }
 
 const WORKSPACES: { id: Workspace; label: string; hint: string; icon: typeof Cloud }[] = [
-  { id: "local", label: "This Mac", hint: "Chats answered on this Mac", icon: Laptop },
+  { id: "local", label: osText("This Mac"), hint: osText("Chats answered on this Mac"), icon: Laptop },
   { id: "cloud", label: "Cloud", hint: "Chats on your BYTE cloud", icon: Cloud },
-  { id: "both", label: "Both", hint: "Each question goes to this Mac and the cloud at once; keep the better answer", icon: Sparkles },
+  { id: "both", label: "Both", hint: osText("Each question goes to this Mac and the cloud at once; keep the better answer"), icon: Sparkles },
 ];
 
 /** "«match» in context" → text with <mark>s. */
@@ -238,7 +239,7 @@ export function Sidebar() {
                     ? "Loading your cloud chats…"
                     : "No chats on your cloud yet. Start one with the new-chat button."
                   : workspace === "both"
-                    ? "Ask anything: this Mac and your cloud both answer, and you keep the better one."
+                    ? osText("Ask anything: this Mac and your cloud both answer, and you keep the better one.")
                     : "Your conversations will appear here."}
               </p>
             )}

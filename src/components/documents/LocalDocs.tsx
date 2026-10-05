@@ -36,6 +36,7 @@ import {
   type DocTheme,
 } from "../../lib/docs/spec";
 import { useStore } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 const KINDS: { id: DocKind; label: string; ext: string }[] = [
   { id: "pdf", label: "PDF report", ext: "PDF" },
@@ -141,12 +142,11 @@ export function LocalDocs() {
     return (
       <>
         <h3>
-          Make a document on this Mac
+          {osText("Make a document on this Mac")}
           <BetaTag />
         </h3>
         <div className="banner">
-          Load a model first (Settings → Models). Documents are written by the
-          model on this Mac.
+          {osText("Load a model first (Settings → Models). Documents are written by the model on this Mac.")}
         </div>
       </>
     );
@@ -156,12 +156,11 @@ export function LocalDocs() {
       {step.kind === "form" && (
         <>
           <h3>
-            Make a document on this Mac
+            {osText("Make a document on this Mac")}
             <BetaTag />
           </h3>
           <p className="muted" style={{ marginTop: 0 }}>
-            Written by the model on this Mac: private, and works offline. BYTE
-            plans an outline first; you edit it before anything is written.
+            {osText("Written by the model on this Mac: private, and works offline. BYTE plans an outline first; you edit it before anything is written.")}
           </p>
           <p className="faint small" style={{ marginTop: 0 }}>
             {BETA_NOTE}
@@ -533,7 +532,7 @@ function Finished({
             className="btn sm"
             onClick={() => void revealItemInDir(saved)}
           >
-            Show in Finder
+            {osText("Show in Finder")}
           </button>
         </div>
       )}

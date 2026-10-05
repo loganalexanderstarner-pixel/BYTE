@@ -5,6 +5,7 @@ import { approveLabel, canOpen, fileSize } from "../../lib/agent";
 import { api, errorText } from "../../lib/api";
 import { MessageComposer } from "../messages/MessageComposer";
 import type { ApprovalCard as Card, SavedFile } from "../../lib/types";
+import { osText } from "../../lib/platform";
 
 /** BYTE wants to submit, commit or download: nothing happens until the user says so. */
 export function ApprovalCard({ card }: { card: Card }) {
@@ -55,7 +56,7 @@ export function ApprovalCard({ card }: { card: Card }) {
       <div className="approval-site">
         {card.action === "mac" ? (
           <>
-            In <b>{card.site}</b> on this Mac
+            In <b>{card.site}</b> {osText("on this Mac")}
           </>
         ) : (
           <>
@@ -121,7 +122,7 @@ export function SavedFiles({ files }: { files: SavedFile[] }) {
                 <ExternalLink size={13} />
               </button>
             )}
-            <button className="icon-btn sm" onClick={() => act(f, false)} title="Show in Finder" aria-label={`Show ${f.name} in Finder`}>
+            <button className="icon-btn sm" onClick={() => act(f, false)} title={osText("Show in Finder")} aria-label={osText(`Show ${f.name} in Finder`)}>
               <FolderOpen size={13} />
             </button>
           </span>

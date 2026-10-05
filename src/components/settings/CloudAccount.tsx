@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText } from "../../lib/api";
 import { bodyOf, idOf, listOf, str, titleOf, type Row } from "../../lib/cloudDocs";
 import { useStore } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 type Section = "memories" | "knowledge" | "prompts" | "recipes" | "context" | "search" | "export";
 
@@ -34,7 +35,7 @@ export function CloudAccount() {
         ))}
       </div>
       {section === "memories" && (
-        <Collection path="/api/memories" noun="memory" hint="What BYTE remembers about you on the cloud (separate from memories kept on this Mac)." fields={["text"]} />
+        <Collection path="/api/memories" noun="memory" hint={osText("What BYTE remembers about you on the cloud (separate from memories kept on this Mac).")} fields={["text"]} />
       )}
       {section === "knowledge" && (
         <Collection path="/api/knowledge" noun="reference" hint="Reference material the cloud can draw on when answering." fields={["title", "text"]} upload />
@@ -310,7 +311,7 @@ function Export() {
         <div className="banner">
           <span className="grow">Saved to {saved}</span>
           <button className="btn sm" onClick={() => void revealItemInDir(saved)}>
-            Show in Finder
+            {osText("Show in Finder")}
           </button>
         </div>
       )}

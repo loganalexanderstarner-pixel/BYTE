@@ -1,3 +1,4 @@
+import { osText } from "../lib/platform";
 // Example prompts for the home screen and the help center: only ones that work with the modules that are on.
 export interface Example {
   text: string;
@@ -41,11 +42,11 @@ export const EXAMPLES: Example[] = [
   { group: "Plans", text: "Every weekday at 8am give me my daily briefing", needs: "tasksEnabled" },
   { group: "Plans", text: "Add \"renew passport\" to my to-do list", needs: "tasksEnabled" },
   { group: "Plans", text: "Track my package 1Z999AA10123456784", needs: "trackersEnabled" },
-  { group: "Your Mac", text: "What's taking up space on my Mac?", needs: "macUpkeep", mac: true },
-  { group: "Your Mac", text: "Why is my Mac slow right now?", needs: "macUpkeep", mac: true },
-  { group: "Your Mac", text: "Turn on dark mode", needs: "macControl", mac: true },
-  { group: "Your Mac", text: "Organize my Downloads folder", needs: "macControl", mac: true },
-  { group: "Your Mac", text: "Reply to Sam's latest email saying I can make it", needs: "macControl", mac: true },
+  { group: osText("Your Mac"), text: osText("What's taking up space on my Mac?"), needs: "macUpkeep", mac: true },
+  { group: osText("Your Mac"), text: osText("Why is my Mac slow right now?"), needs: "macUpkeep", mac: true },
+  { group: osText("Your Mac"), text: "Turn on dark mode", needs: "macControl", mac: true },
+  { group: osText("Your Mac"), text: "Organize my Downloads folder", needs: "macControl", mac: true },
+  { group: osText("Your Mac"), text: "Reply to Sam's latest email saying I can make it", needs: "macControl", mac: true },
   { group: "Documents", text: "Make a 10-slide deck about saving for retirement" },
   { group: "Documents", text: "Write a 3-page PDF report on electric cars, with sources", web: true },
   { group: "Your files", text: "What does my lease say about pets?", needs: "kbEnabled" },

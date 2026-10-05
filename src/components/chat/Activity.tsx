@@ -7,6 +7,7 @@ import { CITE_STYLES, cite, citeAll, plainCitation, type CiteStyle } from "../..
 import { fileSource } from "../../lib/reader";
 import type { Source } from "../../lib/types";
 import { useStore, type Step } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 function hostOf(url: string): string {
   if (url.startsWith("file:")) return "your files";
@@ -61,7 +62,7 @@ function stepLabel(s: Step): { icon: typeof Search; text: string } {
     case "get_transcript":
       return { icon: Clapperboard, text: "Read the video's captions" };
     case "transcribe_video":
-      return { icon: Clapperboard, text: "Transcribed the video's audio on this Mac" };
+      return { icon: Clapperboard, text: osText("Transcribed the video's audio on this Mac") };
     case "summarize_video":
       return { icon: ListChecks, text: "Summarized the video" };
     // The web agent: once a step finished, its result says exactly what happened.

@@ -8,6 +8,7 @@ import { useStore } from "../../state/store";
 import { AutomationsSection } from "./AutomationsSection";
 import { TrackersSection } from "./TrackersSection";
 import { WatchSection } from "./WatchSection";
+import { osText } from "../../lib/platform";
 
 const REPEATS: { value: Task["repeat"]; label: string }[] = [
   { value: "", label: "Once" },
@@ -134,7 +135,7 @@ export function TasksPanel({ onClose }: { onClose: () => void }) {
                       </option>
                     ))}
                   </select>
-                  <label className="chip-toggle" title="A Mac notification when it's due">
+                  <label className="chip-toggle" title={osText("A Mac notification when it's due")}>
                     <input type="checkbox" checked={remind} onChange={(e) => setRemind(e.target.checked)} />
                     <Bell size={13} /> Remind me
                   </label>

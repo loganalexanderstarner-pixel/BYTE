@@ -15,6 +15,7 @@ import { rewrite } from "../../lib/composer";
 import { transcript, when } from "../../lib/messages";
 import type { MessageThread, TextMessage } from "../../lib/types";
 import { MessageComposer } from "./MessageComposer";
+import { osText } from "../../lib/platform";
 
 /** The Messages inbox: your conversations, a thread, and a reply you write, fix, rephrase or let BYTE draft. */
 export function MessagesPanel({
@@ -122,7 +123,7 @@ export function MessagesPanel({
         <div className="recipe-box-head">
           <MessageCircle size={18} />
           <h2>Messages</h2>
-          <span className="faint small">On this Mac only</span>
+          <span className="faint small">{osText("On this Mac only")}</span>
           <span className="spacer" />
           <button
             className="icon-btn"

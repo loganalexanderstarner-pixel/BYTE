@@ -46,6 +46,7 @@ import {
 } from "../../lib/cloudDocs";
 import { useStore } from "../../state/store";
 import { CloudThumb, cloudImageCached } from "../chat/Attachments";
+import { osText } from "../../lib/platform";
 
 type View =
   | { kind: "create" }
@@ -113,7 +114,7 @@ export function DocumentsPanel({ onClose }: { onClose(): void }) {
                 aria-selected={where === "local"}
                 onClick={() => setWhere("local")}
               >
-                This Mac
+                {osText("This Mac")}
               </button>
             </div>
           )}
@@ -133,7 +134,7 @@ export function DocumentsPanel({ onClose }: { onClose(): void }) {
           >
             {where === "cloud"
               ? "Made on your BYTE cloud."
-              : "Made by the model on this Mac. Private, works offline."}
+              : osText("Made by the model on this Mac. Private, works offline.")}
           </p>
         </nav>
         <section className="modal-body">
@@ -809,7 +810,7 @@ function DocView({
             className="btn sm"
             onClick={() => void revealItemInDir(saved)}
           >
-            Show in Finder
+            {osText("Show in Finder")}
           </button>
         </div>
       )}

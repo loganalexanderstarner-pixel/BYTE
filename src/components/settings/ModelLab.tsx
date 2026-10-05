@@ -7,6 +7,7 @@ import { bytes, contextLabel } from "../../lib/format";
 import { fitLabel, fitTone, paramsLabel } from "../../lib/tuning";
 import type { LabModel } from "../../lib/types";
 import { useStore } from "../../state/store";
+import { osText } from "../../lib/platform";
 
 /** "Model lab": add any GGUF model, from a file on this Mac or a Hugging Face link. */
 export function ModelLab() {
@@ -70,7 +71,7 @@ export function ModelLab() {
     });
 
   const remove = async (model: LabModel) => {
-    const ok = await ask(`Remove ${model.name} from BYTE? ${model.source === "huggingface" ? "Its downloaded file is deleted too." : "The file on your Mac stays where it is."}`, {
+    const ok = await ask(osText(`Remove ${model.name} from BYTE? ${model.source === "huggingface" ? "Its downloaded file is deleted too." : "The file on your Mac stays where it is."}`), {
       title: "Remove model",
       kind: "warning",
     });
@@ -91,7 +92,7 @@ export function ModelLab() {
         <FlaskConical size={13} /> Model lab
       </h4>
       <p className="muted" style={{ marginTop: 0 }}>
-        Try any model in the GGUF format. BYTE reads the file's details and tells you whether it fits this Mac before you add it.
+        {osText("Try any model in the GGUF format. BYTE reads the file's details and tells you whether it fits this Mac before you add it.")}
       </p>
       {error && <div className="banner danger">{error}</div>}
       {note && (
@@ -102,7 +103,7 @@ export function ModelLab() {
 
       <div className="field">
         <label>
-          A file on this Mac
+          {osText("A file on this Mac")}
           <small>A .gguf file you already downloaded. BYTE uses it where it is.</small>
         </label>
         <button className="btn sm" onClick={() => void chooseFile()} disabled={busy !== null}>
@@ -147,7 +148,7 @@ export function ModelLab() {
               <div className="grow">
                 <b>{m.name}</b>
                 <span className="faint">
-                  {m.architecture} · {paramsLabel(m.paramsB)} · {m.quant} · {bytes(m.sizeBytes)} · {m.source === "huggingface" ? "Hugging Face" : "file on this Mac"}
+                  {m.architecture} · {paramsLabel(m.paramsB)} · {m.quant} · {bytes(m.sizeBytes)} · {m.source === "huggingface" ? "Hugging Face" : osText("file on this Mac")}
                 </span>
               </div>
               <span className={`pill ${fitTone(m.fit)}`}>{fitLabel(m.fit)}</span>
@@ -208,7 +209,7 @@ function LabCard({ model, busy, onAdd, onDismiss }: { model: LabModel; busy: boo
         <button className="btn sm ghost" onClick={onDismiss}>
           Cancel
         </button>
-        <button className="btn sm primary" onClick={onAdd} disabled={busy || model.fit === "no" || model.added} title={model.fit === "no" ? "Too big to run on this Mac" : undefined}>
+        <button className="btn sm primary" onClick={onAdd} disabled={busy || model.fit === "no" || model.added} title={model.fit === "no" ? osText("Too big to run on this Mac") : undefined}>
           {busy ? <Loader2 size={14} className="spin" /> : <Plus size={14} />} {model.added ? "Already added" : "Add to BYTE"}
         </button>
       </div>
