@@ -90,8 +90,8 @@ pub fn apply_shortcuts(app: &AppHandle, s: &Settings) {
             Err(e) => log::warn!("{e}"),
         }
     }
-    // The selection hotkey copies with System Events, so it's macOS only for now.
-    if s.selection_hotkey && s.mac_control && cfg!(target_os = "macos") {
+    // The selection hotkey copies with System Events on a Mac and sends Ctrl+C on Windows.
+    if s.selection_hotkey && s.mac_control && cfg!(any(target_os = "macos", windows)) {
         match parse_keys(&s.selection_keys) {
             Ok(sc) if Some(sc.id()) != now.0 => match gs.register(sc) {
                 Ok(()) => now.1 = Some(sc.id()),
