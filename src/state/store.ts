@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { engineAfterLoad } from "../lib/engineState";
 import { nextWeb, webState } from "../lib/web";
 import { chime } from "../lib/sounds";
 import { api, errorText, events, inTauri, type ChatPatch, type CloudTurn } from "../lib/api";
@@ -927,7 +928,9 @@ export const useStore = create<State>((set, get) => {
       const conversations = (await api.chatsList().catch(() => [] as ConversationMeta[])).map(fromMeta);
       void get().refreshProjects();
       void get().refreshCloud();
+      let engineEvents = 0;
       await events.onEngineStatus((engine) => {
+        engineEvents++;
         set({ engine });
         void get().refreshLoaded();
         if (engine.state === "ready" || engine.state === "noModel") void get().refreshModels();
@@ -948,6 +951,7 @@ export const useStore = create<State>((set, get) => {
         set({ kbProgress: p.phase === "done" ? null : p });
         if (p.phase === "done" || p.done % 25 === 0) void get().refreshKb();
       });
+      const eventsBefore = engineEvents;
       const [settings, system, models, engine] = await Promise.all([
         api.settingsGet(),
         api.systemInfo(),
@@ -959,7 +963,7 @@ export const useStore = create<State>((set, get) => {
         settings,
         system,
         models,
-        engine,
+        engine: engineAfterLoad(get().engine, engine, engineEvents - eventsBefore),
         conversations,
         currentId: null,
         mode: settings.defaultMode,
