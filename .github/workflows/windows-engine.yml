@@ -79,7 +79,10 @@ jobs:
           # A PC with an AMD or Intel card has the Vulkan loader from its graphics driver, and a
           # runner has none. Put the SDK's copy beside the engine to stand in for it (test only,
           # never shipped): with no card behind it the loader reports no devices.
-          Copy-Item (Join-Path $env:VULKAN_SDK "Bin\vulkan-1.dll") $dir
+          $loader = @(Get-ChildItem $env:VULKAN_SDK -Recurse -Filter vulkan-1.dll -ErrorAction SilentlyContinue) + @(Get-Item "$env:SystemRoot\System32\vulkan-1.dll" -ErrorAction SilentlyContinue) | Select-Object -First 1
+          if (-not $loader) { Get-ChildItem $env:VULKAN_SDK | ForEach-Object { $_.FullName }; throw "no vulkan-1.dll in the SDK or System32" }
+          Write-Host "Vulkan loader stand-in: $($loader.FullName)"
+          Copy-Item $loader.FullName $dir
           Get-ChildItem $dir | ForEach-Object { "{0,-44} {1,8} MB" -f $_.Name, [math]::Round($_.Length/1MB,1) }
           foreach ($e in "llama-server", "llama-server-vulkan") {
             $exe = Join-Path $dir "$e-x86_64-pc-windows-msvc.exe"
