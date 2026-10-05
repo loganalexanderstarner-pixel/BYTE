@@ -1,3 +1,4 @@
+import { currentDevice } from "../../lib/device";
 import { ExternalLink } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
@@ -26,7 +27,9 @@ export function CloudKeySteps() {
       </li>
       <li>
         Copy the key and paste it below. BYTE checks it with the cloud, then
-        keeps it in your Mac's Keychain, never in a file.
+        {currentDevice() === "phone"
+          ? "keeps it private to this app on your phone."
+          : "keeps it in your Mac's Keychain, never in a file."}
       </li>
     </ol>
   );

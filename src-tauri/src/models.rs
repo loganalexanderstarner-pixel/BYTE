@@ -110,6 +110,15 @@ impl CatalogModel {
     pub fn is_community(&self) -> bool {
         self.tags.iter().any(|t| t == "community") || self.details.as_ref().is_some_and(|d| d.community)
     }
+
+    /// Tuned for one language other than English ("LFM2.5 1.2B JP", "...-zh"). BYTE's
+    /// own pick is for everyone, so it never chooses one of these; they stay in the
+    /// list for the people who want them.
+    pub fn is_regional(&self) -> bool {
+        const REGIONS: [&str; 16] = ["jp", "ja", "japanese", "zh", "chinese", "ko", "korean", "ru", "russian", "ar", "enjp", "jpen", "enzh", "zhen", "enko", "koen"];
+        let words = |t: &str| t.to_lowercase().split(|c: char| !c.is_alphanumeric()).map(String::from).collect::<Vec<_>>();
+        words(&self.name).iter().chain(words(&self.id).iter()).any(|w| REGIONS.contains(&w.as_str()))
+    }
 }
 
 /// What the model list shows when a model is opened: a longer description
@@ -654,7 +663,7 @@ pub fn recommend<'a>(catalog: &'a Catalog, info: &SystemInfo, ctx: u32) -> Optio
     let options: Vec<(&CatalogModel, &Variant)> = catalog
         .models
         .iter()
-        .filter(|m| m.role == Role::Chat && !m.is_community() && !m.tags.iter().any(|t| t == "added"))
+        .filter(|m| m.role == Role::Chat && !m.is_community() && !m.is_regional() && !m.tags.iter().any(|t| t == "added"))
         .filter_map(|m| best_variant(m, info, ctx).map(|v| (m, v)))
         .collect();
     // Accuracy first: never trade more than a few quality points for speed
@@ -1135,6 +1144,24 @@ mod tests {
         i.phone = true;
         i.gpu_budget_bytes = system::phone_budget(i.total_ram_bytes, None, true, None);
         i
+    }
+
+    #[test]
+    fn the_pick_is_never_a_single_language_model() {
+        let c = Catalog::embedded();
+        // The owner's Fold was told "LFM2.5 1.2B JP", a Japanese-tuned model.
+        for m in c.models.iter().filter(|m| m.name.contains("JP")) {
+            assert!(m.is_regional(), "{}", m.name);
+        }
+        let qwen = c.models.iter().find(|m| m.id.starts_with("qwen3-")).unwrap();
+        assert!(!qwen.is_regional(), "{}", qwen.name);
+        for gb in [8u64, 12, 16, 32] {
+            for info in [mac(gb), phone(gb)] {
+                if let Some((m, _)) = recommend(&c, &info, 8192) {
+                    assert!(!m.is_regional(), "{} GB picked {}", gb, m.name);
+                }
+            }
+        }
     }
 
     #[test]

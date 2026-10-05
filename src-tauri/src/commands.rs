@@ -502,6 +502,14 @@ pub async fn engine_tune_all(app: AppHandle, state: State<'_, AppState>, thoroug
 
 /// Tunes the active model in the background if it hasn't been tuned on this Mac.
 pub fn auto_tune(app: &AppHandle) {
+    // On a phone the automatic tune is skipped: it restarts the engine five or six
+    // times (each a model load), keeps chat waiting for minutes and runs the phone
+    // hot, for settings (speed boost, KV precision, batch size) that matter far less
+    // on a CPU-only engine. A phone answered at 18 to 31 tok/s untuned. The tune is
+    // still one tap away in Settings → Models.
+    if cfg!(target_os = "android") {
+        return;
+    }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let state = app.state::<AppState>();

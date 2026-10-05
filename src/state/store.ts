@@ -55,7 +55,7 @@ import type {
 /** One tool use shown in the answer's activity list. */
 /** A phone-sized window (docs/LAYOUT-ANY-SCREEN.md): the sidebar is a drawer. */
 export function narrowScreen(): boolean {
-  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 640px)").matches;
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 760px)").matches;
 }
 
 export interface Step {

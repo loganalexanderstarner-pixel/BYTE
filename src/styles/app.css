@@ -6522,7 +6522,7 @@ kbd {
 .tb-more {
   display: none;
 }
-@container main (max-width: 600px) {
+@container main (max-width: 900px) {
   .titlebar {
     gap: var(--space-1);
     padding-inline: var(--space-2);
@@ -6562,7 +6562,7 @@ kbd {
 }
 
 /* No traffic lights to leave room for once the window is phone-sized. */
-@container viewport (max-width: 640px) {
+@container viewport (max-width: 760px) {
   /* The window-chrome height token is 0 on a phone (no traffic lights), but the
      bar still holds the drawer, new chat, engine and More buttons, and it sits
      below the status bar. */
@@ -6672,7 +6672,7 @@ kbd {
 .drawer-scrim {
   display: none;
 }
-@container viewport (max-width: 640px) {
+@container viewport (max-width: 760px) {
   .app:not(.sidebar-hidden) .drawer-scrim {
     display: block;
   }
@@ -6695,5 +6695,42 @@ kbd {
   .icon-btn {
     min-width: 40px;
     min-height: 40px;
+  }
+}
+
+/* Text scales with the screen (docs/LAYOUT-ANY-SCREEN.md): a folded cover screen
+   and an unfolded Fold are different densities, so a fixed size looked too big on
+   one and too small on the other. Desktop windows stay at the usual 16px. */
+@media (pointer: coarse) {
+  html {
+    font-size: clamp(14px, 1.2vw + 10px, 17px);
+  }
+}
+
+/* Onboarding and short forms on a narrow screen: labels sit above their field,
+   and the last button never hides under the bottom edge. */
+@container viewport (max-width: 760px) {
+  .onb-name,
+  .field-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .onb-name label,
+  .onb-name .grow {
+    width: 100%;
+  }
+  .onb-actions {
+    position: sticky;
+    bottom: 0;
+    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--bg) 70%, transparent);
+  }
+}
+
+/* Keyboard shortcut hints mean nothing without a keyboard. */
+@media (hover: none) and (pointer: coarse) {
+  .palette-hint,
+  kbd {
+    display: none;
   }
 }

@@ -40,7 +40,62 @@ impl SecretStore for Keychain {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+/// Android: the key sits in a file inside the app's private folder. Android gives
+/// every app its own folder that no other app can read and encrypts it at rest, so
+/// this is the same protection the Keychain gives on a Mac for an app without a
+/// paid signature. The Android Keystore replaces it with the Kotlin plugin (A4,
+/// docs/ANDROID.md). The file is 0600, never a setting, never in a backup of the
+/// repository, and the folder is set once at startup.
+#[cfg(target_os = "android")]
+static ANDROID_DIR: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+
+#[cfg(target_os = "android")]
+pub fn set_android_dir(dir: std::path::PathBuf) {
+    let _ = ANDROID_DIR.set(dir);
+}
+
+#[cfg(target_os = "android")]
+fn secret_file(account: &str) -> AppResult<std::path::PathBuf> {
+    let dir = ANDROID_DIR.get().ok_or_else(|| AppError::msg("BYTE's private folder isn't ready yet."))?;
+    // The account is a profile id: keep the file name to safe characters.
+    let name: String = account.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
+    Ok(dir.join(format!("cloud-key-{name}")))
+}
+
+#[cfg(target_os = "android")]
+impl SecretStore for Keychain {
+    fn get(&self, account: &str) -> AppResult<Option<String>> {
+        match std::fs::read_to_string(secret_file(account)?) {
+            Ok(k) => Ok(Some(k.trim().to_string()).filter(|k| !k.is_empty())),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(AppError::msg(format!("Couldn't read the saved key: {e}"))),
+        }
+    }
+
+    fn set(&self, account: &str, secret: &str) -> AppResult<()> {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(secret_file(account)?)
+            .map_err(|e| AppError::msg(format!("Couldn't save the key: {e}")))?;
+        f.write_all(secret.as_bytes()).map_err(|e| AppError::msg(format!("Couldn't save the key: {e}")))
+    }
+
+    fn delete(&self, account: &str) -> AppResult<()> {
+        match std::fs::remove_file(secret_file(account)?) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(AppError::msg(format!("Couldn't remove the saved key: {e}"))),
+        }
+    }
+}
+
+/// Windows and Linux get their own stores in their ports; until then, say so.
+#[cfg(not(any(target_os = "macos", target_os = "android")))]
 impl SecretStore for Keychain {
     fn get(&self, _account: &str) -> AppResult<Option<String>> {
         Ok(None)

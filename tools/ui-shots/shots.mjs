@@ -1316,7 +1316,7 @@ const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
 // 320 = a folded Galaxy Z Fold cover screen at its narrowest, 390 = a typical
 // phone, 720 = an unfolded Fold. Android user agent, touch, 3x pixels.
 if (process.env.PHONE) {
-  for (const width of [320, 390, 720]) {
+  for (const width of [320, 390, 690]) {
     const ctx = await browser.newContext({
       viewport: { width, height: width < 700 ? 780 : 860 },
       deviceScaleFactor: 2,

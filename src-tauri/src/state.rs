@@ -48,6 +48,8 @@ pub struct AppState {
 impl AppState {
     pub fn new(paths: Paths) -> Self {
         let settings = Settings::load(&paths.settings_file);
+        #[cfg(target_os = "android")]
+        crate::cloud::keychain::set_android_dir(paths.root.clone());
         AppState {
             settings: Mutex::new(settings),
             engine: Engine::new(paths.root.join("engine.pid")),

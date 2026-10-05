@@ -205,8 +205,8 @@ export function Onboarding() {
                     <div>
                       <b>Private by design.</b>{" "}
                       <span className="muted">
-                        Your chats and files never leave this {device}. No account,
-                        no subscription.
+                        Your chats and files never leave this {device}. No
+                        account, no subscription.
                       </span>
                     </div>
                   </li>
@@ -299,9 +299,8 @@ export function Onboarding() {
                 <h1>Choose your model</h1>
                 <p className="lead">
                   This is BYTE's brain. These run well on your{" "}
-                  {system ? ramLabel(system) : ""} {device} — the first
-                  one is BYTE's pick. You can try others any time in Settings →
-                  Models.
+                  {system ? ramLabel(system) : ""} {device} — the first one is
+                  BYTE's pick. You can try others any time in Settings → Models.
                 </p>
                 <div className="model-list">
                   {(showAll ? options : options.slice(0, 4)).map(
@@ -501,8 +500,8 @@ export function Onboarding() {
                   />
                 </div>
                 <p className="faint" style={{ fontSize: "0.88em" }}>
-                  No invite? Pick a model instead: everything runs on this {device}.
-                  You can connect the cloud later in Settings → Cloud.
+                  No invite? Pick a model instead: everything runs on this{" "}
+                  {device}. You can connect the cloud later in Settings → Cloud.
                 </p>
                 {error && <div className="banner danger">{error}</div>}
                 <div className="onb-actions">
@@ -551,11 +550,23 @@ export function Onboarding() {
                   <li>
                     <Keyboard size={18} />
                     <div>
-                      <b>Shortcuts.</b>{" "}
-                      <span className="muted">
-                        <kbd>⌘N</kbd> new chat · <kbd>⌘,</kbd> settings ·{" "}
-                        <kbd>⌘\</kbd> sidebar · <kbd>Esc</kbd> stop
-                      </span>
+                      {device === "phone" ? (
+                        <>
+                          <b>Getting around.</b>{" "}
+                          <span className="muted">
+                            The left button opens your chats, the pencil starts
+                            a new one, and ⋯ opens everything else.
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <b>Shortcuts.</b>{" "}
+                          <span className="muted">
+                            <kbd>⌘N</kbd> new chat · <kbd>⌘,</kbd> settings ·{" "}
+                            <kbd>⌘\</kbd> sidebar · <kbd>Esc</kbd> stop
+                          </span>
+                        </>
+                      )}
                     </div>
                   </li>
                   <li>
@@ -571,7 +582,7 @@ export function Onboarding() {
                   </li>
                 </ul>
                 <div
-                  className="field"
+                  className="field field-row"
                   style={{ marginTop: 12, borderBottom: 0 }}
                 >
                   <label>

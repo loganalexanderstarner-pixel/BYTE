@@ -23,6 +23,31 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Android: taps land (system-bar insets), fold-aware layout, phone prompt, sane model pick
+- **Why:** the owner's test-4 screenshots on the Fold. Many buttons did nothing and scaling was bad folded and
+  unfolded. The top bar was drawn under the status bar. The answer worked at 18.8 to 31 tok/s.
+- **What:**
+  - `MainActivity.kt`: Android 15 forces edge-to-edge, so the content view is padded by the real system-bar,
+    cutout and keyboard insets (CSS `env(safe-area-*)` is unreliable in WebView). The manifest adds `density`,
+    `fontScale`, `layoutDirection` and `navigation` to `configChanges` (folding changes density), `resizeableActivity`
+    and `adjustResize`, and `onConfigurationChanged` re-lays out.
+  - CSS and layout: the compact top bar (More) now applies below 900px of main width, and the drawer below 760px
+    (an unfolded Fold is about 690px). Fluid root text size on touch screens, onboarding fields stack, ⌘ hints are
+    hidden on touch, `viewport-fit=cover`, and no drag region on phones.
+  - Onboarding: phone tips instead of ⌘ shortcuts. Greeting uses `onDevice`.
+  - `prompt.rs` says phone or Mac. A test pins both.
+  - `models::is_regional`: BYTE's pick is never a single-language model (it picked "LFM2.5 1.2B JP"). Includes a
+    test over the catalog on phones and Macs.
+  - `cloud/keychain.rs`: Android keeps the cloud key in a 0600 file in the app's private folder (sandboxed and
+    encrypted at rest by Android; the Keystore comes with the Kotlin plugin). The cloud step no longer says "needs a
+    Mac".
+  - `commands::auto_tune` is skipped on Android: it restarted the engine about six times and blocked chat for
+    minutes. Tuning stays one tap away in Settings.
+- **Verify:** `cargo test --lib` (pick, prompt, phones), `cargo check --target aarch64-linux-android`, vitest, phone
+  screenshots at 320/390/690px. On the Fold: taps respond folded and unfolded, nothing under the status bar, and the
+  keyboard doesn't cover the composer.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — Android: downloads work (bundled TLS roots), and the phone is called a phone
 - **Why:** the owner's first run of android-test-3 on the Fold. Model downloads failed with "network error: error
   sending request". Onboarding said "Checking your Mac" and warned "BYTE is built for Apple Silicon Macs".

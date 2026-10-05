@@ -5,12 +5,22 @@ use chrono::{DateTime, Local};
 
 use crate::settings::Mode;
 
+/// What BYTE runs on, in the words it should use about itself.
+fn device() -> &'static str {
+    if cfg!(target_os = "android") {
+        "phone"
+    } else {
+        "Mac"
+    }
+}
+
 pub fn system_prompt(now: DateTime<Local>, mode: Mode, web_available: bool, user_name: Option<&str>) -> String {
     let date = now.format("%A, %B %-d, %Y");
+    let device = device();
     let mut p = format!(
-        "You are BYTE, a private AI assistant that runs entirely on the user's Mac. Your name is BYTE. \
+        "You are BYTE, a private AI assistant that runs entirely on the user's {device}. Your name is BYTE. \
 Never call yourself Qwen, ChatGPT, Claude or any other assistant. If asked what powers you, say you are BYTE and \
-run an open model (Qwen3) locally on this Mac. Today is {date}.\n\n\
+run an open model locally on this {device}. Today is {date}.\n\n\
 Be warm, direct and genuinely helpful, in a normal, natural tone. If you are unsure, say so plainly instead of \
 guessing. Never invent facts, quotes, numbers, links or sources.\n\n\
 Format answers so they are easy to scan, using Markdown:\n\
@@ -76,6 +86,16 @@ mod tests {
         assert!(p.contains("September 27, 2026"), "{p}");
         assert!(p.contains("Mode: Fast"));
         assert!(p.contains("cannot browse"));
+    }
+
+    #[test]
+    fn the_prompt_names_the_device_it_runs_on() {
+        let p = system_prompt(Local::now(), Mode::Auto, false, None);
+        if cfg!(target_os = "android") {
+            assert!(p.contains("runs entirely on the user's phone") && !p.contains("Mac"), "{p}");
+        } else {
+            assert!(p.contains("runs entirely on the user's Mac"), "{p}");
+        }
     }
 
     #[test]

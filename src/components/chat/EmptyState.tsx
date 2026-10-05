@@ -1,3 +1,4 @@
+import { onDevice } from "../../lib/device";
 import { Lightbulb, MessageCircle, Rocket, Sparkles, Telescope } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -69,7 +70,7 @@ export function EmptyState() {
       ? "Answers come from your BYTE cloud."
       : space === "both"
         ? "This Mac and your cloud both answer; keep the better one."
-        : "Everything stays on this Mac.";
+        : onDevice("Everything stays on this Mac.");
   return (
     <div className="empty">
       <Logo size={64} />

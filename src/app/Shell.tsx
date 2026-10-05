@@ -164,6 +164,7 @@ export function Shell() {
   const openFresh = useStore((s) => s.openFresh);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const kids = useStore((s) => !!s.settings?.kidsMode);
+  const isPhone = useStore((s) => !!s.system?.phone);
   const [kidsExit, setKidsExit] = useState(false);
 
   // Quick Ask: its chats join the list, and "Open in BYTE" opens one here.
@@ -509,7 +510,10 @@ export function Shell() {
       {/* Phone: tapping beside the open drawer closes it (CSS shows this only when narrow). */}
       <div className="drawer-scrim" onClick={toggleSidebar} aria-hidden />
       <main className="main">
-        <header className="titlebar" data-tauri-drag-region>
+        <header
+          className="titlebar"
+          data-tauri-drag-region={isPhone ? undefined : true}
+        >
           <div className="row">
             {!sidebarOpen && (
               <>
