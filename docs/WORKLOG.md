@@ -71,6 +71,32 @@ hardware descriptions to the planner, which is pure arithmetic. It found:
   remain ignored, covering PC bandwidth data and Apple-shaped RAM advice.
 - **Undo:** revert `a4d5028`, `3a41380`, `25d8ed1`, `56eec17` individually.
 
+### 2026-10-05: packaging, the first ported call sites, and four mistakes worth keeping
+- **The Windows bundle produced nothing and said it succeeded.** `bundle.targets`
+  was `["app", "dmg"]`, both macOS-only. A release build on the PC compiled for
+  12 minutes, exited 0 and wrote no installer. Now NSIS, per user (no admin).
+  Lesson: check for the deliverable, not the exit code.
+- **`windows-latest` is not stable.** It became `windows-2025-vs2026`, which has
+  only Visual Studio 2026, so a hard-coded `Visual Studio 17 2022` generator
+  failed outright. The Windows jobs now pin `windows-2022` and the build scripts
+  no longer pass `-G`.
+- **No Rust test has ever run on Windows.** The test binary imports
+  `TaskDialogIndirect` (Common Controls v6) and has no manifest, so it dies at
+  load with `0xC0000139`. `byte.exe` has the manifest; the test exe does not
+  (checked on a real PC). CI only runs `cargo check` on Windows, so nobody saw.
+  Delay-loading `comctl32` fixes it, but only via `RUSTFLAGS` for test runs: the
+  `build.rs` route is closed because `rustc-link-arg-tests` is not an instruction
+  Cargo accepts, and the general `rustc-link-arg` would change the shipped app.
+- **A build-script change I pushed without testing broke the Windows build** for
+  roughly two hours (`4f20a9e`, reverted in `94d55c0`). Anything that affects the
+  build gets tried in a throwaway crate first.
+- **Ported so far (3 of 37 Apple call sites):** OCR via `Windows.Media.Ocr` and
+  `Windows.Data.Pdf`; the app lock via Windows Hello; the clipboard via Win32.
+  Known limits: HEIC photos need Microsoft's HEIF extension; Windows Hello needs a
+  PIN, fingerprint or face, where macOS accepts a password.
+- **Not yet verified:** all three of those at run time. They need a Windows run
+  and, for Hello and OCR, a person at the screen.
+
 ### Still open
 - **The layout is device-class, not continuous.** Breakpoints stop at 560px; a
   folded cover screen is ~320px and Android split-screen is arbitrary. The owner
