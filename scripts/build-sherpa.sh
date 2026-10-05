@@ -51,9 +51,9 @@ if [ ! -f "$BIN" ] || [ ! -f "$TTS" ]; then
       JOBS="$(sysctl -n hw.logicalcpu)"
       ;;
     *-windows-msvc)
-      # The Visual Studio generator locates MSVC itself; Ninja would need
-      # cl.exe on PATH, which an SSH session does not have.
-      GEN=(-G "Visual Studio 17 2022" -A x64)
+      # No -G: CMake defaults to the newest Visual Studio it finds (see
+      # build-llama-server.sh for why 17 2022 must not be hard-coded).
+      GEN=(-A x64)
       JOBS="${NUMBER_OF_PROCESSORS:-8}"
       ;;
     *)

@@ -75,9 +75,13 @@ if [ ! -f "$BUILD/bin/${BIN_SUBDIR}llama-server$EXE" ]; then
         #   ship: CUDA_ARCHS="75;80;86;89;120"
         FLAGS+=(-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCHS:-120}")
       fi
-      # The Visual Studio generator locates MSVC itself; Ninja would need
-      # cl.exe on PATH, which means a developer prompt an SSH session lacks.
-      GEN=(-G "Visual Studio 17 2022" -A x64)
+      # No -G on purpose: on Windows CMake defaults to the newest Visual
+      # Studio it finds, which works on a VS 2022 machine and on the VS 2026
+      # runner image alike. It was hard-coded to "Visual Studio 17 2022" and
+      # failed outright when windows-latest moved to an image with only VS 2026.
+      # A VS generator is still wanted over Ninja, which would need cl.exe on
+      # PATH, which means a developer prompt an SSH session lacks.
+      GEN=(-A x64)
       JOBS="${NUMBER_OF_PROCESSORS:-8}"
       ;;
     *)

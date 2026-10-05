@@ -158,7 +158,8 @@ jobs:
   windows:
     name: Build Windows (x64)
     needs: macos
-    runs-on: windows-latest
+    # Pinned, not windows-latest (see windows-engine.yml for why).
+    runs-on: windows-2022
     timeout-minutes: 240
     env:
       TAG: ${{ github.event.inputs.tag || github.ref_name }}

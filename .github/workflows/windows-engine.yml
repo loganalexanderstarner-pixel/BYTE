@@ -44,7 +44,11 @@ env:
 jobs:
   windows:
     name: Build and inspect the Windows installer
-    runs-on: windows-latest
+    # Pinned, not windows-latest: that label moved to an image with only Visual
+    # Studio 2026 and broke the build, and a release pipeline should not change
+    # underneath itself. windows-2022 matches the VS 2022 the engines were first
+    # built and measured with.
+    runs-on: windows-2022
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
