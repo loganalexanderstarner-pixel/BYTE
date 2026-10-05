@@ -23,6 +23,13 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Android layout check: use the runner's Chromium
+- **Why:** the first `android-ui.yml` runs failed in 3 seconds: `shots.mjs` hard-coded this container's Chromium path.
+- **What:** `CHROMIUM` env or `/opt/pw-browsers/chromium` when it exists, otherwise Playwright's own; the workflow
+  now shows the log tail as the error when the script crashes (not only layout problems); `android.yml` ignores
+  `tools/**` and `android-ui.yml` so they don't rebuild the APK.
+- **Verify:** the next `Android layout check` run. **Undo:** `git revert <hash>`.
+
 ### (this commit) — Android: "Mac" wording sweep in shared screens
 - **Why:** the owner asked why screenshots say MacBook. The screenshot harness uses made-up Mac sample data (a MacBook
   chat, an Apple M4 card; the phone mock now overrides the chip), but the real app still said "this Mac" / "your Mac" on a

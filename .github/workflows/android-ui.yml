@@ -48,7 +48,8 @@ jobs:
           node shots.mjs 2>&1 | tee ../../phone-shots.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
-            msg=$(sed -n '/LAYOUT PROBLEMS/,$p' ../../phone-shots.log | head -30 | sed 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')
+            if grep -q "LAYOUT PROBLEMS" ../../phone-shots.log; then part=$(sed -n '/LAYOUT PROBLEMS/,$p' ../../phone-shots.log | head -30); else part=$(tail -25 ../../phone-shots.log); fi
+            msg=$(printf '%s\n' "$part" | sed 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')
             echo "::error title=Phone layout::$msg"
           fi
           exit $status

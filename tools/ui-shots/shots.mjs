@@ -2,7 +2,7 @@
 // See README.md in this folder. Every Tauri command a screen uses must be
 // mocked in `initScript` below (unknown commands return null).
 import { chromium } from "playwright";
-import { mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
@@ -1288,7 +1288,8 @@ function initScript({ data }) {
 }
 
 const browser = await chromium.launch({
-  executablePath: "/opt/pw-browsers/chromium",
+  // This container has its own Chromium; elsewhere (CI, a laptop) Playwright uses the one it installed.
+  executablePath: process.env.CHROMIUM ?? (existsSync("/opt/pw-browsers/chromium") ? "/opt/pw-browsers/chromium" : undefined),
   // A fake microphone for the voice input screens.
   args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
 });
