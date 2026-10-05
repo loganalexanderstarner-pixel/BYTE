@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { DEFAULT_THEME, resolveTheme } from "../design/themes";
 import { applyCustom, isCustom, parseTheme } from "../lib/customTheme";
+import { syncTitlebar } from "../lib/titlebar";
 import type { Settings } from "../lib/types";
 import { useStore } from "../state/store";
 import { Onboarding } from "../components/onboarding/Onboarding";
@@ -19,6 +20,7 @@ export function useAppearance(settings: Settings | null) {
       const custom = isCustom(id) ? ((settings?.customThemes ?? []).map(parseTheme).find((t) => t?.id === id) ?? null) : null;
       root.dataset.theme = resolveTheme(custom || isCustom(id) ? DEFAULT_THEME : id);
       applyCustom(root, custom);
+      syncTitlebar(root);
       if (settings?.reduceMotion === "reduce") root.dataset.motion = "reduce";
       else delete root.dataset.motion;
       root.dataset.density = settings?.density ?? "comfortable";
