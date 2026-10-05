@@ -8,7 +8,7 @@ export function EngineBadge() {
   const openSettings = useStore((s) => s.openSettings);
   const name = (key: string) => displayName(models, key);
 
-  let cls = "pill";
+  let cls = "pill engine-badge";
   let dot = "";
   let label = "";
   let title = "";

@@ -82,8 +82,10 @@ impl TauriBrowser {
         let win = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::External(blank))
             .title("BYTE is browsing")
             .inner_size(1280.0, 900.0)
-            .visible(false)
-            .focused(false)
+            .visible(false);
+        #[cfg(desktop)]
+        let win = win.focused(false);
+        let win = win
             .incognito(true)
             .user_agent(USER_AGENT)
             .initialization_script(BRIDGE)

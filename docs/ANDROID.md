@@ -312,6 +312,45 @@ Start with **A1**: `tauri android init`, the desktop-only plugins behind `cfg(de
 the NDK and started from the native library folder, then a small model (Qwen3 0.6B) answering on the Fold, with
 its tokens per second.
 
+## A1 status (2026-10-05, branch `claude/android-port`)
+
+Built, not yet run on a phone (that needs the Fold on adb).
+- **Planner first:** phone fixtures in `hardware_fixtures_tests.rs`.
+  - `chip::phone_soc` covers Snapdragon, Dimensity, Exynos and Tensor.
+  - `system::phone_budget` handles AI focus, what's free now, and a measured ceiling.
+  - `system::plan_fit_phone`, and the CPU prompt floor.
+  - `SystemInfo.phone` and `backend()`. `models::plan` uses the phone plan, and estimates use the CPU engine.
+- **Desktop-only code behind `cfg(desktop)`:**
+  - updater, autostart and global-shortcut plugins (target-specific deps in `Cargo.toml`);
+  - `quick_mobile.rs` and `updater_mobile.rs` keep the same API on phones;
+  - `unminimize`/`focused` calls are gated.
+
+  `cargo check --target aarch64-linux-android` is clean, and CI checks it on every push (`ci.yml` job `android`).
+- **Engines:** `scripts/build-llama-android.sh` builds two `lib*.so` (baseline dotprod and i8mm).
+  `bundled::tool` starts any bundled tool: the sidecar on desktops, `nativeLibraryDir` on Android (found through
+  `/proc/self/maps`), with the i8mm build when every core has it.
+- **Android project:** `src-tauri/gen/android`.
+  - App id `com.loganstarner.byteapp` (`tauri.android.conf.json`), because `byte` is a Java keyword. The desktop id
+    is unchanged.
+  - compileSdk 36 (the Tauri plugins need it), targetSdk 35, minSdk 28.
+  - `extractNativeLibs` / legacy packaging.
+  - Cleartext only to 127.0.0.1 (`network_security_config.xml`).
+  - BYTE's icon and a Midnight launch background.
+  - `configChanges` already includes screenSize/smallestScreenSize/screenLayout, so folding doesn't recreate the
+    activity: no lost scroll or half-typed message.
+- **Layout pass:** container queries per `LAYOUT-ANY-SCREEN.md`.
+  - The top bar keeps the essentials plus a More button (the command list).
+  - The sidebar becomes a drawer below 640px, and the reader and panels become full-screen sheets.
+  - Settings tabs sit above the page, and hover-only controls show on touch.
+  - Checked with `PHONE=1 node tools/ui-shots/shots.mjs` at 320, 390 and 720px.
+- **One command:** `scripts/build-android.sh`. A debug APK built (`app-universal-debug.apk`, 157 MB with debug
+  symbols).
+- **Not done yet:**
+  - running it on the Fold: first answer, measured tok/s, the memory test;
+  - "Mac" wording on phone screens (A2);
+  - whisper and sherpa Android builds (A3);
+  - Jetpack WindowManager posture events (A4, Flex mode).
+
 ## Testing
 - **Rust unit tests** next to the code, as always: memory budget maths, the chip table, the posture and layout
   choice, Android `SecretStore` (in-memory fake), update JSON parsing.

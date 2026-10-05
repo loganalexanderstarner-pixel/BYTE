@@ -24,7 +24,13 @@ pub fn launched_in_background() -> bool {
     std::env::args().any(|a| a == "--background")
 }
 
+#[cfg(mobile)]
+pub fn apply_login(_app: &AppHandle, _on: bool) -> Result<(), String> {
+    Ok(()) // a phone app doesn't open at login; Android starts it when needed
+}
+
 /// Turns the login item on or off.
+#[cfg(desktop)]
 pub fn apply_login(app: &AppHandle, on: bool) -> Result<(), String> {
     use tauri_plugin_autostart::ManagerExt;
     let auto = app.autolaunch();
@@ -40,6 +46,7 @@ pub fn apply_login(app: &AppHandle, on: bool) -> Result<(), String> {
 pub fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
+        #[cfg(desktop)]
         let _ = w.unminimize();
         let _ = w.set_focus();
     }

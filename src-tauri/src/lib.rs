@@ -37,12 +37,20 @@ mod lock;
 mod privacy;
 mod kids;
 mod backup;
+#[cfg(desktop)]
+mod updater;
+#[cfg(mobile)]
+#[path = "updater_mobile.rs"]
 mod updater;
 mod modelcfg;
 mod models;
 mod paths;
 mod profiles;
 mod prompt;
+#[cfg(desktop)]
+mod quick;
+#[cfg(mobile)]
+#[path = "quick_mobile.rs"]
 mod quick;
 mod media;
 mod speakers;
@@ -86,6 +94,7 @@ mod background;
 mod trackers;
 mod connectors;
 mod dashboard;
+mod bundled;
 
 use tauri::{Manager, RunEvent};
 
@@ -107,9 +116,24 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         // byte:// links (Shortcuts start automations) and opening at login (background.rs).
-        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_deep_link::init());
+    // Desktop only: signed updates, opening at login and global shortcuts. Android
+    // gets its own versions (docs/ANDROID.md: in-app APK updater, Ask BYTE).
+    #[cfg(desktop)]
+    let app = app
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::Builder::new().args(["--background"]).build())
+        // Global shortcuts (quick.rs): Quick Ask and the selection hotkey, keys from Settings.
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        quick::pressed(app, shortcut);
+                    }
+                })
+                .build(),
+        );
+    let app = app
         // Keep running (macOS): closing the window hides it; ⌘Q quits.
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Focused(false) = event {
@@ -125,16 +149,6 @@ pub fn run() {
                 }
             }
         })
-        // Global shortcuts (quick.rs): Quick Ask and the selection hotkey, keys from Settings.
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, shortcut, event| {
-                    if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                        quick::pressed(app, shortcut);
-                    }
-                })
-                .build(),
-        )
         .setup(|app| {
             let paths = paths::Paths::resolve(app.handle())?;
             // A restore or "erase everything" from last time finishes before the database opens.

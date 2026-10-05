@@ -52,6 +52,11 @@ import type {
 } from "../lib/types";
 
 /** One tool use shown in the answer's activity list. */
+/** A phone-sized window (docs/LAYOUT-ANY-SCREEN.md): the sidebar is a drawer. */
+export function narrowScreen(): boolean {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 640px)").matches;
+}
+
 export interface Step {
   id: string;
   name: string;
@@ -912,7 +917,7 @@ export const useStore = create<State>((set, get) => {
     closeReader: () => set({ reader: null }),
     mode: "auto",
     thinking: "auto",
-    sidebarOpen: true,
+    sidebarOpen: !narrowScreen(),
     settingsTab: null,
 
     async init() {
@@ -997,6 +1002,7 @@ export const useStore = create<State>((set, get) => {
     },
 
     newChat(isPrivate = false, projectId = null, assistant = null) {
+      if (narrowScreen()) set({ sidebarOpen: false });
       const assistantId = assistant?.id ?? null;
       // An assistant's default mode applies to its chats.
       if (assistant?.mode && ["fast", "auto", "deep", "extended"].includes(assistant.mode)) get().setMode(assistant.mode as Mode);
@@ -1031,6 +1037,8 @@ export const useStore = create<State>((set, get) => {
 
     async selectChat(id) {
       set({ currentId: id, pending: get().currentId === id ? get().pending : [] });
+      // On a phone the sidebar is a drawer over the chat: get it out of the way.
+      if (narrowScreen()) set({ sidebarOpen: false });
       const c = get().conversations.find((x) => x.id === id);
       if (!c || c.loaded || !inTauri) return;
       try {

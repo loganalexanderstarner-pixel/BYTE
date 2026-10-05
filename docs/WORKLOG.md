@@ -23,6 +23,27 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Android A1: the app builds as an APK; a phone-sized layout
+- **Why:** A1 in `docs/ANDROID.md`. Also the Windows session's warning that the layout wasn't ready for a phone.
+- **What:**
+  - Desktop-only plugins and code are behind `cfg(desktop)`: `Cargo.toml` target deps; `quick_mobile.rs`,
+    `updater_mobile.rs`; gated window calls.
+  - `bundled.rs` starts every bundled tool from `nativeLibraryDir` on Android.
+  - Phone hardware info: `ro.soc.model`, `phone_budget`, CPU estimates.
+  - `src-tauri/gen/android`: app id `com.loganstarner.byteapp`, SDK 36/35/28, native-lib extraction, local-only
+    cleartext, BYTE icon and dark launch.
+  - `scripts/build-android.sh`.
+  - CI job `android`.
+  - The layout pass in `app.css` + `Shell.tsx` + `store.ts` (`narrowScreen`): container queries, More button,
+    drawer, sheets, touch. Plus the `PHONE=1` screenshots.
+- **Verify:**
+  - `cargo check --target aarch64-linux-android --lib`;
+  - `cargo test --lib bundled hardware_fixtures phones_get`;
+  - `scripts/build-android.sh` gives an APK with `lib/arm64-v8a/libllama-server*.so`;
+  - `PHONE=1 node tools/ui-shots/shots.mjs` at 320/390/720.
+  - Desktop: at 1240px, nothing below 600px applies.
+- **Undo:** `git revert` this commit.
+
 ### (this commit) — phones in the planner, before any device code
 - **Why:** the Android brief and the Windows session: add phone fixtures to `hardware_fixtures_tests.rs` first.
   A phone has shared memory like a Mac, runs llama.cpp on the CPU, and Android (not a GPU driver) decides what an

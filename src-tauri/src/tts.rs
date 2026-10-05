@@ -192,8 +192,7 @@ pub async fn synthesize(app: Option<&AppHandle>, p: &Package, dir: &Path, speake
     let ok = match (std::env::var("BYTE_TEST_SHERPA_TTS").ok().filter(|b| !b.is_empty()), app) {
         (Some(bin), _) => tokio::process::Command::new(bin).args(&args).kill_on_drop(true).output().await?.status.success(),
         (None, Some(app)) => {
-            use tauri_plugin_shell::ShellExt;
-            let cmd = app.shell().sidecar(SIDECAR).map_err(|e| AppError::msg(format!("BYTE's voice engine is missing from this build: {e}")))?;
+            let cmd = crate::bundled::tool(&app, SIDECAR).map_err(|e| AppError::msg(format!("BYTE's voice engine is missing from this build: {e}")))?;
             cmd.args(args).output().await.map_err(|e| AppError::msg(format!("BYTE's voice engine didn't start: {e}")))?.status.success()
         }
         (None, None) => return Err(AppError::msg("BYTE's voice engine isn't available here.")),

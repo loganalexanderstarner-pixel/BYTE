@@ -16,6 +16,7 @@ import {
   WifiOff,
   KeyRound,
   MessageCircle,
+  Ellipsis,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
@@ -505,6 +506,8 @@ export function Shell() {
       className={`app ${sidebarOpen ? "" : "sidebar-hidden"} ${reading ? "reading" : ""} ${kids ? "kids" : ""}`}
     >
       <Sidebar />
+      {/* Phone: tapping beside the open drawer closes it (CSS shows this only when narrow). */}
+      <div className="drawer-scrim" onClick={toggleSidebar} aria-hidden />
       <main className="main">
         <header className="titlebar" data-tauri-drag-region>
           <div className="row">
@@ -553,7 +556,7 @@ export function Shell() {
               )}
               <EngineBadge />
               <button
-                className="icon-btn"
+                className="icon-btn tb-tool"
                 onClick={() => setDocsOpen(true)}
                 title={
                   cloudConnected
@@ -565,7 +568,7 @@ export function Shell() {
               </button>
               {kitchenOn && (
                 <button
-                  className="icon-btn"
+                  className="icon-btn tb-tool"
                   onClick={() => setRecipesOpen(true)}
                   title="Recipe box: your saved recipes"
                 >
@@ -574,7 +577,7 @@ export function Shell() {
               )}
               {assistantsOn && (
                 <button
-                  className="icon-btn"
+                  className="icon-btn tb-tool"
                   onClick={() => setAssistantsOpen(true)}
                   title="Assistants: BYTE set up for one job"
                 >
@@ -583,7 +586,7 @@ export function Shell() {
               )}
               {tasksOn && (
                 <button
-                  className="icon-btn"
+                  className="icon-btn tb-tool"
                   onClick={() => setTasksOpen(true)}
                   title="Tasks: your to-do list, schedules, trackers, automations, news feeds and watched pages"
                 >
@@ -592,7 +595,7 @@ export function Shell() {
               )}
               {messagesOn && !kids && (
                 <button
-                  className="icon-btn"
+                  className="icon-btn tb-tool"
                   onClick={() => setMessagesOpen({ chat: null, draft: false })}
                   title="Messages: your texts, with replies BYTE can draft"
                 >
@@ -601,7 +604,7 @@ export function Shell() {
               )}
               {clipsOn && (
                 <button
-                  className="icon-btn"
+                  className="icon-btn tb-tool"
                   onClick={() => setClipsOpen(true)}
                   title="Clipboard history: what you copied lately"
                 >
@@ -610,7 +613,7 @@ export function Shell() {
               )}
               {jobsOn && (
                 <button
-                  className="icon-btn"
+                  className="icon-btn tb-tool"
                   onClick={() => setJobsOpen(true)}
                   title="Job search: postings, deadlines, interview prep"
                 >
@@ -619,7 +622,7 @@ export function Shell() {
               )}
               {writingOn && (
                 <button
-                  className="icon-btn"
+                  className="icon-btn tb-tool"
                   onClick={() => openWriting()}
                   title="Writing studio: rewrite, shorten, expand, tone, grammar"
                 >
@@ -628,7 +631,7 @@ export function Shell() {
               )}
               {notesOn && (
                 <button
-                  className="icon-btn"
+                  className="icon-btn tb-tool"
                   onClick={() => openNotes()}
                   title="Notes: your Markdown notes and web clips"
                 >
@@ -637,7 +640,7 @@ export function Shell() {
               )}
               {studyOn && (
                 <button
-                  className="icon-btn"
+                  className="icon-btn tb-tool"
                   onClick={() => openStudy()}
                   title="Study: your flashcard decks"
                 >
@@ -645,18 +648,26 @@ export function Shell() {
                 </button>
               )}
               <button
-                className="icon-btn"
+                className="icon-btn tb-tool"
                 onClick={() => useStore.getState().openBoard()}
                 title="Brainstorm board: sticky notes BYTE can add ideas to"
               >
                 <Shapes size={18} />
               </button>
               <button
-                className="icon-btn"
+                className="icon-btn tb-tool"
                 onClick={() => useStore.getState().openHelp()}
                 title="Help (⌘?)"
               >
                 <LifeBuoy size={18} />
+              </button>
+              <button
+                className="icon-btn tb-more"
+                onClick={() => setPaletteOpen(true)}
+                title="Everything else: panels, settings and actions"
+                aria-label="More"
+              >
+                <Ellipsis size={18} />
               </button>
               <button
                 className="icon-btn"

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "identifier": "com.loganstarner.byteapp",
+  "bundle": {
+    "android": {
+      "minSdkVersion": 28
+    }
+  }
+}

@@ -229,8 +229,7 @@ async fn run_whisper(app: Option<&AppHandle>, args: Vec<String>) -> AppResult<St
             (out.status.success(), out.stdout, out.stderr)
         }
         (None, Some(app)) => {
-            use tauri_plugin_shell::ShellExt;
-            let cmd = app.shell().sidecar(SIDECAR).map_err(|e| AppError::msg(format!("The voice engine is missing from this build: {e}")))?;
+            let cmd = crate::bundled::tool(&app, SIDECAR).map_err(|e| AppError::msg(format!("The voice engine is missing from this build: {e}")))?;
             let out = tokio::time::timeout(TIMEOUT, cmd.args(args).output())
                 .await
                 .map_err(|_| AppError::msg("Transcribing took too long."))?

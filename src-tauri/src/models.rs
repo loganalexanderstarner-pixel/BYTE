@@ -472,6 +472,10 @@ pub fn delete(models_dir: &Path, v: &Variant) -> AppResult<()> {
 // ---------- fit & recommendations ----------
 
 pub fn plan(model: &CatalogModel, v: &Variant, info: &SystemInfo, desired_ctx: u32) -> FitPlan {
+    if info.phone {
+        // One memory pool that Android hands out; nothing to offload to.
+        return system::plan_fit_phone(v.size_bytes, model.arch, desired_ctx, info.total_ram_bytes, info.gpu_budget_bytes);
+    }
     let p = system::plan_fit(v.size_bytes, model.arch, desired_ctx, info.total_ram_bytes, info.gpu_budget_bytes);
     if p.fit != Fit::TooBig {
         return p;
@@ -537,7 +541,7 @@ pub fn expected_tps(model: &CatalogModel, v: &Variant, info: &SystemInfo) -> f64
     if let Some(&m) = info.measured.get(&key(model, v)) {
         return m;
     }
-    let raw = |v: &Variant| crate::chip::estimate(&info.chip_info, v.size_bytes, model.params_b, model.active_b).tokens_per_sec;
+    let raw = |v: &Variant| crate::chip::estimate_on(&info.chip_info, v.size_bytes, model.params_b, model.active_b, info.backend()).tokens_per_sec;
     // Another version of this model was measured: scale by how far off the
     // estimate was for it (same architecture, same Mac).
     if let Some((other, m)) = model.variants.iter().find_map(|o| info.measured.get(&key(model, o)).map(|m| (o, *m))) {
@@ -559,7 +563,7 @@ pub fn calibrate(mut info: SystemInfo, catalog: &Catalog) -> SystemInfo {
         .iter()
         .filter_map(|(k, m)| {
             let (model, v) = catalog.resolve(k).ok()?;
-            let est = crate::chip::estimate(&info.chip_info, v.size_bytes, model.params_b, model.active_b).tokens_per_sec;
+            let est = crate::chip::estimate_on(&info.chip_info, v.size_bytes, model.params_b, model.active_b, info.backend()).tokens_per_sec;
             (est > 0.0).then(|| m / est)
         })
         .collect();
@@ -781,7 +785,7 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
                         quality: effective_quality(m, v),
                         min_ram_gb: system::ram_tier_gb(min_plan.needed_bytes),
                         speed: {
-                            let mut e = crate::chip::estimate(&lc.info.chip_info, v.size_bytes, m.params_b, m.active_b);
+                            let mut e = crate::chip::estimate_on(&lc.info.chip_info, v.size_bytes, m.params_b, m.active_b, lc.info.backend());
                             let f = offload_slowdown(m, &fit);
                             e.tokens_per_sec *= f;
                             e.reply_secs /= f;
@@ -1113,12 +1117,44 @@ mod tests {
             os_version: String::new(),
             cpu_cores: 10,
             apple_silicon: true,
+            phone: false,
             chip_info: crate::chip::identify("Apple M4", Some(10)),
             speed_pref: Default::default(),
             boost: false,
             measured: Default::default(),
             calibration: None,
         }
+    }
+
+    /// A 16 GB phone on an 8 Elite-class chip, as `system_info` reports one.
+    fn phone(ram_gib: u64) -> SystemInfo {
+        let mut i = mac(ram_gib);
+        i.chip = "SM8750".into();
+        i.chip_info = crate::chip::identify("SM8750", None);
+        i.apple_silicon = false;
+        i.phone = true;
+        i.gpu_budget_bytes = system::phone_budget(i.total_ram_bytes, None, true, None);
+        i
+    }
+
+    #[test]
+    fn phones_get_a_phone_plan_and_cpu_speeds() {
+        let c = Catalog::embedded();
+        let info = phone(16);
+        let (m, v) = recommend(&c, &info, 8192).expect("a 16 GB phone gets a recommendation");
+        let p = plan(m, v, &info, 8192);
+        assert_ne!(p.fit, Fit::TooBig);
+        assert!(!p.offloaded(), "a phone has no separate GPU memory to offload from");
+        assert!(p.needed_bytes <= info.gpu_budget_bytes, "{} > budget", p.needed_bytes);
+        // The phone is told CPU speeds, which are far below a Mac's for the same file.
+        let est = crate::chip::estimate_on(&info.chip_info, v.size_bytes, m.params_b, m.active_b, info.backend());
+        let mac_est = crate::chip::estimate(&mac(16).chip_info, v.size_bytes, m.params_b, m.active_b);
+        assert!(est.tokens_per_sec < mac_est.tokens_per_sec, "{est:?} vs {mac_est:?}");
+        // A model bigger than the phone can hold is refused, with a phone message.
+        let big = c.models.iter().filter_map(|m| m.variants.iter().map(move |v| (m, v)).find(|(_, v)| v.size_bytes > 20 * GIB)).next().unwrap();
+        let p = plan(big.0, big.1, &info, 8192);
+        assert_eq!(p.fit, Fit::TooBig);
+        assert!(p.note.contains("phone"), "{}", p.note);
     }
 
     #[test]
@@ -1564,6 +1600,7 @@ fn dump_models_for_ui() {
         os_version: "macOS 15".into(),
         cpu_cores: 10,
         apple_silicon: true,
+        phone: false,
         speed_pref: Default::default(),
         boost: false,
         measured: Default::default(),

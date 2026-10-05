@@ -15,7 +15,6 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
-use tauri_plugin_shell::ShellExt;
 use tokio::sync::Mutex;
 
 use crate::error::{AppError, AppResult};
@@ -358,7 +357,7 @@ impl Engine {
         let mut args = server_args(&launch.path, port, &api_key, &launch.key, context);
         apply_opts(&mut args, &launch.opts);
 
-        let command = match app.shell().sidecar(SIDECAR) {
+        let command = match crate::bundled::tool(&app, SIDECAR) {
             Ok(c) => c,
             Err(e) => {
                 let message = format!("The AI engine is missing from this build ({e}).");

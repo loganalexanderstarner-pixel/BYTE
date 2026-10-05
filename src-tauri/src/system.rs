@@ -17,6 +17,8 @@ pub struct SystemInfo {
     pub os_version: String,
     pub cpu_cores: usize,
     pub apple_silicon: bool,
+    /// A phone (Android): memory is planned with `phone_budget` / `plan_fit_phone`.
+    pub phone: bool,
     /// Chip generation, tier, bandwidth and Neural Engine (for speed estimates).
     pub chip_info: crate::chip::ChipInfo,
     /// What the user asked BYTE to favour when recommending (set from settings).
@@ -58,6 +60,17 @@ impl SystemInfo {
         format!("{} {}", c.name, c.gpu_cores.map(|g| format!("{g}-core GPU")).unwrap_or_default()).trim().to_string()
     }
 
+    /// Which engine serves models here, for speed estimates. Phones run
+    /// llama.cpp on the CPU (no GPU backend it uses well); everything else keeps
+    /// the existing estimate until its own port says otherwise.
+    pub fn backend(&self) -> crate::chip::Backend {
+        if self.phone {
+            crate::chip::Backend::Cpu
+        } else {
+            crate::chip::Backend::Metal
+        }
+    }
+
     pub fn minus(mut self, bytes: u64) -> Self {
         self.gpu_budget_bytes = self.gpu_budget_bytes.saturating_sub(bytes);
         self.total_ram_bytes = self.total_ram_bytes.saturating_sub(bytes);
@@ -70,11 +83,8 @@ pub fn system_info(data_dir: &std::path::Path) -> SystemInfo {
     sys.refresh_memory();
     sys.refresh_cpu_all();
     let total = sys.total_memory();
-    let chip = sys
-        .cpus()
-        .first()
-        .map(|c| c.brand().trim().to_string())
-        .filter(|b| !b.is_empty())
+    let chip = android_soc()
+        .or_else(|| sys.cpus().first().map(|c| c.brand().trim().to_string()).filter(|b| !b.is_empty()))
         .unwrap_or_else(|| "Unknown".into());
     static GPU_CORES: once_cell::sync::Lazy<Option<u32>> = once_cell::sync::Lazy::new(crate::chip::gpu_core_count);
     SystemInfo {
@@ -84,13 +94,34 @@ pub fn system_info(data_dir: &std::path::Path) -> SystemInfo {
         measured: Default::default(),
         calibration: None,
         apple_silicon: cfg!(all(target_os = "macos", target_arch = "aarch64")),
-        gpu_budget_bytes: gpu_budget(total, wired_limit_override()),
+        phone: PHONE,
+        gpu_budget_bytes: if PHONE {
+            // AI focus is on whenever BYTE is answering (docs/ANDROID.md).
+            phone_budget(total, Some(sys.available_memory()), true, None)
+        } else {
+            gpu_budget(total, wired_limit_override())
+        },
         free_disk_bytes: free_disk_for(data_dir),
         os_version: System::long_os_version().unwrap_or_default(),
         cpu_cores: sys.cpus().len(),
         total_ram_bytes: total,
         chip,
     }
+}
+
+const PHONE: bool = cfg!(target_os = "android");
+
+/// The phone's chip as Android names it (`ro.soc.model`, e.g. "SM8750"), which
+/// `chip::phone_soc` knows; the CPU brand on a phone is just "ARMv8".
+fn android_soc() -> Option<String> {
+    if !PHONE {
+        return None;
+    }
+    ["ro.soc.model", "ro.board.platform", "ro.hardware"].iter().find_map(|p| {
+        let out = std::process::Command::new("/system/bin/getprop").arg(p).output().ok()?;
+        let v = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        (!v.is_empty()).then_some(v)
+    })
 }
 
 /// Approximates Metal's `recommendedMaxWorkingSetSize`: macOS lets the GPU wire

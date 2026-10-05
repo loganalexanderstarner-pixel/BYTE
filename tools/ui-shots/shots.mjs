@@ -1312,6 +1312,51 @@ async function page(onboarded, theme = "midnight", extra = {}) {
 
 const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
 
+// Phone sizes (docs/LAYOUT-ANY-SCREEN.md): PHONE=1 node shots.mjs takes only these.
+// 320 = a folded Galaxy Z Fold cover screen at its narrowest, 390 = a typical
+// phone, 720 = an unfolded Fold. Android user agent, touch, 3x pixels.
+if (process.env.PHONE) {
+  for (const width of [320, 390, 720]) {
+    const ctx = await browser.newContext({
+      viewport: { width, height: width < 700 ? 780 : 860 },
+      deviceScaleFactor: 2,
+      isMobile: true,
+      hasTouch: true,
+      colorScheme: "dark",
+      userAgent: "Mozilla/5.0 (Linux; Android 15; SM-F9xx) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Mobile Safari/537.36",
+    });
+    const p = await ctx.newPage();
+    const errors = [];
+    p.on("pageerror", (e) => errors.push(e.message));
+    await p.addInitScript(initScript, { data: mock(true, "midnight") });
+    await p.goto(URL);
+    await p.waitForTimeout(500);
+    await shot(p, `phone-${width}-1-chat`);
+    const show = p.getByTitle(/Show sidebar/);
+    if (await show.count()) {
+      await show.first().click();
+      await p.waitForTimeout(350);
+      await shot(p, `phone-${width}-2-drawer`);
+      await p.locator(".conv-item").first().click();
+      await p.waitForTimeout(350);
+    }
+    const more = p.getByRole("button", { name: "More", exact: true });
+    if (await more.isVisible()) {
+      await more.click();
+      await p.waitForTimeout(300);
+      await shot(p, `phone-${width}-3-more`);
+      await p.keyboard.press("Escape");
+    }
+    await p.getByTitle(/^Settings/).click();
+    await p.waitForTimeout(400);
+    await shot(p, `phone-${width}-4-settings`);
+    console.log(`phone ${width} errors:`, errors);
+    await ctx.close();
+  }
+  await browser.close();
+  process.exit(0);
+}
+
 // Onboarding flow
 {
   const { p, ctx, errors } = await page(false);

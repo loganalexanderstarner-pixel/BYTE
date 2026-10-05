@@ -91,6 +91,7 @@ pub fn pressed(app: &tauri::AppHandle) {
     tauri::async_runtime::spawn(async move {
         let result = capture(&MacRunner).await;
         if let Some(w) = app.get_webview_window("main") {
+            #[cfg(desktop)]
             let _ = w.unminimize();
             let _ = w.show();
             let _ = w.set_focus();

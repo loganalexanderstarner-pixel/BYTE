@@ -1,0 +1,9 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.byte" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- BYTE's Midnight background, so opening the app never flashes white. -->
+        <item name="android:windowBackground">#0f1420</item>
+        <item name="android:statusBarColor">#0f1420</item>
+        <item name="android:navigationBarColor">#0f1420</item>
+    </style>
+</resources>
