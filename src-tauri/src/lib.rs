@@ -32,6 +32,7 @@ mod files;
 mod gguf;
 mod ocr;
 mod platform_text;
+mod terminal_ps;
 #[cfg(windows)]
 mod recycle;
 mod memory;

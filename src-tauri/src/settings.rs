@@ -171,6 +171,11 @@ pub struct Settings {
     /// Mac control: BYTE uses Notes, Reminders, Calendar, Music and settings when asked (macOS).
     #[serde(default = "yes")]
     pub mac_control: bool,
+    /// Windows: BYTE may propose a PowerShell command for a question about the PC, and runs it only
+    /// after the person presses "Do it" (terminal.rs, terminal_ps.rs). Off until switched on. (On a
+    /// Mac the same helper is part of Mac control.)
+    #[serde(default)]
+    pub terminal_enabled: bool,
     /// BYTE's to-do list, reminders and scheduled questions (tasks.rs, scheduler.rs).
     #[serde(default = "yes")]
     pub tasks_enabled: bool,
@@ -404,6 +409,7 @@ impl Default for Settings {
             battery_saver: true,
             translate_enabled: true,
             mac_control: true,
+            terminal_enabled: false,
             mac_upkeep: true,
             tasks_enabled: true,
             briefing_topics: Vec::new(),

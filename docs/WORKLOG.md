@@ -250,6 +250,27 @@ how every item below was found; none of them showed in a test.
   about twice the generation speed and twelve times the prompt speed of this chip) with a test.
   Still untestable here: Intel graphics, NPUs, an AMD *discrete* card on the Windows driver (the other
   node's RX 7900 GRE runs Linux, which tests the Vulkan engine on AMD but not the Windows driver).
+- **The terminal on Windows (PowerShell), same flow as the Mac, stricter policy.** Owner said yes, "safely like
+  it is already". `terminal_ps.rs` is the policy; `terminal.rs` runs the same card for both shells (`Shell`).
+  The Mac side keeps a refusal list; PowerShell can reach far more things by far more indirect routes
+  (aliases, `iex`, .NET calls, encoded commands), so on Windows a model-written command runs only when
+  **every** command in it is on a list of things that read or show (plus careful single-file changes: no
+  wildcards, no `-Recurse`/`-Force`, nothing in Windows' or app folders or the registry, never from a pipe,
+  one change per command, no critical process names), and then only after **Do it**. Also refused: backticks,
+  `$()`, `&`, redirects, `#`, non-ASCII outside quotes, `-EncodedCommand`/`-MemberName`, `[type]::` calls
+  outside `[math]`/dates/strings, and method calls outside a list of arithmetic/text methods. Known-good
+  recipes cover the common questions (port, disk, IP, folder sizes, CPU/memory, uptime, versions). A new
+  setting `terminalEnabled`, **off by default**, never on in kids mode. Tests: 6 policy tests (a long list
+  of refused commands, each checked for the right reason by hand), the recipes against the policy, and two
+  **live** ones that run every recipe through the real runner on a PC (`--include-ignored`). Driven in the
+  real app: card ("Run this command in PowerShell?"), approve, result card, BYTE explains the output.
+- **A real race the terminal test exposed.** The window said "Engine stopped" next to a working engine: it
+  asks for the engine's state at startup and also listens for changes, and when a change (ready) arrived
+  while the answer was on its way, the older answer overwrote it. A 0.6B model on a fast GPU is ready in
+  about a second, so the window lost the race; big models usually win it. `engineAfterLoad()` keeps the newer state.
+- **Drive-test trap:** the dev app shares its data folder with the installed app, and an engine left running
+  when the driver kills the app can still be there next run. Kill `llama-server*` and clear `byte.db*`,
+  `db.key`, `engine.pid` between runs, and wait ~45 s for the first load.
 - **Driver trap:** Task Scheduler rejects a `/tr` command over 261 characters and the script hid the error, so a
   longer click list silently did nothing for ten minutes. The step list now goes through a file.
 - **Disk lesson.** My builds took the PC's C: from 58 GB free to 6 GB in a day

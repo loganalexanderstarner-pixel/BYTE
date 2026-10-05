@@ -57,6 +57,8 @@ export interface Settings {
   translateEnabled?: boolean;
   /** Mac control: notes, reminders, calendar, music, settings (macOS). */
   macControl?: boolean;
+  /** Windows: BYTE may propose PowerShell commands, which run only after "Do it". Off until switched on. */
+  terminalEnabled?: boolean;
   macUpkeep?: boolean;
   tasksEnabled?: boolean;
   briefingTopics?: string[];

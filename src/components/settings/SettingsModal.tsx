@@ -928,6 +928,15 @@ function AboutTab() {
           </span>
           <input type="checkbox" checked={settings?.macControl ?? true} onChange={(e) => void update({ macControl: e.target.checked })} />
         </label>
+        {pcHost && (
+          <label className="field">
+            <span>
+              PowerShell commands
+              <small>For questions about your PC (“run a command to show my disk space”, “what's using port 3000?”), BYTE proposes one PowerShell command, explains it in plain words and runs it only after you press Do it. It only runs commands that read or show information, plus a few careful ones that move or delete a single file. Formatting, the registry, downloads, other programs and anything that needs administrator rights are never run. Off until you turn it on.</small>
+            </span>
+            <input type="checkbox" checked={settings?.terminalEnabled ?? false} onChange={(e) => void update({ terminalEnabled: e.target.checked })} />
+          </label>
+        )}
         <label className="field">
           <span>
             To-do list and schedules

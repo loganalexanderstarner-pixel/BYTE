@@ -3,6 +3,10 @@
 //! in plain words, and runs it only after the user presses Do it. Commands that can
 //! wreck a Mac (sudo, erasing disks, deleting everything, piping downloads into a
 //! shell…) are refused outright, whatever the model suggests.
+//!
+//! On Windows the same flow runs a PowerShell command, under a stricter policy
+//! (`terminal_ps.rs`): only commands that read or show information, and a few careful
+//! single-file changes, ever reach the person's OK.
 
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
@@ -10,8 +14,59 @@ use tokio_util::sync::CancellationToken;
 use crate::agent::{Emit, Turn};
 use crate::chat::{self, ChatEvent};
 use crate::error::{AppError, AppResult};
-use crate::macctl::{self, Command, MacDone, MacRunner, Runner};
+use crate::macctl::{self, Command, MacDone, MacRunner, RunError, Runner};
+use crate::platform_text::here;
+use crate::terminal_ps as ps;
 use crate::tools::SourceBook;
+
+/// Which shell the commands are for. The Mac one is the original; PowerShell is Windows'.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Shell {
+    Zsh,
+    PowerShell,
+}
+
+impl Shell {
+    pub fn current() -> Shell {
+        if cfg!(windows) {
+            Shell::PowerShell
+        } else {
+            Shell::Zsh
+        }
+    }
+
+    /// What the approval card and the messages call it.
+    pub fn app(self) -> &'static str {
+        match self {
+            Shell::Zsh => "Terminal",
+            Shell::PowerShell => "PowerShell",
+        }
+    }
+}
+
+/// Why a command is refused for this shell (None: it may go to the person for their OK).
+pub fn refused_in(shell: Shell, cmd: &str) -> Option<String> {
+    match shell {
+        Shell::Zsh => refused(cmd).map(String::from),
+        Shell::PowerShell => ps::refused(cmd),
+    }
+}
+
+/// Whether the command changes something rather than only reading.
+pub fn changes_in(shell: Shell, cmd: &str) -> bool {
+    match shell {
+        Shell::Zsh => changes(cmd),
+        Shell::PowerShell => ps::changes(cmd),
+    }
+}
+
+/// The known-good command for a common request.
+pub fn recipe_in(shell: Shell, question: &str) -> Option<(String, String)> {
+    match shell {
+        Shell::Zsh => recipe(question),
+        Shell::PowerShell => ps::recipe(question),
+    }
+}
 
 /// Output kept for the answer.
 const MAX_OUT: usize = 8000;
@@ -27,12 +82,13 @@ pub fn wants(q: &str) -> bool {
     if starts(l, &["how do i", "how can i", "how to", "what does", "explain", "why "]) {
         return false;
     }
-    starts(l, &["run a command", "run the command", "run a terminal command", "use the terminal", "use terminal", "in terminal,", "in the terminal,", "terminal:", "open terminal and", "run in terminal"])
+    starts(l, &["run a command", "run the command", "run a terminal command", "use the terminal", "use terminal", "in terminal,", "in the terminal,", "terminal:", "open terminal and", "run in terminal",
+        "run a powershell command", "use powershell", "in powershell,", "in the powershell,", "powershell:", "open powershell and", "run in powershell"])
         || (l.starts_with("run ") && (l.contains(" in terminal") || l.contains(" in the terminal")))
 }
 
 pub fn applies(enabled: bool, q: &str) -> bool {
-    cfg!(target_os = "macos") && enabled && wants(q)
+    (cfg!(target_os = "macos") || cfg!(windows)) && enabled && wants(q)
 }
 
 /// Why a command is refused (None: allowed after the user's OK).
@@ -81,9 +137,18 @@ pub fn changes(cmd: &str) -> bool {
 
 /// The command and its explanation, from the model.
 pub fn parse(reply: &str) -> Option<(String, String)> {
+    parse_in(Shell::Zsh, reply)
+}
+
+pub fn parse_in(shell: Shell, reply: &str) -> Option<(String, String)> {
     let v = crate::research::lenient_json(reply);
-    let cmd = v.get("command").and_then(Value::as_str)?.trim().trim_start_matches('$').trim().trim_matches('`').trim();
-    let cmd = joined(cmd)?;
+    let cmd = v.get("command").and_then(Value::as_str)?.trim();
+    // A `$ ` prompt marker or a code-span's backticks are the model's decoration, not part of the command.
+    let cmd = if shell == Shell::Zsh { cmd.trim_start_matches('$').trim().trim_matches('`').trim() } else { cmd.trim_start_matches("PS>").trim_start_matches("> ").trim().trim_matches('`').trim() };
+    let cmd = match shell {
+        Shell::Zsh => joined(cmd)?,
+        Shell::PowerShell => ps::joined(cmd)?,
+    };
     let why = v.get("explanation").and_then(Value::as_str).unwrap_or("").trim().to_string();
     (!cmd.is_empty() && !cmd.contains('\n') && cmd.len() <= 400).then_some((cmd, why))
 }
@@ -113,38 +178,45 @@ fn joined(cmd: &str) -> Option<String> {
 }
 
 pub async fn run(turn: &Turn<'_>, question: &str, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
-    run_with(turn, question, &MacRunner, cancel, send).await
+    #[cfg(windows)]
+    let runner = WinRunner;
+    #[cfg(not(windows))]
+    let runner = MacRunner;
+    run_with(turn, question, &runner, cancel, send).await
 }
 
 pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, runner: &dyn Runner, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
+    run_in(Shell::current(), turn, question, runner, cancel, send).await
+}
+
+pub(crate) async fn run_in(shell: Shell, turn: &Turn<'_>, question: &str, runner: &dyn Runner, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
     if !wants(question) {
         return Ok(None);
     }
     let id = format!("byte_term_{}", uuid::Uuid::new_v4().simple());
     // Common requests get a known-good command; the model only writes the rest.
-    let from_recipe = recipe(question).is_some();
+    let from_recipe = recipe_in(shell, question).is_some();
     // Small models' own commands are too often wrong (asked to count files, a 0.6B
     // model printed every file): with one, BYTE runs only its known-good commands.
     if !from_recipe && turn.modules.small_model {
         return Ok(Some((
             SourceBook::default(),
-            "BYTE runs only its own known-safe commands with the small model on this Mac, and this request isn't one of them, so nothing was run. \
-Explain step by step how the user can do it in Terminal themselves, with the command in a code block and what each part does. Mention that a \
-bigger model (Settings → Models) lets BYTE write and run commands like this for them (after they OK them)."
-                .into(),
+            format!("BYTE runs only its own known-safe commands with the small model on {}, and this request isn't one of them, so nothing was run. \
+Explain step by step how the user can do it in {} themselves, with the command in a code block and what each part does. Mention that a \
+bigger model (Settings → Models) lets BYTE write and run commands like this for them (after they OK them).", here("this Mac"), shell.app()),
         )));
     }
-    let proposed = match recipe(question) {
+    let proposed = match recipe_in(shell, question) {
         Some(r) => Some(r),
         None => tokio::select! {
-            r = propose(turn, question) => r,
+            r = propose_in(shell, turn, question) => r,
             _ = cancel.cancelled() => return Err(AppError::Cancelled),
         },
     };
     let Some((cmd, why)) = proposed else {
-        return Ok(Some((SourceBook::default(), "BYTE couldn't work out a single command for this. Explain how to do it in Terminal step by step instead (as text; nothing was run).".into())));
+        return Ok(Some((SourceBook::default(), format!("BYTE couldn't work out a single command for this. Explain how to do it in {} step by step instead (as text; nothing was run).", shell.app()))));
     };
-    run_command(turn, runner, id, cmd, why, from_recipe, cancel, send).await
+    run_command(shell, turn, runner, id, cmd, why, from_recipe, cancel, send).await
 }
 
 /// The home folders people name, for folder-size and biggest-files requests.
@@ -209,64 +281,121 @@ pub fn recipe(question: &str) -> Option<(String, String)> {
 
 /// The model's command for the request (one line) and its explanation.
 async fn propose(turn: &Turn<'_>, question: &str) -> Option<(String, String)> {
-    let user = format!(
-        "The user is on a Mac (macOS, zsh, in their home folder) and said: \"{question}\"\n\nGive ONE command line that does what they asked, as safely as \
-possible: prefer commands that only read or show things, never use sudo, never delete. Standard macOS tools only (no installs); macOS has the BSD versions \
-of tools, not the Linux ones. The command must do exactly what they asked, nothing else. Then explain in one or two plain sentences what it does and what they'll see."
-    );
+    propose_in(Shell::Zsh, turn, question).await
+}
+
+async fn propose_in(shell: Shell, turn: &Turn<'_>, question: &str) -> Option<(String, String)> {
+    let (system, user) = match shell {
+        Shell::Zsh => ("You are a careful macOS terminal expert. Reply only with JSON.", mac_prompt(question)),
+        Shell::PowerShell => (ps::SYSTEM_PROMPT, ps::user_prompt(question)),
+    };
     let schema = json!({"type":"object","properties":{"command":{"type":"string"},"explanation":{"type":"string"}},"required":["command","explanation"]});
     // Small models sometimes split the command over two lines (never run: a line
     // break would start a second command), so they get one more try.
     for _ in 0..2 {
-        let reply = chat::complete_json(turn.http, turn.ep, "You are a careful macOS terminal expert. Reply only with JSON.", &user, schema.clone(), 300).await.unwrap_or_default();
-        if let Some(p) = parse(&reply) {
+        let reply = chat::complete_json(turn.http, turn.ep, system, &user, schema.clone(), 300).await.unwrap_or_default();
+        if let Some(p) = parse_in(shell, &reply) {
             return Some(p);
         }
     }
     None
 }
 
+fn mac_prompt(question: &str) -> String {
+    let user = format!(
+        "The user is on a Mac (macOS, zsh, in their home folder) and said: \"{question}\"\n\nGive ONE command line that does what they asked, as safely as \
+possible: prefer commands that only read or show things, never use sudo, never delete. Standard macOS tools only (no installs); macOS has the BSD versions \
+of tools, not the Linux ones. The command must do exactly what they asked, nothing else. Then explain in one or two plain sentences what it does and what they'll see."
+    );
+    user
+}
+
 /// Checks, asks, runs and reports one command.
 #[allow(clippy::too_many_arguments)]
-async fn run_command(turn: &Turn<'_>, runner: &dyn Runner, id: String, cmd: String, why: String, from_recipe: bool, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
-    send(ChatEvent::ToolCall { id: id.clone(), name: "mac_terminal".into(), args: json!({ "app": "Terminal", "what": format!("Run `{cmd}`") }) })?;
-    if let Some(reason) = refused(&cmd) {
+async fn run_command(shell: Shell, turn: &Turn<'_>, runner: &dyn Runner, id: String, cmd: String, why: String, from_recipe: bool, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
+    let app = shell.app();
+    send(ChatEvent::ToolCall { id: id.clone(), name: "mac_terminal".into(), args: json!({ "app": app, "what": format!("Run `{cmd}`") }) })?;
+    if let Some(reason) = refused_in(shell, &cmd) {
         send(ChatEvent::ToolResult { id, ok: false, summary: format!("Not run: {reason}") })?;
         turn.log.record("mac_terminal", &json!({ "command": cmd }), false, &format!("refused: {reason}"));
         return Ok(Some((SourceBook::default(), format!("BYTE won't run `{cmd}` for the user because {reason}. Say so plainly, explain what the command would do, and \
-if it's something they really need, suggest they look it up and run it themselves in Terminal after making a backup."))));
+if it's something they really need, suggest they look it up and run it themselves in {app} after making a backup."))));
     }
     let mut fields = vec![("Command".to_string(), cmd.clone()), ("What it does".to_string(), if why.is_empty() { "(no explanation)".into() } else { why.clone() })];
-    fields.push(("Note".to_string(), if changes(&cmd) { "This changes files or apps on your Mac.".into() } else { "It only reads or shows information.".into() }));
+    fields.push(("Note".to_string(), if changes_in(shell, &cmd) { here("This changes files or apps on your Mac.") } else { "It only reads or shows information.".into() }));
     if !from_recipe {
         fields.push(("Check".to_string(), "Written by the model for this request: make sure it does what you asked before running it.".into()));
     }
-    if !macctl::ask_ok("Run this command in Terminal?", "Terminal", fields, cancel, send).await? {
+    if !macctl::ask_ok(&format!("Run this command in {app}?"), app, fields, cancel, send).await? {
         send(ChatEvent::ToolResult { id, ok: false, summary: "You said no".into() })?;
         return Ok(Some((SourceBook::default(), format!("The user chose not to run `{cmd}`. Nothing was run. Say so in one sentence."))));
     }
-    let shell = Command::Exec { program: "zsh", args: vec!["-c".into(), cmd.clone()] };
+    let run = match shell {
+        Shell::Zsh => Command::Exec { program: "zsh", args: vec!["-c".into(), cmd.clone()] },
+        Shell::PowerShell => Command::Exec { program: "powershell", args: vec![cmd.clone()] },
+    };
     let out = tokio::select! {
-        r = runner.run(&shell) => r,
+        r = runner.run(&run) => r,
         _ = cancel.cancelled() => return Err(AppError::Cancelled),
     };
     let (ok, text) = match out {
         Ok(o) => (true, o),
-        Err(e) => (false, e.text("Terminal")),
+        Err(e) => (false, e.text(app)),
     };
     let shown: String = text.chars().take(MAX_OUT).collect();
     let lines = shown.lines().count();
     let detail = if ok { format!("`{cmd}` · {lines} lines of output") } else { format!("`{cmd}` failed") };
     send(ChatEvent::ToolResult { id, ok, summary: detail.clone() })?;
     turn.log.record("mac_terminal", &json!({ "command": cmd }), ok, &detail);
-    send(ChatEvent::MacDone(MacDone { app: "Terminal".into(), title: format!("Ran `{cmd}`"), detail: if ok { format!("{lines} lines of output") } else { text.chars().take(200).collect() }, ok, undo: None }))?;
+    send(ChatEvent::MacDone(MacDone { app: app.into(), title: format!("Ran `{cmd}`"), detail: if ok { format!("{lines} lines of output") } else { text.chars().take(200).collect() }, ok, undo: None }))?;
     Ok(Some((
         SourceBook::default(),
         format!(
-            "BYTE ran `{cmd}` on the user's Mac ({why}). {}:\n```\n{shown}\n```\n\nExplain what the output means for the user's question in plain words (quote only the important parts).",
+            "BYTE ran `{cmd}` on {} ({why}). {}:\n```\n{shown}\n```\n\nExplain what the output means for the user's question in plain words (quote only the important parts).",
+            here("the user's Mac"),
             if ok { "Its output" } else { "It failed" }
         ),
     )))
+}
+
+/// Runs the approved line in Windows PowerShell: no profile, no prompts, no window, a time limit.
+/// The text is exactly what the person saw and approved, after a fixed lead-in that only sets the
+/// output to UTF-8 and quiets progress bars.
+#[cfg(windows)]
+pub struct WinRunner;
+
+#[cfg(windows)]
+impl Runner for WinRunner {
+    fn run<'a>(&'a self, cmd: &'a Command) -> futures_util::future::BoxFuture<'a, Result<String, RunError>> {
+        Box::pin(async move {
+            let Command::Exec { args, .. } = cmd else { return Err(RunError::Missing) };
+            let line = args.first().cloned().unwrap_or_default();
+            let script = format!("$ProgressPreference='SilentlyContinue';[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;{line}");
+            let exe = std::path::PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into())).join("System32").join("WindowsPowerShell").join("v1.0").join("powershell.exe");
+            let mut c = tokio::process::Command::new(exe);
+            c.args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command"]).arg(script);
+            c.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+            c.kill_on_drop(true).stdin(std::process::Stdio::null());
+            let out = match tokio::time::timeout(std::time::Duration::from_secs(90), c.output()).await {
+                Err(_) => return Err(RunError::Timeout),
+                Ok(Err(e)) if e.kind() == std::io::ErrorKind::NotFound => return Err(RunError::Missing),
+                Ok(Err(e)) => return Err(RunError::Failed(e.to_string())),
+                Ok(Ok(o)) => o,
+            };
+            let stdout = String::from_utf8_lossy(&out.stdout).trim_end().to_string();
+            let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            if out.status.success() {
+                // PowerShell reports many problems on the error stream and still exits 0.
+                let text = if stdout.is_empty() { stderr } else { stdout };
+                Ok(if text.is_empty() { "(no output)".into() } else { text })
+            } else if stdout.is_empty() && stderr.is_empty() {
+                // `findstr` exits 1 when it finds nothing: that is an answer, not a failure.
+                Ok("(no output)".into())
+            } else {
+                Err(RunError::Failed(if stderr.is_empty() { stdout } else { stderr }))
+            }
+        })
+    }
 }
 
 #[cfg(test)]
@@ -380,6 +509,38 @@ mod tests {
         let send = |_e: ChatEvent| Ok(());
         let out = run_with(&turn, "run a command to count the files in my Downloads folder", &Never, &CancellationToken::new(), &send).await.unwrap().unwrap();
         assert!(out.1.contains("nothing was run"), "{}", out.1);
+    }
+
+    /// The Windows recipes through the real runner: read-only commands, run for real. Over SSH and in a
+    /// desktop session alike, it only needs PowerShell.
+    #[cfg(windows)]
+    #[tokio::test]
+    #[ignore = "runs real (read-only) PowerShell commands; run with --ignored"]
+    async fn the_windows_recipes_really_run() {
+        for q in [
+            "port 3000", "disk space", "my ip", "biggest files in downloads", "size of my downloads folder", "list the files in desktop", "what apps are running", "what is using my cpu",
+            "what is using my memory", "uptime", "windows version", "which pc is this", "what's the date today", "battery",
+        ] {
+            let (cmd, _) = ps::recipe(q).unwrap_or_else(|| panic!("no recipe for {q}"));
+            assert_eq!(ps::refused(&cmd), None);
+            let out = WinRunner.run(&Command::Exec { program: "powershell", args: vec![cmd.clone()] }).await;
+            let text = out.unwrap_or_else(|e| panic!("{q}: {cmd} failed: {}", e.text("PowerShell")));
+            let head: String = text.lines().take(3).collect::<Vec<_>>().join(" / ");
+            eprintln!("{q:<30} {} chars | {}", text.len(), head.chars().take(110).collect::<String>());
+            assert!(!text.is_empty());
+        }
+    }
+
+    /// What is approved is exactly what runs: nothing in the line can start a second command.
+    #[cfg(windows)]
+    #[tokio::test]
+    #[ignore = "runs real PowerShell; run with --ignored"]
+    async fn quotes_and_dollar_signs_reach_powershell_intact() {
+        let line = r#"Write-Output "a $HOME b" 'single $x' "say ""hi""""#;
+        assert_eq!(ps::refused(line), None);
+        let out = WinRunner.run(&Command::Exec { program: "powershell", args: vec![line.into()] }).await.unwrap();
+        assert!(out.contains("single $x") && out.contains("say \"hi\""), "{out}");
+        assert!(!out.contains("$HOME"), "the variable is expanded: {out}");
     }
 
     #[test]

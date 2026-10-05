@@ -17,4 +17,5 @@ BYTE works with the text you select in other apps and keeps a clipboard history.
 
 - **Ctrl+Alt+B** on selected text in any app opens it in BYTE (reply, explain, rewrite), then **Paste into** puts the result back. It can't read an app that is running as administrator.
 - The clipboard history keeps your recent copies on this PC only, and never keeps what looks like a password or a secret.
+- **PowerShell commands** (a switch in Settings, off until you turn it on): ask "run a command to show my disk space" or "use the terminal to see what's using port 3000". BYTE proposes one command, explains it in plain words and runs it **only after you press Do it**. It only runs commands that read or show information, plus a few careful ones that move or delete a single file. Formatting, the registry, downloads, other programs and anything that needs administrator rights are never run.
 <!-- all -->

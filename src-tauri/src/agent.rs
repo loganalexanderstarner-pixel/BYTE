@@ -110,6 +110,8 @@ pub struct Modules {
     pub translate: bool,
     /// Mac control: notes, reminders, calendar, music, settings (macctl.rs).
     pub mac: bool,
+    /// Windows: the PowerShell terminal helper (terminal.rs); the person switched it on in Settings.
+    pub terminal: bool,
     /// Mac upkeep: storage, health, uninstalling, login items (upkeep.rs).
     pub upkeep: bool,
     /// The to-do list, schedules and the daily briefing (tasks.rs, briefing.rs).
@@ -778,7 +780,7 @@ async fn specialist(
         crate::filectl::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
     } else if crate::upkeep::applies(mac_on && turn.modules.upkeep, q) {
         crate::upkeep::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
-    } else if crate::terminal::applies(mac_on, q) {
+    } else if crate::terminal::applies(if cfg!(windows) { turn.modules.terminal && !writing_only } else { mac_on }, q) {
         crate::terminal::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))
     } else if crate::youtube::applies(turn.web, q, turn.history) {
         crate::youtube::run(turn, q, used_tokens, cancel, send).await?.map(|(b, n)| (b, n, "youtube"))
@@ -1103,7 +1105,7 @@ mod tests {
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let http = chat::local_client();
         let net = tools::fetch::web_client();
-        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false, mac: false, upkeep: false, tasks: false, watch: false, automations: false, trackers: false, connectors: false };
+        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false, mac: false, terminal: false, upkeep: false, tasks: false, watch: false, automations: false, trackers: false, connectors: false };
         let cases = [
             ("Reviews of the Sony WH-1000XM5", Mode::Auto, "reviews"),
             ("What's the cheapest place to buy a Steam Deck OLED?", Mode::Auto, "prices"),

@@ -346,6 +346,7 @@ impl Setup {
                 small_model,
                 translate: s.translate_enabled,
                 mac: s.mac_control,
+                terminal: s.terminal_enabled && !kids,
                 upkeep: s.mac_upkeep,
                 tasks: s.tasks_enabled,
                 watch: s.watch_enabled,
