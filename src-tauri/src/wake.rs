@@ -237,7 +237,8 @@ fn on_wake(app: &AppHandle) {
     // Windows' own notification sound; MessageBeep returns at once and plays in the background.
     #[cfg(windows)]
     {
-        use windows::Win32::UI::WindowsAndMessaging::{MessageBeep, MB_ICONASTERISK};
+        use windows::Win32::System::Diagnostics::Debug::MessageBeep;
+        use windows::Win32::UI::WindowsAndMessaging::MB_ICONASTERISK;
         let _ = unsafe { MessageBeep(MB_ICONASTERISK) };
     }
     crate::quick::show(app);
