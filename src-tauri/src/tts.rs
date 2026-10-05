@@ -571,4 +571,27 @@ mod tests {
             assert!(audio.iter().map(|x| x.abs()).fold(0.0, f32::max) > 0.05, "silent");
         }
     }
+
+    /// Windows audio through cpal (WASAPI): what the default output and input are, and
+    /// the format each wants. Informational and tolerant: a machine with no sound
+    /// device (a CI runner) legitimately has neither, so this reports and passes
+    /// rather than failing on a fact about the machine. The point is to show, on a
+    /// real PC, that the backend that was not even compiled before now works.
+    #[cfg(windows)]
+    #[test]
+    fn windows_audio_devices_are_visible() {
+        use cpal::traits::{DeviceTrait, HostTrait};
+        let host = cpal::default_host();
+        let out = host.default_output_device();
+        let inp = host.default_input_device();
+        eprintln!("audio host: {:?}", host.id());
+        match &out {
+            Some(d) => eprintln!("output: {:?} -> {:?}", d.description().map(|x| x.name().to_string()).ok(), d.default_output_config().map(|c| (c.sample_rate(), c.channels())).ok()),
+            None => eprintln!("output: none"),
+        }
+        match &inp {
+            Some(d) => eprintln!("input:  {:?} -> {:?}", d.description().map(|x| x.name().to_string()).ok(), d.default_input_config().map(|c| (c.sample_rate(), c.channels())).ok()),
+            None => eprintln!("input:  none"),
+        }
+    }
 }
