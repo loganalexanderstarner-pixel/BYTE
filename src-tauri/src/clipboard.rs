@@ -58,7 +58,8 @@ pub fn keep(text: &str, secret_type: bool) -> bool {
 
 // ---------------------------------------------------------------- the board
 
-/// The system clipboard (macOS NSPasteboard). Elsewhere: nothing.
+/// The system clipboard: macOS NSPasteboard, or the Win32 clipboard on Windows.
+/// Elsewhere: nothing.
 #[cfg(target_os = "macos")]
 pub mod board {
     use objc2_app_kit::{NSPasteboard, NSPasteboardTypeString};
@@ -100,7 +101,133 @@ pub mod board {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+/// Formats Windows password managers and well-behaved apps put on the clipboard
+/// to say "do not record this". The counterpart of the nspasteboard.org types
+/// above. 1Password, KeePass and Bitwarden set the first; Windows' own
+/// clipboard history honours the second.
+#[cfg(windows)]
+const WINDOWS_EXCLUDE_FORMAT: &str = "ExcludeClipboardContentFromMonitorProcessing";
+#[cfg(windows)]
+const WINDOWS_HISTORY_FORMAT: &str = "CanIncludeInClipboardHistory";
+
+#[cfg(windows)]
+pub mod board {
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{HANDLE, HGLOBAL};
+    use windows::Win32::System::DataExchange::{
+        CloseClipboard, EmptyClipboard, GetClipboardData, GetClipboardSequenceNumber, IsClipboardFormatAvailable,
+        OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
+    };
+    use windows::Win32::System::Memory::{GlobalAlloc, GlobalFree, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE};
+
+    /// CF_UNICODETEXT. Spelled out so this needs no extra windows-crate feature.
+    const CF_UNICODETEXT: u32 = 13;
+
+    /// The clipboard is open for this scope. Only one program can hold it at a
+    /// time, so another app mid-copy makes opening fail for a few milliseconds;
+    /// retrying briefly is the documented way to deal with that, and giving up
+    /// after that is better than blocking the watcher.
+    struct Open;
+    impl Open {
+        fn new() -> Option<Open> {
+            for _ in 0..10 {
+                if unsafe { OpenClipboard(None) }.is_ok() {
+                    return Some(Open);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            None
+        }
+    }
+    impl Drop for Open {
+        fn drop(&mut self) {
+            let _ = unsafe { CloseClipboard() };
+        }
+    }
+
+    fn format(name: &str) -> u32 {
+        let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
+        unsafe { RegisterClipboardFormatW(PCWSTR(wide.as_ptr())) }
+    }
+
+    /// Changes each time anything is copied. Needs no lock on the clipboard.
+    pub fn change_count() -> i64 {
+        i64::from(unsafe { GetClipboardSequenceNumber() })
+    }
+
+    /// The copied text, if there is any.
+    pub fn text() -> Option<String> {
+        let _open = Open::new()?;
+        unsafe {
+            let handle = GetClipboardData(CF_UNICODETEXT).ok()?;
+            let global = HGLOBAL(handle.0);
+            let ptr = GlobalLock(global) as *const u16;
+            if ptr.is_null() {
+                return None;
+            }
+            // The block is NUL terminated, but never trust that past its real size.
+            let max = GlobalSize(global) / 2;
+            let mut len = 0;
+            while len < max && *ptr.add(len) != 0 {
+                len += 1;
+            }
+            let text = String::from_utf16_lossy(std::slice::from_raw_parts(ptr, len));
+            let _ = GlobalUnlock(global);
+            Some(text)
+        }
+    }
+
+    /// A password manager (or the app) asked for this not to be recorded.
+    pub fn secret() -> bool {
+        unsafe {
+            if IsClipboardFormatAvailable(format(super::WINDOWS_EXCLUDE_FORMAT)).is_ok() {
+                return true;
+            }
+            // CanIncludeInClipboardHistory carries a DWORD: 0 means keep it out.
+            let can = format(super::WINDOWS_HISTORY_FORMAT);
+            if IsClipboardFormatAvailable(can).is_ok() {
+                if let Some(_open) = Open::new() {
+                    if let Ok(handle) = GetClipboardData(can) {
+                        let global = HGLOBAL(handle.0);
+                        let ptr = GlobalLock(global) as *const u32;
+                        if !ptr.is_null() {
+                            let keep = GlobalSize(global) >= 4 && *ptr != 0;
+                            let _ = GlobalUnlock(global);
+                            return !keep;
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// Puts text on the clipboard; returns the new change count.
+    pub fn set_text(text: &str) -> i64 {
+        {
+            let Some(_open) = Open::new() else { return change_count() };
+            let wide: Vec<u16> = text.encode_utf16().chain(std::iter::once(0)).collect();
+            unsafe {
+                let _ = EmptyClipboard();
+                let Ok(global) = GlobalAlloc(GMEM_MOVEABLE, wide.len() * 2) else { return change_count() };
+                let ptr = GlobalLock(global) as *mut u16;
+                if ptr.is_null() {
+                    let _ = GlobalFree(Some(global));
+                    return change_count();
+                }
+                std::ptr::copy_nonoverlapping(wide.as_ptr(), ptr, wide.len());
+                let _ = GlobalUnlock(global);
+                // On success the system owns the memory; only free it if it refused.
+                if SetClipboardData(CF_UNICODETEXT, Some(HANDLE(global.0))).is_err() {
+                    let _ = GlobalFree(Some(global));
+                }
+            }
+        } // clipboard closed here, so the count read below is the final one
+        change_count()
+    }
+}
+
+#[cfg(not(any(target_os = "macos", windows)))]
 pub mod board {
     pub fn change_count() -> i64 {
         0
@@ -164,9 +291,9 @@ pub fn clear(db: &crate::db::Db) -> AppResult<()> {
     Ok(())
 }
 
-/// Watches the clipboard once a second while history is on (macOS).
+/// Watches the clipboard once a second while history is on (macOS and Windows).
 pub fn watch(app: tauri::AppHandle) {
-    if !cfg!(target_os = "macos") {
+    if !cfg!(any(target_os = "macos", windows)) {
         return;
     }
     tauri::async_runtime::spawn(async move {
@@ -268,5 +395,22 @@ mod tests {
         assert_eq!(list(&db, "").unwrap().len(), 199);
         clear(&db).unwrap();
         assert!(list(&db, "").unwrap().is_empty());
+    }
+
+    /// Real Win32 clipboard: what BYTE puts there reads back, and the change
+    /// counter moves. Skips (and says so) where there is no clipboard to use,
+    /// which is the case in a non-interactive session such as a service or an SSH
+    /// login -- a statement about the environment, not about the code.
+    #[cfg(windows)]
+    #[test]
+    fn windows_clipboard_round_trips() {
+        let before = board::change_count();
+        let after = board::set_text("BYTE clipboard test \u{00e9}\u{4e2d}\u{1f600}");
+        if after == before {
+            eprintln!("no usable clipboard in this session; skipping");
+            return;
+        }
+        assert_eq!(board::text().as_deref(), Some("BYTE clipboard test \u{00e9}\u{4e2d}\u{1f600}"), "non-ASCII text must survive UTF-16");
+        assert!(!board::secret(), "plain text is not marked secret");
     }
 }
