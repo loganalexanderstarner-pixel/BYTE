@@ -38,3 +38,6 @@ scripts/catalog-cards.json
 
 # Microsoft redistributable binaries, fetched not committed
 vendor/windows-runtime/
+
+# Generated in the Windows release job when a signing key exists
+src-tauri/tauri.updater.conf.json

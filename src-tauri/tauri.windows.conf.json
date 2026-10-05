@@ -8,8 +8,10 @@
     ]
   },
   "bundle": {
+    "targets": ["nsis"],
     "windows": {
-      "webviewInstallMode": { "type": "downloadBootstrapper" }
+      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "nsis": { "installMode": "currentUser" }
     }
   }
 }

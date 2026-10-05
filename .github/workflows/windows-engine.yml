@@ -1,0 +1,102 @@
+name: Windows engine test
+
+# Builds every Windows engine, bundles the installer and checks what is IN it.
+# Publishes nothing: no release, no tag, no uploaded artifact.
+#
+# Runs on pushes that touch the Windows packaging files on windows-* branches.
+# A path-filtered push rather than workflow_dispatch alone because GitHub only
+# allows dispatching workflows that exist on the default branch, and this one
+# has to be testable from the branch it is developed on (mac-engine.yml does
+# the same). Manual runs still work once it is on main.
+#
+# It exists because the release job cannot be tested without publishing a
+# release, and the parts most likely to be wrong are exactly the ones a local
+# build cannot show:
+#   * CUDA installs and compiles on a runner (it is not preinstalled);
+#   * the CUDA engine STARTS on a machine with no NVIDIA driver, which a runner
+#     is -- the closest free approximation of "a PC with an AMD or Intel GPU";
+#   * the installer puts the runtime DLLs next to the executable, where Windows
+#     looks for them first;
+#   * two --config flags merge, which the release job relies on.
+on:
+  push:
+    branches: ["claude/windows-*"]
+    paths:
+      - ".github/workflows/windows-engine.yml"
+      - ".github/actions/windows-engines/**"
+      - "scripts/build-llama-server.sh"
+      - "scripts/build-whisper.sh"
+      - "scripts/build-sherpa.sh"
+      - "scripts/fetch-windows-runtime.ps1"
+      - "scripts/LLAMA_TAG"
+      - "scripts/WHISPER_TAG"
+      - "scripts/SHERPA_TAG"
+      - "src-tauri/tauri.windows*.json"
+  workflow_dispatch:
+
+concurrency:
+  group: windows-engine-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    name: Build and inspect the Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: ./.github/actions/windows-engines
+
+      - run: npm ci
+
+      - name: Engines start on a machine with no NVIDIA driver
+        shell: pwsh
+        run: |
+          $bin = "src-tauri/binaries"
+          foreach ($e in "llama-server", "llama-server-vulkan") {
+            $exe = "$bin/$e-x86_64-pc-windows-msvc.exe"
+            Write-Host "=== $e"
+            & $exe --version 2>&1 | Select-Object -First 2
+            if ($LASTEXITCODE -ne 0) { throw "$e failed to start (exit $LASTEXITCODE)" }
+          }
+          Write-Host "=== devices the CUDA build sees here (expect none, and no crash)"
+          & "$bin/llama-server-x86_64-pc-windows-msvc.exe" --list-devices 2>&1 | Select-Object -First 6
+          & "$bin/whisper-cli-x86_64-pc-windows-msvc.exe" --help *> $null
+          if ($LASTEXITCODE -ne 0) { throw "whisper-cli failed to start" }
+
+      - name: Bundle (two --config flags, as the release job passes them)
+        run: npm run tauri build -- --config src-tauri/tauri.windows-release.conf.json --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Install it and check what landed beside the executable
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem src-tauri/target/release/bundle/nsis -Filter *-setup.exe | Select-Object -First 1
+          if (-not $setup) { throw "no NSIS installer was produced" }
+          Write-Host ("installer: {0}  {1} MB" -f $setup.Name, [math]::Round($setup.Length/1MB))
+          $dir = Join-Path $env:RUNNER_TEMP "byte-installed"
+          Start-Process $setup.FullName -ArgumentList "/S", "/D=$dir" -Wait
+          Write-Host "=== install directory"
+          Get-ChildItem $dir | ForEach-Object { "{0,-34} {1,8} MB" -f $_.Name, [math]::Round($_.Length/1MB,1) }
+
+          $must = "byte.exe", "llama-server.exe", "llama-server-vulkan.exe", "whisper-cli.exe",
+                  "sherpa-diarize.exe", "sherpa-tts.exe", "MSVCP140.dll", "VCRUNTIME140.dll",
+                  "VCRUNTIME140_1.dll", "VCOMP140.DLL", "cublas64_13.dll", "cublasLt64_13.dll"
+          $missing = $must | Where-Object { -not (Test-Path (Join-Path $dir $_)) }
+          if ($missing) { throw "missing from the installed app: $($missing -join ', ')" }
+
+          Write-Host "=== the INSTALLED engine starts"
+          & (Join-Path $dir "llama-server.exe") --version 2>&1 | Select-Object -First 2
+          if ($LASTEXITCODE -ne 0) { throw "installed llama-server failed to start" }
+          Write-Host "everything the app needs is beside the executable"

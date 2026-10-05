@@ -16,6 +16,7 @@ is the one Microsoft licenses for redistribution:
   1. Visual Studio's own redist folder  (...\VC\Redist\MSVC\<ver>\x64\)
   2. System32, where the VC++ redistributable installs them
 #>
+param([switch]$Cuda)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $dest = Join-Path $root 'vendor\windows-runtime'
@@ -62,5 +63,22 @@ if ($missing.Count -gt 0) {
   Write-Error ("Could not find: " + ($missing -join ', ') +
     ". Install the Visual C++ redistributable (https://aka.ms/vs/17/release/vc_redist.x64.exe) or Visual Studio Build Tools, then re-run.")
   exit 1
+}
+
+# cuBLAS for the CUDA engine. llama-server links cublas64_13.dll dynamically,
+# so without it the engine does not start AT ALL on a machine lacking the CUDA
+# toolkit -- including machines with no NVIDIA card, where it should still be
+# able to start and fall back. cuBLAS is on NVIDIA's redistributable list.
+if ($Cuda) {
+  $cudaRoot = $env:CUDA_PATH
+  if (-not $cudaRoot) { Write-Error "-Cuda given but CUDA_PATH is not set."; exit 1 }
+  foreach ($name in @('cublas64_13.dll', 'cublasLt64_13.dll')) {
+    # CUDA 13 keeps the x64 binaries in bin\x64; earlier layouts used bin\.
+    $p = @((Join-Path $cudaRoot "bin\x64\$name"), (Join-Path $cudaRoot "bin\$name")) |
+         Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $p) { Write-Error "Could not find $name under $cudaRoot"; exit 1 }
+    Copy-Item $p (Join-Path $dest $name) -Force
+    Write-Host ("  {0,-22} {1} MB   <- {2}" -f $name, [math]::Round((Get-Item $p).Length/1MB), (Split-Path $p))
+  }
 }
 Write-Host "Runtime DLLs staged in $dest"

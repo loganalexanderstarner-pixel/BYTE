@@ -1,0 +1,59 @@
+name: Build the Windows engines
+description: >
+  llama-server (CUDA and Vulkan), whisper-cli and the two sherpa-onnx tools,
+  plus the redistributable DLLs the installer has to carry. Shared by the release
+  job and the manual test workflow so the two cannot drift apart.
+
+inputs:
+  cuda-archs:
+    description: CUDA architectures to compile. 75 (Turing) is the floor CUDA 13 supports.
+    default: "75;80;86;89;120"
+
+runs:
+  using: composite
+  steps:
+    # Third-party action in a public release pipeline: pinned to a commit hash,
+    # not a tag, because a tag can be moved after you reviewed it. v0.2.36.
+    # 13.3.1 is the newest CUDA this action can install; the engine was first
+    # measured on 13.4, same major version and same cublas64_13.dll names.
+    - name: Install CUDA
+      uses: Jimver/cuda-toolkit@b8bf9c6c28f8a92fbb04dcfcaee872e60c57462d
+      with:
+        cuda: "13.3.1"
+        method: network
+        sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "visual_studio_integration", "thrust"]'
+
+    # Vulkan SDK straight from LunarG, checked against a hash recorded when it
+    # was reviewed, rather than through another third-party action.
+    - name: Install Vulkan SDK
+      shell: pwsh
+      run: |
+        $v = "1.4.363.0"
+        $exe = "$env:RUNNER_TEMP\vulkan-sdk.exe"
+        curl.exe -sSL --fail --retry 3 -o $exe "https://sdk.lunarg.com/sdk/download/$v/windows/vulkansdk-windows-X64-$v.exe"
+        $got = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+        if ($got -ne "94a82d378f7a5e3e54c9db7d2fb7016af136e14ac0a18dbf0f2f67a36352d141") { throw "Vulkan SDK checksum mismatch: got $got" }
+        & $exe --accept-licenses --default-answer --confirm-command install | Out-Null
+        "VULKAN_SDK=C:\VulkanSDK\$v" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+    - name: Build llama-server (CUDA)
+      shell: bash
+      env:
+        CUDA_ARCHS: ${{ inputs.cuda-archs }}
+      run: ENGINE_BACKEND=cuda scripts/build-llama-server.sh
+
+    - name: Build llama-server (Vulkan)
+      shell: bash
+      run: ENGINE_BACKEND=vulkan scripts/build-llama-server.sh
+
+    - name: Build whisper-cli
+      shell: bash
+      run: scripts/build-whisper.sh
+
+    - name: Build sherpa-onnx tools
+      shell: bash
+      run: scripts/build-sherpa.sh
+
+    - name: Stage the redistributable DLLs
+      shell: pwsh
+      run: scripts/fetch-windows-runtime.ps1 -Cuda

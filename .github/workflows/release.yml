@@ -151,3 +151,76 @@ jobs:
           name: BYTE-${{ env.TAG }}-dmg
           path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: ignore
+
+  # Runs after macOS so the release already exists and the two jobs cannot race
+  # to create it. Deliberately passes no releaseName or releaseBody: those belong
+  # to the macOS job's notes and must not be overwritten.
+  windows:
+    name: Build Windows (x64)
+    needs: macos
+    runs-on: windows-latest
+    timeout-minutes: 240
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Check versions match the tag
+        shell: bash
+        run: node scripts/bump.mjs --check "${TAG#v}"
+
+      - uses: ./.github/actions/windows-engines
+
+      - run: npm ci
+
+      - name: Signed updates (when the signing key is set up)
+        id: updater
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: scripts/updater-key.sh
+
+      # updater-key.sh emits a quoted inline --config, which is the macOS job's
+      # to use. A file avoids depending on how tauri-action splits quotes on
+      # Windows.
+      - name: Updater config as a file
+        id: updcfg
+        shell: bash
+        run: |
+          if [ -n "${{ steps.updater.outputs.args }}" ]; then
+            echo '{"bundle":{"createUpdaterArtifacts":true}}' > src-tauri/tauri.updater.conf.json
+            echo "args=--config src-tauri/tauri.updater.conf.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ env.TAG }}
+          releaseDraft: false
+          prerelease: ${{ contains(env.TAG, '-') }}
+          args: --config src-tauri/tauri.windows-release.conf.json ${{ steps.updcfg.outputs.args }}
+
+      - name: Keep the installer as a run artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BYTE-${{ env.TAG }}-windows
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: ignore

@@ -1,10 +1,19 @@
 {
   "bundle": {
+    "externalBin": [
+      "binaries/llama-server",
+      "binaries/llama-server-vulkan",
+      "binaries/whisper-cli",
+      "binaries/sherpa-diarize",
+      "binaries/sherpa-tts"
+    ],
     "resources": {
       "../vendor/windows-runtime/MSVCP140.dll": "MSVCP140.dll",
       "../vendor/windows-runtime/VCRUNTIME140.dll": "VCRUNTIME140.dll",
       "../vendor/windows-runtime/VCRUNTIME140_1.dll": "VCRUNTIME140_1.dll",
-      "../vendor/windows-runtime/VCOMP140.DLL": "VCOMP140.DLL"
+      "../vendor/windows-runtime/VCOMP140.DLL": "VCOMP140.DLL",
+      "../vendor/windows-runtime/cublas64_13.dll": "cublas64_13.dll",
+      "../vendor/windows-runtime/cublasLt64_13.dll": "cublasLt64_13.dll"
     }
   }
 }
