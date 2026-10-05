@@ -12,6 +12,20 @@ inputs:
 runs:
   using: composite
   steps:
+    # The engines take about two hours to build (CUDA for five architectures), so they are
+    # cached on exactly what they are built from: the build scripts, the pinned upstream
+    # tags, this file and the architecture list. Editing a workflow's test steps, which
+    # are not in the key, no longer rebuilds them. Saved right after the build rather than
+    # at the end of the job, so a later failing step still leaves the cache behind.
+    - name: Restore the built engines
+      id: engines
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          src-tauri/binaries
+          vendor/windows-runtime
+        key: windows-engines-${{ inputs.cuda-archs }}-${{ hashFiles('scripts/build-llama-server.sh', 'scripts/build-whisper.sh', 'scripts/build-sherpa.sh', 'scripts/fetch-windows-runtime.ps1', 'scripts/LLAMA_TAG', 'scripts/WHISPER_TAG', 'scripts/SHERPA_TAG', '.github/actions/windows-engines/action.yml') }}
+
     # Third-party action in a public release pipeline: pinned to a commit hash,
     # not a tag, because a tag can be moved after you reviewed it. v0.2.36.
     # The WHOLE toolkit, not a sub-package list, on purpose. Two attempts at a list
@@ -27,6 +41,7 @@ runs:
     # 13.3.1 is the newest CUDA this action can install; the engine was first
     # measured on 13.4, same major version and same cublas64_13.dll names.
     - name: Install CUDA
+      if: steps.engines.outputs.cache-hit != 'true'
       uses: Jimver/cuda-toolkit@b8bf9c6c28f8a92fbb04dcfcaee872e60c57462d
       with:
         cuda: "13.3.1"
@@ -34,6 +49,7 @@ runs:
 
     # Vulkan SDK straight from LunarG, checked against a hash recorded when it
     # was reviewed, rather than through another third-party action.
+    # Always installed, cached engines or not: the test step borrows its vulkan-1.dll.
     - name: Install Vulkan SDK
       shell: pwsh
       run: |
@@ -46,23 +62,37 @@ runs:
         "VULKAN_SDK=C:\VulkanSDK\$v" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
     - name: Build llama-server (CUDA)
+      if: steps.engines.outputs.cache-hit != 'true'
       shell: bash
       env:
         CUDA_ARCHS: ${{ inputs.cuda-archs }}
       run: ENGINE_BACKEND=cuda scripts/build-llama-server.sh
 
     - name: Build llama-server (Vulkan)
+      if: steps.engines.outputs.cache-hit != 'true'
       shell: bash
       run: ENGINE_BACKEND=vulkan scripts/build-llama-server.sh
 
     - name: Build whisper-cli
+      if: steps.engines.outputs.cache-hit != 'true'
       shell: bash
       run: scripts/build-whisper.sh
 
     - name: Build sherpa-onnx tools
+      if: steps.engines.outputs.cache-hit != 'true'
       shell: bash
       run: scripts/build-sherpa.sh
 
     - name: Stage the redistributable DLLs
+      if: steps.engines.outputs.cache-hit != 'true'
       shell: pwsh
       run: scripts/fetch-windows-runtime.ps1 -Cuda
+
+    - name: Save the built engines
+      if: steps.engines.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          src-tauri/binaries
+          vendor/windows-runtime
+        key: ${{ steps.engines.outputs.cache-primary-key }}

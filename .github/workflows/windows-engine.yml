@@ -68,16 +68,28 @@ jobs:
       - name: Engines start on a machine with no NVIDIA driver
         shell: pwsh
         run: |
-          $bin = "src-tauri/binaries"
+          # Run them the way an install lays them out: each engine beside the redistributable
+          # DLLs. Run from src-tauri/binaries they fail with "DLL not found" (0xC0000135)
+          # because the DLLs are staged elsewhere until the installer copies them, which
+          # tested nothing about the product (the first run of this step failed that way).
+          $dir = Join-Path $env:RUNNER_TEMP "engines"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          Copy-Item "src-tauri/binaries/*-x86_64-pc-windows-msvc.exe" $dir
+          Copy-Item "vendor/windows-runtime/*.dll" $dir
+          # A PC with an AMD or Intel card has the Vulkan loader from its graphics driver, and a
+          # runner has none. Put the SDK's copy beside the engine to stand in for it (test only,
+          # never shipped): with no card behind it the loader reports no devices.
+          Copy-Item (Join-Path $env:VULKAN_SDK "Bin\vulkan-1.dll") $dir
+          Get-ChildItem $dir | ForEach-Object { "{0,-44} {1,8} MB" -f $_.Name, [math]::Round($_.Length/1MB,1) }
           foreach ($e in "llama-server", "llama-server-vulkan") {
-            $exe = "$bin/$e-x86_64-pc-windows-msvc.exe"
+            $exe = Join-Path $dir "$e-x86_64-pc-windows-msvc.exe"
             Write-Host "=== $e"
             & $exe --version 2>&1 | Select-Object -First 2
             if ($LASTEXITCODE -ne 0) { throw "$e failed to start (exit $LASTEXITCODE)" }
           }
           Write-Host "=== devices the CUDA build sees here (expect none, and no crash)"
-          & "$bin/llama-server-x86_64-pc-windows-msvc.exe" --list-devices 2>&1 | Select-Object -First 6
-          & "$bin/whisper-cli-x86_64-pc-windows-msvc.exe" --help *> $null
+          & (Join-Path $dir "llama-server-x86_64-pc-windows-msvc.exe") --list-devices 2>&1 | Select-Object -First 6
+          & "src-tauri/binaries/whisper-cli-x86_64-pc-windows-msvc.exe" --help *> $null
           if ($LASTEXITCODE -ne 0) { throw "whisper-cli failed to start" }
 
       - name: Bundle (two --config flags, as the release job passes them)
