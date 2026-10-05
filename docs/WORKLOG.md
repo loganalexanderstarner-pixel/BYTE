@@ -101,6 +101,29 @@ hardware descriptions to the planner, which is pure arithmetic. It found:
   ever run on Windows. Still needs a person: the Hello prompt itself, and OCR on a
   real photo.
 
+### 2026-10-05 (end of session): two open failures, nothing guessed
+- **Windows engine test still fails, now at a different step.** On `windows-2022`
+  CUDA 13.3 installs and the Vulkan SDK checksum matches, but CMake's CUDA compiler
+  check fails: `cuda_runtime.h(82): fatal error C1083: Cannot open include file:
+  'crt/host_config.h'`. A sub-package is missing from the CUDA install list in
+  `.github/actions/windows-engines/action.yml` (the list was a best guess). Which
+  one is **not yet known**; read the action's package list for 13.3 before
+  changing it. Not fixed.
+- **`scripts/build-android.sh` is not self-contained**, despite its header. Run on
+  a plain Linux machine it needed (1) `AR_aarch64_linux_android` and
+  `RANLIB_aarch64_linux_android` pointing at the NDK's `llvm-ar`/`llvm-ranlib`
+  (vendored OpenSSL otherwise fails with `aarch64-linux-android-ranlib: not
+  found`; `ci.yml` already sets them), (2) empty sidecar placeholders
+  `src-tauri/binaries/<name>-aarch64-linux-android` (`android.yml` touches them),
+  and (3) SDK platform 36 + build-tools 36. With those the engine builds
+  (`libllama-server-i8mm.so`, 13 MB). The APK build was still running when this
+  was written, so **no APK has been produced yet**. `android.yml` calls the same
+  script without (1) and may fail the same way.
+- **Trap I fell into:** piping a build to `tail` hides its exit code. Redirect to a
+  file and print `$?` instead.
+- Nothing has been installed on the phone: it is not attached. It needs Wireless
+  debugging paired (`adb pair`, then `adb connect`).
+
 ### Still open
 - **The layout is device-class, not continuous.** Breakpoints stop at 560px; a
   folded cover screen is ~320px and Android split-screen is arbitrary. The owner
