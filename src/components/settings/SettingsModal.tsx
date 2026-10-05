@@ -970,7 +970,7 @@ function AboutTab() {
         <label className="field">
           <span>
             {osText("Mac upkeep")}
-            <small>{osText("“WhatosText('s taking up space?”, “find duplicate files”, “why is my Mac slow?”, “what')s draining my battery?”, “check my Mac”, “uninstall Zoom”, “what opens at login?”. Anything removed goes to the Trash (Undo puts it back); BYTE never empties the Trash or touches macOS itself.")}</small>
+            <small>{osText("“What's taking up space?”, “find duplicate files”, “why is my Mac slow?”, “what's draining my battery?”, “check my Mac”, “uninstall Zoom”, “what opens at login?”. Anything removed goes to the Trash (Undo puts it back); BYTE never empties the Trash or touches macOS itself.")}</small>
           </span>
           <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.macUpkeep ?? true} onChange={(e) => void update({ macUpkeep: e.target.checked })} />
         </label>

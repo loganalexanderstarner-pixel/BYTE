@@ -148,7 +148,7 @@ export function ConnectorsTab() {
           <CalendarDays size={15} /> Calendar links
         </h4>
         <p className="muted small">
-          Read-only calendars from a private address, like Google CalendarosText('s <b>Secret address in iCal format</b> {osText("(Settings → your calendar → Integrate calendar). They show in your daily briefing and, when Mac control is off, in “what')s on my calendar”. The address is kept in the Keychain.")}
+          Read-only calendars from a private address, like Google Calendar's <b>Secret address in iCal format</b> {osText("(Settings → your calendar → Integrate calendar). They show in your daily briefing and, when Mac control is off, in “what's on my calendar”. The address is kept in the Keychain.")}
         </p>
         {st && st.calendars.length > 0 && (
           <ul className="schedule-list">
