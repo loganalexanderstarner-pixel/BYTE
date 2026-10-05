@@ -234,11 +234,17 @@ pub fn set_paused(p: bool) {
 fn on_wake(app: &AppHandle) {
     #[cfg(target_os = "macos")]
     let _ = std::process::Command::new("/usr/bin/afplay").arg("/System/Library/Sounds/Tink.aiff").spawn();
+    // Windows' own notification sound; MessageBeep returns at once and plays in the background.
+    #[cfg(windows)]
+    {
+        use windows::Win32::UI::WindowsAndMessaging::{MessageBeep, MB_ICONASTERISK};
+        let _ = unsafe { MessageBeep(MB_ICONASTERISK) };
+    }
     crate::quick::show(app);
     let _ = app.emit_to(crate::quick::LABEL, HEARD_EVENT, ());
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", windows))]
 mod listen {
     use std::sync::mpsc;
     use std::sync::Mutex;
@@ -323,9 +329,9 @@ mod listen {
     }
 }
 
-/// Starts or stops listening to match the setting (macOS; elsewhere it's off).
+/// Starts or stops listening to match the setting (macOS and Windows; elsewhere it's off).
 pub fn apply(app: &AppHandle, on: bool) {
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", windows))]
     {
         if on {
             listen::start(app.clone());
@@ -333,7 +339,7 @@ pub fn apply(app: &AppHandle, on: bool) {
             listen::stop();
         }
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", windows)))]
     let _ = (app, on, on_wake as fn(&AppHandle));
 }
 
@@ -343,10 +349,10 @@ pub fn wake_pause(paused: bool) {
     set_paused(paused);
 }
 
-/// Whether "Hey BYTE" can work here (a Mac with a speech model).
+/// Whether "Hey BYTE" can work here (a Mac or a Windows PC, with a speech model).
 #[tauri::command]
 pub async fn wake_ready(state: tauri::State<'_, crate::state::AppState>) -> AppResult<bool> {
-    Ok(cfg!(target_os = "macos") && crate::voice::pick(&state.paths.models, "base-en").is_some())
+    Ok(cfg!(any(target_os = "macos", windows)) && crate::voice::pick(&state.paths.models, "base-en").is_some())
 }
 
 #[cfg(test)]

@@ -15,7 +15,7 @@ use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", windows))]
 use std::time::Duration;
 
 use serde::Serialize;
@@ -30,9 +30,10 @@ pub const SAMPLE_RATE: u32 = 24_000;
 /// After the first sentence, chunks of about this many characters (a few sentences).
 const CHUNK: usize = 320;
 
-/// The chosen voice can speak here: unpacked, and on a Mac (where the audio output is).
+/// The chosen voice can speak here: unpacked, and on a system with an audio output
+/// backend (a Mac, or Windows through WASAPI).
 pub fn usable(models_dir: &Path, voice: &str) -> bool {
-    cfg!(target_os = "macos") && voices::ready(models_dir, voices::pick(voice).0)
+    cfg!(any(target_os = "macos", windows)) && voices::ready(models_dir, voices::pick(voice).0)
 }
 
 // ------------------------------------------------------------------ text → chunks
@@ -357,7 +358,7 @@ fn spawn_maker(app: AppHandle, p: &'static Package, dir: PathBuf, speaker: Speak
     });
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", windows))]
 fn start_output() {
     use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
     static STARTED: OnceLock<()> = OnceLock::new();
@@ -411,7 +412,7 @@ fn start_output() {
     });
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", windows)))]
 fn start_output() {}
 
 // ------------------------------------------------------------------ commands
@@ -451,7 +452,7 @@ pub async fn voices_status(state: State<'_, AppState>) -> AppResult<VoicesStatus
             downloaded.push(p.id.clone());
         }
     }
-    Ok(VoicesStatus { ready, downloaded, can_speak: cfg!(target_os = "macos") })
+    Ok(VoicesStatus { ready, downloaded, can_speak: cfg!(any(target_os = "macos", windows)) })
 }
 
 fn known(id: &str) -> AppResult<&'static Package> {

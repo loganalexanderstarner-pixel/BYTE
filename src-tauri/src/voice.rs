@@ -202,7 +202,7 @@ pub fn is_audio(path: &Path) -> bool {
 /// Turns an audio file macOS can play into a 16 kHz WAV with the built-in `afconvert`.
 async fn to_wav(src: &Path, dest: &Path) -> AppResult<()> {
     if !cfg!(target_os = "macos") {
-        return Err(AppError::msg("BYTE can read WAV, MP3, FLAC and OGG files here; other audio needs a Mac."));
+        return Err(AppError::msg("BYTE can read WAV, MP3, FLAC and OGG files here; other audio formats aren't supported on this system yet."));
     }
     let out = tokio::process::Command::new("/usr/bin/afconvert")
         .args(["-f", "WAVE", "-d", "LEI16@16000", "-c", "1"])
@@ -274,7 +274,7 @@ pub async fn wav_16k(audio: &Path, tmp: &Path) -> AppResult<PathBuf> {
         return Ok(audio.to_path_buf());
     }
     if !cfg!(target_os = "macos") {
-        return Err(AppError::msg("Speaker labels need a 16 kHz mono WAV here; other audio needs a Mac."));
+        return Err(AppError::msg("Speaker labels need a 16 kHz mono WAV here; other audio formats aren't supported on this system yet."));
     }
     let out = tokio::process::Command::new("/usr/bin/afconvert").args(["-f", "WAVE", "-d", "LEI16@16000", "-c", "1"]).arg(audio).arg(tmp).output().await?;
     if !out.status.success() {

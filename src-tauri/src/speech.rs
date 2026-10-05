@@ -197,7 +197,7 @@ fn stop_playing() {
 /// Reads `text` aloud (a new reply replaces the one playing). Emits `speech://done` when it ends.
 pub async fn say(app: Option<AppHandle>, text: &str, voice: &str, speed: &str) -> AppResult<()> {
     if !cfg!(target_os = "macos") {
-        return Err(AppError::msg("Reading answers aloud needs a Mac for now."));
+        return Err(AppError::msg("The system voice is a Mac feature. Download a BYTE voice in Settings \u{2192} Voice to have answers read aloud."));
     }
     let words = speakable(text);
     stop_playing();
@@ -264,7 +264,7 @@ pub async fn speech_feed(app: AppHandle, state: State<'_, AppState>, id: String,
     };
     let models = &state.paths.models;
     // BYTE Cloud voices: only when chosen, connected, not a private chat, and the cloud offers voices.
-    if wants_cloud && cfg!(target_os = "macos") {
+    if wants_cloud && cfg!(any(target_os = "macos", windows)) {
         if let Ok(client) = state.cloud_client().await {
             if let Ok(list) = crate::cloud::voice::voices(&client).await {
                 let chosen = state.settings.lock().await.cloud_voice.clone();

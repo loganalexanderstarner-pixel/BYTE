@@ -71,7 +71,6 @@ zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
 # Cloud mode: the API key lives in the macOS Keychain, never in files.
 [target.'cfg(target_os = "macos")'.dependencies]
 # "Hey BYTE": the microphone read natively (wake.rs).
-cpal = "0.18"
 keyring = { version = "3", features = ["apple-native"] }
 # Reading text in photos and scanned PDFs (Apple Vision + PDFKit, see ocr.rs).
 objc2 = "0.6"
@@ -87,6 +86,13 @@ block2 = "0.6"
 objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "AVCaptureDevice", "AVMediaFormat"] }
 objc2-local-authentication = { version = "0.3", default-features = false, features = ["std", "block2", "LAContext", "LAError"] }
 
+[target.'cfg(any(target_os = "macos", windows))'.dependencies]
+# Audio in and out: BYTE's own voices play through it and "Hey BYTE" listens
+# through it. It was declared only under macOS, so on Windows no audio backend was
+# compiled at all and voice could not have worked whatever the gates said. WASAPI
+# is its Windows backend.
+cpal = "0.18"
+
 [target.'cfg(windows)'.dependencies]
 # WinRT: Windows.Media.Ocr and Windows.Data.Pdf replace Apple Vision and PDFKit
 # in ocr.rs. Version 0.62 matches the copy tauri already pulls in, so this adds no
@@ -95,6 +101,7 @@ windows = { version = "0.62", features = [
   "Foundation", "Foundation_Collections", "Graphics_Imaging", "Media_Ocr",
   "Storage_Streams", "Data_Pdf", "Security_Credentials_UI", "Win32_System_WinRT",
   "Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Memory",
+  "Win32_UI_WindowsAndMessaging",
 ] }
 
 [dev-dependencies]
