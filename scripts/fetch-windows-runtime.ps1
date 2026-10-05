@@ -23,6 +23,10 @@ $dest = Join-Path $root 'vendor\windows-runtime'
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 
 $need = @('MSVCP140.dll', 'VCRUNTIME140.dll', 'VCRUNTIME140_1.dll', 'VCOMP140.DLL')
+# VCRUNTIME140_1 belongs to x64 exception handling. A native ARM64 program never imports it, and the
+# copy in the ARM64 redistributable folder is an x64 file (machine type 8664, found by checking what
+# the installer carried), so it is not shipped there.
+if ($Arch -eq 'arm64') { $need = $need | Where-Object { $_ -ne 'VCRUNTIME140_1.dll' } }
 
 $searchDirs = @()
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'

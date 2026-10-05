@@ -158,13 +158,14 @@ jobs:
           Start-Process $setup.FullName -ArgumentList "/S", "/D=$dir" -Wait
           Write-Host "=== install directory"
           Get-ChildItem $dir | ForEach-Object { "{0,-30} {1,8} MB   {2}" -f $_.Name, [math]::Round($_.Length/1MB,1), $(if ($_.Extension -in '.exe','.dll') { Machine $_.FullName } else { '' }) }
-          $must = "byte.exe", "llama-server.exe", "whisper-cli.exe", "MSVCP140.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "VCOMP140.DLL"
+          $must = "byte.exe", "llama-server.exe", "whisper-cli.exe", "MSVCP140.dll", "VCRUNTIME140.dll", "VCOMP140.DLL"
           $missing = $must | Where-Object { -not (Test-Path (Join-Path $dir $_)) }
           if ($missing) { throw "missing from the installed app: $($missing -join ', ')" }
-          foreach ($n in "byte.exe", "llama-server.exe", "whisper-cli.exe") {
-            $m = Machine (Join-Path $dir $n)
-            if ($m -ne 'AA64') { throw "$n is machine type $m, not ARM64 (AA64)" }
-          }
+          # Every executable and DLL the installer carries must be native ARM64: a stray x64 file is
+          # what the first run found (VCRUNTIME140_1.dll), and an x64 DLL cannot be loaded by an ARM64 program.
+          # (NSIS's own uninstall.exe is a small x86 program and is exempt.)
+          $wrong = Get-ChildItem $dir -Recurse -Include *.exe, *.dll | Where-Object { $_.Name -ne 'uninstall.exe' -and (Machine $_.FullName) -ne 'AA64' } | ForEach-Object { "$($_.Name) ($(Machine $_.FullName))" }
+          if ($wrong) { throw "not native ARM64: $($wrong -join ', ')" }
           "INSTALL_DIR=$dir" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           Write-Host "everything is here and ARM64"
 
@@ -182,7 +183,8 @@ jobs:
             $up = $false
             for ($i = 0; $i -lt 90; $i++) { Start-Sleep 2; try { if ((Invoke-RestMethod http://127.0.0.1:18080/health -TimeoutSec 3).status -eq 'ok') { $up = $true; break } } catch {} }
             if (-not $up) { Get-Content "$env:RUNNER_TEMP\engine.err" -Tail 30; throw "the engine never became ready" }
-            $body = @{ messages = @(@{ role = "user"; content = "What is 12 plus 30? Answer with just the number." }); max_tokens = 200; temperature = 0 } | ConvertTo-Json -Depth 5
+            # Qwen3 thinks before answering; with thinking off the answer is in `content` and fits in a few tokens.
+            $body = @{ messages = @(@{ role = "user"; content = "What is 12 plus 30? Answer with just the number." }); max_tokens = 64; temperature = 0; chat_template_kwargs = @{ enable_thinking = $false } } | ConvertTo-Json -Depth 5
             $r = Invoke-RestMethod http://127.0.0.1:18080/v1/chat/completions -Method Post -Body $body -ContentType "application/json" -TimeoutSec 120
             $text = $r.choices[0].message.content
             Write-Host "answer: $text"
