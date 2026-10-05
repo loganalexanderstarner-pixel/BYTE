@@ -101,28 +101,34 @@ hardware descriptions to the planner, which is pure arithmetic. It found:
   ever run on Windows. Still needs a person: the Hello prompt itself, and OCR on a
   real photo.
 
-### 2026-10-05 (end of session): two open failures, nothing guessed
-- **Windows engine test still fails, now at a different step.** On `windows-2022`
-  CUDA 13.3 installs and the Vulkan SDK checksum matches, but CMake's CUDA compiler
-  check fails: `cuda_runtime.h(82): fatal error C1083: Cannot open include file:
-  'crt/host_config.h'`. A sub-package is missing from the CUDA install list in
-  `.github/actions/windows-engines/action.yml` (the list was a best guess). Which
-  one is **not yet known**; read the action's package list for 13.3 before
-  changing it. Not fixed.
-- **`scripts/build-android.sh` is not self-contained**, despite its header. Run on
-  a plain Linux machine it needed (1) `AR_aarch64_linux_android` and
-  `RANLIB_aarch64_linux_android` pointing at the NDK's `llvm-ar`/`llvm-ranlib`
-  (vendored OpenSSL otherwise fails with `aarch64-linux-android-ranlib: not
-  found`; `ci.yml` already sets them), (2) empty sidecar placeholders
-  `src-tauri/binaries/<name>-aarch64-linux-android` (`android.yml` touches them),
-  and (3) SDK platform 36 + build-tools 36. With those the engine builds
-  (`libllama-server-i8mm.so`, 13 MB). The APK build was still running when this
-  was written, so **no APK has been produced yet**. `android.yml` calls the same
-  script without (1) and may fail the same way.
+### 2026-10-05 (later): the two failures, and what fixed them
+- **CUDA headers (Windows engine test).** The failure was `crt/host_config.h` not
+  found. NVIDIA's own component manifest for 13.3.1
+  (`developer.download.nvidia.com/compute/cuda/redist/redistrib_13.3.1.json`)
+  shows CUDA 13 split the crt headers out of `nvcc` into a `cuda_crt` component,
+  and replaced `thrust` with `cccl`. The header was confirmed inside the archive.
+  The install list in `.github/actions/windows-engines/action.yml` now has `crt`
+  and `cccl`. **Read the manifest, not the README** (it lists no package names).
+  Whether the installer accepts those two names is decided by the next run.
+- **`scripts/build-android.sh` fixed on `claude/android-port` (`f51a43d`).** It
+  needed, and now sets up itself: `AR_`/`RANLIB_aarch64_linux_android` pointing at
+  the NDK's `llvm-ar`/`llvm-ranlib` (vendored OpenSSL otherwise fails with
+  `aarch64-linux-android-ranlib: not found`), empty sidecar placeholders, and a
+  check for SDK platform 36. On failure it used to print nothing, because it only
+  printed what a grep matched and the grep matched nothing; it now prints the log
+  tail too. **Proven:** with placeholders and the old APK deleted and only
+  `ANDROID_HOME`, `NDK_HOME`, `JAVA_HOME` set, it exits 0 and builds a fresh
+  149 MB debug APK. The Android workflow failed at this step before the fix.
+- **Android pushes publish a public pre-release.** `android.yml` runs on every
+  push to `claude/android-port` and creates an `android-test-N` pre-release with
+  the debug APK (never "latest", so the Mac update check is unaffected). It is a
+  deliberate design of the Android session, and it means the APK can be installed
+  by opening the Releases page on the phone, with no adb.
+- **Voice on Windows:** `cpal` was declared only under macOS, so no audio backend
+  was compiled on Windows at all; widening the `cfg` checks alone would have done
+  nothing. Now declared for macOS and Windows. Not yet exercised at run time.
 - **Trap I fell into:** piping a build to `tail` hides its exit code. Redirect to a
   file and print `$?` instead.
-- Nothing has been installed on the phone: it is not attached. It needs Wireless
-  debugging paired (`adb pair`, then `adb connect`).
 
 ### Still open
 - **The layout is device-class, not continuous.** Breakpoints stop at 560px; a
