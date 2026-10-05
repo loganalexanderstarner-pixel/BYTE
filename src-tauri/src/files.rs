@@ -186,7 +186,7 @@ pub fn ingest(path: &Path) -> AppResult<Ingested> {
     };
     let text = tidy(&text);
     if kind != FileKind::Image && text.trim().is_empty() {
-        let hint = if kind == FileKind::Pdf && !cfg!(target_os = "macos") { " (it may be a scan: reading scans needs macOS)" } else { "" };
+        let hint = if kind == FileKind::Pdf && !cfg!(any(target_os = "macos", windows)) { " (it may be a scan: reading scans isn't available on this system yet)" } else { "" };
         return Err(AppError::msg(format!("{name} has no readable text{hint}")));
     }
     let truncated = text.chars().count() > MAX_TEXT_CHARS;

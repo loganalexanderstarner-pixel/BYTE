@@ -516,6 +516,7 @@ dependencies = [
  "url",
  "uuid",
  "walkdir",
+ "windows 0.62.2",
  "wiremock",
  "zip 8.6.0",
 ]

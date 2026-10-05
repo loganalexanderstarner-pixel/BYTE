@@ -87,6 +87,15 @@ block2 = "0.6"
 objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "AVCaptureDevice", "AVMediaFormat"] }
 objc2-local-authentication = { version = "0.3", default-features = false, features = ["std", "block2", "LAContext", "LAError"] }
 
+[target.'cfg(windows)'.dependencies]
+# WinRT: Windows.Media.Ocr and Windows.Data.Pdf replace Apple Vision and PDFKit
+# in ocr.rs. Version 0.62 matches the copy tauri already pulls in, so this adds no
+# second one to the build.
+windows = { version = "0.62", features = [
+  "Foundation", "Foundation_Collections", "Graphics_Imaging", "Media_Ocr",
+  "Storage_Streams", "Data_Pdf", "Win32_System_WinRT",
+] }
+
 [dev-dependencies]
 lopdf = "0.42"
 wiremock = "0.6"

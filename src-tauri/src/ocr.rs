@@ -1,20 +1,24 @@
-//! Reads text in photos and scanned PDFs with Apple's Vision framework (runs
-//! on the Neural Engine, on this Mac). Other systems get a clear error.
+//! Reads text in photos and scanned PDFs: Apple's Vision framework on a Mac (runs
+//! on the Neural Engine), Windows.Media.Ocr and Windows.Data.Pdf on Windows (both
+//! built into the OS, so nothing extra to install or bundle). Other systems get a
+//! clear error.
 
 use crate::error::{AppError, AppResult};
 
 /// Pages of a scanned PDF read at most (about 1–2 s per page).
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "macos", windows)), allow(dead_code))]
 const MAX_SCAN_PAGES: usize = 60;
 
 /// Text lines in a photo (any format macOS reads: JPEG, PNG, HEIC, WebP, TIFF…).
 pub fn image_text(bytes: &[u8]) -> AppResult<String> {
     #[cfg(target_os = "macos")]
     return mac::image_text(bytes).map_err(AppError::msg);
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(windows)]
+    return win::image_text(bytes).map_err(AppError::msg);
+    #[cfg(not(any(target_os = "macos", windows)))]
     {
         let _ = bytes;
-        Err(AppError::msg("reading text in photos needs macOS"))
+        Err(AppError::msg("reading text in photos isn't available on this system yet"))
     }
 }
 
@@ -23,10 +27,12 @@ pub fn image_text(bytes: &[u8]) -> AppResult<String> {
 pub fn pdf_text(bytes: &[u8]) -> AppResult<(Vec<String>, usize)> {
     #[cfg(target_os = "macos")]
     return mac::pdf_text(bytes, MAX_SCAN_PAGES).map_err(AppError::msg);
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(windows)]
+    return win::pdf_text(bytes, MAX_SCAN_PAGES).map_err(AppError::msg);
+    #[cfg(not(any(target_os = "macos", windows)))]
     {
         let _ = bytes;
-        Err(AppError::msg("reading scanned pages needs macOS"))
+        Err(AppError::msg("reading scanned pages isn't available on this system yet"))
     }
 }
 
@@ -81,12 +87,126 @@ mod mac {
     }
 }
 
+#[cfg(windows)]
+mod win {
+    use windows::core::Error;
+    use windows::Data::Pdf::{PdfDocument, PdfPageRenderOptions};
+    use windows::Graphics::Imaging::{BitmapDecoder, BitmapTransform, ColorManagementMode, ExifOrientationMode};
+    use windows::Media::Ocr::OcrEngine;
+    use windows::Storage::Streams::{DataWriter, IRandomAccessStream, InMemoryRandomAccessStream};
+    use windows::Win32::System::WinRT::{RoInitialize, RO_INIT_MULTITHREADED};
+
+    fn msg(e: Error) -> String {
+        e.message()
+    }
+
+    /// WinRT needs COM on the calling thread, and worker threads do not have it
+    /// unless something set it up -- without this every call fails with
+    /// CO_E_NOTINITIALIZED. An error here means the thread is already initialised
+    /// (Tauri's own threads are), which is exactly what is wanted.
+    fn ensure_winrt() {
+        let _ = unsafe { RoInitialize(RO_INIT_MULTITHREADED) };
+    }
+
+    /// Windows keeps OCR languages as optional features. With none installed for
+    /// the user's profile there is no engine at all, and the bare error is
+    /// unhelpful, so say what to do about it.
+    fn engine() -> Result<OcrEngine, String> {
+        OcrEngine::TryCreateFromUserProfileLanguages().map_err(|_| {
+            "Windows has no text-recognition language installed for your account. Add one in Settings \u{2192} Time & language \u{2192} Language & region (an \"OCR\" feature is included with each language), then try again."
+                .to_string()
+        })
+    }
+
+    fn stream_of(bytes: &[u8]) -> Result<InMemoryRandomAccessStream, String> {
+        let stream = InMemoryRandomAccessStream::new().map_err(msg)?;
+        let writer = DataWriter::CreateDataWriter(&stream).map_err(msg)?;
+        writer.WriteBytes(bytes).map_err(msg)?;
+        writer.StoreAsync().map_err(msg)?.get().map_err(msg)?;
+        writer.FlushAsync().map_err(msg)?.get().map_err(msg)?;
+        // Hand the stream back instead of closing it along with the writer.
+        writer.DetachStream().map_err(msg)?;
+        stream.Seek(0).map_err(msg)?;
+        Ok(stream)
+    }
+
+    /// Lines of text in an encoded image held in `stream`.
+    fn read_image(stream: &IRandomAccessStream, engine: &OcrEngine) -> Result<String, String> {
+        let decoder = BitmapDecoder::CreateAsync(stream).map_err(msg)?.get().map_err(msg)?;
+        let (w, h) = (decoder.PixelWidth().map_err(msg)?, decoder.PixelHeight().map_err(msg)?);
+        // The engine refuses anything past its own limit (about 10,000 px), which
+        // a photo from a modern phone can exceed. Scale down rather than fail.
+        let limit = OcrEngine::MaxImageDimension().map_err(msg)?;
+        let bitmap = if w.max(h) > limit {
+            let scale = limit as f64 / w.max(h) as f64;
+            let transform = BitmapTransform::new().map_err(msg)?;
+            transform.SetScaledWidth(((w as f64 * scale) as u32).max(1)).map_err(msg)?;
+            transform.SetScaledHeight(((h as f64 * scale) as u32).max(1)).map_err(msg)?;
+            decoder
+                .GetSoftwareBitmapTransformedAsync(
+                    decoder.BitmapPixelFormat().map_err(msg)?,
+                    decoder.BitmapAlphaMode().map_err(msg)?,
+                    &transform,
+                    ExifOrientationMode::RespectExifOrientation,
+                    ColorManagementMode::DoNotColorManage,
+                )
+                .map_err(msg)?
+                .get()
+                .map_err(msg)?
+        } else {
+            decoder.GetSoftwareBitmapAsync().map_err(msg)?.get().map_err(msg)?
+        };
+        let result = engine.RecognizeAsync(&bitmap).map_err(msg)?.get().map_err(msg)?;
+        let mut lines = Vec::new();
+        for line in result.Lines().map_err(msg)? {
+            lines.push(line.Text().map_err(msg)?.to_string());
+        }
+        Ok(lines.join("\n"))
+    }
+
+    pub fn image_text(bytes: &[u8]) -> Result<String, String> {
+        ensure_winrt();
+        let engine = engine()?;
+        let stream = stream_of(bytes)?;
+        read_image(&stream.cast().map_err(msg)?, &engine)
+    }
+
+    pub fn pdf_text(bytes: &[u8], max_pages: usize) -> Result<(Vec<String>, usize), String> {
+        ensure_winrt();
+        let engine = engine()?;
+        let source = stream_of(bytes)?;
+        let doc = PdfDocument::LoadFromStreamAsync(&source)
+            .map_err(msg)?
+            .get()
+            .map_err(|_| "not a readable PDF (it may be password protected)".to_string())?;
+        let total = doc.PageCount().map_err(msg)? as usize;
+        let mut pages = Vec::new();
+        for i in 0..total.min(max_pages) {
+            let page = doc.GetPage(i as u32).map_err(msg)?;
+            let size = page.Size().map_err(msg)?;
+            // About 200 dpi for a letter page: sharp enough for small print.
+            let scale = (2200.0 / size.Width.max(size.Height).max(1.0)).min(3.0);
+            let opts = PdfPageRenderOptions::new().map_err(msg)?;
+            opts.SetDestinationWidth((size.Width * scale) as u32).map_err(msg)?;
+            opts.SetDestinationHeight((size.Height * scale) as u32).map_err(msg)?;
+            let rendered = InMemoryRandomAccessStream::new().map_err(msg)?;
+            page.RenderWithOptionsToStreamAsync(&rendered, &opts).map_err(msg)?.get().map_err(msg)?;
+            rendered.Seek(0).map_err(msg)?;
+            pages.push(read_image(&rendered.cast().map_err(msg)?, &engine)?);
+        }
+        Ok((pages, total))
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    /// Real Vision + PDFKit (macOS only; run by the Mac engine workflow):
-    /// a PDF page is rendered to an image and its words read back.
+    /// Real OCR end to end: a PDF page is rendered to an image and its words read
+    /// back. Vision + PDFKit on a Mac (run by the Mac engine workflow),
+    /// Windows.Media.Ocr + Windows.Data.Pdf on Windows. The Windows run needs an
+    /// OCR language installed for the account, which a client Windows has and a
+    /// CI Server image may not, so a failure there is about the environment first.
     #[test]
-    #[cfg_attr(not(target_os = "macos"), ignore)]
+    #[cfg_attr(not(any(target_os = "macos", windows)), ignore)]
     fn e2e_reads_text_from_a_rendered_page() {
         let pdf = crate::files::tests::test_pdf(&["Invoice number 48213 for BYTE"]);
         let (pages, total) = super::pdf_text(&pdf).unwrap();
