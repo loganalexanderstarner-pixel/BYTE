@@ -29,6 +29,8 @@ BUILD="$SRC/build-$ENGINE_BACKEND"
 # Set by the per-platform case below; empty elsewhere.
 GEN=()
 case "$TRIPLE" in
+  # Ninja (single-config) builds the ARM64 engine with clang, so there is no Release/ folder.
+  aarch64-*-windows-msvc) EXE=".exe"; BIN_SUBDIR="" ;;
   *-windows-msvc) EXE=".exe"; BIN_SUBDIR="Release/" ;;
   *)              EXE="";     BIN_SUBDIR="" ;;
 esac
@@ -91,7 +93,12 @@ if [ ! -f "$BUILD/bin/${BIN_SUBDIR}llama-server$EXE" ]; then
       # A VS generator is still wanted over Ninja, which would need cl.exe on
       # PATH, which means a developer prompt an SSH session lacks.
       # The architecture follows the target, so an ARM64 engine can be built on an x64 runner.
-      case "$TRIPLE" in aarch64-*) GEN=(-A ARM64) ;; *) GEN=(-A x64) ;; esac
+      # ARM64 is clang + Ninja (ggml rejects MSVC on ARM); OpenMP is off because clang's
+      # runtime for it is not one we ship.
+      case "$TRIPLE" in
+        aarch64-*) GEN=(-G Ninja); FLAGS+=(-DCMAKE_TOOLCHAIN_FILE="$(cygpath -m "$ROOT/scripts/arm64-windows-llvm.cmake" 2>/dev/null || echo "$ROOT/scripts/arm64-windows-llvm.cmake")" -DGGML_OPENMP=OFF) ;;
+        *)         GEN=(-A x64) ;;
+      esac
       JOBS="${NUMBER_OF_PROCESSORS:-8}"
       ;;
     *)

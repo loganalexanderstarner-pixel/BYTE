@@ -61,13 +61,31 @@ jobs:
           if (-not $arm) { throw "the runner's Visual Studio has no ARM64 C++ tools" }
           Get-ChildItem (Join-Path $vs 'VC\Redist\MSVC') -Directory | ForEach-Object { Write-Host "redist $($_.Name): $((Get-ChildItem $_.FullName -Directory).Name -join ', ')" }
 
+      - name: Tools for the clang cross-build
+        shell: pwsh
+        run: |
+          foreach ($t in "clang", "clang++", "lld-link", "ninja", "cmake") { $c = Get-Command $t -ErrorAction SilentlyContinue; "{0,-9} {1}" -f $t, $(if ($c) { $c.Source } else { "NOT ON PATH" }) }
+          clang --version | Select-Object -First 2
+
+      # ggml needs clang on ARM, and clang needs the ARM64 libraries, which come from the Visual
+      # Studio developer environment for x64_arm64. It is loaded inside each engine step rather than
+      # for the whole job: with it on PATH, cl.exe would be the cross compiler and every
+      # build script that compiles for the host (Rust's) would break.
       - name: Build llama-server (CPU, ARM64)
-        shell: bash
-        run: TARGET_TRIPLE="$TARGET" scripts/build-llama-server.sh
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set VSDIR=%%i
+          call "%VSDIR%\VC\Auxiliary\Build\vcvarsall.bat" x64_arm64 || exit /b 1
+          set TARGET_TRIPLE=aarch64-pc-windows-msvc
+          "C:\Program Files\Git\bin\bash.exe" scripts/build-llama-server.sh
 
       - name: Build whisper-cli (ARM64)
-        shell: bash
-        run: TARGET_TRIPLE="$TARGET" scripts/build-whisper.sh
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set VSDIR=%%i
+          call "%VSDIR%\VC\Auxiliary\Build\vcvarsall.bat" x64_arm64 || exit /b 1
+          set TARGET_TRIPLE=aarch64-pc-windows-msvc
+          "C:\Program Files\Git\bin\bash.exe" scripts/build-whisper.sh
 
       # Speech output and speaker labels depend on sherpa-onnx, which has its own ARM64 story
       # (a prebuilt runtime it downloads). Allowed to fail while that is learned, so the rest of
