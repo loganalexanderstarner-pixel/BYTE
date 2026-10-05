@@ -370,6 +370,49 @@ pub fn plan_fit(
     }
 }
 
+/// How much memory a model may use on a phone (Android, `docs/ANDROID.md`).
+///
+/// A phone has unified memory like a Mac, but Android, not a GPU driver, decides
+/// what an app may keep: take too much and the low-memory killer ends BYTE
+/// mid-answer. Two cases:
+///
+/// * **AI focus on** (BYTE on screen or Ask BYTE in use): background apps can be
+///   moved out to RAM Plus / swap, so the budget is all of RAM except what
+///   Android itself needs -- a quarter of RAM, between 2.5 and 4.5 GB.
+/// * **AI focus off**: only what's free right now (`MemAvailable`), less a
+///   margin, so other apps stay in RAM.
+///
+/// `measured` is the ceiling found by the per-phone memory test, when there is
+/// one; it always wins, because it is what this phone actually allowed.
+pub fn phone_budget(total_ram: u64, available: Option<u64>, ai_focus: bool, measured: Option<u64>) -> u64 {
+    if let Some(m) = measured {
+        return m.min(total_ram);
+    }
+    let android = (total_ram / 4).clamp(5 * GIB / 2, 9 * GIB / 2);
+    let focus = total_ram.saturating_sub(android);
+    if ai_focus {
+        return focus;
+    }
+    match available {
+        Some(a) => a.saturating_sub(GIB / 2).min(focus),
+        None => focus / 2,
+    }
+}
+
+/// `plan_fit` for a phone: the budget already accounts for Android, so no
+/// desktop OS reserve is taken again, and the notes say "phone".
+pub fn plan_fit_phone(weights_bytes: u64, arch: ModelArch, desired_ctx: u32, total_ram: u64, budget: u64) -> FitPlan {
+    let mut plan = plan_fit(weights_bytes, arch, desired_ctx, budget + OS_RESERVE, budget);
+    plan.total_ram_bytes = total_ram;
+    plan.note = if plan.fit == Fit::TooBig {
+        let need = plan.needed_bytes as f64 / GB as f64;
+        format!("Needs about {need:.1} GB free for the model; this phone can give it {:.1} GB.", budget as f64 / GB as f64)
+    } else {
+        plan.note.replace("this Mac", "this phone")
+    };
+    plan
+}
+
 /// Dense models may run at most this share of their weights on the CPU.
 const MAX_STRETCH: f64 = 0.15;
 

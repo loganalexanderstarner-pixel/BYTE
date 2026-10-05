@@ -21,6 +21,28 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ---
 
+## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
+
+### (this commit) — phones in the planner, before any device code
+- **Why:** the Android brief and the Windows session: add phone fixtures to `hardware_fixtures_tests.rs` first.
+  A phone has shared memory like a Mac, runs llama.cpp on the CPU, and Android (not a GPU driver) decides what an
+  app may keep.
+- **What:**
+  - `chip::phone_soc`: peak memory bandwidth for Snapdragon / Dimensity / Exynos / Tensor chips by marketing name
+    or `ro.soc.model` part number, `exact: false` until measured.
+  - The CPU prompt estimate is now at least 3.5x generation (the Pi 5's measured 11.4 / 3.26). Before, a phone
+    was told 5 tok/s, so a typical prompt "took five minutes".
+  - `system::phone_budget` (AI focus: all but a quarter of RAM, 2.5–4.5 GB, for Android; otherwise what's free now
+    minus 0.5 GB; a measured ceiling wins) and `system::plan_fit_phone`.
+  - Fixtures: the Fold (16 GB, 8 Elite class), a 16 GB Dimensity phone and a 6 GB mid-range phone. They cover fit
+    (4B/8B/14B on the Fold, 27B refused; 1.7B on 6 GB, 8B refused), the budget rules, honest speed (4B on the Fold
+    8–25 tok/s) and the Pi prompt calibration.
+  - `scripts/build-llama-android.sh`: `llama-server` with the NDK in two builds, baseline (armv8.2 dotprod) and
+    i8mm, packed as `lib*.so` for `jniLibs`. It is checked to need only Android system libraries.
+- **Verify:** `cargo test --lib hardware_fixtures` (20 pass); `ANDROID_NDK_HOME=<ndk r27> scripts/build-llama-android.sh`
+  gives two ~13 MB arm64 executables.
+- **Undo:** `git revert` this commit.
+
 ## 2026-10-04 (cluster session, Windows port: `claude/windows-port`)
 
 These eight commits were pushed without worklog entries, against CLAUDE.md's own

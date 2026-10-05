@@ -100,8 +100,14 @@ pub fn identify(brand: &str, gpu_cores: Option<u32>) -> ChipInfo {
         (5, Tier::Base) => Some((153.0, 5.7, 38.0)),
         _ => None,
     };
+    let phone = if apple { None } else { phone_soc(&b) };
     let (bandwidth_gbps, gpu_tflops, neural_engine_tops, exact) = match known {
         Some((bw, tf, ne)) => (bw, tf, ne, true),
+        // Phones: llama.cpp runs on the CPU there, so memory bandwidth is what
+        // sets the speed. Still `exact: false` -- these are the memory's peak
+        // figures, not a measurement -- until `models::calibrate` measures the
+        // phone in front of the user.
+        None if phone.is_some() => (phone.unwrap_or(24.0), 1.0, 0.0, false),
         None if apple && generation >= 4 => {
             // Newer or unlisted chip: scale the newest known base chip by tier.
             let mult = match tier {
@@ -137,6 +143,33 @@ pub fn identify(brand: &str, gpu_cores: Option<u32>) -> ChipInfo {
         neural_engine_tops,
         exact,
     }
+}
+
+/// Peak memory bandwidth (GB/s) of a phone chip, from its LPDDR type and the
+/// 64-bit bus flagships use: MT/s x 8 bytes. Matched on the marketing name or the
+/// part number Android reports in `ro.soc.model` (e.g. "SM8750"). `None` = not a
+/// phone chip we know, and the conservative default applies.
+pub fn phone_soc(brand_lower: &str) -> Option<f64> {
+    let has = |k: &str| brand_lower.contains(k);
+    Some(if has("8 elite") || has("sm8750") || has("sm8850") {
+        85.3 // LPDDR5X-10667
+    } else if has("dimensity 9400") || has("mt6991") || has("exynos 2500") || has("s5e9955") || has("tensor g5") {
+        85.3 // LPDDR5X-10667
+    } else if has("dimensity 9300") || has("mt6989") {
+        76.8 // LPDDR5T-9600
+    } else if has("8 gen 3") || has("sm8650") || has("8 gen 2") || has("sm8550") || has("exynos 2400")
+        || has("s5e9945") || has("tensor g4") || has("tensor g3")
+    {
+        68.3 // LPDDR5X-8533
+    } else if has("8 gen 1") || has("8+ gen 1") || has("sm8450") || has("sm8475") || has("exynos 2200")
+        || has("tensor g2") || has("tensor g1") || has("dimensity 9200")
+    {
+        51.2 // LPDDR5-6400
+    } else if has("7 gen") || has("7s gen") || has("7+ gen") || has("dimensity 8") || has("dimensity 7") {
+        34.1 // LPDDR4X-4266 to LPDDR5 on mid-range phones
+    } else {
+        return None;
+    })
 }
 
 /// Reads the GPU core count from IOKit (macOS only).
@@ -257,8 +290,16 @@ pub fn estimate_on(
         Backend::Cpu => 0.004,
         _ => 1.0,
     };
-    let prompt_per_sec =
+    let mut prompt_per_sec =
         (chip.gpu_tflops * 1e12 * 0.9 * prompt_scale / (2.0 * active * 1e9)).clamp(5.0, prompt_ceiling);
+    // On the CPU, reading a prompt is batched work on the same cores and scales
+    // with how fast they generate: the Pi 5 measured 11.4 tok/s reading against
+    // 3.26 writing, 3.5x. Without this floor a phone, which has no GPU figure
+    // that matters to llama.cpp, was told 5 tok/s, so a 1,500-token prompt
+    // "took five minutes".
+    if matches!(backend, Backend::Cpu) {
+        prompt_per_sec = prompt_per_sec.max((tokens_per_sec * 3.5).min(prompt_ceiling));
+    }
     let reply_secs = TYPICAL_PROMPT / prompt_per_sec + TYPICAL_ANSWER / tokens_per_sec;
     SpeedEstimate {
         tokens_per_sec,

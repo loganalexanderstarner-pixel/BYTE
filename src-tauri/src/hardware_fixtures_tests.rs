@@ -260,3 +260,132 @@ fn the_unknown_hardware_default_is_not_optimistic() {
             "unknown hardware defaulted to {} GB/s, which over-promises",
             unknown.bandwidth_gbps);
 }
+
+// ---------------------------------------------------------------------------
+// Phones (docs/ANDROID.md). llama.cpp runs on the CPU there, memory is shared
+// like a Mac's, and Android -- not a GPU driver -- decides what an app may keep.
+// Written before any Android device code, as the brief asks.
+// ---------------------------------------------------------------------------
+
+struct Phone {
+    name: &'static str,
+    /// What Android reports in `ro.soc.model`, or the marketing name.
+    soc: &'static str,
+    total_ram: u64,
+}
+
+const PHONES: &[Phone] = &[
+    // The owner's phone. Exact parts unconfirmed until read over adb, so the
+    // fixture is "a 16 GB foldable on the current Snapdragon 8 Elite class".
+    Phone { name: "Galaxy Z Fold (16 GB, 8 Elite class)", soc: "SM8750", total_ram: 16 * GIB },
+    Phone { name: "16 GB phone (Dimensity 9300)",         soc: "MT6989", total_ram: 16 * GIB },
+    Phone { name: "6 GB mid-range phone",                 soc: "Snapdragon 7s Gen 2", total_ram: 6 * GIB },
+];
+
+/// Qwen3 1.7B shape: what a 6 GB phone should still run.
+fn tiny_model() -> ModelArch {
+    ModelArch { n_layer: 28, kv_layers: 28, n_head_kv: 8, head_dim: 128, max_ctx: 32768 }
+}
+
+/// Qwen3 8B / 14B shapes.
+fn mid_model() -> ModelArch {
+    ModelArch { n_layer: 36, kv_layers: 36, n_head_kv: 8, head_dim: 128, max_ctx: 32768 }
+}
+fn big_model() -> ModelArch {
+    ModelArch { n_layer: 40, kv_layers: 40, n_head_kv: 8, head_dim: 128, max_ctx: 32768 }
+}
+
+fn phone(name: &str) -> &'static Phone {
+    PHONES.iter().find(|p| p.name.starts_with(name)).expect("fixture")
+}
+
+#[test]
+fn phone_chips_are_not_apple_and_say_they_are_estimates() {
+    for p in PHONES {
+        let c = chip::identify(p.soc, None);
+        assert_eq!(c.generation, 0, "{}: a phone chip is not an M-series generation", p.name);
+        assert!(!c.exact, "{}: phone numbers are peak figures until measured", p.name);
+        assert!(c.bandwidth_gbps > 0.0 && c.bandwidth_gbps < 120.0,
+                "{}: {} GB/s is not a phone's memory", p.name, c.bandwidth_gbps);
+    }
+    // A flagship has far more bandwidth than a mid-range phone; that difference is
+    // most of the speed difference a user will see.
+    let fold = chip::identify(phone("Galaxy").soc, None);
+    let mid = chip::identify(phone("6 GB").soc, None);
+    assert!(fold.bandwidth_gbps > 2.0 * mid.bandwidth_gbps);
+    // The name Samsung uses in marketing finds the same row as the part number.
+    assert_eq!(chip::identify("Snapdragon 8 Elite for Galaxy", None).bandwidth_gbps, fold.bandwidth_gbps);
+}
+
+#[test]
+fn ai_focus_gives_the_model_most_of_a_16gb_phone() {
+    let total = 16 * GIB;
+    let focus = system::phone_budget(total, Some(5 * GIB), true, None);
+    assert!((10 * GIB..=12 * GIB + GIB / 2).contains(&focus),
+            "AI focus on 16 GB offered {:.1} GB", focus as f64 / GIB as f64);
+    // Without AI focus, only what is free now, less a margin.
+    let shy = system::phone_budget(total, Some(5 * GIB), false, None);
+    assert!(shy < 5 * GIB && shy > 4 * GIB, "AI focus off offered {:.1} GB", shy as f64 / GIB as f64);
+    // The memory test's measured ceiling wins over any arithmetic.
+    assert_eq!(system::phone_budget(total, None, true, Some(9 * GIB)), 9 * GIB);
+    // And Android always keeps enough to stay alive.
+    for gb in [4u64, 6, 8, 12, 16, 24] {
+        let t = gb * GIB;
+        assert!(t - system::phone_budget(t, None, true, None) >= 5 * GIB / 2, "{gb} GB phone");
+    }
+}
+
+#[test]
+fn the_fold_runs_up_to_a_14b_with_ai_focus_and_refuses_a_27b() {
+    let p = phone("Galaxy");
+    let budget = system::phone_budget(p.total_ram, None, true, None);
+    for (what, weights, arch) in [
+        ("4B Q4", 2_400_000_000u64, small_model()),
+        ("8B Q4", 5_000_000_000, mid_model()),
+        ("14B Q4", 9_000_000_000, big_model()),
+    ] {
+        let plan = system::plan_fit_phone(weights, arch, 8192, p.total_ram, budget);
+        assert!(!matches!(plan.fit, Fit::TooBig), "{what} should run on the Fold: {}", plan.note);
+        assert!(plan.note.contains("phone") || plan.note.contains("context"), "{}", plan.note);
+    }
+    let plan = system::plan_fit_phone(16_000_000_000, large_model(), 8192, p.total_ram, budget);
+    assert!(matches!(plan.fit, Fit::TooBig), "a 27B must be refused on a 16 GB phone");
+    assert!(plan.note.contains("phone"), "{}", plan.note);
+}
+
+#[test]
+fn a_6gb_phone_runs_a_small_model_and_refuses_an_8b() {
+    let p = phone("6 GB");
+    let budget = system::phone_budget(p.total_ram, None, true, None);
+    let ok = system::plan_fit_phone(1_100_000_000, tiny_model(), 8192, p.total_ram, budget);
+    assert!(!matches!(ok.fit, Fit::TooBig), "1.7B Q4 on 6 GB: {}", ok.note);
+    let no = system::plan_fit_phone(5_000_000_000, mid_model(), 8192, p.total_ram, budget);
+    assert!(matches!(no.fit, Fit::TooBig), "an 8B must not be promised on a 6 GB phone");
+}
+
+#[test]
+fn phone_speed_estimates_are_honest() {
+    // Calibrated the only way available before the Fold is connected: the Pi 5
+    // measurement (memory bandwidth x the CPU's achievable share) scaled by each
+    // phone's memory. The Fold's real number replaces this on first measure.
+    let fold = chip::identify(phone("Galaxy").soc, None);
+    let mid = chip::identify(phone("6 GB").soc, None);
+    let e4 = chip::estimate_on(&fold, 2_400_000_000, Some(4.0), None, Backend::Cpu);
+    assert!((8.0..=25.0).contains(&e4.tokens_per_sec),
+            "4B Q4 on a flagship phone: {:.1} tok/s", e4.tokens_per_sec);
+    let m17 = chip::estimate_on(&mid, 1_100_000_000, Some(1.7), None, Backend::Cpu);
+    let m4 = chip::estimate_on(&mid, 2_400_000_000, Some(4.0), None, Backend::Cpu);
+    assert!(m4.tokens_per_sec < e4.tokens_per_sec && m17.tokens_per_sec > m4.tokens_per_sec);
+    // Reading a prompt is not five minutes: the CPU floor ties it to generation.
+    assert!(e4.prompt_per_sec >= 3.0 * e4.tokens_per_sec, "{e4:?}");
+    assert!(e4.reply_secs < 120.0, "a typical answer on the Fold: {:.0} s", e4.reply_secs);
+}
+
+#[test]
+fn cpu_prompt_estimate_matches_the_pi_measurement() {
+    let mut pi = chip::identify("Cortex-A76", None);
+    pi.bandwidth_gbps = 17.0;
+    let e = chip::estimate_on(&pi, 2_400_000_000, Some(4.0), None, Backend::Cpu);
+    let ratio = e.prompt_per_sec / 11.4;
+    assert!((0.7..=1.4).contains(&ratio), "predicted {:.1} prompt tok/s, measured 11.4", e.prompt_per_sec);
+}
