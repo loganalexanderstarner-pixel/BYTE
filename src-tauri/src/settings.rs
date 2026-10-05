@@ -543,7 +543,8 @@ fn default_voice_language() -> String {
 }
 
 pub fn default_quick_keys() -> String {
-    "Alt+Space".into()
+    // Alt+Space is the window menu of every Windows app; registering it globally would take that away.
+    if cfg!(windows) { "Control+Alt+Space".into() } else { "Alt+Space".into() }
 }
 
 pub fn default_selection_keys() -> String {

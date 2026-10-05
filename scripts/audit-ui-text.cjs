@@ -16,7 +16,7 @@
 // literals and JSX text nodes (whitespace-normalised) between the old and the new version.
 const ts = require("typescript"), cp = require("child_process"), fs = require("fs");
 const OLD = process.argv[2];
-const files = cp.execSync(`git diff --name-only ${OLD} HEAD -- src`, { encoding: "utf8" }).split("\n").filter((f) => /\.tsx?$/.test(f));
+const files = cp.execSync(`git diff --name-only ${OLD} -- src`, { encoding: "utf8" }).split("\n").filter((f) => /\.tsx?$/.test(f));
 const norm = (s) => s.replace(/\s+/g, " ").trim();
 function texts(code, name) {
   const sf = ts.createSourceFile(name, code, ts.ScriptTarget.Latest, true, name.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
@@ -45,3 +45,4 @@ for (const f of files) {
   }
 }
 console.log(`\n${files.length} files compared against ${OLD}; ${bad} with different displayed text`);
+if (files.length === 0) { console.log("WARNING: nothing was compared. Is the ref right, and is there a change under src/?"); process.exitCode = 2; }

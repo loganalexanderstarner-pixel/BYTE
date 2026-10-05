@@ -470,3 +470,29 @@ async fn e2e_health_on_a_real_mac() {
     let c = health(&MacRunner, &home(), false, SystemTime::now()).await;
     assert!(c.checks.iter().any(|x| x.label == "macOS"), "{:?}", c.checks);
 }
+
+/// The Windows Settings link goes to `cmd /C start`, so anything that could end the argument and start
+/// another command must be refused: an ampersand, a pipe, a space, a quote, a percent escape, a path.
+#[test]
+fn windows_settings_links_cannot_smuggle_a_command() {
+    for ok in ["ms-settings:privacy-microphone", "ms-settings:notifications", "ms-settings:privacy-webcam"] {
+        assert!(windows_settings_link_ok(ok), "{ok}");
+    }
+    let long = format!("ms-settings:{}", "a".repeat(100));
+    for bad in [
+        "x-apple.systempreferences:com.apple.x",
+        "ms-settings:privacy&calc",
+        "ms-settings:privacy|calc",
+        "ms-settings:a b",
+        "ms-settings:\"quoted",
+        "ms-settings:%0acalc",
+        "ms-settings:..\\evil",
+        "ms-settings:x;y",
+        "http://example.com",
+        "https://example.com/ms-settings:x",
+        "",
+        long.as_str(),
+    ] {
+        assert!(!windows_settings_link_ok(bad), "{bad:?} must be refused");
+    }
+}

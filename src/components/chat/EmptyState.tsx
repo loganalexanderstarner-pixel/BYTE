@@ -7,7 +7,7 @@ import type { Assistant } from "../../lib/types";
 
 import { Logo } from "../../design/Logo";
 import { Deck } from "./Deck";
-import { canSpeak, spaceOf, useStore, workspaceOf } from "../../state/store";
+import { onMac, spaceOf, useStore, workspaceOf } from "../../state/store";
 import { osText } from "../../lib/platform";
 
 const ICONS = [Lightbulb, Telescope, Sparkles, Rocket];
@@ -34,7 +34,7 @@ export function EmptyState() {
   const userName = useStore((s) => s.settings?.userName);
   const settings = useStore((s) => s.settings);
   // Today's ideas, from what works with the modules that are on (rotates daily).
-  const picks = settings?.kidsMode ? todaysPicks(KID_EXAMPLES, 4) : todaysPicks(availableExamples(settings as unknown as Record<string, unknown>, { web: settings?.webSearch !== false, mac: canSpeak() }), 4);
+  const picks = settings?.kidsMode ? todaysPicks(KID_EXAMPLES, 4) : todaysPicks(availableExamples(settings as unknown as Record<string, unknown>, { web: settings?.webSearch !== false, mac: onMac() }), 4);
   const SUGGESTIONS = picks.length === 4 ? picks.map((e, i) => ({ icon: ICONS[i], title: e.group, prompt: e.text.replace("…", ""), hint: e.text.length > 60 ? `${e.text.slice(0, 58)}…` : e.text, fill: e.text.includes("…") })) : DEFAULT_SUGGESTIONS.map((x) => ({ ...x, fill: false }));
   const space = useStore((s) => {
     const c = s.conversations.find((x) => x.id === s.currentId);

@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { errorText } from "../../lib/api";
-import { keysFromEvent, keysProblem, platformKeys as K, prettyKeys } from "../../lib/keys";
+import { defaultSelectionKeys, isWindows, keysFromEvent, keysProblem, platformKeys as K, prettyKeys, defaultQuickAskKeys } from "../../lib/keys";
 import type { Settings } from "../../lib/types";
 import { useStore } from "../../state/store";
 import { osText } from "../../lib/platform";
@@ -71,14 +71,14 @@ export function KeyboardSection({ settings }: { settings: Settings | null }) {
           </label>
           <small>A small window over any app: press the shortcut, ask, and the answer appears right there. “Open in BYTE” continues the chat here.</small>
         </span>
-        <KeyRecorder value={settings?.quickAskKeys ?? "Alt+Space"} label="Quick Ask" disabled={!quickOn} onSave={(k) => update({ quickAskKeys: k })} />
+        <KeyRecorder value={settings?.quickAskKeys ?? defaultQuickAskKeys()} label="Quick Ask" disabled={!quickOn} onSave={(k) => update({ quickAskKeys: k })} />
       </div>
       <div className="field">
         <span>
           Selected text hotkey
-          <small>{osText("Select text in any app and press it: the writing studio opens with that text. Turned on or off with Mac control above.")}</small>
+          <small>{isWindows() ? "Select text in any app and press it: the writing studio opens with that text. Turned on or off with “Hotkeys and clipboard” above." : osText("Select text in any app and press it: the writing studio opens with that text. Turned on or off with Mac control above.")}</small>
         </span>
-        <KeyRecorder value={settings?.selectionKeys ?? "Alt+Super+KeyB"} label="Selected text" disabled={!selOn} onSave={(k) => update({ selectionKeys: k })} />
+        <KeyRecorder value={settings?.selectionKeys ?? defaultSelectionKeys()} label="Selected text" disabled={!selOn} onSave={(k) => update({ selectionKeys: k })} />
       </div>
       <label className="field">
         <span>

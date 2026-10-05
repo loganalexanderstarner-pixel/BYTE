@@ -25,12 +25,12 @@ import { EngineBadge } from "../components/EngineBadge";
 import { api } from "../lib/api";
 import { Palette } from "../components/Palette";
 import { THEMES } from "../design/themes";
-import { prettyKeys } from "../lib/keys";
+import { prettyKeys, defaultQuickAskKeys } from "../lib/keys";
 import type { PaletteItem } from "../lib/palette";
 import type { NewText } from "../lib/types";
 import { Sidebar } from "../components/Sidebar";
 import { KidsExit } from "../components/kids/KidsExit";
-import { useStore, type SettingsTab } from "../state/store";
+import { useStore, type SettingsTab, onMac } from "../state/store";
 import { TABS } from "../components/settings/tabs";
 import { platformKeys as K } from "../lib/keys";
 import { osText } from "../lib/platform";
@@ -145,7 +145,7 @@ export function Shell() {
   // The Messages inbox (macOS, opt-in), and the newest text that arrived while BYTE is open.
   const messagesOn = useStore(
     (s) =>
-      s.settings?.macControl !== false && s.settings?.messagesInbox === true,
+      onMac() && s.settings?.macControl !== false && s.settings?.messagesInbox === true,
   );
   const [messagesOpen, setMessagesOpen] = useState<{
     chat: string | null;
@@ -264,7 +264,7 @@ export function Shell() {
   const lockOn = useStore((s) => !!s.settings?.lockEnabled);
   const quickKeys = useStore((s) =>
     s.settings?.quickAsk !== false
-      ? (s.settings?.quickAskKeys ?? "Alt+Space")
+      ? (s.settings?.quickAskKeys ?? defaultQuickAskKeys())
       : null,
   );
   const paletteItems = useMemo(() => {

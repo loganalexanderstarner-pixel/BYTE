@@ -39,6 +39,7 @@ import type {
 } from "../../lib/types";
 import { useStore, type SettingsTab } from "../../state/store";
 import { osText } from "../../lib/platform";
+import { isWindows } from "../../lib/keys";
 
 /** Settings → Privacy: the offline switch, the lock, Mac permissions and everything BYTE did. */
 export function PrivacyTab() {
@@ -272,7 +273,7 @@ function PermissionsSection() {
     <section className="settings-section">
       <h3>{osText("Mac permissions")}</h3>
       <p className="faint small">
-        {osText("macOS asks the first time BYTE needs each one. Change them any time in System Settings → Privacy & Security.")}
+        {isWindows() ? "Windows keeps these in Settings → Privacy & security. Change them any time." : osText("macOS asks the first time BYTE needs each one. Change them any time in System Settings → Privacy & Security.")}
       </p>
       <ul className="privacy-list perms">
         {perms.map((p) => (
@@ -289,7 +290,7 @@ function PermissionsSection() {
             <button
               className="btn sm ghost"
               onClick={() => void api.upkeepOpenSettings(p.url)}
-              title="Open in System Settings"
+              title={osText("Open in System Settings")}
             >
               <ExternalLink size={13} /> Open
             </button>

@@ -24,8 +24,32 @@ pub struct Permission {
     pub url: String,
 }
 
+#[cfg(not(windows))]
 const PRIVACY: &str = "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension";
 
+/// What Windows controls for a desktop app like this one. Far fewer than a Mac has: there is no
+/// Accessibility or Automation prompt, and the features that would need them are not on Windows yet.
+#[cfg(windows)]
+pub fn permissions() -> Vec<Permission> {
+    vec![
+        Permission {
+            id: "microphone",
+            name: "Microphone",
+            why: "Voice input, Talk mode and “Hey BYTE”. Audio stays on this PC.",
+            status: win::microphone(),
+            url: "ms-settings:privacy-microphone".into(),
+        },
+        Permission {
+            id: "notifications",
+            name: "Notifications",
+            why: "Reminders, finished automations, watcher alerts and clipped pages.",
+            status: "unknown",
+            url: "ms-settings:notifications".into(),
+        },
+    ]
+}
+
+#[cfg(not(windows))]
 pub fn permissions() -> Vec<Permission> {
     let p = |id, name, why, status, anchor: &str| Permission { id, name, why, status, url: format!("{PRIVACY}?{anchor}") };
     vec![
@@ -77,7 +101,51 @@ mod mac {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+/// Windows' own record of whether desktop apps may use the microphone.
+#[cfg(windows)]
+mod win {
+    /// The capability store keeps one switch for all apps and one for desktop (non-packaged) apps like BYTE.
+    const KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone";
+
+    fn read(key: &str) -> Option<String> {
+        use std::os::windows::process::CommandExt;
+        // No console window flashing up for a one-line registry read.
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let out = std::process::Command::new("reg").args(["query", key, "/v", "Value"]).creation_flags(CREATE_NO_WINDOW).output().ok()?;
+        out.status.success().then(|| String::from_utf8_lossy(&out.stdout).into_owned())
+    }
+
+    pub fn microphone() -> &'static str {
+        let all = read(KEY).and_then(|o| super::consent_from_reg(&o));
+        let desktop = read(&format!(r"{KEY}\NonPackaged")).and_then(|o| super::consent_from_reg(&o));
+        super::microphone_status(all, desktop)
+    }
+}
+
+/// "Allow" or "Deny" out of `reg query ... /v Value` output, which looks like
+/// `    Value    REG_SZ    Allow`. Anything else (including a missing value) is None.
+#[cfg(any(windows, test))]
+pub fn consent_from_reg(output: &str) -> Option<&'static str> {
+    output.lines().find(|l| l.trim_start().starts_with("Value")).and_then(|l| match l.split_whitespace().last()? {
+        "Allow" => Some("Allow"),
+        "Deny" => Some("Deny"),
+        _ => None,
+    })
+}
+
+/// Either switch set to Deny blocks the microphone; with neither set, Windows allows it.
+#[cfg(any(windows, test))]
+pub fn microphone_status(all: Option<&str>, desktop: Option<&str>) -> &'static str {
+    if all == Some("Deny") || desktop == Some("Deny") {
+        "denied"
+    } else if all == Some("Allow") || desktop == Some("Allow") {
+        "allowed"
+    } else {
+        "unknown"
+    }
+}
+
+#[cfg(not(any(target_os = "macos", windows)))]
 mod mac {
     pub fn accessibility() -> &'static str {
         "unknown"
@@ -242,11 +310,20 @@ mod tests {
     #[test]
     fn every_permission_links_to_system_settings() {
         let ps = permissions();
+        for p in &ps {
+            assert!(!p.url.contains(char::is_whitespace));
+            assert!(["allowed", "denied", "not asked", "unknown"].contains(&p.status));
+        }
+        if cfg!(windows) {
+            // Windows has two things to grant a desktop app, and each opens its own Settings page.
+            assert_eq!(ps.len(), 2);
+            assert!(ps.iter().all(|p| p.url.starts_with("ms-settings:")), "{ps:?}");
+            assert!(ps.iter().any(|p| p.id == "microphone" && p.url == "ms-settings:privacy-microphone"));
+            return;
+        }
         assert_eq!(ps.len(), 7);
         for p in &ps {
             assert!(p.url.starts_with("x-apple.systempreferences:com.apple."), "{}", p.url);
-            assert!(!p.url.contains(char::is_whitespace));
-            assert!(["allowed", "denied", "not asked", "unknown"].contains(&p.status));
         }
         assert!(ps.iter().any(|p| p.url.ends_with("Privacy_Microphone")));
         assert!(ps.iter().any(|p| p.id == "fulldisk" && p.url.ends_with("Privacy_AllFiles")));
@@ -259,5 +336,20 @@ mod tests {
         assert_eq!(kind_of("automation_run"), "automations");
         assert_eq!(kind_of("submit_form"), "web");
         assert_eq!(kind_of("calculate"), "other");
+    }
+
+    #[test]
+    fn windows_microphone_consent_is_read_from_registry_output() {
+        let allow = "\r\nHKEY_CURRENT_USER\\Software\\X\\microphone\r\n    Value    REG_SZ    Allow\r\n\r\n";
+        let deny = "HKEY_CURRENT_USER\\Software\\X\\microphone\n    Value    REG_SZ    Deny\n";
+        assert_eq!(consent_from_reg(allow), Some("Allow"));
+        assert_eq!(consent_from_reg(deny), Some("Deny"));
+        assert_eq!(consent_from_reg("ERROR: The system was unable to find the specified registry key"), None);
+        assert_eq!(consent_from_reg("    Value    REG_SZ    Prompt"), None, "an unknown word is not guessed at");
+        // Either switch denying blocks it; neither set means Windows allows it.
+        assert_eq!(microphone_status(Some("Allow"), Some("Deny")), "denied");
+        assert_eq!(microphone_status(Some("Deny"), Some("Allow")), "denied");
+        assert_eq!(microphone_status(Some("Allow"), None), "allowed");
+        assert_eq!(microphone_status(None, None), "unknown");
     }
 }

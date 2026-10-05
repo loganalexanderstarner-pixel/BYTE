@@ -1,5 +1,17 @@
 /** Global shortcuts in Tauri's syntax ("Alt+Super+KeyB"), shown the Mac way ("⌥⌘B") or the Windows way ("Alt+Win+B"). Rust: `quick::parse_keys`, `quick::pretty`. */
 
+/** The selected-text hotkey before the backend has said otherwise: ⌥⌘B on a Mac, Ctrl+Alt+B on Windows
+ *  (Alt+Win+B is already Windows' HDR toggle). Matches `selection::HOTKEY` in Rust. */
+export function defaultSelectionKeys(windows: boolean = isWindows()): string {
+  return windows ? "Control+Alt+KeyB" : "Alt+Super+KeyB";
+}
+
+/** Quick Ask's shortcut before the backend has said otherwise. Not Alt+Space on Windows: that is the
+ *  window menu of every app there. Matches `settings::default_quick_keys` in Rust. */
+export function defaultQuickAskKeys(windows: boolean = isWindows()): string {
+  return windows ? "Control+Alt+Space" : "Alt+Space";
+}
+
 /** True in the Windows app (WebView2 reports "Win32"); false on a Mac and in tests. */
 export function isWindows(): boolean {
   return typeof navigator !== "undefined" && /^Win/i.test(navigator.platform ?? "");

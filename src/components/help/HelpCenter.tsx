@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { availableExamples } from "../../lib/examples";
 import { ARTICLES, linkTarget, searchHelp } from "../../lib/help";
 import { renderMarkdown } from "../../lib/markdown";
-import { canSpeak, useStore, type SettingsTab } from "../../state/store";
+import { onMac, useStore, type SettingsTab } from "../../state/store";
 
 /** The help center (?, ⌘?): short offline articles, search, and example prompts to try. */
 export function HelpCenter() {
@@ -20,7 +20,7 @@ export function HelpCenter() {
   const found = useMemo(() => searchHelp(query), [query]);
   const article = id === "ideas" ? null : (ARTICLES.find((a) => a.id === id) ?? ARTICLES[0]);
   const examples = useMemo(
-    () => availableExamples(settings as unknown as Record<string, unknown>, { web: settings?.webSearch !== false, mac: canSpeak() }),
+    () => availableExamples(settings as unknown as Record<string, unknown>, { web: settings?.webSearch !== false, mac: onMac() }),
     [settings],
   );
   const groups = useMemo(() => [...new Set(examples.map((e) => e.group))], [examples]);

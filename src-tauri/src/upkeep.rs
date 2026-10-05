@@ -782,6 +782,39 @@ pub async fn upkeep_reveal(scan_id: String, id: String) -> AppResult<()> {
 /// A health card's settings button (System Settings links only).
 #[tauri::command]
 pub async fn upkeep_open_settings(url: String) -> AppResult<()> {
+    #[cfg(windows)]
+    {
+        return open_windows_settings(&url);
+    }
+    #[cfg(not(windows))]
+    open_apple_settings(url).await
+}
+
+/// Opens a page of the Windows Settings app (ms-settings:privacy-microphone). The link is
+/// validated to letters, digits, colon and hyphen only, because it reaches `cmd /C start`:
+/// anything with an ampersand or a space could run something else.
+#[cfg(any(windows, test))]
+fn windows_settings_link_ok(url: &str) -> bool {
+    url.starts_with("ms-settings:") && url.len() < 80 && url.chars().all(|c| c.is_ascii_alphanumeric() || c == ':' || c == '-')
+}
+
+#[cfg(windows)]
+fn open_windows_settings(url: &str) -> AppResult<()> {
+    use std::os::windows::process::CommandExt;
+    if !windows_settings_link_ok(url) {
+        return Err(AppError::msg("Not a Windows Settings link."));
+    }
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    std::process::Command::new("cmd")
+        .args(["/C", "start", "", url])
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| AppError::msg(format!("Couldn't open Settings: {e}")))
+}
+
+#[cfg(not(windows))]
+async fn open_apple_settings(url: String) -> AppResult<()> {
     if !url.starts_with("x-apple.systempreferences:") || url.contains(char::is_whitespace) {
         return Err(AppError::msg("Not a System Settings link."));
     }

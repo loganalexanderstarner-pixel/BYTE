@@ -1468,7 +1468,11 @@ export const useStore = create<State>((set, get) => {
 });
 
 /** macOS voices read answers aloud (`say`); elsewhere there's no speech yet. */
-/** BYTE can speak aloud here: on a Mac, and on Windows now that its audio backend exists. */
-export const canSpeak = () => inTauri && (/Mac/i.test(navigator.userAgent) || isWindows());
+/** The app is running on a Mac. Mac-only features (AppleScript actions, Upkeep, Messages) key off this. */
+export const onMac = () => inTauri && /Mac/i.test(navigator.userAgent);
+/** BYTE can speak aloud here: on a Mac, and on Windows now that its audio backend exists. Not the same
+ *  question as onMac: callers used canSpeak() as a stand-in for "is a Mac", which would have shown the
+ *  Mac-only example prompts on Windows the moment voice was enabled there. */
+export const canSpeak = () => onMac() || (inTauri && isWindows());
 
 export const currentConversation = (s: State) => s.conversations.find((c) => c.id === s.currentId) ?? null;

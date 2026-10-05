@@ -5,7 +5,7 @@ import { ChatView } from "../components/chat/ChatView";
 import { Composer } from "../components/chat/Composer";
 import { Logo } from "../design/Logo";
 import { api, inTauri } from "../lib/api";
-import { prettyKeys } from "../lib/keys";
+import { prettyKeys, defaultQuickAskKeys } from "../lib/keys";
 import { currentConversation, useStore } from "../state/store";
 import { useAppearance } from "./App";
 import { platformKeys as K } from "../lib/keys";
@@ -106,7 +106,7 @@ export function QuickAsk() {
       ) : (
         <div className="quick-hint muted">
           <p>
-            Ask anything. <kbd>Esc</kbd> hides this window; <kbd>{prettyKeys(settings?.quickAskKeys ?? "Alt+Space")}</kbd> brings it back.
+            Ask anything. <kbd>Esc</kbd> hides this window; <kbd>{prettyKeys(settings?.quickAskKeys ?? defaultQuickAskKeys())}</kbd> brings it back.
           </p>
         </div>
       )}

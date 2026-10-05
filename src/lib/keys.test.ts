@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { keysFromEvent, keysProblem, platformKeys, prettyKeys } from "./keys";
+import { defaultQuickAskKeys, defaultSelectionKeys, keysFromEvent, keysProblem, platformKeys, prettyKeys } from "./keys";
 
 const ev = (code: string, m: Partial<{ alt: boolean; ctrl: boolean; meta: boolean; shift: boolean }> = {}) => ({
   code,
@@ -55,5 +55,19 @@ describe("platformKeys", () => {
     expect(platformKeys("New chat (⌘N)", true)).toBe("New chat (Ctrl+N)");
     expect(platformKeys("Enter / ⇧Enter", true)).toBe("Enter / Shift+Enter");
     expect(platformKeys("⌥Space", true)).toBe("Alt+Space");
+  });
+});
+
+describe("default shortcuts", () => {
+  it("keep clear of what Windows already uses", () => {
+    // Alt+Space is every Windows app's window menu; Alt+Win+B toggles HDR.
+    expect(defaultQuickAskKeys(true)).not.toBe("Alt+Space");
+    expect(defaultSelectionKeys(true)).not.toContain("Super");
+    expect(prettyKeys(defaultQuickAskKeys(true), true)).toBe("Ctrl+Alt+Space");
+    expect(prettyKeys(defaultSelectionKeys(true), true)).toBe("Ctrl+Alt+B");
+  });
+  it("are unchanged on a Mac", () => {
+    expect(defaultQuickAskKeys(false)).toBe("Alt+Space");
+    expect(defaultSelectionKeys(false)).toBe("Alt+Super+KeyB");
   });
 });

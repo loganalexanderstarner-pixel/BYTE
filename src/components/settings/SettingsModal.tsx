@@ -1,7 +1,7 @@
 import { ByteVoicesRow, SpeakerLabelsRow, SpeechRows, VideoHelperRow, WakeRow } from "./VoiceExtras";
 import { VoiceModels } from "../chat/VoiceModels";
 import { KeyboardSection } from "./KeyboardSection";
-import { prettyKeys } from "../../lib/keys";
+import { defaultSelectionKeys, isWindows, prettyKeys } from "../../lib/keys";
 import { open as openDialog, ask } from "@tauri-apps/plugin-dialog";
 import { Download, Gauge, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X, Zap, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -31,6 +31,9 @@ import { TuningPanel } from "./TuningPanel";
 import { osText } from "../../lib/platform";
 
 
+
+/** Running on a PC: the Mac-only feature rows are reworded or left out. */
+const pcHost = isWindows();
 
 export function SettingsModal() {
   const tab = useStore((s) => s.settingsTab)!;
@@ -919,8 +922,8 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
-            {osText("Mac control")}
-            <small>{osText("“Remind me to call Mom tomorrow at 3pm”, “make a note: …”, “what's on my calendar today?”, “turn on dark mode”, “play some jazz”, “run my Morning shortcut”, “check my email”, “reply to Sam’s email saying I can make it”, “text Mom that I’m running late”, “find my tax return pdf”, “organize my Downloads”, “convert the selected photos to jpg”, “run a command to show my disk space”. BYTE asks before adding or changing anything, never sends email or texts itself (you press Send), and macOS asks once per app.")}</small>
+            {pcHost ? "Hotkeys and clipboard" : osText("Mac control")}
+            <small>{pcHost ? "Lets BYTE read the text you select in other apps (the hotkey below) and keep a clipboard history. Controlling other apps, reminders, calendars and system settings by voice or text is a Mac feature that isn't available on Windows yet." : osText("“Remind me to call Mom tomorrow at 3pm”, “make a note: …”, “what's on my calendar today?”, “turn on dark mode”, “play some jazz”, “run my Morning shortcut”, “check my email”, “reply to Sam’s email saying I can make it”, “text Mom that I’m running late”, “find my tax return pdf”, “organize my Downloads”, “convert the selected photos to jpg”, “run a command to show my disk space”. BYTE asks before adding or changing anything, never sends email or texts itself (you press Send), and macOS asks once per app.")}</small>
           </span>
           <input type="checkbox" checked={settings?.macControl ?? true} onChange={(e) => void update({ macControl: e.target.checked })} />
         </label>
@@ -967,6 +970,7 @@ function AboutTab() {
           </span>
           <input type="checkbox" checked={settings?.trackersEnabled ?? true} onChange={(e) => void update({ trackersEnabled: e.target.checked })} />
         </label>
+        {!pcHost && (
         <label className="field">
           <span>
             {osText("Mac upkeep")}
@@ -974,10 +978,11 @@ function AboutTab() {
           </span>
           <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.macUpkeep ?? true} onChange={(e) => void update({ macUpkeep: e.target.checked })} />
         </label>
+        )}
         <label className="field">
           <span>
-            Selected text hotkey ({prettyKeys(settings?.selectionKeys ?? "Alt+Super+KeyB")})
-            <small>{osText("Select text in any app and press the hotkey (Keyboard and menu bar, in About, changes it): it opens in the writing studio to rewrite, fix, translate, reply to or explain, then “Paste into” puts the result back. macOS asks once to allow BYTE in Accessibility.")}</small>
+            Selected text hotkey ({prettyKeys(settings?.selectionKeys ?? defaultSelectionKeys())})
+            <small>{osText("Select text in any app and press the hotkey (Keyboard and menu bar, in About, changes it): it opens in the writing studio to rewrite, fix, translate, reply to or explain, then “Paste into” puts the result back.") + (pcHost ? " It can't read an app that is running as administrator." : osText(" macOS asks once to allow BYTE in Accessibility."))}</small>
           </span>
           <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.selectionHotkey ?? true} onChange={(e) => void update({ selectionHotkey: e.target.checked })} />
         </label>
