@@ -82,10 +82,12 @@ pub fn best_discrete(gpus: &[Gpu]) -> Option<&Gpu> {
 
 /// Which engine build should serve the model.
 ///
-/// CUDA only on NVIDIA, because that is where it earns its size: measured on a 16 GB
-/// NVIDIA card it reads a prompt 39x faster than Vulkan (9,827 against 251 tokens/s) while
-/// generating within 7% of it. Every other vendor, and integrated graphics, goes
-/// through Vulkan; with no GPU at all the CPU path is used.
+/// CUDA only on NVIDIA, where it is the fastest engine: measured on a 16 GB NVIDIA card it
+/// reads a prompt 14% faster than Vulkan (12,600 against 11,090 tokens/s) and generates
+/// 10% faster (213 against 194). That margin is what the CUDA build's size buys; whether it is
+/// worth it is a packaging decision (see docs/WINDOWS-PACKAGING.md), not a speed necessity.
+/// Every other vendor, and integrated graphics, goes through Vulkan; with no GPU at all the
+/// CPU path is used.
 pub fn backend_for(gpus: &[Gpu]) -> crate::chip::Backend {
     use crate::chip::Backend;
     if cfg!(target_os = "macos") {
@@ -175,6 +177,14 @@ const TABLE: &[(&str, f64, f64)] = &[
     ("RTX 2070", 448.0, 30.0), ("RTX 2060 SUPER", 448.0, 29.0), ("RTX 2060", 336.0, 26.0),
     ("GTX 1660 SUPER", 336.0, 5.0), ("GTX 1660 TI", 288.0, 5.5), ("GTX 1660", 192.0, 5.0), ("GTX 1650", 128.0, 3.0),
     ("GTX 1080 TI", 484.0, 11.0), ("GTX 1080", 320.0, 9.0), ("GTX 1070 TI", 256.0, 8.0), ("GTX 1070", 256.0, 6.5), ("GTX 1060", 192.0, 4.4),
+    // AMD integrated graphics under the generic name Windows gives the 2-compute-unit chips on
+    // desktop Ryzen 7000 and similar. MEASURED, not published: Qwen3 0.6B Q8_0 through the Vulkan
+    // engine on the AMD Windows driver generated 19-27 tok/s and read a 2,781-token prompt at
+    // 232 tok/s. Those correspond to about 20 GB/s and 0.35 TFLOPS. The 50 GB/s and 4 TFLOPS
+    // guess for unknown integrated graphics promised about twice the generation speed and
+    // twelve times the prompt speed of this chip. Larger integrated GPUs name themselves
+    // ("780M") and are not matched by this entry.
+    ("AMD RADEON(TM) GRAPHICS", 20.0, 0.35),
     // AMD
     ("RX 7900 XTX", 960.0, 123.0), ("RX 7900 XT", 800.0, 103.0), ("RX 7900 GRE", 576.0, 92.0), ("RX 7800 XT", 624.0, 74.0),
     ("RX 7700 XT", 432.0, 70.0), ("RX 7600 XT", 288.0, 45.0), ("RX 7600", 288.0, 43.0),
@@ -317,6 +327,9 @@ mod tests {
         assert_eq!(profile("AMD Radeon RX 7900 GRE").unwrap().0, 576.0);
         assert_eq!(profile("NVIDIA GeForce RTX 5070 Ti").unwrap().0, 896.0);
         assert!(profile("Some Future GPU 9000").is_none(), "an unknown card is not invented");
+        // The generic name of the small AMD integrated chips is measured, and a named one is not caught by it.
+        assert_eq!(profile("AMD Radeon(TM) Graphics").unwrap(), (20.0, 0.35));
+        assert!(profile("AMD Radeon(TM) 780M Graphics").is_none(), "a larger integrated GPU is not this chip");
     }
 
     #[test]

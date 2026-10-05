@@ -42,7 +42,7 @@ step. The release build passes it explicitly:
 where Windows looks for a DLL first. It has to be checked by installing the
 built package, not assumed from the config.
 
-## CUDA is the large part, and it earns its place
+## CUDA is the large part, and it buys about 12%
 
 | | |
 |---|---|
@@ -51,20 +51,36 @@ built package, not assumed from the config.
 
 `cudart` is statically linked, so that is the complete list.
 
-Measured on the test GPU with Qwen3 4B Q4_K_M -- the same model, the same
-llama.cpp tag, built twice from the same source:
+Measured on the test GPU (a 16 GB NVIDIA desktop card) with Qwen3 4B Q4_K_M: the same
+model, the same llama.cpp tag, built twice from the same source, a **2,781-token prompt
+with the prompt cache off**, two rounds each (within 1% of each other), 2026-10-05:
 
-| | CUDA | Vulkan |
+| | CUDA | Vulkan | Vulkan is |
+|---|---|---|---|
+| generation | 213 tok/s | 194 tok/s | 9% slower |
+| **prompt reading** | **12,600 tok/s** | **11,090 tok/s** | **12% slower** |
+
+**Correction.** This section used to say Vulkan read prompts 39 times slower (9,827
+against 251 tok/s) and that this was why the installer bundles CUDA. That figure was
+wrong; the first measurement of it is unexplained and was never repeated. It was found by
+repeating the test with the same model through both engines. BYTE's speed estimates for
+every AMD and Intel card were built on it (`chip.rs`, now corrected), and so was the
+installer's size. Lesson kept: **a number that drives a design decision gets measured
+twice, on a long input, with caches off, before it is written down.**
+
+What that leaves is a trade-off, not a necessity, and it is **the owner's call**:
+
+| | Ship CUDA + Vulkan (today) | Ship Vulkan + a small CPU build |
 |---|---|---|
-| generation | 204.8 tok/s | 192.1 tok/s |
-| **prompt (1,701 tokens)** | **9,827 tok/s** | **251 tok/s** |
+| Installer | about 564 MB | about 60-80 MB (estimate) |
+| NVIDIA speed | fastest | about 10-12% slower |
+| Engine build in CI | about 2 hours (CUDA, five architectures) | minutes |
+| Other NVIDIA generations | CUDA is the mature path | **unmeasured**: only one card was tested, and older cards without cooperative-matrix support may lose more on Vulkan |
+| No GPU or no driver | CPU through the CUDA build | CPU build (needs an AVX2 baseline build to be written) |
 
-Generation is a rounding error apart, 1.07x. Prompt processing is **39x**. A
-10,000-token document is about one second against about forty, and documents
-and web research are most of what BYTE does -- so a Vulkan-only build would be
-visibly worse for the majority of users, who are on NVIDIA. The owner's
-decision of 2026-10-04 is to bundle rather than fetch on demand, so the app
-works instantly the way the Mac one does.
+Until that is decided, both engines ship as before, and nothing here changes what the
+installer carries. The owner's decision of 2026-10-04 to bundle rather than fetch on demand
+stands either way.
 
 ## Both engines ship
 
@@ -72,11 +88,19 @@ The CUDA build and the Vulkan build, side by side. Vulkan covers AMD and Intel
 -- including hardware we have no way to test on -- and needs no SDK at runtime,
 because the user's own graphics driver provides the implementation.
 
-One real configuration to handle: **a GPU can be present and still have no
-Vulkan driver.** The test machine's AMD integrated graphics has no Vulkan ICD
-registered at all, so `vulkaninfo` enumerates only the NVIDIA card. That needs
-a clear message telling the user to update their graphics driver, not a silent
-fall back to CPU that leaves them wondering why it is slow.
+One configuration to handle: **a GPU can be present and unusable.** The test machine's
+AMD integrated graphics was missing from `vulkaninfo` and from DXGI, and this section used
+to blame a missing Vulkan driver. It was simply **disabled in Device Manager** (problem code
+22) with the AMD driver installed. Enabled, the AMD Windows driver provides Vulkan, the
+Vulkan engine lists it beside the NVIDIA card, and the model ran on it correctly (Qwen3 0.6B:
+generating about 19-27 tok/s, reading a long prompt at 232 tok/s). A card that is present
+but cannot be used still deserves a clear message (update or enable the driver) rather than a
+silent CPU fallback, but this machine was not an example of one.
+
+With an integrated AMD chip *and* the NVIDIA card both active, BYTE picks the NVIDIA card and
+CUDA (checked), and the Vulkan engine on its own also ignores the weak integrated chip: the
+same speed with and without `--device` pinned to the discrete card (11,074 against 11,061
+tok/s reading a prompt).
 
 ## Window chrome
 

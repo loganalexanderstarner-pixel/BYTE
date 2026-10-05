@@ -47,7 +47,7 @@ rule. Recorded together here rather than pretended into separate entries.
   redistributable. So the installer must carry `MSVCP140`, `VCRUNTIME140`,
   `VCRUNTIME140_1` and `VCOMP140`, or the engine fails to load on a clean
   machine with a cryptic error. Found without needing a clean VM.
-- **CUDA and Vulkan differ where it matters.** Same card, same model, same
+- **CUDA and Vulkan differ where it matters.** *(Corrected 2026-10-05: the 39x below was wrong; Vulkan is about 12% slower reading prompts. See "A 39x number was wrong" further down.)* Same card, same model, same
   llama.cpp: generation 204.8 vs 192.1 tok/s (1.07x), prompt processing 9,827 vs
   251 tok/s (**39x**). A 10,000-token document is about a second on CUDA and
   about forty on Vulkan. This is why the installer bundles CUDA.
@@ -231,6 +231,25 @@ how every item below was found; none of them showed in a test.
 - **Test data shares the real app's folder.** The dev app and the installed app both use
   `%APPDATA%\com.loganstarner.byte`, so a test model, `settings.json` and chat database left there would
   appear in the person's real BYTE. Clean them after every driven test (settings, `byte.db*`, `db.key`, models).
+- **A 39x number was wrong, and AMD graphics could be tested after all.** The docs, `chip.rs`, a test and
+  the CUDA-bundling argument all rested on "Vulkan reads prompts 39 times slower than CUDA" (251 against
+  9,827 tok/s). Re-measured on 2026-10-05, same card, same Qwen3 4B Q4_K_M, a 2,781-token prompt, prompt
+  cache off, two rounds: CUDA 12,600 tok/s, Vulkan 11,090 (12% slower reading), generation 213 against
+  194 (9%). The old figure was never repeated and cannot be explained; my first short-prompt run on the
+  same day gave a similarly low Vulkan number, so a short or cached prompt is the likely culprit.
+  Corrected in `chip.rs` (Vulkan prompt scale 0.026 -> 0.88, ceiling 400 -> 11,000), the fixture tests
+  (now measured values, and a test that fails if Vulkan is predicted an order of magnitude slower),
+  `gpu.rs`, and `docs/WINDOWS-PACKAGING.md`, which now says what CUDA actually buys (about 12%, for
+  470 MB) and leaves the packaging choice (CUDA + Vulkan, or Vulkan + a small CPU build) to the owner.
+  **I had also said AMD graphics could not be tested; the owner pointed out the test PC has an AMD
+  integrated GPU.** It was disabled in Device Manager (problem code 22), not missing a driver. Enabled
+  briefly (and disabled again afterwards): the AMD Windows driver provides Vulkan, the engine ran a
+  model on it correctly (0.6B: 19-27 tok/s generating, 232 tok/s reading a 2,781-token prompt), and
+  BYTE's detection lists both cards and picks the NVIDIA one. That measurement is now a table entry
+  (`AMD RADEON(TM) GRAPHICS` = 20 GB/s, 0.35 TFLOPS; the generic guess for integrated graphics promised
+  about twice the generation speed and twelve times the prompt speed of this chip) with a test.
+  Still untestable here: Intel graphics, NPUs, an AMD *discrete* card on the Windows driver (the other
+  node's RX 7900 GRE runs Linux, which tests the Vulkan engine on AMD but not the Windows driver).
 - **Driver trap:** Task Scheduler rejects a `/tr` command over 261 characters and the script hid the error, so a
   longer click list silently did nothing for ten minutes. The step list now goes through a file.
 - **Disk lesson.** My builds took the PC's C: from 58 GB free to 6 GB in a day

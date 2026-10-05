@@ -178,20 +178,22 @@ pub fn gpu_core_count() -> Option<u32> {
 }
 
 /// Which engine will actually serve the model. It belongs in a speed estimate
-/// because the same GPU is a different machine depending on the answer:
-/// measured on a 16 GB NVIDIA desktop card with Qwen3 4B Q4_K_M, generation came out 204.8
-/// tok/s on CUDA and 192.1 on Vulkan -- near enough identical -- while prompt
-/// processing was 9,827 tok/s against 251, a factor of **39**. Predicting from
-/// hardware alone is therefore right about generation and wrong by more than an
-/// order of magnitude about reading a document.
+/// because the engines differ a little. Measured on a 16 GB NVIDIA desktop card with Qwen3 4B
+/// Q4_K_M, a 2,781-token prompt, llama.cpp b11205, prompt cache off: CUDA generated 213 tok/s
+/// and read the prompt at 12,600 tok/s; Vulkan 194 and 11,090. Vulkan is about 10% slower
+/// generating and 12% slower reading a prompt.
+///
+/// (An earlier measurement said Vulkan read prompts 39 times slower, 251 against 9,827 tok/s.
+/// That was wrong, and BYTE's estimates for every AMD and Intel card were built on it. It was
+/// found by repeating the test on the same card with the same model through both engines.)
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum Backend {
     /// Apple unified memory. The existing numbers were tuned here.
     Metal,
-    /// NVIDIA through CUDA: cuBLAS makes prompt processing enormously faster.
+    /// NVIDIA through CUDA: the fastest engine on that hardware, by about 10%.
     Cuda,
-    /// Any vendor through Vulkan. Generation matches CUDA; prompt does not.
+    /// Any vendor through Vulkan: within about 12% of CUDA on the same NVIDIA card.
     Vulkan,
     /// No usable GPU.
     Cpu,
@@ -267,21 +269,20 @@ pub fn estimate_on(
     let bytes_per_token = file_bytes as f64 * (active / total);
     let tokens_per_sec = (achievable_gbps(chip, moe, backend) * 1e9 / bytes_per_token.max(1.0)).min(250.0);
 
-    // Prompt processing is where the backends diverge, and by a lot. CUDA's
-    // measured 9,827 tok/s sat above the old 5,000 ceiling, so the ceiling was
-    // understating NVIDIA; Vulkan's 251 tok/s is 39x slower, so the same
-    // formula was overstating every AMD and Intel GPU by more than an order of
-    // magnitude. A 10,000-token document is about a second on CUDA and about
-    // forty on Vulkan -- a difference the user must be told about rather than
-    // discover.
+    // Prompt processing is bounded by arithmetic, not memory, so it follows the card's compute
+    // figure. Measured on one NVIDIA card (see `Backend`): CUDA 12,600 tok/s, Vulkan 11,090,
+    // so Vulkan reads at 0.88 of CUDA and tops out a little lower. The formula below lands on
+    // both. On an integrated AMD GPU (2 compute units, measured 232 tok/s on a 0.6B model) it
+    // follows from that chip's own, much smaller, compute figure in the table, not from a
+    // blanket penalty for the engine.
     let prompt_ceiling = match backend {
         Backend::Cuda => 12_000.0,
         Backend::Metal => 5_000.0,
-        Backend::Vulkan => 400.0,
+        Backend::Vulkan => 11_000.0,
         Backend::Cpu => 60.0,
     };
     let prompt_scale = match backend {
-        Backend::Vulkan => 0.026,   // 251 / 9827, measured on the same card
+        Backend::Vulkan => 0.88,   // 11,090 / 12,620, same card, same model, same prompt
         Backend::Cpu => 0.004,
         _ => 1.0,
     };

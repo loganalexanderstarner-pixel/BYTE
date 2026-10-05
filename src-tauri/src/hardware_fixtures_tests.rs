@@ -189,11 +189,13 @@ fn small_cards_keep_a_usable_share() {
 }
 
 // ---------------------------------------------------------------------------
-// Measured on a 16 GB NVIDIA desktop card, Qwen3 4B Q4_K_M, llama.cpp b11205:
-//   CUDA    generation 204.8 tok/s   prompt 9,827 tok/s over 1,701 tokens
-//   VULKAN  generation 192.1 tok/s   prompt   251 tok/s over 1,701 tokens
-// The estimates must land near those, or every recommendation built on them
-// misleads the user.
+// Measured on a 16 GB NVIDIA desktop card, Qwen3 4B Q4_K_M, llama.cpp b11205, a 2,781-token
+// prompt with the prompt cache off (two rounds each, within 1% of each other):
+//   CUDA    generation 213 tok/s   prompt 12,600 tok/s
+//   VULKAN  generation 194 tok/s   prompt 11,090 tok/s
+// The estimates must land near those, or every recommendation built on them misleads the user.
+// (The figures here before, 204.8/192.1 and 9,827/251, had the Vulkan prompt speed 39 times
+// too low; that was repeated and corrected on 2026-10-05.)
 // ---------------------------------------------------------------------------
 
 /// The 960 GB/s card those figures were measured on, roughly 225 TFLOPS FP16 dense.
@@ -204,12 +206,12 @@ fn measured_card() -> chip::ChipInfo {
     c
 }
 
-const QWEN3_4B_Q4: u64 = 2_330_000_000;
+const QWEN3_4B_Q4: u64 = 2_497_281_312;
 
 #[test]
 fn generation_estimate_is_near_the_measured_rate() {
     let c = measured_card();
-    for (backend, measured) in [(Backend::Cuda, 204.8), (Backend::Vulkan, 192.1)] {
+    for (backend, measured) in [(Backend::Cuda, 213.0), (Backend::Vulkan, 194.0)] {
         let e = chip::estimate_on(&c, QWEN3_4B_Q4, Some(4.0), None, backend);
         let ratio = e.tokens_per_sec / measured;
         assert!((0.7..=1.4).contains(&ratio),
@@ -219,18 +221,35 @@ fn generation_estimate_is_near_the_measured_rate() {
 }
 
 #[test]
-fn vulkan_prompt_speed_is_not_predicted_like_cuda() {
-    // The whole point: the same card reads a document 39x slower on Vulkan, and
-    // an estimate that misses that is wrong by an order of magnitude.
+fn vulkan_reads_prompts_a_little_slower_than_cuda_not_a_lot() {
     let c = measured_card();
     let cuda = chip::estimate_on(&c, QWEN3_4B_Q4, Some(4.0), None, Backend::Cuda);
     let vk = chip::estimate_on(&c, QWEN3_4B_Q4, Some(4.0), None, Backend::Vulkan);
-    assert!(cuda.prompt_per_sec > 10.0 * vk.prompt_per_sec,
-            "cuda {:.0} vs vulkan {:.0} prompt tok/s -- the gap is measured at 39x",
-            cuda.prompt_per_sec, vk.prompt_per_sec);
-    // And generation should stay close, because it measured 1.07x.
+    // Measured: 11,090 against 12,600, a ratio of 0.88. An estimate that said "39 times slower"
+    // would have told every AMD and Intel user a one-page document takes a minute.
+    let ratio = vk.prompt_per_sec / cuda.prompt_per_sec;
+    assert!((0.7..=1.0).contains(&ratio), "vulkan reads at {ratio:.2} of cuda ({:.0} vs {:.0} tok/s); measured 0.88", vk.prompt_per_sec, cuda.prompt_per_sec);
+    // And near the measured rates themselves.
+    for (e, measured, name) in [(&cuda, 12_600.0, "cuda"), (&vk, 11_090.0, "vulkan")] {
+        let r = e.prompt_per_sec / measured;
+        assert!((0.6..=1.3).contains(&r), "{name}: estimated {:.0} tok/s reading a prompt against a measured {measured} (ratio {r:.2})", e.prompt_per_sec);
+    }
     let g = cuda.tokens_per_sec / vk.tokens_per_sec;
-    assert!((0.8..=1.3).contains(&g), "generation should be near-identical, got {g:.2}x");
+    assert!((0.8..=1.3).contains(&g), "generation should be close, got {g:.2}x (measured 1.10)");
+}
+
+/// Measured on a small AMD integrated GPU (2 compute units) under the AMD Windows driver, through
+/// the Vulkan engine: Qwen3 0.6B Q8_0 generated 19-27 tok/s and read a 2,781-token prompt at 232.
+#[test]
+fn a_small_amd_integrated_chip_is_estimated_from_what_it_measured() {
+    const QWEN3_06B_Q8: u64 = 639_446_688;
+    let (bw, tf) = crate::gpu::profile("AMD Radeon(TM) Graphics").expect("the generic name is in the table");
+    let mut c = chip::identify("AMD Ryzen 7 8-core desktop", None);
+    c.bandwidth_gbps = bw;
+    c.gpu_tflops = tf;
+    let e = chip::estimate_on(&c, QWEN3_06B_Q8, Some(0.6), None, Backend::Vulkan);
+    assert!((14.0..=32.0).contains(&e.tokens_per_sec), "generating: {:.1} tok/s estimated, 19-27 measured", e.tokens_per_sec);
+    assert!((150.0..=330.0).contains(&e.prompt_per_sec), "reading: {:.0} tok/s estimated, 232 measured", e.prompt_per_sec);
 }
 
 #[test]
