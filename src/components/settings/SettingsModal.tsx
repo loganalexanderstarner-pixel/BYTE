@@ -28,7 +28,7 @@ import { ConnectorsTab } from "./ConnectorsTab";
 import { KnowledgeTab } from "./KnowledgeTab";
 import { ModelLab } from "./ModelLab";
 import { TuningPanel } from "./TuningPanel";
-import { osText } from "../../lib/platform";
+import { engineWith, osText } from "../../lib/platform";
 
 
 
@@ -683,6 +683,7 @@ const CONTEXT_OPTIONS = [8192, 16384, 24576, 32768];
 
 function EngineTab() {
   const engine = useStore((s) => s.engine);
+  const system = useStore((s) => s.system);
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
   const models = useStore((s) => s.models);
@@ -710,7 +711,7 @@ function EngineTab() {
   return (
     <>
       <h3>Engine</h3>
-      <p className="muted" style={{ marginTop: 0 }}>{osText("BYTE's built-in AI engine (llama.cpp with Apple Metal) runs on this Mac.")}</p>
+      <p className="muted" style={{ marginTop: 0 }}>{osText(`BYTE's built-in AI engine (${engineWith(system)}) runs on this Mac.`)}</p>
       {engine.state === "error" && <div className="banner danger">{engine.message}</div>}
       {error && <div className="banner danger">{error}</div>}
       <div className="field">
@@ -866,7 +867,7 @@ function AboutTab() {
         <label className="field">
           <span>
             Keep running when the window is closed
-            <small>Closing the window hides BYTE instead of quitting, so it keeps working. Quit with ⌘Q.</small>
+            <small>Closing the window hides BYTE instead of quitting, so it keeps working. {pcHost ? "Quit from the system tray icon's menu." : "Quit with ⌘Q."}</small>
           </span>
           <input type="checkbox" checked={settings?.keepRunning ?? true} onChange={(e) => void update({ keepRunning: e.target.checked })} />
         </label>

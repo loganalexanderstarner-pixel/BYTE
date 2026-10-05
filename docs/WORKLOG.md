@@ -177,6 +177,22 @@ how every item below was found; none of them showed in a test.
     card. Undo: `git revert` this commit; Mac behaviour does not depend on it.
   - Tests: `models::tests::spilling_onto_the_cpu_is_slow_next_to_a_discrete_card`,
     `a_pc_is_recommended_a_model_that_fits_its_card`, and four `runnable` cases.
+- **More wording the screenshots found (Engine, Privacy, Automations).** The Engine tab said "llama.cpp with
+  Apple Metal" on a PC (`engineWith()` in `platform.ts` now names CUDA, Vulkan or the processor from the
+  backend), Privacy showed `⌘K` and a "paid Apple developer signature" sentence, Settings said "Quit with
+  ⌘Q", reduced motion pointed at macOS's Accessibility → Display, and Automations offered Shortcuts/Siri.
+  All reworded or hidden on Windows; the Mac text is identical (checked with `audit-ui-text.cjs`, whose only
+  differences are strings now split across JSX).
+- **Secrets could not be stored on Windows at all.** The UI said "Windows Credential Manager", but both secret
+  stores (`cloud/keychain.rs` for the cloud key, `connectors/mod.rs` for Notion and calendar links) were
+  stubs that returned an error off a Mac, and Connectors showed "need a PC for now" to a PC user. Both now use
+  the `keyring` crate's `windows-native` backend. Limit to know: Credential Manager holds about 1,280
+  characters per entry, so a very long list of calendar links would be refused with an error rather than
+  saved. Test (ignored, writes to the real store): `cloud::keychain::windows_tests::credential_manager_round_trips`;
+  it passes in the desktop session and fails over SSH with `ERROR_NO_SUCH_LOGON_SESSION` (a network logon has
+  no credential store), so run it through `schtasks /IT` like the app.
+- **Driver trap:** Task Scheduler rejects a `/tr` command over 261 characters and the script hid the error, so a
+  longer click list silently did nothing for ten minutes. The step list now goes through a file.
 - **Disk lesson.** My builds took the PC's C: from 58 GB free to 6 GB in a day
   (several target dirs, incremental caches, downloaded models). One target dir,
   delete `incremental`, check free space before a build. Saved to memory.

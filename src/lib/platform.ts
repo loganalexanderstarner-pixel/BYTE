@@ -60,6 +60,21 @@ export function hardwareNote(system: SystemInfo): { ok: boolean; text: string } 
   return { ok: true, text: "No dedicated graphics card found, so BYTE will run on your processor. The smaller models are the best fit, and answers will be slower than on a card." };
 }
 
+/** What the engine computes with, for "BYTE's built-in AI engine (…) runs on this Mac". A Mac, or an
+ *  older backend that does not say, keeps the Mac wording. */
+export function engineWith(system?: Pick<SystemInfo, "backend"> | null): string {
+  switch (system?.backend) {
+    case "cuda":
+      return "llama.cpp with NVIDIA CUDA";
+    case "vulkan":
+      return "llama.cpp with Vulkan";
+    case "cpu":
+      return "llama.cpp on the processor";
+    default:
+      return "llama.cpp with Apple Metal";
+  }
+}
+
 /**
  * Static UI copy, worded for the machine it is on. The identity on a Mac, so the Mac text is
  * exactly what it was; on Windows it swaps the Mac words for the PC ones: "this Mac" becomes
@@ -83,6 +98,7 @@ export function osText(text: string, windows: boolean = isWindows()): string {
     .replace(/\bmenu[- ]bar\b/gi, (m) => (m[0] === "M" ? "System tray" : "system tray"))
     .replace(/\bTouch ID\b/g, "Windows Hello")
     .replace(/\bMac control\b/g, "PC control")
+    .replace(/\bSystem Settings → Accessibility → Display\b/g, "Settings → Accessibility → Visual effects")
     .replace(/\bSystem Settings\b/g, "Settings")
     .replace(/\bPrivacy & Security\b/g, "Privacy & security")
     .replace(/\bmacOS\b/g, "Windows")

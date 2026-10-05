@@ -39,7 +39,7 @@ import type {
 } from "../../lib/types";
 import { useStore, type SettingsTab } from "../../state/store";
 import { osText } from "../../lib/platform";
-import { isWindows } from "../../lib/keys";
+import { isWindows, platformKeys as K } from "../../lib/keys";
 
 /** Settings → Privacy: the offline switch, the lock, Mac permissions and everything BYTE did. */
 export function PrivacyTab() {
@@ -119,7 +119,7 @@ function OfflineSection() {
           <span className="grow">
             Work offline
             <small>
-              {osText("Nothing leaves this Mac while this is on: no web search, no cloud, no downloads, no background checks. Chats, voices, your files and notes keep working with the model on this Mac. Also in the menu-bar icon's menu and ⌘K.")}
+              {osText("Nothing leaves this Mac while this is on: no web search, no cloud, no downloads, no background checks. Chats, voices, your files and notes keep working with the model on this Mac. Also in the menu-bar icon's menu and ")}{K("⌘K")}.
             </small>
           </span>
           <input
@@ -243,7 +243,9 @@ function LockSection() {
           )}
           {error && <div className="banner danger">{error}</div>}
           <p className="faint small">
-            {osText("Your chats are already encrypted on this Mac. The lock keeps someone using your unlocked Mac out of BYTE. (Tying the encryption key itself to Touch ID needs a paid Apple developer signature, which BYTE doesn't use.)")}
+            {isWindows()
+              ? "Your chats are already encrypted on this PC. The lock keeps someone using your unlocked PC out of BYTE. (The encryption key itself isn't tied to Windows Hello.)"
+              : osText("Your chats are already encrypted on this Mac. The lock keeps someone using your unlocked Mac out of BYTE. (Tying the encryption key itself to Touch ID needs a paid Apple developer signature, which BYTE doesn't use.)")}
           </p>
         </>
       )}

@@ -71,8 +71,15 @@ impl SecretStore for Secrets {
     }
 }
 
+/// What the system calls its secret store, for messages.
 #[cfg(all(target_os = "macos", not(test)))]
+const STORE: &str = "Keychain";
+#[cfg(all(windows, not(test)))]
+const STORE: &str = "Credential Manager";
+
+#[cfg(all(any(target_os = "macos", windows), not(test)))]
 mod keychain {
+    use super::STORE;
     use super::SERVICE;
     use crate::error::{AppError, AppResult};
 
@@ -80,21 +87,21 @@ mod keychain {
         match keyring::Entry::new(SERVICE, account).and_then(|e| e.get_password()) {
             Ok(k) => Ok(Some(k)),
             Err(keyring::Error::NoEntry) => Ok(None),
-            Err(e) => Err(AppError::msg(format!("Couldn't read the Keychain: {e}"))),
+            Err(e) => Err(AppError::msg(format!("Couldn't read the {STORE}: {e}"))),
         }
     }
     pub fn set(account: &str, secret: &str) -> AppResult<()> {
-        keyring::Entry::new(SERVICE, account).and_then(|e| e.set_password(secret)).map_err(|e| AppError::msg(format!("Couldn't save to the Keychain: {e}")))
+        keyring::Entry::new(SERVICE, account).and_then(|e| e.set_password(secret)).map_err(|e| AppError::msg(format!("Couldn't save to the {STORE}: {e}")))
     }
     pub fn delete(account: &str) -> AppResult<()> {
         match keyring::Entry::new(SERVICE, account).and_then(|e| e.delete_credential()) {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(e) => Err(AppError::msg(format!("Couldn't remove it from the Keychain: {e}"))),
+            Err(e) => Err(AppError::msg(format!("Couldn't remove it from the {STORE}: {e}"))),
         }
     }
 }
 
-#[cfg(any(not(target_os = "macos"), test))]
+#[cfg(any(not(any(target_os = "macos", windows)), test))]
 mod keychain {
     use crate::error::{AppError, AppResult};
 
@@ -102,7 +109,7 @@ mod keychain {
         Ok(None)
     }
     pub fn set(_account: &str, _secret: &str) -> AppResult<()> {
-        Err(AppError::msg("BYTE keeps connector secrets in the macOS Keychain, so this needs a Mac for now."))
+        Err(AppError::msg("BYTE keeps connector secrets in the system's secret store (the macOS Keychain or Windows Credential Manager), which this system doesn't have yet."))
     }
     pub fn delete(_account: &str) -> AppResult<()> {
         Ok(())
@@ -390,7 +397,7 @@ pub async fn run(turn: &Turn<'_>, question: &str, cancel: &CancellationToken, se
 fn status_of(vault: Option<String>, parent: Option<String>) -> Status {
     let notes = vault.as_deref().map(|v| obsidian::notes(std::path::Path::new(v)).len()).unwrap_or(0);
     Status {
-        keychain: cfg!(target_os = "macos"),
+        keychain: cfg!(any(target_os = "macos", windows)),
         vault,
         vault_notes: notes,
         notion: Secrets.get(NOTION).ok().flatten().is_some(),

@@ -94,6 +94,8 @@ objc2-local-authentication = { version = "0.3", default-features = false, featur
 cpal = "0.18"
 
 [target.'cfg(windows)'.dependencies]
+# Secrets (the cloud key, connector tokens) live in Windows Credential Manager, never in files.
+keyring = { version = "3", features = ["windows-native"] }
 # WinRT: Windows.Media.Ocr and Windows.Data.Pdf replace Apple Vision and PDFKit
 # in ocr.rs. Version 0.62 matches the copy tauri already pulls in, so this adds no
 # second one to the build.

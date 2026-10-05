@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { cpuName, graphicsLabel, hardwareNote, isPc, machine, osText } from "./platform";
+import { cpuName, engineWith, graphicsLabel, hardwareNote, isPc, machine, osText } from "./platform";
 import type { SystemInfo } from "./types";
 
 const base = { chip: "", freeDiskBytes: 0, osVersion: "", cpuCores: 8, chipInfo: {} as SystemInfo["chipInfo"], gpuBudgetBytes: 0 };
@@ -80,5 +80,25 @@ describe("osText(): UI copy worded for the machine", () => {
   it("leaves text with no Mac wording alone, including near-misses", () => {
     expect(osText("Machine learning on a Macintosh-style layout", true)).toBe("Machine learning on a Macintosh-style layout");
     expect(osText("Nothing to change here", true)).toBe("Nothing to change here");
+  });
+});
+
+describe("the engine's name", () => {
+  it("says what really runs the model", () => {
+    expect(engineWith({ backend: "metal" })).toBe("llama.cpp with Apple Metal");
+    expect(engineWith({ backend: "cuda" })).toBe("llama.cpp with NVIDIA CUDA");
+    expect(engineWith({ backend: "vulkan" })).toBe("llama.cpp with Vulkan");
+    expect(engineWith({ backend: "cpu" })).toBe("llama.cpp on the processor");
+  });
+  it("keeps the Mac wording when the backend does not say", () => {
+    expect(engineWith(undefined)).toBe("llama.cpp with Apple Metal");
+    expect(engineWith({})).toBe("llama.cpp with Apple Metal");
+  });
+});
+
+describe("Windows paths in settings copy", () => {
+  it("names the Windows place for reduced motion", () => {
+    expect(osText("Auto follows macOS (System Settings → Accessibility → Display).", true)).toBe("Auto follows Windows (Settings → Accessibility → Visual effects).");
+    expect(osText("Auto follows macOS (System Settings → Accessibility → Display).", false)).toBe("Auto follows macOS (System Settings → Accessibility → Display).");
   });
 });
