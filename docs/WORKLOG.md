@@ -127,6 +127,15 @@ hardware descriptions to the planner, which is pure arithmetic. It found:
 - **Voice on Windows:** `cpal` was declared only under macOS, so no audio backend
   was compiled on Windows at all; widening the `cfg` checks alone would have done
   nothing. Now declared for macOS and Windows. Not yet exercised at run time.
+- **Voice verified end to end on the PC (2026-10-05):** WASAPI sees the default
+  output and input (48 kHz); Windows' own `tar.exe` unpacks a real `.tar.bz2` voice
+  package; `sherpa-tts` writes a WAV; `whisper-cli` transcribes it back ("Hello,
+  this is Bite Speaking on Windows" for "...BYTE...": a normal mishearing by the
+  tiny model, not an engine fault). `voices.rs` now names `System32\tar.exe` rather
+  than leaving it to PATH, where a Git GNU `tar` would read `C:\...` as a remote
+  host. Still needs a person: that WebView2 asks for and keeps microphone
+  permission, that the wake chime is audible, and spoken output reaching the
+  headset through the app itself.
 - **Trap I fell into:** piping a build to `tail` hides its exit code. Redirect to a
   file and print `$?` instead.
 

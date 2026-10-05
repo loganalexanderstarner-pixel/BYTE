@@ -121,7 +121,20 @@ pub fn downloaded(models_dir: &Path, p: &Package) -> bool {
     models::is_installed(&package_dir(models_dir, p), &variant(p))
 }
 
-/// Unpacks a downloaded package (`tar` reads .tar.bz2 on macOS and Linux), then removes the archive.
+/// The `tar` that unpacks voice packages. Windows 10 and 11 ship their own
+/// (bsdtar, which reads .tar.bz2), and it is named by full path rather than left to
+/// PATH: a GNU tar installed with Git can sit earlier on PATH, and GNU tar reads a
+/// Windows path like C:\voices as the remote host "C" and fails.
+fn tar_program() -> std::path::PathBuf {
+    if cfg!(windows) {
+        let root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
+        std::path::PathBuf::from(root).join("System32").join("tar.exe")
+    } else {
+        "tar".into()
+    }
+}
+
+/// Unpacks a downloaded package (`tar` reads .tar.bz2 on macOS, Linux and Windows), then removes the archive.
 pub async fn unpack(models_dir: &Path, p: &Package) -> AppResult<()> {
     if ready(models_dir, p) {
         return Ok(());
@@ -131,7 +144,7 @@ pub async fn unpack(models_dir: &Path, p: &Package) -> AppResult<()> {
         return Err(AppError::msg("That voice hasn't finished downloading."));
     }
     let archive = models::entry_path(&d, &variant(p));
-    let out = tokio::process::Command::new("tar").arg("-xjf").arg(&archive).arg("-C").arg(&d).output().await?;
+    let out = tokio::process::Command::new(tar_program()).arg("-xjf").arg(&archive).arg("-C").arg(&d).output().await?;
     let m = model_dir(models_dir, p);
     if !out.status.success() || !m.is_dir() {
         return Err(AppError::msg("BYTE couldn't unpack that voice; deleting and downloading it again usually fixes it."));
