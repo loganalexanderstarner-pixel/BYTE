@@ -9,4 +9,7 @@
 5. Attach a file (a PDF, a text file, a photo) to a chat and ask about it; also export something (Save as…): both should work
    (new: files come back as links on Android and are now copied in). Voice, the Agent button, folders for the knowledge
    base and picking a model file are hidden on the phone on purpose.
-6. If anything fails, tap **Copy diagnostics** (About) and paste it to Claude.
+6. Tiny model (ERNIE 0.3B): say "Hey there" (no more "Welcome to my friendly AI assistant…"), then ask a web question: the answer
+   shows "This model is very small…" with **Answer with BYTE Cloud** and **Get a bigger model**; no Fact-check button.
+   Also try a 4B+ model on the same question: that is what accurate answers need.
+7. If anything fails, tap **Copy diagnostics** (About) and paste it to Claude.

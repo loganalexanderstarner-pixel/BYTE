@@ -270,6 +270,8 @@ interface State {
   /** A spoken question is being answered (its answer is read aloud). */
   voiceTurn: boolean;
   regenerate(): Promise<void>;
+  /** Drops this chat's last answer and asks the same question on BYTE Cloud (a tiny model's facts can't be trusted). */
+  answerOnCloud(): Promise<void>;
   /** Cloud account status (connected, modes). */
   cloud: CloudStatus | null;
   /** Conversations on the BYTE cloud (Cloud workspace sidebar); null until loaded. */
@@ -1219,6 +1221,16 @@ export const useStore = create<State>((set, get) => {
       const idx = conversations.findIndex((c) => c.id === convId);
       if (idx > 0) set({ conversations: [conversations[idx], ...conversations.filter((_, i) => i !== idx)] });
       await answer(convId);
+    },
+
+    async answerOnCloud() {
+      const convId = get().currentId;
+      const conv = currentConversation(get());
+      if (!convId || !conv || get().generating || !get().settings?.cloudConnected || conv.private) return;
+      let i = conv.messages.length;
+      while (i > 0 && conv.messages[i - 1].role === "assistant") i--;
+      patchConversation(convId, (c) => ({ ...c, messages: c.messages.slice(0, i) }));
+      await generate(convId, { cloud: true });
     },
 
     async regenerate() {

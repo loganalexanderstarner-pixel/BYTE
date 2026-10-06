@@ -167,6 +167,15 @@ export function factCheckPrompt(answer: string): string {
 
 function AssistantMessage({ message, isLast, generating }: { message: Message; isLast: boolean; generating: boolean }) {
   const regenerate = useStore((s) => s.regenerate);
+  const answerOnCloud = useStore((s) => s.answerOnCloud);
+  const openSettings = useStore((s) => s.openSettings);
+  const cloudConnected = useStore((s) => !!s.settings?.cloudConnected);
+  // Under 1B parameters a model can't check facts: no Fact-check button for it.
+  const tinyModel = useStore((s) => {
+    const key = s.engine.state === "ready" ? s.engine.model : null;
+    const p = key ? s.models.find((m) => m.variants.some((v) => v.key === key))?.paramsB : null;
+    return p != null && p < 1;
+  });
   const writingOn = useStore((s) => s.settings?.writingEnabled !== false);
   const openWriting = useStore((s) => s.openWriting);
   const notesOn = useStore((s) => s.settings?.notesEnabled !== false);
@@ -222,6 +231,18 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
             <button className="btn sm" onClick={() => void regenerate()}>
               Try the cloud again
             </button>
+          )}
+          {isLast && !generating && /very small, so facts/i.test(message.notice) && (
+            <>
+              {cloudConnected && (
+                <button className="btn sm primary" onClick={() => void answerOnCloud()}>
+                  Answer with BYTE Cloud
+                </button>
+              )}
+              <button className="btn sm" onClick={() => openSettings("models")}>
+                Get a bigger model
+              </button>
+            </>
           )}
         </div>
       )}
@@ -323,7 +344,7 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
               <RefreshCw size={15} />
             </button>
           )}
-          {isLast && webOn && !message.cloud && message.content.trim().length > 40 && (
+          {isLast && webOn && !message.cloud && !tinyModel && message.content.trim().length > 40 && (
             <button
               className="icon-btn"
               onClick={() => void send(factCheckPrompt(message.content), { task: "factCheck" })}

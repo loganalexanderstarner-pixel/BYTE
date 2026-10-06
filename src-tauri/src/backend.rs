@@ -202,6 +202,9 @@ pub async fn with_fallback<P: ModelBackend, S: ModelBackend>(
     }
 }
 
+/// Shown (and matched by the UI, which adds the buttons) on a factual or web answer from a tiny local model.
+pub const TINY_NOTICE: &str = "This model is very small, so facts it writes can be wrong. For research, use a bigger model or BYTE Cloud.";
+
 /// How long to wait before the one retry of an unreachable cloud.
 #[cfg(not(test))]
 const RETRY_AFTER: std::time::Duration = std::time::Duration::from_secs(3);
@@ -287,6 +290,9 @@ async fn local_turn(state: &AppState, request: &ChatRequest, on_event: &Channel<
     let described = if ep.vision { None } else { describe_photos(state, request, on_event).await };
     let request = described.as_ref().unwrap_or(request);
     let setup = Setup::new(state, request, ep).await?;
+    if setup.tiny_facts {
+        let _ = on_event.send(ChatEvent::Notice { text: TINY_NOTICE.into() });
+    }
     if setup.saving {
         let lowered = setup.mode != request.mode;
         let _ = on_event.send(ChatEvent::Notice {
@@ -327,6 +333,8 @@ struct Setup {
     mode: crate::settings::Mode,
     /// Battery saver is lightening this turn.
     saving: bool,
+    /// A tiny model is about to answer a factual or web question.
+    tiny_facts: bool,
 }
 
 impl Setup {
@@ -393,8 +401,9 @@ impl Setup {
         }
         // Tiny models (under 1B) get a short prompt and nothing optional: they read long rules back as the answer.
         let tiny = ep.cloud.is_none() && catalog.resolve(&ep.model).ok().and_then(|(m, _)| m.params_b).is_some_and(|b| b < prompt::TINY_B);
+        let question_now = request.messages.iter().rev().find(|m| m.role == "user").map(|m| chat::question_text(&m.content).to_string()).unwrap_or_default();
         let mut system = if tiny {
-            prompt::compact_prompt(chrono::Local::now(), user_name.as_deref())
+            prompt::compact_prompt(chrono::Local::now(), user_name.as_deref(), &question_now)
         } else {
             prompt::system_prompt(chrono::Local::now(), request.mode, web, user_name.as_deref())
         };
@@ -405,6 +414,8 @@ impl Setup {
             system.push_str(crate::kids::PROMPT);
         }
         let last_question = request.messages.iter().rev().find(|m| m.role == "user").map(|m| chat::question_text(&m.content)).unwrap_or_default();
+        // A tiny model reads the web fine but can't weigh what it read: local_turn says so (the UI adds buttons).
+        let tiny_facts = tiny && web && !request.private && (router::wants_web(&last_question) || router::needs_fresh_info(&last_question));
         if !tiny && cfg!(target_os = "macos") && modules.mac && !crate::router::creative_only(&last_question) {
             system.push_str(prompt::MAC_CONTROL);
         }
@@ -435,7 +446,7 @@ impl Setup {
         let cloud = if web && !request.private && cloud_on { state.cloud_client().await.ok() } else { None };
         // "My files": the knowledge base is searchable when it's on and has passages.
         let kb = kb_on && crate::kb::chunk_count(&state.db) > 0;
-        Ok(Setup { ep, system, history, plan, web, memory, home, depth, web_always, kitchen, metric, web_agent, modules, cloud, kb, mode, saving })
+        Ok(Setup { ep, system, history, plan, web, memory, home, depth, web_always, kitchen, metric, web_agent, modules, cloud, kb, mode, saving, tiny_facts })
     }
 
     fn turn<'a>(&'a self, state: &'a AppState, request: &ChatRequest) -> agent::Turn<'a> {

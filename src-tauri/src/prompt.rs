@@ -18,18 +18,38 @@ pub(crate) fn device() -> &'static str {
 /// prompt's formatting rules confuse them (a 350M model read them back as its answer).
 pub const TINY_B: f32 = 1.0;
 
-/// The short prompt for tiny models: who BYTE is, the date, and to answer plainly.
-pub fn compact_prompt(now: DateTime<Local>, user_name: Option<&str>) -> String {
-    let date = now.format("%A, %B %-d, %Y");
-    let device = device();
-    let mut p = format!(
-        "You are BYTE, a friendly AI assistant that runs on the user's {device}. Today is {date}. \
-Answer the question briefly and plainly. If you don't know, say so. Never make up facts."
-    );
-    if let Some(name) = user_name.map(str::trim).filter(|n| !n.is_empty()) {
+/// The short prompt for tiny models. A model this small repeats whatever the system message says (one answered
+/// "Hey there" with "Welcome to my friendly AI assistant. Today is Tuesday…"), so the prompt holds only an
+/// instruction, and the identity, the date and the name join it only on a turn that needs them.
+pub fn compact_prompt(now: DateTime<Local>, user_name: Option<&str>, question: &str) -> String {
+    let mut p = String::from("Reply to the message in one or two short sentences. If you don't know, say so. Never make up facts.");
+    if asks_about_byte(question) {
+        p.push_str(&format!(" You are BYTE, an AI assistant that runs on the user's {}.", device()));
+    }
+    if crate::router::needs_fresh_info(question) || asks_for_date(question) {
+        p.push_str(&format!(" Today is {}.", now.format("%A, %B %-d, %Y")));
+    }
+    if let Some(name) = user_name.map(str::trim).filter(|n| !n.is_empty()).filter(|_| is_greeting(question)) {
         p.push_str(&format!(" The user's name is {name}."));
     }
     p
+}
+
+/// "Who are you?", "what's your name?", "who made you?"
+pub fn asks_about_byte(question: &str) -> bool {
+    let q = question.to_lowercase();
+    ["who are you", "what are you", "your name", "who made you", "who built you", "who created you", "what is byte", "what's byte", "are you byte", "about yourself"].iter().any(|c| q.contains(c))
+}
+
+fn asks_for_date(question: &str) -> bool {
+    let q = question.to_lowercase();
+    ["today's date", "what day", "what date", "the date", "what year", "current year", "what month", "date today", "day is it"].iter().any(|c| q.contains(c))
+}
+
+fn is_greeting(question: &str) -> bool {
+    let q = question.trim().to_lowercase();
+    let first = q.split(|c: char| !c.is_alphabetic()).next().unwrap_or("");
+    ["hi", "hey", "hello", "yo", "sup", "hiya", "howdy", "morning", "good"].contains(&first) && q.split_whitespace().count() <= 4
 }
 
 pub fn system_prompt(now: DateTime<Local>, mode: Mode, web_available: bool, user_name: Option<&str>) -> String {
@@ -89,14 +109,21 @@ mod tests {
     use chrono::TimeZone;
 
     #[test]
-    fn tiny_models_get_a_short_prompt_without_the_formatting_rules() {
+    fn tiny_models_get_a_short_prompt_that_cannot_be_read_back() {
         let now = Local.with_ymd_and_hms(2026, 10, 5, 12, 0, 0).unwrap();
-        let tiny = compact_prompt(now, Some("Logan"));
-        assert!(tiny.contains("You are BYTE") && tiny.contains("Logan") && tiny.contains("Monday, October 5, 2026"));
+        // A plain greeting: just the instruction. Nothing like "You are BYTE, a friendly assistant" to repeat.
+        let greet = compact_prompt(now, Some("Logan"), "Hey there");
+        assert!(!greet.contains("You are BYTE") && !greet.contains("friendly") && !greet.contains("2026"), "{greet}");
+        assert!(greet.contains("Logan"), "the name is for greetings: {greet}");
         for rule in ["TL;DR", "headings", "calculator", "Markdown"] {
-            assert!(!tiny.contains(rule), "{rule} leaked into the compact prompt");
+            assert!(!greet.contains(rule), "{rule} leaked into the compact prompt");
         }
-        assert!(tiny.len() < 300, "{}", tiny.len());
+        assert!(greet.len() < 220, "{}", greet.len());
+        // The identity, the date and the name come in only when the question needs them.
+        assert!(compact_prompt(now, Some("Logan"), "Who are you?").contains("You are BYTE"));
+        assert!(compact_prompt(now, None, "What day is it?").contains("Monday, October 5, 2026"));
+        assert!(compact_prompt(now, None, "best gaming gpu of 2026").contains("2026"));
+        assert!(!compact_prompt(now, Some("Logan"), "Explain how rainbows form in detail please").contains("Logan"));
         // Bigger models keep the full prompt.
         assert!(system_prompt(now, Mode::Auto, false, None).contains("TL;DR"));
     }

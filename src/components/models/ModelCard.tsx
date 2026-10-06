@@ -260,6 +260,9 @@ export function ModelCard({ model, recommended, downloads, activeKey, onDownload
         {model.tags.filter((t) => TAG_LABELS[t]).map((t) => (
           <span key={t} className="tag">{TAG_LABELS[t]}</span>
         ))}
+        {model.role === "chat" && model.paramsB != null && model.paramsB < 1 && (
+          <span className="tag" title="Under 1 billion parameters: quick, but it often gets facts wrong. Use it for simple chat, not research.">Tiny: often wrong on facts</span>
+        )}
         {model.thinking && <span className="tag"><Brain size={11} /> Thinking</span>}
         {model.tools && <span className="tag"><Wrench size={11} /> Tools</span>}
         {model.vision && (

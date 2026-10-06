@@ -23,6 +23,18 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Tiny local models: no prompt echo, honest about facts
+- **Why:** on the phone, ERNIE 0.3B answered "Hey there" with its own system prompt ("Welcome to my friendly AI assistant.
+  Today is…") and, after a good web search, named the RTX 3060 Ti the best GPU of 2026; Fact-check then agreed with it.
+- **What:** `prompt::compact_prompt(now, name, question)` now holds only an instruction; the identity, date and user name
+  join only when the question asks (who are you / the date or a time-sensitive question / a greeting). A factual or web
+  question on a model under 1B sends the notice `backend::TINY_NOTICE`; the banner shows **Answer with BYTE Cloud**
+  (`store.answerOnCloud`, when connected) and **Get a bigger model**; no Fact-check button for tiny models; model cards
+  say "Tiny: often wrong on facts".
+- **Not fixed (can't be):** a 0.3B model still can't weigh sources. Accurate answers need a 4B+ model or the cloud.
+- **Verify:** `cargo test -- prompt::`; on the phone with ERNIE: greeting, then a web question.
+- **Undo:** `git revert <hash>`.
+
 ### (this commit) — A3 audit: files, notes, browsing agent and voice on Android
 - **Why:** reading the code for desktop assumptions found things that would fail on the phone.
 - **What:**
