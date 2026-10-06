@@ -176,9 +176,71 @@ fn clean(q: &str) -> String {
 
 const LIST_WORDS: &[&str] = &["to-do list", "todo list", "to do list", "task list", "my tasks", "my to-dos", "my todos", "my to-do's"];
 
+/// "in 10 minutes", "in an hour", "in half an hour", "in 2 days": where the phrase sits in `l`
+/// (start of "in", end of the unit) and when it is from `now`.
+fn relative_due(l: &str, now: NaiveDateTime) -> Option<(usize, usize, NaiveDateTime)> {
+    // Words with the byte offset where each starts, punctuation trimmed from the ends.
+    let mut words: Vec<(usize, usize, &str)> = Vec::new();
+    let mut start = None;
+    for (i, c) in l.char_indices().chain(std::iter::once((l.len(), ' '))) {
+        if c.is_whitespace() || c == ',' || c == ';' || c == '.' {
+            if let Some(s) = start.take() {
+                words.push((s, i, &l[s..i]));
+            }
+        } else if start.is_none() {
+            start = Some(i);
+        }
+    }
+    let number = |w: &str| -> Option<i64> {
+        const WORDS: [&str; 12] = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+        match w {
+            "a" | "an" => Some(1),
+            _ => w.parse::<i64>().ok().or_else(|| WORDS.iter().position(|n| *n == w).map(|p| p as i64 + 1)),
+        }
+    };
+    let unit_seconds = |w: &str| -> Option<i64> {
+        Some(match w.trim_end_matches('s') {
+            "second" | "sec" => 1,
+            "minute" | "min" => 60,
+            "hour" | "hr" => 3600,
+            "day" => 86_400,
+            "week" => 604_800,
+            _ => return None,
+        })
+    };
+    for i in 0..words.len() {
+        if words[i].2 != "in" {
+            continue;
+        }
+        // "in half an hour", "in half hour"
+        if words.get(i + 1).map(|w| w.2) == Some("half") {
+            let (hour_at, hour) = if words.get(i + 2).map(|w| w.2) == Some("an") { (i + 3, words.get(i + 3)) } else { (i + 2, words.get(i + 2)) };
+            if let Some(h) = hour.filter(|h| matches!(h.2, "hour" | "hr")) {
+                let _ = hour_at;
+                return Some((words[i].0, h.1, now + chrono::Duration::minutes(30)));
+            }
+        }
+        let (Some(n), Some(unit)) = (words.get(i + 1).and_then(|w| number(w.2)), words.get(i + 2)) else { continue };
+        let Some(secs) = unit_seconds(unit.2) else { continue };
+        if n <= 0 || n.checked_mul(secs).is_none_or(|t| t > 365 * 86_400) {
+            continue;
+        }
+        return Some((words[i].0, unit.1, now + chrono::Duration::seconds(n * secs)));
+    }
+    None
+}
+
 /// Strips "by Friday"/"tomorrow at 5pm" off a title; returns the due time found.
 fn due_in(text: &str, now: NaiveDateTime) -> (String, Option<NaiveDateTime>) {
     let l = text.to_lowercase();
+    // "in 10 minutes to stretch" and "stretch in 10 minutes": what is left is the title.
+    if let Some((s, e, due)) = relative_due(&l, now) {
+        let before = text[..s].trim();
+        let after = text[e..].trim();
+        let joined = format!("{before} {after}");
+        let title = joined.trim().strip_prefix("to ").unwrap_or(joined.trim()).trim().to_string();
+        return (title, Some(due));
+    }
     let cut = [" by ", " due ", " tomorrow", " today", " tonight", " on monday", " on tuesday", " on wednesday", " on thursday", " on friday", " on saturday", " on sunday", " at "]
         .iter()
         .filter_map(|w| l.find(w))
@@ -447,6 +509,37 @@ pub fn task_delete(state: State<'_, AppState>, id: i64) -> AppResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn at_nine_pm() -> NaiveDateTime {
+        chrono::NaiveDate::from_ymd_opt(2026, 10, 5).unwrap().and_hms_opt(21, 0, 0).unwrap()
+    }
+
+    #[test]
+    fn reminders_understand_how_long_from_now() {
+        let now = at_nine_pm();
+        let when = |q: &str| reminder_ask(q, now).map(|a| match a {
+            Ask::Add { title, due } => (title, due.map(|d| (d - now).num_seconds())),
+            other => panic!("{other:?}"),
+        });
+        assert_eq!(when("remind me in 1 minute to stretch"), Some(("stretch".into(), Some(60))));
+        assert_eq!(when("remind me in 10 minutes to call mom"), Some(("call mom".into(), Some(600))));
+        assert_eq!(when("remind me in an hour to stretch"), Some(("stretch".into(), Some(3600))));
+        assert_eq!(when("Remind me in 2 hours to eat"), Some(("eat".into(), Some(7200))));
+        assert_eq!(when("remind me in half an hour to check the oven"), Some(("check the oven".into(), Some(1800))));
+        assert_eq!(when("remind me in three days to water the plants"), Some(("water the plants".into(), Some(3 * 86_400))));
+        assert_eq!(when("remind me to stretch in 5 minutes"), Some(("stretch".into(), Some(300))));
+        assert_eq!(when("remind me in 30 seconds to test"), Some(("test".into(), Some(30))));
+        assert_eq!(when("remind me in 2 weeks to renew the passport"), Some(("renew the passport".into(), Some(14 * 86_400))));
+        // The clock-time forms are as they were.
+        assert_eq!(when("remind me at 5pm to stretch").map(|(t, _)| t), Some("stretch".into()));
+        assert_eq!(when("remind me tomorrow at 9am to pay rent").map(|(t, _)| t), Some("pay rent".into()));
+        // Not durations.
+        assert_eq!(when("remind me to log in"), None);
+        assert_eq!(when("remind me in the morning to stretch"), None, "no number and unit");
+        assert_eq!(when("remind me in 0 minutes to x"), None);
+        assert_eq!(when("remind me in 5 apples to x"), None);
+    }
+
     use chrono::{NaiveDate, Utc};
 
     fn now() -> NaiveDateTime {

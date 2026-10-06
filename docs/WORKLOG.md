@@ -271,6 +271,14 @@ how every item below was found; none of them showed in a test.
 - **Drive-test trap:** the dev app shares its data folder with the installed app, and an engine left running
   when the driver kills the app can still be there next run. Kill `llama-server*` and clear `byte.db*`,
   `db.key`, `engine.pid` between runs, and wait ~45 s for the first load.
+- **Reminders did not understand "in 10 minutes".** BYTE's own reminder parser knew "at 5pm" and "tomorrow at
+  9am" but not durations, the commonest way to ask. On a Mac Apple Reminders hides this; on Windows (and
+  Linux) nothing did, so "remind me in 10 minutes to X" just got a chat reply and no reminder (the to-do
+  list was empty, seen in the real app). `tasks.rs` now reads "in N seconds/minutes/hours/days/weeks",
+  "in an hour", "in half an hour", "in three days", before or after the task. Verified in the real app: the
+  to-do appears with a bell and its time. **Not verified:** that the Windows toast itself shows (it
+  disappears within seconds; one capture missed it); the notification plugin has no action buttons on
+  Windows, so the brief's Snooze/Done toast is not built.
 - **Driver trap:** Task Scheduler rejects a `/tr` command over 261 characters and the script hid the error, so a
   longer click list silently did nothing for ten minutes. The step list now goes through a file.
 - **Disk lesson.** My builds took the PC's C: from 58 GB free to 6 GB in a day
