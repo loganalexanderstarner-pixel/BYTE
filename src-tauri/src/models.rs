@@ -103,6 +103,10 @@ pub struct CatalogModel {
     /// Details for the model's dropdown (scripts/enrich-catalog.mjs).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub details: Option<ModelDetails>,
+    /// Not for phones (a browser-driving agent like Fara needs the desktop app's browser mode, which doesn't exist
+    /// yet). Hidden from the phone's list unless a file of it is already there, so it can still be deleted.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub desktop_only: bool,
 }
 
 impl CatalogModel {
@@ -809,6 +813,7 @@ pub fn list(catalog: &Catalog, lc: &ListContext<'_>) -> Vec<ModelStatus> {
     catalog
         .models
         .iter()
+        .filter(|m| !(m.desktop_only && lc.info.phone && !m.variants.iter().any(|v| is_installed(lc.models_dir, v) || bytes_on_disk(lc.models_dir, v) > 0 || lc.downloading.contains(&key(m, v)))))
         .map(|m| {
             let variants: Vec<VariantStatus> = m
                 .variants
@@ -1360,6 +1365,23 @@ mod tests {
         let tiny = list.iter().find(|m| m.id == "qwen3.5-0.8b").unwrap();
         assert_eq!(tiny.min_ram_gb, 8);
         assert!(tiny.best.is_some());
+    }
+
+    #[test]
+    fn browser_agents_are_not_listed_on_phones_unless_already_there() {
+        let c = Catalog::embedded();
+        assert!(c.models.iter().any(|m| m.id == "fara1.5-4b" && m.desktop_only), "Fara is marked desktop-only");
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = |info| list(&c, &ListContext { models_dir: dir.path(), info, ctx: 16384, downloading: &[], loaded_bytes: 0 });
+        let m16 = mac(16);
+        assert!(ctx(&m16).iter().any(|m| m.id == "fara1.5-4b"), "still listed on a Mac");
+        let p = phone(16);
+        assert!(!ctx(&p).iter().any(|m| m.id.starts_with("fara")), "hidden on a phone");
+        // A partial download on a phone stays visible, so it can be paused or deleted.
+        let m = c.models.iter().find(|m| m.id == "fara1.5-4b").unwrap();
+        let f = &m.variants[0].files[0];
+        std::fs::write(part_path(dir.path(), f), b"partial").unwrap();
+        assert!(ctx(&p).iter().any(|m| m.id == "fara1.5-4b"));
     }
 
     #[test]

@@ -23,6 +23,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Fara off phones, honest card text, phone wording in the model screens
+- **Why:** Fara1.5 (a browser-driving agent) was offered on the phone as "everyday chat with a different personality".
+  The owner wants it kept for a future browser/computer-use mode in the Windows app (PROJECT_GUIDE, Deferred).
+- **What:** `CatalogModel.desktop_only` (catalog JSON `desktopOnly`): `models::list` hides those models on phones unless a
+  file or partial download is already there (so it can still be deleted); Fara entries in `catalog-community.json` and
+  `catalog/models.json` get the flag and a true tagline/usedFor/"agent" tag; `onDevice` also rewrites "smaller/older/any
+  Mac"; the model details' ideas and Model Lab text go through it. Tests: `browser_agents_are_not_listed_on_phones…`.
+- **Verify:** `cargo test models::tests::browser`, `npx vitest run src/lib/device.test.ts`; on the phone, Settings → Models
+  has no Fara (an already downloaded one stays until deleted).
+- **Undo:** `git revert <hash>`.
+
 ### (this commit) — Cloud chat answered by the loaded model: retry the cloud once, say why, offer to try again
 - **Why:** on the Fold a Cloud chat's first message was answered by the downloaded model; with the model removed the
   cloud answered. A Cloud chat only reaches the local model through the "cloud unreachable" fallback, which was quiet

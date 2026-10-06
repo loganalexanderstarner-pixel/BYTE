@@ -68,7 +68,7 @@ export function ModelDetailsView({ d, model }: { d: ModelDetails; model: ModelSt
           <span className="faint">Try it for</span>
           <ul className="ideas">
             {d.ideas.map((i) => (
-              <li key={i}>{i}</li>
+              <li key={i}>{onDevice(i)}</li>
             ))}
           </ul>
         </div>

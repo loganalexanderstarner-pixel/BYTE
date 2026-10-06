@@ -575,6 +575,10 @@ Container is Linux: no macOS build/run here. Per phase:
 - Public v1.0: tag `v1.0.0` → stable channel; Homebrew tap updated; README screenshots.
 
 ## Deferred (not selected; keep for later)
+**Browser/computer-use mode (Windows app, owner idea 2026-10-06):** a model that looks at screenshots and controls the
+browser or even plays a game (like the "let it build Cities: Skylines" experiments). The Fara1.5 models in the catalog
+are made for this; they carry `desktopOnly` so phones don't list them until this mode exists.
+
 Read-aloud / hands-free voice reply, screenshot-and-ask hotkey, image generation, Excel export, spreadsheet
 analysis, live meeting notes / meeting prep / meeting library, live conversation translation, language tutor,
 journal, habits, budget, focus timer, sleep helper, workout planner, HomeKit, AirPlay presenting, printer/

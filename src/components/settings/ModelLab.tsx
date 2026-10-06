@@ -92,7 +92,7 @@ export function ModelLab() {
         <FlaskConical size={13} /> Model lab
       </h4>
       <p className="muted" style={{ marginTop: 0 }}>
-        Try any model in the GGUF format. BYTE reads the file's details and tells you whether it fits this Mac before you add it.
+        Try any model in the GGUF format. BYTE reads the file's details and tells you whether it fits {onDevice("this Mac")} before you add it.
       </p>
       {error && <div className="banner danger">{error}</div>}
       {note && (
@@ -103,8 +103,8 @@ export function ModelLab() {
 
       <div className="field">
         <label>
-          A file on this Mac
-          <small>A .gguf file you already downloaded. BYTE uses it where it is.</small>
+          {onDevice("A file on this Mac")}
+          <small>{onDevice("A .gguf file you already downloaded. BYTE uses it where it is.")}</small>
         </label>
         <button className="btn sm" onClick={() => void chooseFile()} disabled={busy !== null}>
           {busy === "file" ? <Loader2 size={14} className="spin" /> : <FileUp size={14} />} Choose a GGUF file…

@@ -46,7 +46,8 @@ export function onDevice(
     .replace(/\bthis Mac\b/g, `this ${device}`)
     .replace(/\byour Mac\b/g, `your ${device}`)
     .replace(/\bThis Mac\b/g, `This ${device}`)
-    .replace(/\bYour Mac\b/g, `Your ${device}`);
+    .replace(/\bYour Mac\b/g, `Your ${device}`)
+    .replace(/\b(older|smaller|slower|newer|any|a) Mac\b/g, `$1 ${device}`);
 }
 
 let known: Device = "Mac";

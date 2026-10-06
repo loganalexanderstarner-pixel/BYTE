@@ -313,11 +313,11 @@
    "name": "Fara1.5 27B",
    "family": "Qwen",
    "released": "2026-07",
-   "tagline": "Open model from an independent maker.",
-   "usedFor": "everyday chat with a different personality",
+   "tagline": "Microsoft's browser-driving agent: it looks at screenshots and clicks, types and scrolls.",
+   "usedFor": "controlling a web browser from screenshots (not everyday chat)",
    "tags": [
-    "writing",
-    "reasoning"
+    "reasoning",
+    "agent"
    ],
    "thinking": true,
    "tools": true,
@@ -334,7 +334,8 @@
     "Q6_K",
     "Q8_0"
    ],
-   "auto": true
+   "auto": true,
+   "desktopOnly": true
   },
   {
    "id": "intellect-2",
@@ -368,11 +369,11 @@
    "name": "Fara1.5 9B",
    "family": "Qwen",
    "released": "2026-07",
-   "tagline": "Open model from an independent maker.",
-   "usedFor": "everyday chat with a different personality",
+   "tagline": "Microsoft's browser-driving agent: it looks at screenshots and clicks, types and scrolls.",
+   "usedFor": "controlling a web browser from screenshots (not everyday chat)",
    "tags": [
-    "writing",
-    "reasoning"
+    "reasoning",
+    "agent"
    ],
    "thinking": true,
    "tools": true,
@@ -389,20 +390,20 @@
     "Q6_K",
     "Q8_0"
    ],
-   "auto": true
+   "auto": true,
+   "desktopOnly": true
   },
   {
    "id": "fara1.5-4b",
    "name": "Fara1.5 4B",
    "family": "Qwen",
    "released": "2026-07",
-   "tagline": "Open model from an independent maker.",
-   "usedFor": "everyday chat with a different personality",
+   "tagline": "Microsoft's browser-driving agent: it looks at screenshots and clicks, types and scrolls.",
+   "usedFor": "controlling a web browser from screenshots (not everyday chat)",
    "tags": [
-    "writing",
     "small",
-    "fast",
-    "reasoning"
+    "reasoning",
+    "agent"
    ],
    "thinking": true,
    "tools": true,
@@ -419,7 +420,8 @@
     "Q6_K",
     "Q8_0"
    ],
-   "auto": true
+   "auto": true,
+   "desktopOnly": true
   },
   {
    "id": "arex-turbo",

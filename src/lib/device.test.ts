@@ -41,3 +41,11 @@ describe("onDevice", () => {
     );
   });
 });
+
+describe("onDevice adjectives", () => {
+  it("rewrites 'smaller or older Mac' on a phone and leaves a Mac alone", async () => {
+    const { onDevice } = await import("./device");
+    expect(onDevice("Quick answers on a smaller or older Mac", "phone")).toBe("Quick answers on a smaller or older phone");
+    expect(onDevice("Quick answers on a smaller or older Mac", "Mac")).toBe("Quick answers on a smaller or older Mac");
+  });
+});
