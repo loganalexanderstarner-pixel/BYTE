@@ -28,7 +28,7 @@ export const THEMES: ThemeInfo[] = [
   { id: "sand", name: "Sand", swatch: ["#f7f1e3", "#fffaf0", "#8a5a00", "#2f6f5e"], light: true },
   { id: "mint", name: "Mint", swatch: ["#eef8f3", "#ffffff", "#0f7a52", "#2563eb"], light: true },
   { id: "high-contrast", name: "High Contrast", swatch: ["#000000", "#000000", "#ffff00", "#00ffff"] },
-  { id: "system", name: "Match macOS", swatch: ["#0f1420", "#f4f6fb", "#4c8dff", "#3b6fd9"] },
+  { id: "system", name: "Match system", swatch: ["#0f1420", "#f4f6fb", "#4c8dff", "#3b6fd9"] },
 ];
 
 export const DEFAULT_THEME = "midnight";

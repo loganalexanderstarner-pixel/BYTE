@@ -33,6 +33,8 @@ import { TuningPanel } from "./TuningPanel";
 
 
 
+const isPhone = () => currentDevice() === "phone";
+
 export function SettingsModal() {
   const tab = useStore((s) => s.settingsTab)!;
   const openSettings = useStore((s) => s.openSettings);
@@ -532,7 +534,7 @@ function GpuShareRow({ onError }: { onError: (e: string | null) => void }) {
   useEffect(() => {
     api.gpuShareInfo().then(setShare).catch(() => setShare(null));
   }, []);
-  if (!share?.supported || (!share.raised && share.raisedBytes <= share.defaultBytes)) return null;
+  if (isPhone() || !share?.supported || (!share.raised && share.raisedBytes <= share.defaultBytes)) return null;
   const set = async (raise: boolean) => {
     onError(null);
     setBusy(true);
@@ -617,7 +619,7 @@ function AppearanceTab() {
         <div className="field">
           <label>
             Reduce motion
-            <small>Fewer animations. Auto follows macOS (System Settings → Accessibility → Display).</small>
+            <small>Fewer animations. Auto follows the system setting.</small>
           </label>
           <div className="segmented">
             {(["auto", "reduce"] as const).map((m) => (
@@ -866,7 +868,7 @@ function AboutTab() {
       </div>
       <PersonalitySection />
       <UsageSection />
-      <KeyboardSection settings={settings} />
+      {!isPhone() && <KeyboardSection settings={settings} />}
       <div className="section">
         <h4>In the background</h4>
         <label className="field">
@@ -933,13 +935,15 @@ function AboutTab() {
           </span>
           <input type="checkbox" checked={settings?.translateEnabled ?? true} onChange={(e) => void update({ translateEnabled: e.target.checked })} />
         </label>
-        <label className="field">
-          <span>
-            Mac control
-            <small>“Remind me to call Mom tomorrow at 3pm”, “make a note: …”, “what's on my calendar today?”, “turn on dark mode”, “play some jazz”, “run my Morning shortcut”, “check my email”, “reply to Sam’s email saying I can make it”, “text Mom that I’m running late”, “find my tax return pdf”, “organize my Downloads”, “convert the selected photos to jpg”, “run a command to show my disk space”. BYTE asks before adding or changing anything, never sends email or texts itself (you press Send), and macOS asks once per app.</small>
-          </span>
-          <input type="checkbox" checked={settings?.macControl ?? true} onChange={(e) => void update({ macControl: e.target.checked })} />
-        </label>
+        {!isPhone() && (
+          <label className="field">
+            <span>
+              Mac control
+              <small>“Remind me to call Mom tomorrow at 3pm”, “make a note: …”, “what's on my calendar today?”, “turn on dark mode”, “play some jazz”, “run my Morning shortcut”, “check my email”, “reply to Sam’s email saying I can make it”, “text Mom that I’m running late”, “find my tax return pdf”, “organize my Downloads”, “convert the selected photos to jpg”, “run a command to show my disk space”. BYTE asks before adding or changing anything, never sends email or texts itself (you press Send), and macOS asks once per app.</small>
+            </span>
+            <input type="checkbox" checked={settings?.macControl ?? true} onChange={(e) => void update({ macControl: e.target.checked })} />
+          </label>
+        )}
         <label className="field">
           <span>
             To-do list and schedules
@@ -983,27 +987,33 @@ function AboutTab() {
           </span>
           <input type="checkbox" checked={settings?.trackersEnabled ?? true} onChange={(e) => void update({ trackersEnabled: e.target.checked })} />
         </label>
-        <label className="field">
-          <span>
-            Mac upkeep
-            <small>“What's taking up space?”, “find duplicate files”, “why is my Mac slow?”, “what's draining my battery?”, “check my Mac”, “uninstall Zoom”, “what opens at login?”. Anything removed goes to the Trash (Undo puts it back); BYTE never empties the Trash or touches macOS itself.</small>
-          </span>
-          <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.macUpkeep ?? true} onChange={(e) => void update({ macUpkeep: e.target.checked })} />
-        </label>
-        <label className="field">
-          <span>
-            Selected text hotkey ({prettyKeys(settings?.selectionKeys ?? "Alt+Super+KeyB")})
-            <small>Select text in any app and press the hotkey (Keyboard and menu bar, in About, changes it): it opens in the writing studio to rewrite, fix, translate, reply to or explain, then “Paste into” puts the result back. macOS asks once to allow BYTE in Accessibility.</small>
-          </span>
-          <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.selectionHotkey ?? true} onChange={(e) => void update({ selectionHotkey: e.target.checked })} />
-        </label>
-        <label className="field">
-          <span>
-            Clipboard history
-            <small>Keeps the last 200 things you copy, searchable (📋 in the top bar). Off until you switch it on. Passwords from password managers and text that looks like a password or key are never kept; it's stored encrypted on this Mac.</small>
-          </span>
-          <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.clipboardHistory ?? false} onChange={(e) => void update({ clipboardHistory: e.target.checked })} />
-        </label>
+        {!isPhone() && (
+          <label className="field">
+            <span>
+              Mac upkeep
+              <small>“What's taking up space?”, “find duplicate files”, “why is my Mac slow?”, “what's draining my battery?”, “check my Mac”, “uninstall Zoom”, “what opens at login?”. Anything removed goes to the Trash (Undo puts it back); BYTE never empties the Trash or touches macOS itself.</small>
+            </span>
+            <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.macUpkeep ?? true} onChange={(e) => void update({ macUpkeep: e.target.checked })} />
+          </label>
+        )}
+        {!isPhone() && (
+          <label className="field">
+            <span>
+              Selected text hotkey ({prettyKeys(settings?.selectionKeys ?? "Alt+Super+KeyB")})
+              <small>Select text in any app and press the hotkey (Keyboard and menu bar, in About, changes it): it opens in the writing studio to rewrite, fix, translate, reply to or explain, then “Paste into” puts the result back. macOS asks once to allow BYTE in Accessibility.</small>
+            </span>
+            <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.selectionHotkey ?? true} onChange={(e) => void update({ selectionHotkey: e.target.checked })} />
+          </label>
+        )}
+        {!isPhone() && (
+          <label className="field">
+            <span>
+              Clipboard history
+              <small>Keeps the last 200 things you copy, searchable (📋 in the top bar). Off until you switch it on. Passwords from password managers and text that looks like a password or key are never kept; it's stored encrypted on this Mac.</small>
+            </span>
+            <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.clipboardHistory ?? false} onChange={(e) => void update({ clipboardHistory: e.target.checked })} />
+          </label>
+        )}
         <label className="field">
           <span>
             Job search
@@ -1078,7 +1088,7 @@ function AboutTab() {
           <h4>{onDevice("This Mac")}</h4>
           <div className="field"><label>Chip</label><span className="muted">{system.chip}</span></div>
           <div className="field"><label>Memory</label><span className="muted">{ramLabel(system)} · {bytes(system.gpuBudgetBytes)} {system.phone ? "BYTE can use for models" : "usable by the GPU"}</span></div>
-          <div className="field"><label>macOS</label><span className="muted">{system.osVersion}</span></div>
+          <div className="field"><label>{isPhone() ? "Android" : "macOS"}</label><span className="muted">{system.osVersion}</span></div>
         </div>
       )}
       <div className="section">

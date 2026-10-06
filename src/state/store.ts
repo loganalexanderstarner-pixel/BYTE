@@ -1,4 +1,4 @@
-import { deviceOf, setDevice } from "../lib/device";
+import { deviceOf, installDeviceText, setDevice } from "../lib/device";
 import { create } from "zustand";
 import { shouldWake } from "../lib/engineWake";
 
@@ -967,6 +967,7 @@ export const useStore = create<State>((set, get) => {
         api.engineStatus(),
       ]);
       setDevice(deviceOf(system));
+      installDeviceText();
       // Android may close the model while BYTE is in the background; load it again on return.
       if (typeof document !== "undefined" && !wakeListener.on) {
         wakeListener.on = true;

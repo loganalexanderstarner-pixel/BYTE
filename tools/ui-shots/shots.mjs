@@ -1392,6 +1392,28 @@ if (process.env.PHONE) {
     await p.waitForTimeout(400);
     await shot(p, `phone-${width}-4-settings`);
     for (const x of await layoutProblems(p)) problems.push(`${width}px settings: ${x}`);
+    // Every settings tab, read as text: a phone must never say "this Mac" / "your Mac".
+    if (width === 390) {
+      const tabs = await p.locator(".modal-nav button").count();
+      for (let i = 0; i < tabs; i++) {
+        const b = p.locator(".modal-nav button").nth(i);
+        const name = ((await b.innerText()) || `tab ${i}`).trim();
+        await b.click();
+        await p.waitForTimeout(250);
+        const hits = await p.evaluate(() => {
+          const t = document.querySelector(".modal-body")?.innerText ?? "";
+          const attrs = [...document.querySelectorAll(".modal-body [title],.modal-body [placeholder],.modal-body [aria-label]")].map((e) => `${e.getAttribute("title") ?? ""} ${e.getAttribute("placeholder") ?? ""} ${e.getAttribute("aria-label") ?? ""}`).join("\n");
+          return `${t}\n${attrs}`.split("\n").filter((l) => /\b(this|your|the|This|Your) Mac\b|Mac's/.test(l)).map((l) => l.trim().slice(0, 120));
+        });
+        for (const h of hits) problems.push(`phone wording, ${name}: "${h}"`);
+        if (process.env.MACWORDS) {
+          const lines = await p.evaluate(() => (document.querySelector(".modal-body")?.innerText ?? "").split("\n").filter((l) => /\bMac\b|macOS|Touch ID|iCloud|Keychain|Full Disk|AppleScript|Spotlight|Finder|Shortcuts app/.test(l)).map((l) => l.trim().slice(0, 110)));
+          for (const l of lines) console.log(`MAC [${name}] ${l}`);
+        }
+      }
+      await p.locator(".modal-nav button").first().click();
+      await p.waitForTimeout(250);
+    }
     // A model card (the header used to collapse on a phone) and the home screen of a new chat.
     const card = p.locator(".model-card").first();
     if (await card.count()) {

@@ -23,6 +23,18 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Phone: no "Mac" wording anywhere, Mac-only settings hidden (A2)
+- **Why:** the phone's Settings still said "this Mac" in ~38 places and showed Mac-only items (Mac control, Touch ID,
+  iMessage inbox, iCloud backup, Mac permissions, keyboard shortcuts).
+- **What:** `installDeviceText()` (`lib/device.ts`, started from `store.init`) rewrites text and title/placeholder/
+  aria-label on the page for the phone's words (also catches text written by Rust); `onDevice` covers more phrasings
+  ("the Mac's", "Your Mac is…", "older Mac"); Mac-only settings are hidden on phones (`SettingsModal.tsx`,
+  `PrivacyTab.tsx`); theme "Match macOS" is "Match system"; the OS row says Android. `tools/ui-shots/shots.mjs` reads
+  every settings tab at 390 px and fails on "this/your/the Mac" (38 hits without the net, 0 with it; `MACWORDS=1`
+  lists remaining Mac-only words).
+- **Verify:** `npx vitest run src/lib/device.test.ts`; `PHONE=1 node tools/ui-shots/shots.mjs` exits 0.
+- **Undo:** `git revert <hash>`.
+
 ### (this commit) — "What to test" list on every Android test release
 - **Why:** the owner wants a short checklist with each APK instead of asking what changed.
 - **What:** `docs/ANDROID-TEST-CHECKLIST.md` (edit it in the same commit as each fix) is appended to the pre-release

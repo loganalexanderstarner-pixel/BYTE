@@ -47,7 +47,11 @@ export function onDevice(
     .replace(/\byour Mac\b/g, `your ${device}`)
     .replace(/\bThis Mac\b/g, `This ${device}`)
     .replace(/\bYour Mac\b/g, `Your ${device}`)
-    .replace(/\b(older|smaller|slower|newer|any|a) Mac\b/g, `$1 ${device}`);
+    .replace(/\b(older|smaller|slower|newer|any|a) Mac\b/g, `$1 ${device}`)
+    .replace(/\b(the|The) Mac's\b/g, `$1 ${device}'s`)
+    .replace(/\bYour Mac's\b/g, `Your ${device}'s`)
+    .replace(/\bon the Mac\b/g, `on the ${device}`)
+    .replace(/\bMac\b(?= (?:is|has|can't|can|needs|will))/g, device);
 }
 
 let known: Device = "Mac";
@@ -57,4 +61,48 @@ export function setDevice(d: Device): void {
 }
 export function currentDevice(): Device {
   return known;
+}
+
+const ATTRS = ["title", "placeholder", "aria-label", "alt"];
+
+/**
+ * A safety net for phones: the UI was written for the Mac, and text from many places (screens, notes the Rust side
+ * writes) says "this Mac". Rewrites the text and the title/placeholder/aria-label attributes on the page as they
+ * appear. Explicit `onDevice` calls remain the main route; this catches the rest. No-op on a Mac.
+ */
+export function installDeviceText(root: Node = document.body): void {
+  const device = currentDevice();
+  if (device === "Mac" || typeof MutationObserver === "undefined") return;
+  const fixText = (n: Node) => {
+    const v = n.nodeValue;
+    if (v && v.includes("Mac")) {
+      const next = onDevice(v, device);
+      if (next !== v) n.nodeValue = next;
+    }
+  };
+  const fixEl = (el: Element) => {
+    for (const a of ATTRS) {
+      const v = el.getAttribute(a);
+      if (v && v.includes("Mac")) {
+        const next = onDevice(v, device);
+        if (next !== v) el.setAttribute(a, next);
+      }
+    }
+  };
+  const walk = (n: Node) => {
+    if (n.nodeType === 3) return fixText(n);
+    if (n.nodeType !== 1) return;
+    const el = n as Element;
+    if (["SCRIPT", "STYLE", "TEXTAREA"].includes(el.tagName)) return;
+    fixEl(el);
+    el.childNodes.forEach(walk);
+  };
+  new MutationObserver((records) => {
+    for (const r of records) {
+      if (r.type === "characterData") fixText(r.target);
+      else if (r.type === "attributes") fixEl(r.target as Element);
+      else r.addedNodes.forEach(walk);
+    }
+  }).observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+  walk(root);
 }

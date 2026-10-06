@@ -37,19 +37,22 @@ import type {
   MessagesStatus,
   Permission,
 } from "../../lib/types";
+import { currentDevice } from "../../lib/device";
 import { useStore, type SettingsTab } from "../../state/store";
 
 /** Settings → Privacy: the offline switch, the lock, Mac permissions and everything BYTE did. */
 export function PrivacyTab() {
+  const phone = currentDevice() === "phone";
   return (
     <div className="privacy-tab">
       <OfflineSection />
-      <LockSection />
+      {/* Touch ID, iMessage, iCloud backups and macOS permissions are Mac-only; the phone gets its own later (A3). */}
+      {!phone && <LockSection />}
       <KidsSection />
-      <MessagesSection />
-      <BackupSection />
+      {!phone && <MessagesSection />}
+      {!phone && <BackupSection />}
       <OldChatsSection />
-      <PermissionsSection />
+      {!phone && <PermissionsSection />}
       <ActivitySection />
       <EraseSection />
     </div>

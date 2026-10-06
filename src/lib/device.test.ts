@@ -49,3 +49,14 @@ describe("onDevice adjectives", () => {
     expect(onDevice("Quick answers on a smaller or older Mac", "Mac")).toBe("Quick answers on a smaller or older Mac");
   });
 });
+
+describe("onDevice more phrasings", () => {
+  it("covers the Mac's, on the Mac and 'Your Mac is …'", async () => {
+    const { onDevice } = await import("./device");
+    expect(onDevice("Better Mac voices", "phone")).toBe("Better Mac voices");
+    expect(onDevice("the Mac's default voice", "phone")).toBe("the phone's default voice");
+    expect(onDevice("Your Mac is short on free memory", "phone")).toBe("Your phone is short on free memory");
+    expect(onDevice("Your Mac's password", "phone")).toBe("Your phone's password");
+    expect(onDevice("Mac control", "phone")).toBe("Mac control");
+  });
+});
