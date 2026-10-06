@@ -215,7 +215,16 @@ function AssistantMessage({ message, isLast, generating }: { message: Message; i
           </span>
         )}
       </div>
-      {message.notice && <div className="banner notice-banner">{message.notice}</div>}
+      {message.notice && (
+        <div className="banner notice-banner">
+          <span className="grow">{message.notice}</span>
+          {isLast && !generating && /cloud couldn't be reached/i.test(message.notice) && (
+            <button className="btn sm" onClick={() => void regenerate()}>
+              Try the cloud again
+            </button>
+          )}
+        </div>
+      )}
       {message.reasoning && message.reasoning.trim().length > 0 && (
         <Thinking text={message.reasoning} live={thinkingLive} ms={s?.thinkingMs} />
       )}

@@ -55,6 +55,10 @@ pub fn startup_block(catalog: &crate::models::Catalog, models_dir: &std::path::P
         .map(|d| d.flatten().filter_map(|e| Some((e.file_name().to_string_lossy().into_owned(), e.metadata().ok()?.len()))).collect())
         .unwrap_or_default();
     files.sort();
+    let fell_back = crate::backend::last_fallback();
+    if !fell_back.is_empty() {
+        out.push(format!("  last cloud fallback: {fell_back}"));
+    }
     out.push(format!("  models folder: {} files", files.len()));
     out.extend(files.iter().take(30).map(|(n, l)| format!("    {n} {l}")));
     out.join("\n")

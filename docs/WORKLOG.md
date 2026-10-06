@@ -23,6 +23,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Cloud chat answered by the loaded model: retry the cloud once, say why, offer to try again
+- **Why:** on the Fold a Cloud chat's first message was answered by the downloaded model; with the model removed the
+  cloud answered. A Cloud chat only reaches the local model through the "cloud unreachable" fallback, which was quiet
+  (no reason) and happened on the first failure, typically right after the phone wakes and the network isn't up.
+- **What:** `backend::with_fallback` waits 3 s and asks the cloud once more (only for `Unreachable`, which is raised
+  before the cloud accepted the turn, so nothing is sent twice); the notice now names the reason; `last_fallback()`
+  feeds a "last cloud fallback" line in Copy diagnostics; the notice banner has **Try the cloud again**
+  (`MessageView.tsx`, uses regenerate, which stays in the chat's workspace). Tests: retry works, notice has the reason.
+- **Verify:** `cargo test -- backend:: diagnostics::`; on the phone, close and open BYTE, send a cloud message at once.
+- **Undo:** `git revert <hash>`.
+
 ### (this commit) — "No model" after the phone was closed and reopened: heal at launch, wake on return, honest banner
 - **Why:** the owner closed the Fold after using BYTE unfolded and, on reopening, the badge said "No model" and the banner
   "BYTE needs a model" (text squeezed into one-word lines, cards hidden behind it) although a model was downloaded.

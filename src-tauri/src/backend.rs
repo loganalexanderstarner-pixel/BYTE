@@ -180,17 +180,43 @@ pub async fn with_fallback<P: ModelBackend, S: ModelBackend>(
     if request.private && !primary.capabilities().private {
         return Err(AppError::msg("Private chats stay on this Mac. Switch to a model on this Mac, or turn off Private."));
     }
-    match primary.answer(state, request, on_event).await {
+    let mut first = primary.answer(state, request, on_event).await;
+    // Right after the phone wakes the network is often not up yet: wait a moment and ask the cloud once more
+    // before answering on this machine. `Unreachable` is only returned before the cloud accepted the turn,
+    // so asking again can't send it twice.
+    if matches!(first, Err(BackendError::Unreachable(_))) && primary.capabilities().can_be_unreachable {
+        tokio::time::sleep(RETRY_AFTER).await;
+        first = primary.answer(state, request, on_event).await;
+    }
+    match first {
         Err(BackendError::Unreachable(why)) => match fallback {
             Some(local) => {
                 log::warn!("{} unreachable, answering on {}: {why}", primary.name(), secondary.name());
-                let _ = on_event.send(ChatEvent::Notice { text: "The BYTE cloud couldn't be reached, so this answer was written on this Mac.".into() });
+                remember_fallback(&why);
+                let _ = on_event.send(ChatEvent::Notice { text: format!("The BYTE cloud couldn't be reached ({why}), so this answer was written on this device.") });
                 finish(secondary.answer(state, local, on_event).await)
             }
             None => Err(AppError::msg(format!("Your BYTE cloud can't be reached right now ({why}). The answer from this Mac is beside this one."))),
         },
         other => finish(other),
     }
+}
+
+/// How long to wait before the one retry of an unreachable cloud.
+#[cfg(not(test))]
+const RETRY_AFTER: std::time::Duration = std::time::Duration::from_secs(3);
+#[cfg(test)]
+const RETRY_AFTER: std::time::Duration = std::time::Duration::from_millis(5);
+
+static LAST_FALLBACK: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+fn remember_fallback(why: &str) {
+    *LAST_FALLBACK.lock().unwrap_or_else(|p| p.into_inner()) = format!("{} UTC: cloud unreachable ({why}), answered on this device", chrono::Utc::now().format("%H:%M:%S"));
+}
+
+/// The last time a Cloud turn was answered on this device instead, for Copy diagnostics.
+pub fn last_fallback() -> String {
+    LAST_FALLBACK.lock().unwrap_or_else(|p| p.into_inner()).clone()
 }
 
 fn finish(r: Result<(), BackendError>) -> AppResult<()> {
@@ -620,6 +646,36 @@ mod tests {
         with_fallback(&state, &cloud, &request(false), &local, Some(&fb), &ch).await.unwrap();
         assert_eq!(*local.asked.lock().unwrap(), vec![Mode::Fast], "the fallback request (with its mapped mode) is answered");
         assert_eq!(seen.lock().unwrap()[0]["kind"], "notice");
+    }
+
+    #[tokio::test]
+    async fn the_cloud_gets_one_more_try_before_this_machine_answers() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static CALLS: AtomicUsize = AtomicUsize::new(0);
+        let (_d, state) = state();
+        let (ch, seen) = collecting_channel();
+        let cloud = Fake::new(
+            || if CALLS.fetch_add(1, Ordering::SeqCst) == 0 { Err(BackendError::Unreachable("no network yet".into())) } else { Ok(()) },
+            false,
+        );
+        let local = Fake::new(|| Ok(()), true);
+        let fb = request(false);
+        with_fallback(&state, &cloud, &request(false), &local, Some(&fb), &ch).await.unwrap();
+        assert_eq!(CALLS.load(Ordering::SeqCst), 2, "asked again after a short wait");
+        assert!(local.asked.lock().unwrap().is_empty(), "the cloud answered on the retry");
+        assert!(seen.lock().unwrap().is_empty(), "no notice when the retry worked");
+    }
+
+    #[tokio::test]
+    async fn the_notice_names_the_reason_and_diagnostics_remember_it() {
+        let (_d, state) = state();
+        let (ch, seen) = collecting_channel();
+        let cloud = Fake::new(|| Err(BackendError::Unreachable("HTTP 503".into())), false);
+        let local = Fake::new(|| Ok(()), true);
+        let fb = request(false);
+        with_fallback(&state, &cloud, &request(false), &local, Some(&fb), &ch).await.unwrap();
+        assert!(seen.lock().unwrap()[0]["text"].as_str().unwrap().contains("HTTP 503"));
+        assert!(last_fallback().contains("HTTP 503"));
     }
 
     #[tokio::test]
