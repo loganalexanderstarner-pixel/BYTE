@@ -1,6 +1,7 @@
 import { Loader2, Mic, Square, X } from "lucide-react";
 import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react";
 
+import { currentDevice } from "../../lib/device";
 import { api, errorText, inTauri } from "../../lib/api";
 import { SilenceDetector } from "../../lib/handsfree";
 import { startRecording, type Recording } from "../../lib/recorder";
@@ -59,7 +60,7 @@ export const MicButton = forwardRef<MicHandle, { onText: (text: string, auto: bo
       });
     } catch (e) {
       if (inTauri) void api.wakePause(false).catch(() => undefined);
-      setError(`BYTE can't use the microphone: ${errorText(e)}. Allow BYTE in System Settings → Privacy & Security → Microphone.`);
+      setError(`BYTE can't use the microphone: ${errorText(e)}. ${currentDevice() === "phone" ? "Allow BYTE in Android Settings → Apps → BYTE → Permissions → Microphone." : "Allow BYTE in System Settings → Privacy & Security → Microphone."}`);
       return false;
     }
     setPhase({ kind: "recording", since: Date.now() });

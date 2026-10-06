@@ -86,7 +86,7 @@ function ModelsTab() {
       <SpeedPrefPicker />
       <CatalogBrowser />
       <ModelLab />
-      {!isPhone() && <VoiceSection />}
+      <VoiceSection />
     </>
   );
 }
@@ -142,11 +142,16 @@ function VoiceSection() {
               ))}
             </select>
           </label>
-          <SpeechRows />
-          <ByteVoicesRow />
-          <WakeRow />
-          <SpeakerLabelsRow />
-          <VideoHelperRow />
+          {/* On a phone: voice input only. Reading aloud, "Hey BYTE", speaker labels and the video helper need engines that aren't built for Android yet. */}
+          {!isPhone() && (
+            <>
+              <SpeechRows />
+              <ByteVoicesRow />
+              <WakeRow />
+              <SpeakerLabelsRow />
+              <VideoHelperRow />
+            </>
+          )}
         </>
       )}
     </div>

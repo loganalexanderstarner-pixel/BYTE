@@ -54,8 +54,7 @@ export function Composer() {
   }, [prefill]);
   const ref = useRef<HTMLTextAreaElement>(null);
   // Voice input: 🎤, or hold Space in an empty box (voice.rs transcribes on this Mac).
-  // Voice input needs the whisper engine, which isn't built for Android yet (docs/ANDROID.md, A3).
-  const voiceOn = useStore((s) => s.settings?.voiceEnabled !== false) && currentDevice() !== "phone";
+  const voiceOn = useStore((s) => s.settings?.voiceEnabled !== false);
   const mic = useRef<MicHandle>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holding = useRef(false);
@@ -257,7 +256,7 @@ export function Composer() {
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Hold Space in an empty box to talk (a quick tap does nothing).
-    if (voiceOn && e.code === "Space" && !text && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (voiceOn && currentDevice() !== "phone" && e.code === "Space" && !text && !e.metaKey && !e.ctrlKey && !e.altKey) {
       e.preventDefault();
       if (!e.repeat && !holdTimer.current && !holding.current) {
         holdTimer.current = setTimeout(() => {

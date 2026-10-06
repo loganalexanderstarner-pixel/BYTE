@@ -12,4 +12,6 @@
 6. Tiny model (ERNIE 0.3B): say "Hey there" (no more "Welcome to my friendly AI assistant…"), then ask a web question: the answer
    shows "This model is very small…" with **Answer with BYTE Cloud** and **Get a bigger model**; no Fact-check button.
    Also try a 4B+ model on the same question: that is what accurate answers need.
-7. If anything fails, tap **Copy diagnostics** (About) and paste it to Claude.
+7. Voice input (new): Settings → Voice shows the speech model download; tap 🎤, allow the microphone when Android asks, say
+   a sentence: it is typed into the message box. Reading aloud, "Hey BYTE" and speaker labels are still Mac-only.
+8. If anything fails, tap **Copy diagnostics** (About) and paste it to Claude.

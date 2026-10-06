@@ -23,6 +23,17 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Voice input on the phone (whisper for Android)
+- **Why:** voice input was hidden on phones because `whisper-cli` wasn't built for Android (A3).
+- **What:** `scripts/build-whisper-android.sh` builds whisper.cpp with the NDK (baseline and i8mm, same flags and
+  checks as the engine) into `jniLibs/arm64-v8a/libwhisper-cli(.i8mm).so`; `build-android.sh` runs it, `android.yml`
+  caches it. `bundled::tool` already starts `lib<name>.so` on Android, the mic records 16 kHz WAV in the web view, and
+  wry's Android chrome client shows the microphone prompt once `RECORD_AUDIO` is in the manifest (added). The mic and
+  Settings → Voice (input, models, language) are visible on phones again; reading aloud, Hey BYTE, speaker labels
+  and the video helper stay hidden (Mac-only engines); hold-Space is off on phones; mic help text names Android.
+- **Not verified on a device:** the whisper build (CI compiles it), the permission prompt, a real transcription.
+- **Undo:** `git revert <hash>`.
+
 ### (this commit) — Tiny local models: no prompt echo, honest about facts
 - **Why:** on the phone, ERNIE 0.3B answered "Hey there" with its own system prompt ("Welcome to my friendly AI assistant.
   Today is…") and, after a good web search, named the RTX 3060 Ti the best GPU of 2026; Fact-check then agreed with it.

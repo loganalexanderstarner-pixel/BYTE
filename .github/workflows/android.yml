@@ -52,6 +52,11 @@ jobs:
         with:
           path: .cache/llama.cpp
           key: llama-android-${{ hashFiles('scripts/LLAMA_TAG', 'scripts/build-llama-android.sh') }}
+      - name: Cache the voice engine build
+        uses: actions/cache@v4
+        with:
+          path: .cache/whisper.cpp
+          key: whisper-android-${{ hashFiles('scripts/WHISPER_TAG', 'scripts/build-whisper-android.sh') }}
       - name: Placeholder desktop sidecars (tauri-build requires the files)
         run: |
           mkdir -p src-tauri/binaries

@@ -70,6 +70,9 @@ MODE=(--debug)
 echo "==> Engines (log: $LOG_DIR/engines.log)"
 "$ROOT/scripts/build-llama-android.sh" >"$LOG_DIR/engines.log" 2>&1 || fail "$LOG_DIR/engines.log" "error|Error"
 
+echo "==> Voice engine (log: $LOG_DIR/whisper.log)"
+"$ROOT/scripts/build-whisper-android.sh" >"$LOG_DIR/whisper.log" 2>&1 || fail "$LOG_DIR/whisper.log" "error|Error"
+
 echo "==> APK (log: $LOG_DIR/apk.log)"
 cd "$ROOT"
 npx tauri android build --apk ${MODE[@]+"${MODE[@]}"} --target aarch64 >"$LOG_DIR/apk.log" 2>&1 \
