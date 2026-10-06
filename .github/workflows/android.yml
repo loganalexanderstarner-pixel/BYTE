@@ -80,10 +80,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          {
+            echo "A test build of BYTE for Android (docs/ANDROID.md), from \`${{ github.sha }}\`. Open this page on the phone, tap the .apk, then Install (allow installing from your browser when Android asks). Each test build is signed with a new test key, so uninstall the previous one first. Not for daily use yet."
+            echo
+            cat docs/ANDROID-TEST-CHECKLIST.md
+          } > release-notes.md
           gh release create "${{ steps.apk.outputs.tag }}" "${{ steps.apk.outputs.file }}" \
             --target "${{ github.sha }}" --prerelease \
             --title "BYTE for Android — test build ${{ github.run_number }}" \
-            --notes "A test build of BYTE for Android (docs/ANDROID.md), from \`${{ github.sha }}\`. Open this page on the phone, tap the .apk, then Install (allow installing from your browser when Android asks). Each test build is signed with a new test key, so uninstall the previous one first. Not for daily use yet."
+            --notes-file release-notes.md
 
   emulator:
     # Starts the APK on an emulator at phone and Fold sizes (folding while it runs)

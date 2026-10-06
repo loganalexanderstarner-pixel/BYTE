@@ -23,6 +23,13 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — "What to test" list on every Android test release
+- **Why:** the owner wants a short checklist with each APK instead of asking what changed.
+- **What:** `docs/ANDROID-TEST-CHECKLIST.md` (edit it in the same commit as each fix) is appended to the pre-release
+  notes by `.github/workflows/android.yml`. Seeded with the test-12 list.
+- **Verify:** push; the new pre-release page shows the list.
+- **Undo:** `git revert <hash>`.
+
 ### (this commit) — Fara off phones, honest card text, phone wording in the model screens
 - **Why:** Fara1.5 (a browser-driving agent) was offered on the phone as "everyday chat with a different personality".
   The owner wants it kept for a future browser/computer-use mode in the Windows app (PROJECT_GUIDE, Deferred).
