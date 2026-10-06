@@ -6,4 +6,7 @@
 3. Settings → Models: no Fara in the list, and the details and Model Lab say "phone", not "Mac".
 4. Settings → About / Privacy / Appearance: nothing says "this Mac" or "your Mac", and the Mac-only items are gone
    (Mac control and upkeep toggles, Keyboard and menu bar, Touch ID lock, iMessage inbox, iCloud backup, Mac permissions).
-5. If anything fails, tap **Copy diagnostics** (About) and paste it to Claude.
+5. Attach a file (a PDF, a text file, a photo) to a chat and ask about it; also export something (Save as…): both should work
+   (new: files come back as links on Android and are now copied in). Voice, the Agent button, folders for the knowledge
+   base and picking a model file are hidden on the phone on purpose.
+6. If anything fails, tap **Copy diagnostics** (About) and paste it to Claude.

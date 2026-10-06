@@ -72,6 +72,8 @@ zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
 # root set bundled in the app is added for Android only; desktops are unchanged.
 [target.'cfg(target_os = "android")'.dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots"] }
+# Files picked on Android come back as content:// links; this plugin can open them (files.rs / androidfs.rs).
+tauri-plugin-fs = "2"
 
 # Desktop only (docs/ANDROID.md): global shortcuts, opening at login, signed updates.
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]

@@ -70,14 +70,10 @@ pub async fn doc_write(state: State<'_, AppState>, request: DocWriteRequest, on_
 
 /// Saves a finished file (made by the UI's renderers) where the user chose.
 #[tauri::command]
-pub async fn doc_save(path: String, data: String) -> AppResult<()> {
+pub async fn doc_save(app: tauri::AppHandle, path: String, data: String) -> AppResult<()> {
     use base64::Engine as _;
     let bytes = base64::engine::general_purpose::STANDARD.decode(data.as_bytes()).map_err(|e| AppError::msg(format!("bad file data: {e}")))?;
-    if let Some(dir) = std::path::Path::new(&path).parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    std::fs::write(&path, bytes)?;
-    Ok(())
+    crate::androidfs::save(&app, &path, &bytes)
 }
 
 /// Saves a trip's calendar file (.ics) and opens it, so Calendar (or the
@@ -88,7 +84,7 @@ pub async fn calendar_open(app: tauri::AppHandle, path: String, data: String) ->
     if !path.to_lowercase().ends_with(".ics") {
         return Err(AppError::msg("only calendar (.ics) files can be opened this way"));
     }
-    doc_save(path.clone(), data).await?;
+    doc_save(app.clone(), path.clone(), data).await?;
     app.opener().open_path(&path, None::<&str>).map_err(|e| AppError::msg(format!("couldn't open the calendar file: {e}")))
 }
 
@@ -278,6 +274,8 @@ pub async fn kb_search(app: AppHandle, query: String, limit: Option<usize>) -> A
 /// Reads a file the user attached to a local chat (text for the model, or a photo).
 #[tauri::command]
 pub async fn file_ingest(app: AppHandle, state: State<'_, AppState>, path: String) -> AppResult<crate::files::Ingested> {
+    // Android's picker returns content:// links: work on a cache copy.
+    let path = crate::androidfs::localize(&app, &path)?.to_string_lossy().into_owned();
     // A recording: its transcript, when voice input is on.
     if crate::voice::is_audio(std::path::Path::new(&path)) && state.settings.lock().await.voice_enabled {
         return crate::voice::ingest(&app, &state, std::path::Path::new(&path)).await;

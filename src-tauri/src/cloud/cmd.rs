@@ -375,9 +375,10 @@ const MAX_UPLOAD: u64 = 50 * 1024 * 1024;
 
 /// Uploads a file the user picked (multipart field `file`) to `path`.
 #[tauri::command]
-pub async fn cloud_upload(state: State<'_, AppState>, path: String, file: String) -> AppResult<Value> {
+pub async fn cloud_upload(app: tauri::AppHandle, state: State<'_, AppState>, path: String, file: String) -> AppResult<Value> {
     let client = state.cloud_client().await?;
-    Ok(client.upload(api_path(&path)?, std::path::Path::new(&file), MAX_UPLOAD).await?)
+    let file = crate::androidfs::localize(&app, &file)?;
+    Ok(client.upload(api_path(&path)?, &file, MAX_UPLOAD).await?)
 }
 
 /// Uploads a photo or file for a chat. Starts the cloud conversation if the
@@ -390,12 +391,13 @@ pub struct Uploaded {
 }
 
 #[tauri::command]
-pub async fn cloud_attach(state: State<'_, AppState>, conversation_id: Option<String>, title: String, file: String) -> AppResult<Uploaded> {
+pub async fn cloud_attach(app: tauri::AppHandle, state: State<'_, AppState>, conversation_id: Option<String>, title: String, file: String) -> AppResult<Uploaded> {
     let client = state.cloud_client().await?;
+    let file = crate::androidfs::localize(&app, &file)?;
     let cid = match conversation_id.filter(|c| !c.is_empty()) {
         Some(c) => c,
         None => client.create_conversation(&title_from(&title)).await?,
     };
-    let attachment = client.upload(&format!("/api/conversations/{cid}/attachments"), std::path::Path::new(&file), MAX_UPLOAD).await?;
+    let attachment = client.upload(&format!("/api/conversations/{cid}/attachments"), &file, MAX_UPLOAD).await?;
     Ok(Uploaded { conversation_id: cid, attachment })
 }

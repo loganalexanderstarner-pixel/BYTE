@@ -27,6 +27,7 @@ mod engine;
 mod export;
 mod factcheck;
 mod filectl;
+mod androidfs;
 mod files;
 mod gguf;
 mod ocr;
@@ -118,6 +119,9 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         // byte:// links (Shortcuts start automations) and opening at login (background.rs).
         .plugin(tauri_plugin_deep_link::init());
+    // Android: opens the content:// links the file picker returns (androidfs.rs).
+    #[cfg(target_os = "android")]
+    let app = app.plugin(tauri_plugin_fs::init());
     // Desktop only: signed updates, opening at login and global shortcuts. Android
     // gets its own versions (docs/ANDROID.md: in-app APK updater, Ask BYTE).
     #[cfg(desktop)]

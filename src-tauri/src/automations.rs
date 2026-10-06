@@ -558,7 +558,7 @@ impl Doer for AppDoer {
     }
 
     fn save_file(&self, name: &str, text: &str) -> Result<String, String> {
-        let docs = self.app.path().document_dir().map_err(|e| format!("No Documents folder: {e}"))?;
+        let docs = crate::paths::user_documents_dir(&self.app).map_err(|e| e.to_string())?;
         let dir = docs.join("BYTE").join("Automations");
         std::fs::create_dir_all(&dir).map_err(|e| format!("Couldn't make {}: {e}", dir.display()))?;
         let path = dir.join(format!("{} {}.md", file_stem(name), chrono::Local::now().format("%Y-%m-%d %H%M")));

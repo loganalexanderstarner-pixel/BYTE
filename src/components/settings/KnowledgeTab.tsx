@@ -3,6 +3,7 @@ import { FolderPlus, Loader2, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { api, errorText } from "../../lib/api";
+import { currentDevice } from "../../lib/device";
 import { bytes } from "../../lib/format";
 import type { KbSource } from "../../lib/types";
 import { useStore } from "../../state/store";
@@ -64,6 +65,7 @@ export function KnowledgeTab() {
         Add folders and BYTE can answer from your own documents, notes and PDFs, citing the file and page. Everything is read and
         stored on this Mac, encrypted.
       </p>
+      {currentDevice() === "phone" && <div className="banner">Reading whole folders isn't on the phone yet. Attach files to a chat instead.</div>}
       {error && <div className="banner danger">{error}</div>}
 
       <div className="section">
@@ -88,9 +90,11 @@ export function KnowledgeTab() {
                 <RefreshCw size={14} /> Check for changes
               </button>
             )}
-            <button className="btn sm primary" onClick={() => void addFolder()}>
-              <FolderPlus size={14} /> Add folder
-            </button>
+            {currentDevice() !== "phone" && (
+              <button className="btn sm primary" onClick={() => void addFolder()}>
+                <FolderPlus size={14} /> Add folder
+              </button>
+            )}
           </div>
         </div>
         {progress && (

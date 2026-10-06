@@ -86,7 +86,7 @@ function ModelsTab() {
       <SpeedPrefPicker />
       <CatalogBrowser />
       <ModelLab />
-      <VoiceSection />
+      {!isPhone() && <VoiceSection />}
     </>
   );
 }
@@ -909,16 +909,18 @@ function AboutTab() {
             </button>
           </span>
         </div>
-        <label className="field">
-          <span>
-            Web agent
-            <small>
-              BYTE can use a private browser for you: open sites, click, fill in forms, download files and save pages (“go to … and …”, or the Agent
-              button). It always asks before submitting or downloading and never types passwords or card numbers.
-            </small>
-          </span>
-          <input type="checkbox" checked={settings?.webAgentEnabled ?? true} onChange={(e) => void update({ webAgentEnabled: e.target.checked })} />
-        </label>
+        {!isPhone() && (
+          <label className="field">
+            <span>
+              Web agent
+              <small>
+                BYTE can use a private browser for you: open sites, click, fill in forms, download files and save pages (“go to … and …”, or the Agent
+                button). It always asks before submitting or downloading and never types passwords or card numbers.
+              </small>
+            </span>
+            <input type="checkbox" checked={settings?.webAgentEnabled ?? true} onChange={(e) => void update({ webAgentEnabled: e.target.checked })} />
+          </label>
+        )}
         <PhotoHelperRow />
         <label className="field">
           <span>

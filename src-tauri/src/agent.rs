@@ -323,7 +323,8 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     let ctx = ToolContext { net: turn.net, cloud: turn.cloud, question: &question, max_results: lim.max_results, page_chars: lim.page_chars, log: turn.log, files: turn.files, home: turn.home };
     // The web agent: BYTE uses a hidden browser for the user ("go to … and …").
     let mut session = match turn.app {
-        Some(app) if turn.web && turn.agent && (turn.task == Some(Task::Browse) || crate::web_agent::wants_web_agent(&question)) => Some(open_session(app)?),
+        // A phone has no second (hidden) browser window, so "go to … and …" is answered with search and page reading.
+        Some(app) if !cfg!(mobile) && turn.web && turn.agent && (turn.task == Some(Task::Browse) || crate::web_agent::wants_web_agent(&question)) => Some(open_session(app)?),
         _ => None,
     };
     let specs = match &session {

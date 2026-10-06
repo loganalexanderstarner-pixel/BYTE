@@ -23,6 +23,21 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — A3 audit: files, notes, browsing agent and voice on Android
+- **Why:** reading the code for desktop assumptions found things that would fail on the phone.
+- **What:**
+  - Android's file picker returns `content://` links, which `std::fs` can't open: `androidfs.rs` (+ `tauri-plugin-fs`,
+    Android only) copies a picked file into the cache (name from the link or sniffed from its first bytes) for
+    `file_ingest`, `cloud_upload`, `cloud_attach`, and writes save-dialog links in `doc_save`. Tests pin sniffing/naming.
+  - Notes and saved automation output go to the app's own `Documents` folder on phones (`paths::user_documents_dir`);
+    Android doesn't let an app write to the shared Documents folder.
+  - "go to … and …" used a hidden second browser window, which a phone doesn't have, and failed the whole turn: the web
+    agent is skipped on mobile (search and page reading answer instead); Agent button/toggle hidden.
+  - Hidden on phones until built: voice input (whisper), knowledge-base folders (tree links), picking a model file.
+- **Not verified on a device:** the file picker and save paths (compile and unit tests only; the APK build compiles the
+  Android plugin). The test checklist item 5 covers it.
+- **Undo:** `git revert <hash>`.
+
 ### (this commit) — Phone: no "Mac" wording anywhere, Mac-only settings hidden (A2)
 - **Why:** the phone's Settings still said "this Mac" in ~38 places and showed Mac-only items (Mac control, Touch ID,
   iMessage inbox, iCloud backup, Mac permissions, keyboard shortcuts).

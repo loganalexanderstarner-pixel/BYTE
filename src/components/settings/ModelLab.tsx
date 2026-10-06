@@ -1,5 +1,5 @@
 import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
-import { onDevice } from "../../lib/device";
+import { currentDevice, onDevice } from "../../lib/device";
 import { Brain, FileUp, FlaskConical, Link2, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -101,15 +101,18 @@ export function ModelLab() {
         </div>
       )}
 
-      <div className="field">
-        <label>
-          {onDevice("A file on this Mac")}
-          <small>{onDevice("A .gguf file you already downloaded. BYTE uses it where it is.")}</small>
-        </label>
-        <button className="btn sm" onClick={() => void chooseFile()} disabled={busy !== null}>
-          {busy === "file" ? <Loader2 size={14} className="spin" /> : <FileUp size={14} />} Choose a GGUF file…
-        </button>
-      </div>
+      {/* Android's file picker gives links, not paths, and the engine needs a path: phones use the link below. */}
+      {currentDevice() !== "phone" && (
+        <div className="field">
+          <label>
+            {onDevice("A file on this Mac")}
+            <small>{onDevice("A .gguf file you already downloaded. BYTE uses it where it is.")}</small>
+          </label>
+          <button className="btn sm" onClick={() => void chooseFile()} disabled={busy !== null}>
+            {busy === "file" ? <Loader2 size={14} className="spin" /> : <FileUp size={14} />} Choose a GGUF file…
+          </button>
+        </div>
+      )}
       <form
         className="lab-url"
         onSubmit={(e) => {

@@ -19,6 +19,14 @@ pub struct Paths {
     pub settings_file: PathBuf,
 }
 
+/// Where BYTE keeps files the user may want to see (notes, saved automation output). On a computer that is the
+/// Documents folder; on a phone, Android doesn't let an app write into the shared Documents folder without broad
+/// storage access, so the app's own folder is used (still private to BYTE, and backed up with its data).
+pub fn user_documents_dir(app: &AppHandle) -> AppResult<PathBuf> {
+    let dir = if cfg!(mobile) { app.path().app_data_dir().map(|d| d.join("Documents")) } else { app.path().document_dir() };
+    dir.map_err(|e| AppError::msg(format!("No Documents folder: {e}")))
+}
+
 impl Paths {
     pub fn resolve(app: &AppHandle) -> AppResult<Self> {
         let data = app

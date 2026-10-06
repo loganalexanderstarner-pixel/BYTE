@@ -54,7 +54,8 @@ export function Composer() {
   }, [prefill]);
   const ref = useRef<HTMLTextAreaElement>(null);
   // Voice input: 🎤, or hold Space in an empty box (voice.rs transcribes on this Mac).
-  const voiceOn = useStore((s) => s.settings?.voiceEnabled !== false);
+  // Voice input needs the whisper engine, which isn't built for Android yet (docs/ANDROID.md, A3).
+  const voiceOn = useStore((s) => s.settings?.voiceEnabled !== false) && currentDevice() !== "phone";
   const mic = useRef<MicHandle>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holding = useRef(false);
@@ -173,7 +174,8 @@ export function Composer() {
   const onBoth = cloudConnected && space === "both";
   // Files are read on this Mac for local chats; photos only when the loaded model can see.
   const onLocal = !onCloud && !onBoth;
-  const canBrowse = onLocal && web && settings?.webAgentEnabled !== false;
+  // The browsing agent needs a hidden second browser window, which a phone doesn't have.
+  const canBrowse = onLocal && web && settings?.webAgentEnabled !== false && currentDevice() !== "phone";
   const canTutor = onLocal && settings?.studyEnabled !== false;
   const canSee = engine.state === "ready" && !!engine.vision;
   const cloudModes = cloudStatus?.account?.modes ?? [];

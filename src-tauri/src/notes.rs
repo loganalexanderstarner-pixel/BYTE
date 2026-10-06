@@ -272,7 +272,7 @@ pub async fn root(app: &AppHandle) -> AppResult<PathBuf> {
     let chosen = state.settings.lock().await.notes_dir.clone();
     let dir = match chosen.filter(|d| !d.trim().is_empty()) {
         Some(d) => PathBuf::from(d),
-        None => app.path().document_dir().map_err(|e| AppError::msg(format!("No Documents folder: {e}")))?.join("BYTE").join("Notes"),
+        None => crate::paths::user_documents_dir(app)?.join("BYTE").join("Notes"),
     };
     std::fs::create_dir_all(dir.join(INBOX))?;
     Ok(dir)
