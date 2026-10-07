@@ -23,6 +23,18 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Notifications on the phone: permission, and texts that arrive while BYTE is closed
+- **Why:** nothing asked for Android's notification permission, so reminders, briefings and new-text alerts could never show
+  on Android 13+; and the text watcher only ran while BYTE was open.
+- **What:** `scheduler::notifications_request/status` (+ a Notifications row in Settings → Privacy on phones, and the inbox's Allow
+  button asks too); `SmsReceiver.kt` (a manifest receiver for incoming SMS) shows the notification, with the words hidden on the
+  lock screen, only when the inbox's notification switch is on (`SmsPlugin.setBackground`, kept in step by
+  `messages::sync_background` on every settings change, at startup and with kids mode); the plugin also asks for RECEIVE_SMS.
+  The in-app watcher no longer notifies on Android (no doubles), it still shows the banner in BYTE.
+- **Not yet:** calendar, share sheet, widget (rest of A3); replying from the notification.
+- **Not verified on a device:** the receiver and the permission prompts (compile only in CI).
+- **Undo:** `git revert <hash>`.
+
 ### (this commit) — Android APK size: no debug info, a little optimisation
 - **Why:** test-18 was 142 MB against 58 MB for test-17: `libbyte_lib.so` 396 MB against 63 MB (cargo's dev profile keeps full
   debug info; test-17 had reused a cached build).

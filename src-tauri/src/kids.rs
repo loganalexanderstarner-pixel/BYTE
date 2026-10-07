@@ -136,6 +136,7 @@ pub async fn kids_enter(state: State<'_, AppState>, pin: String) -> AppResult<Se
     s.kids_mode = true;
     s.save(&state.paths.settings_file)?;
     set(true);
+    crate::messages::sync_background(false);
     Ok(s.clone())
 }
 
@@ -158,6 +159,7 @@ pub async fn kids_exit(state: State<'_, AppState>, pin: String) -> AppResult<Set
     s.kids_mode = false;
     s.save(&state.paths.settings_file)?;
     set(false);
+    crate::messages::sync_background(s.messages_inbox && s.messages_notify);
     Ok(s.clone())
 }
 

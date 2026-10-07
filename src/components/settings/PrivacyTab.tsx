@@ -46,6 +46,7 @@ export function PrivacyTab() {
   return (
     <div className="privacy-tab">
       <OfflineSection />
+      {phone && <NotificationsSection />}
       {/* Touch ID, iMessage, iCloud backups and macOS permissions are Mac-only; the phone gets its own later (A3). */}
       {!phone && <LockSection />}
       <KidsSection />
@@ -56,6 +57,39 @@ export function PrivacyTab() {
       <ActivitySection />
       <EraseSection />
     </div>
+  );
+}
+
+/** Phones: reminders, briefings and new-text alerts need Android's notification permission. */
+function NotificationsSection() {
+  const [state, setState] = useState<string | null>(null);
+  useEffect(() => {
+    if (inTauri) api.notificationsStatus().then(setState, () => undefined);
+  }, []);
+  if (!state) return null;
+  return (
+    <section className="settings-section">
+      <h3>Notifications</h3>
+      <div className="field" style={{ display: "block" }}>
+        <label className="row" style={{ gap: 12 }}>
+          <span className="grow">
+            Reminders, daily briefings and new texts
+            <small>
+              {state === "granted"
+                ? "BYTE can show notifications."
+                : state === "denied"
+                  ? "Notifications are off for BYTE. Turn them on in Android Settings → Apps → BYTE → Notifications."
+                  : "Allow notifications so BYTE can remind you and tell you about new texts."}
+            </small>
+          </span>
+          {state === "prompt" && (
+            <button className="btn sm primary" onClick={() => void api.notificationsRequest().then(setState, () => undefined)}>
+              <Check size={13} /> Allow
+            </button>
+          )}
+        </label>
+      </div>
+    </section>
   );
 }
 

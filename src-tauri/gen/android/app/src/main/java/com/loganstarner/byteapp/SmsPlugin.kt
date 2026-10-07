@@ -2,6 +2,7 @@ package com.loganstarner.byteapp
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -35,6 +36,11 @@ class SendArgs {
 }
 
 @InvokeArg
+class BackgroundArgs {
+  var enabled: Boolean = false
+}
+
+@InvokeArg
 class SinceArgs {
   var after: Long = 0
 }
@@ -49,6 +55,7 @@ class SinceArgs {
     Permission(strings = [Manifest.permission.READ_SMS], alias = "read"),
     Permission(strings = [Manifest.permission.SEND_SMS], alias = "send"),
     Permission(strings = [Manifest.permission.READ_CONTACTS], alias = "contacts"),
+    Permission(strings = [Manifest.permission.RECEIVE_SMS], alias = "receive"),
   ]
 )
 class SmsPlugin(private val activity: Activity) : Plugin(activity) {
@@ -58,6 +65,14 @@ class SmsPlugin(private val activity: Activity) : Plugin(activity) {
   private fun has(permission: String) =
     ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_GRANTED
 
+  /** Whether a text that arrives while BYTE is closed gets a notification (SmsReceiver reads this switch). */
+  @Command
+  fun setBackground(invoke: Invoke) {
+    val args = invoke.parseArgs(BackgroundArgs::class.java)
+    activity.getSharedPreferences(SmsReceiver.PREFS, Context.MODE_PRIVATE).edit().putBoolean(SmsReceiver.KEY_ON, args.enabled).apply()
+    invoke.resolve(JSObject())
+  }
+
   /** What the user has allowed, so the settings screen can say what is missing. */
   @Command
   fun status(invoke: Invoke) {
@@ -65,6 +80,7 @@ class SmsPlugin(private val activity: Activity) : Plugin(activity) {
     r.put("read", has(Manifest.permission.READ_SMS))
     r.put("send", has(Manifest.permission.SEND_SMS))
     r.put("contacts", has(Manifest.permission.READ_CONTACTS))
+    r.put("receive", has(Manifest.permission.RECEIVE_SMS))
     invoke.resolve(r)
   }
 

@@ -35,6 +35,17 @@ static ENABLED: AtomicBool = AtomicBool::new(false);
 /// The newest message already seen by the watcher (0: not started).
 static LAST_SEEN: AtomicI64 = AtomicI64::new(0);
 
+/// Android: lets a text that arrives while BYTE is closed notify (`SmsReceiver.kt` reads this switch).
+/// `on` is "the inbox is on, notifications are on and kids mode is off".
+pub fn sync_background(on: bool) {
+    #[cfg(target_os = "android")]
+    tauri::async_runtime::spawn_blocking(move || {
+        let _ = android::call::<serde_json::Value>("setBackground", json!({ "enabled": on }));
+    });
+    #[cfg(not(target_os = "android"))]
+    let _ = on;
+}
+
 pub fn set_enabled(on: bool) {
     ENABLED.store(on, Ordering::Relaxed);
     if !on {
@@ -367,7 +378,8 @@ async fn check(app: &AppHandle) {
     let _ = app.emit(NEW_EVENT, &new);
     // A locked BYTE shows who texted, not what they said.
     let locked = app.state::<AppState>().lock.is_locked();
-    if notify {
+    // On Android the receiver (SmsReceiver.kt) shows the notification, with BYTE open or closed.
+    if notify && !cfg!(target_os = "android") {
         for t in new.iter().take(3) {
             crate::scheduler::notify(app, &t.name, if locked { "New message" } else { &t.text });
         }
@@ -398,11 +410,17 @@ pub async fn messages_status(state: State<'_, AppState>) -> AppResult<Status> {
 
 /// Android: shows the permission prompts (read and send texts, read contacts); then the new status.
 #[tauri::command]
-pub async fn messages_request_access(state: State<'_, AppState>) -> AppResult<Status> {
+pub async fn messages_request_access(app: AppHandle, state: State<'_, AppState>) -> AppResult<Status> {
     crate::lock::ensure(&state)?;
     crate::kids::grownups_only()?;
     #[cfg(target_os = "android")]
-    tauri::async_runtime::spawn_blocking(|| android::call::<serde_json::Value>("requestPermissions", json!({}))).await.map_err(|e| AppError::msg(e.to_string()))??;
+    {
+        tauri::async_runtime::spawn_blocking(|| android::call::<serde_json::Value>("requestPermissions", json!({}))).await.map_err(|e| AppError::msg(e.to_string()))??;
+        // New-text notifications need Android's notification permission too.
+        let _ = crate::scheduler::notifications_request(app).await;
+    }
+    #[cfg(not(target_os = "android"))]
+    let _ = app;
     messages_status(state).await
 }
 

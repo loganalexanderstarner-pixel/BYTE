@@ -327,6 +327,7 @@ pub async fn settings_update(app: AppHandle, state: State<'_, AppState>, patch: 
     *s = next.clone();
     crate::offline::set(next.offline);
     crate::messages::set_enabled(next.messages_inbox);
+    crate::messages::sync_background(next.messages_inbox && next.messages_notify && !next.kids_mode);
     crate::quick::sync_offline_item(next.offline);
     crate::quick::apply_shortcuts(&app, &next);
     crate::quick::apply_tray(&app, next.menu_bar_icon);

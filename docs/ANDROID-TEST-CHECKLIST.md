@@ -17,4 +17,8 @@
 8. Texts (new): Settings → Privacy → Messages inbox: switch it on, tap Allow (three Android prompts: read texts, send texts,
    contacts). Tap the speech-bubble button: your conversations with names; open one; Draft a reply; Reply: the other phone gets it.
    Have someone text you while BYTE is open: a notification appears (within about 15 seconds). Texts only arrive while BYTE is open.
-9. If anything fails, tap **Copy diagnostics** (About) and paste it to Claude.
+9. Notifications (new): Settings → Privacy → Notifications: tap Allow (Android 13+ asks once). Then close BYTE completely and have
+   someone text you: a notification with their name appears (the words are hidden on the lock screen); tap it to open BYTE.
+   Reminders and daily briefings use the same permission.
+10. APK size: about 60 MB (the last one was 142 MB).
+11. If anything fails, tap **Copy diagnostics** (About) and paste it to Claude.

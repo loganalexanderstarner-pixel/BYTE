@@ -172,6 +172,7 @@ pub fn run() {
             let settings_now = state.settings.blocking_lock().clone();
             offline::set(settings_now.offline);
             messages::set_enabled(settings_now.messages_inbox);
+            messages::sync_background(settings_now.messages_inbox && settings_now.messages_notify && !settings_now.kids_mode);
             kids::set(settings_now.kids_mode);
             let catalog = state.catalog.get();
             let models_dir = state.paths.models.clone();
@@ -521,6 +522,8 @@ pub fn run() {
             updater::update_check,
             messages::messages_status,
             messages::messages_request_access,
+            scheduler::notifications_request,
+            scheduler::notifications_status,
             messages::messages_threads,
             messages::messages_thread,
             messages::messages_send,

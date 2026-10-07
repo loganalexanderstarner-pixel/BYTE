@@ -485,6 +485,35 @@ pub fn save_chat(db: &Db, title: &str, question: &str, answer: &Answer) -> AppRe
 }
 
 /// Shows a Mac notification (quietly does nothing if they're off).
+/// Whether notifications are allowed: "granted", "denied" or "prompt" (not asked yet). A computer always says granted.
+pub fn notification_state(app: &AppHandle) -> String {
+    use tauri_plugin_notification::{NotificationExt, PermissionState};
+    match app.notification().permission_state() {
+        Ok(PermissionState::Granted) => "granted",
+        Ok(PermissionState::Denied) => "denied",
+        _ => "prompt",
+    }
+    .into()
+}
+
+/// Android 13+ needs the user's OK before any notification (reminders, briefings, new texts) shows: asks, then says what they chose.
+#[tauri::command]
+pub async fn notifications_request(app: AppHandle) -> AppResult<String> {
+    use tauri_plugin_notification::NotificationExt;
+    let a = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _ = a.notification().request_permission();
+    })
+    .await
+    .map_err(|e| AppError::msg(e.to_string()))?;
+    Ok(notification_state(&app))
+}
+
+#[tauri::command]
+pub fn notifications_status(app: AppHandle) -> String {
+    notification_state(&app)
+}
+
 pub fn notify(app: &AppHandle, title: &str, body: &str) {
     use tauri_plugin_notification::NotificationExt;
     if let Err(e) = app.notification().builder().title(title).body(body).show() {
