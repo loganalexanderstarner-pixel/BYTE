@@ -23,6 +23,18 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Texts (SMS) and the inbox on the phone
+- **Why:** the Messages inbox (threads, thread, Draft a reply, Reply, new-text notifications) was macOS-only (chat.db, AppleScript).
+- **What:** `SmsPlugin.kt` (a Tauri plugin in the app: read the system SMS store, names from Contacts, send with `SmsManager`,
+  new texts since an id; permissions READ_SMS/SEND_SMS/READ_CONTACTS in the manifest, asked when the user taps **Allow**);
+  `messages.rs` keeps the same commands and event and swaps the platform behind them (`platform_*`, `send_text`), adds
+  `messages_request_access`, remembers texts BYTE sent (`merge_sent`; the system store only keeps what the default SMS app
+  writes); Privacy → Messages inbox is shown on phones with phone wording. Off by default; kids mode and the lock still close it.
+- **Not yet:** receiving while BYTE is closed (needs a background receiver: the notifications step), MMS and group chats,
+  "text Mom …" from the chat box on Android.
+- **Not verified on a device:** the Kotlin compiles in the APK build; the permission prompts, reading and sending are for the checklist.
+- **Undo:** `git revert <hash>`.
+
 ### (this commit) — Voice input on the phone (whisper for Android)
 - **Why:** voice input was hidden on phones because `whisper-cli` wasn't built for Android (A3).
 - **What:** `scripts/build-whisper-android.sh` builds whisper.cpp with the NDK (baseline and i8mm, same flags and

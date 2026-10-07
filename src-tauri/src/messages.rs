@@ -1,9 +1,12 @@
-//! The Messages inbox (macOS, opt-in): texts you receive show up in BYTE with "Draft a reply" and "Reply".
+//! The Messages inbox (macOS and Android, opt-in): texts you receive show up in BYTE with "Draft a reply" and "Reply".
 //!
 //! macOS keeps Messages' history in `~/Library/Messages/chat.db`, readable only with **Full Disk Access**
 //! (System Settings → Privacy & Security), which the user turns on for BYTE. BYTE opens it **read-only**,
 //! never changes it, and nothing leaves the Mac. Names come from the Contacts database the same way.
 //! Sending goes through the Messages app (`macctl::MESSAGE_SEND`), into the same conversation.
+//!
+//! On Android the same commands read the system SMS store, look names up in Contacts and send with SmsManager through
+//! the app's own plugin (`SmsPlugin.kt`); BYTE asks for those permissions when the user turns the inbox on.
 //!
 //! Off by default (setting `messagesInbox`); kids mode and the lock keep it closed.
 
@@ -38,6 +41,17 @@ pub fn set_enabled(on: bool) {
         LAST_SEEN.store(0, Ordering::Relaxed);
     }
 }
+
+/// What the user must do to open the inbox, in the words for this device.
+pub fn needs_access() -> &'static str {
+    if cfg!(target_os = "android") {
+        ANDROID_NEEDS
+    } else {
+        NEEDS_ACCESS
+    }
+}
+
+pub const ANDROID_NEEDS: &str = "BYTE needs your permission to read and send text messages. Tap Allow, then choose Allow in Android's prompts.";
 
 pub const NEEDS_ACCESS: &str = "BYTE can't read your messages yet. Turn on Full Disk Access for BYTE: System Settings → \
 Privacy & Security → Full Disk Access → switch on BYTE (use + to add it from Applications if it isn't listed), then reopen BYTE.";
@@ -337,18 +351,7 @@ async fn check(app: &AppHandle) {
         return;
     }
     let notify = app.state::<AppState>().settings.lock().await.messages_notify;
-    let found = tauri::async_runtime::spawn_blocking(|| -> AppResult<Vec<NewText>> {
-        let c = open()?;
-        let last = LAST_SEEN.load(Ordering::Relaxed);
-        if last == 0 {
-            // First look: start from now, so old texts don't all arrive at once.
-            LAST_SEEN.store(newest_id(&c).max(1), Ordering::Relaxed);
-            return Ok(Vec::new());
-        }
-        let (new, newest) = new_since(&c, &names(), last)?;
-        LAST_SEEN.store(newest, Ordering::Relaxed);
-        Ok(new)
-    })
+    let found = tauri::async_runtime::spawn_blocking(platform_new)
     .await;
     let new = match found {
         Ok(Ok(n)) => n,
@@ -374,8 +377,8 @@ async fn check(app: &AppHandle) {
 // ------------------------------------------------------------------ commands
 
 fn ready(state: &AppState) -> AppResult<()> {
-    if !cfg!(target_os = "macos") {
-        return Err(AppError::msg("The Messages inbox needs a Mac."));
+    if !cfg!(any(target_os = "macos", target_os = "android")) {
+        return Err(AppError::msg("The Messages inbox needs a Mac or an Android phone."));
     }
     crate::lock::ensure(state)?;
     crate::kids::grownups_only()?;
@@ -388,21 +391,31 @@ fn ready(state: &AppState) -> AppResult<()> {
 #[tauri::command]
 pub async fn messages_status(state: State<'_, AppState>) -> AppResult<Status> {
     let enabled = state.settings.lock().await.messages_inbox;
-    let available = cfg!(target_os = "macos");
-    let granted = available && tauri::async_runtime::spawn_blocking(has_access).await.unwrap_or(false);
-    Ok(Status { available, enabled, granted, message: if granted { String::new() } else { NEEDS_ACCESS.into() } })
+    let available = cfg!(any(target_os = "macos", target_os = "android"));
+    let granted = available && tauri::async_runtime::spawn_blocking(platform_access).await.unwrap_or(false);
+    Ok(Status { available, enabled, granted, message: if granted { String::new() } else { needs_access().into() } })
+}
+
+/// Android: shows the permission prompts (read and send texts, read contacts); then the new status.
+#[tauri::command]
+pub async fn messages_request_access(state: State<'_, AppState>) -> AppResult<Status> {
+    crate::lock::ensure(&state)?;
+    crate::kids::grownups_only()?;
+    #[cfg(target_os = "android")]
+    tauri::async_runtime::spawn_blocking(|| android::call::<serde_json::Value>("requestPermissions", json!({}))).await.map_err(|e| AppError::msg(e.to_string()))??;
+    messages_status(state).await
 }
 
 #[tauri::command]
 pub async fn messages_threads(state: State<'_, AppState>) -> AppResult<Vec<Thread>> {
     ready(&state)?;
-    tauri::async_runtime::spawn_blocking(|| threads(&open()?, &names(), 60)).await.map_err(|e| AppError::msg(e.to_string()))?
+    tauri::async_runtime::spawn_blocking(platform_threads).await.map_err(|e| AppError::msg(e.to_string()))?
 }
 
 #[tauri::command]
 pub async fn messages_thread(state: State<'_, AppState>, chat: String) -> AppResult<Vec<Msg>> {
     ready(&state)?;
-    tauri::async_runtime::spawn_blocking(move || thread(&open()?, &names(), &chat, 40)).await.map_err(|e| AppError::msg(e.to_string()))?
+    tauri::async_runtime::spawn_blocking(move || platform_thread(&chat)).await.map_err(|e| AppError::msg(e.to_string()))?
 }
 
 /// Sends from the inbox (the user pressed Send there, which is their OK): into conversation `chat`.
@@ -413,13 +426,12 @@ pub async fn messages_send(state: State<'_, AppState>, chat: String, to: String,
     if text.is_empty() {
         return Err(AppError::msg("Write something to send first."));
     }
-    let action = crate::macctl::Action::MessageSend { to: to.clone(), name: String::new(), body: text.clone(), chat };
-    let out = crate::macctl::Runner::run(&crate::macctl::MacRunner, &action.command()).await.map_err(|e| AppError::msg(e.text("Messages")));
     let args = json!({ "to": to, "chars": text.chars().count() });
+    let out = send_text(&chat, &to, &text).await;
     match out {
-        Ok(o) => {
+        Ok(done) => {
             state.actions.record("mac_message_send", &args, true, "sent from the Messages inbox");
-            Ok(if o.trim() == "sent sms" { "Sent as a text message (SMS)".into() } else { "Sent".into() })
+            Ok(done)
         }
         Err(e) => {
             state.actions.record("mac_message_send", &args, false, &e.to_string());
@@ -428,9 +440,210 @@ pub async fn messages_send(state: State<'_, AppState>, chat: String, to: String,
     }
 }
 
+// ------------------------------------------------------------------ the platform behind the commands
+
+#[cfg(not(target_os = "android"))]
+fn platform_access() -> bool {
+    has_access()
+}
+
+#[cfg(not(target_os = "android"))]
+fn platform_threads() -> AppResult<Vec<Thread>> {
+    threads(&open()?, &names(), 60)
+}
+
+#[cfg(not(target_os = "android"))]
+fn platform_thread(chat: &str) -> AppResult<Vec<Msg>> {
+    thread(&open()?, &names(), chat, 40)
+}
+
+#[cfg(not(target_os = "android"))]
+fn platform_new() -> AppResult<Vec<NewText>> {
+    let c = open()?;
+    let last = LAST_SEEN.load(Ordering::Relaxed);
+    if last == 0 {
+        // First look: start from now, so old texts don't all arrive at once.
+        LAST_SEEN.store(newest_id(&c).max(1), Ordering::Relaxed);
+        return Ok(Vec::new());
+    }
+    let (new, newest) = new_since(&c, &names(), last)?;
+    LAST_SEEN.store(newest, Ordering::Relaxed);
+    Ok(new)
+}
+
+/// Through the Messages app, into the same conversation.
+#[cfg(not(target_os = "android"))]
+async fn send_text(chat: &str, to: &str, text: &str) -> AppResult<String> {
+    let action = crate::macctl::Action::MessageSend { to: to.to_string(), name: String::new(), body: text.to_string(), chat: chat.to_string() };
+    let o = crate::macctl::Runner::run(&crate::macctl::MacRunner, &action.command()).await.map_err(|e| AppError::msg(e.text("Messages")))?;
+    Ok(if o.trim() == "sent sms" { "Sent as a text message (SMS)".into() } else { "Sent".into() })
+}
+
+#[cfg(target_os = "android")]
+fn platform_access() -> bool {
+    android::call::<serde_json::Value>("status", json!({})).map(|v| v["read"] == true && v["send"] == true).unwrap_or(false)
+}
+
+#[cfg(target_os = "android")]
+fn platform_threads() -> AppResult<Vec<Thread>> {
+    #[derive(serde::Deserialize)]
+    struct Out {
+        threads: Vec<ThreadIn>,
+    }
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ThreadIn {
+        chat: String,
+        name: String,
+        handle: String,
+        group: bool,
+        last_text: String,
+        last_at: i64,
+        last_from_me: bool,
+        unread: bool,
+    }
+    let out: Out = android::call("threads", json!({ "limit": 60 }))?;
+    let mut list: Vec<Thread> = out
+        .threads
+        .into_iter()
+        .map(|t| Thread { chat: t.chat, name: t.name, handle: t.handle, group: t.group, last_text: t.last_text, last_at: t.last_at, last_from_me: t.last_from_me, unread: t.unread })
+        .collect();
+    // Texts BYTE sent that the system store doesn't hold (only the default SMS app can write there).
+    let sent = SENT.lock().unwrap_or_else(|p| p.into_inner());
+    for t in &mut list {
+        if let Some(last) = sent.get(&t.chat).and_then(|v| v.last()).filter(|m| m.at > t.last_at) {
+            t.last_text = last.text.clone();
+            t.last_at = last.at;
+            t.last_from_me = true;
+        }
+    }
+    list.sort_by(|a, b| b.last_at.cmp(&a.last_at));
+    Ok(list)
+}
+
+#[cfg(target_os = "android")]
+fn platform_thread(chat: &str) -> AppResult<Vec<Msg>> {
+    #[derive(serde::Deserialize)]
+    struct Out {
+        messages: Vec<MsgIn>,
+    }
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct MsgIn {
+        text: String,
+        at: i64,
+        from_me: bool,
+        sender: String,
+    }
+    let out: Out = android::call("thread", json!({ "id": chat, "limit": 40 }))?;
+    let from_store: Vec<Msg> = out.messages.into_iter().map(|m| Msg { text: m.text, at: m.at, from_me: m.from_me, sender: m.sender }).collect();
+    let sent = SENT.lock().unwrap_or_else(|p| p.into_inner());
+    Ok(merge_sent(from_store, sent.get(chat).map(Vec::as_slice).unwrap_or(&[])))
+}
+
+#[cfg(target_os = "android")]
+fn platform_new() -> AppResult<Vec<NewText>> {
+    #[derive(serde::Deserialize)]
+    struct Out {
+        texts: Vec<NewIn>,
+        newest: i64,
+    }
+    #[derive(serde::Deserialize)]
+    struct NewIn {
+        chat: String,
+        name: String,
+        text: String,
+        at: i64,
+    }
+    let last = LAST_SEEN.load(Ordering::Relaxed);
+    if last == 0 {
+        // First look: start from now (an id nothing has, so only `newest` comes back).
+        let out: Out = android::call("newSince", json!({ "after": i64::MAX / 2 }))?;
+        LAST_SEEN.store(out.newest.max(1), Ordering::Relaxed);
+        return Ok(Vec::new());
+    }
+    let out: Out = android::call("newSince", json!({ "after": last }))?;
+    LAST_SEEN.store(out.newest.max(last), Ordering::Relaxed);
+    Ok(out.texts.into_iter().map(|t| NewText { chat: t.chat, name: t.name, text: t.text, at: t.at }).collect())
+}
+
+/// With SmsManager (the same as sending a text from any app); BYTE remembers it for the thread view.
+#[cfg(target_os = "android")]
+async fn send_text(chat: &str, to: &str, text: &str) -> AppResult<String> {
+    let (to, text, chat) = (to.to_string(), text.to_string(), chat.to_string());
+    tauri::async_runtime::spawn_blocking(move || -> AppResult<String> {
+        android::call::<serde_json::Value>("send", json!({ "to": to, "text": text }))?;
+        let at = chrono::Utc::now().timestamp_millis();
+        SENT.lock().unwrap_or_else(|p| p.into_inner()).entry(chat).or_default().push(Msg { text, at, from_me: true, sender: "Me".into() });
+        Ok("Sent as a text message (SMS)".into())
+    })
+    .await
+    .map_err(|e| AppError::msg(e.to_string()))?
+}
+
+/// Texts BYTE sent this session, by conversation (the system store only keeps what the default SMS app writes).
+#[cfg(target_os = "android")]
+static SENT: Lazy<Mutex<HashMap<String, Vec<Msg>>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+
+/// The conversation's stored texts plus the ones BYTE sent that the store doesn't have, oldest first.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub fn merge_sent(mut stored: Vec<Msg>, sent: &[Msg]) -> Vec<Msg> {
+    for m in sent {
+        // The store may hold it too (some phones copy sent texts in): the same words close in time are one text.
+        let twin = stored.iter().any(|s| s.from_me && s.text == m.text && (s.at - m.at).abs() < 120_000);
+        if !twin {
+            stored.push(m.clone());
+        }
+    }
+    stored.sort_by_key(|m| m.at);
+    stored
+}
+
+/// The Android side: the app's own plugin (`SmsPlugin.kt`).
+#[cfg(target_os = "android")]
+pub mod android {
+    use std::sync::OnceLock;
+
+    use serde::de::DeserializeOwned;
+    use tauri::plugin::{PluginHandle, TauriPlugin};
+    use tauri::Wry;
+
+    use crate::error::{AppError, AppResult};
+
+    static SMS: OnceLock<PluginHandle<Wry>> = OnceLock::new();
+
+    pub fn plugin() -> TauriPlugin<Wry> {
+        tauri::plugin::Builder::<Wry>::new("sms")
+            .setup(|_app, api| {
+                let handle = api.register_android_plugin("com.loganstarner.byteapp", "SmsPlugin")?;
+                let _ = SMS.set(handle);
+                Ok(())
+            })
+            .build()
+    }
+
+    /// Blocks until the plugin answers: call from `spawn_blocking`.
+    pub fn call<T: DeserializeOwned>(command: &str, payload: serde_json::Value) -> AppResult<T> {
+        let handle = SMS.get().ok_or_else(|| AppError::msg("The text message service isn't ready."))?;
+        handle.run_mobile_plugin(command, payload).map_err(|e| AppError::msg(e.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sent_texts_join_the_thread_without_doubling() {
+        let m = |text: &str, at: i64, from_me: bool| Msg { text: text.into(), at, from_me, sender: String::new() };
+        let stored = vec![m("hi", 1_000, false), m("on my way", 90_000, true)];
+        let sent = vec![m("on my way", 91_000, true), m("be there soon", 200_000, true)];
+        let all = merge_sent(stored, &sent);
+        let texts: Vec<&str> = all.iter().map(|x| x.text.as_str()).collect();
+        assert_eq!(texts, ["hi", "on my way", "be there soon"], "the same text close in time is one text; the rest in time order");
+        // Nothing stored yet: the sent texts alone.
+        assert_eq!(merge_sent(vec![], &[m("a", 5, true)]).len(), 1);
+    }
 
     #[test]
     fn apple_dates_become_unix_ms() {

@@ -14,4 +14,7 @@
    Also try a 4B+ model on the same question: that is what accurate answers need.
 7. Voice input (new): Settings → Voice shows the speech model download; tap 🎤, allow the microphone when Android asks, say
    a sentence: it is typed into the message box. Reading aloud, "Hey BYTE" and speaker labels are still Mac-only.
-8. If anything fails, tap **Copy diagnostics** (About) and paste it to Claude.
+8. Texts (new): Settings → Privacy → Messages inbox: switch it on, tap Allow (three Android prompts: read texts, send texts,
+   contacts). Tap the speech-bubble button: your conversations with names; open one; Draft a reply; Reply: the other phone gets it.
+   Have someone text you while BYTE is open: a notification appears (within about 15 seconds). Texts only arrive while BYTE is open.
+9. If anything fails, tap **Copy diagnostics** (About) and paste it to Claude.

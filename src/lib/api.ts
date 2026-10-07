@@ -362,6 +362,7 @@ export const api = {
   updateConfigured: () => invoke<boolean>("update_configured"),
   // The Messages inbox (messages.rs).
   messagesStatus: () => invoke<MessagesStatus>("messages_status"),
+  messagesRequestAccess: () => invoke<MessagesStatus>("messages_request_access"),
   messagesThreads: () => invoke<MessageThread[]>("messages_threads"),
   messagesThread: (chat: string) => invoke<TextMessage[]>("messages_thread", { chat }),
   messagesSend: (chat: string, to: string, text: string) => invoke<string>("messages_send", { chat, to, text }),

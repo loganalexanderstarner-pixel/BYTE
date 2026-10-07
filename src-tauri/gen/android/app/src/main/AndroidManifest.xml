@@ -4,6 +4,11 @@
     <!-- Voice input: the web view asks for the microphone, and wry shows Android's permission prompt. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Texts inbox (off by default; asked for when the user turns it on): read and send SMS, names from Contacts. -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <application
         android:icon="@mipmap/ic_launcher"

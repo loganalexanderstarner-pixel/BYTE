@@ -119,9 +119,9 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         // byte:// links (Shortcuts start automations) and opening at login (background.rs).
         .plugin(tauri_plugin_deep_link::init());
-    // Android: opens the content:// links the file picker returns (androidfs.rs).
+    // Android: opens the content:// links the file picker returns (androidfs.rs), and the texts inbox (messages.rs).
     #[cfg(target_os = "android")]
-    let app = app.plugin(tauri_plugin_fs::init());
+    let app = app.plugin(tauri_plugin_fs::init()).plugin(messages::android::plugin());
     // Desktop only: signed updates, opening at login and global shortcuts. Android
     // gets its own versions (docs/ANDROID.md: in-app APK updater, Ask BYTE).
     #[cfg(desktop)]
@@ -520,6 +520,7 @@ pub fn run() {
             updater::update_configured,
             updater::update_check,
             messages::messages_status,
+            messages::messages_request_access,
             messages::messages_threads,
             messages::messages_thread,
             messages::messages_send,

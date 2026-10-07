@@ -49,7 +49,7 @@ export function PrivacyTab() {
       {/* Touch ID, iMessage, iCloud backups and macOS permissions are Mac-only; the phone gets its own later (A3). */}
       {!phone && <LockSection />}
       <KidsSection />
-      {!phone && <MessagesSection />}
+      <MessagesSection />
       {!phone && <BackupSection />}
       <OldChatsSection />
       {!phone && <PermissionsSection />}
@@ -852,10 +852,9 @@ function MessagesSection() {
           <span className="grow">
             Show texts I receive
             <small>
-              New iMessages and texts show up in BYTE (the speech-bubble button)
-              with Draft a reply and Reply. BYTE reads your Messages history on
-              this Mac, read-only; nothing leaves your Mac. Needs Full Disk
-              Access. Sending always waits for you to press Send.
+              {currentDevice() === "phone"
+                ? "New text messages show up in BYTE (the speech-bubble button) with Draft a reply and Reply. BYTE reads your texts on this phone and never changes them; nothing leaves your phone. It checks while BYTE is open. Sending always waits for you to press Send."
+                : "New iMessages and texts show up in BYTE (the speech-bubble button) with Draft a reply and Reply. BYTE reads your Messages history on this Mac, read-only; nothing leaves your Mac. Needs Full Disk Access. Sending always waits for you to press Send."}
             </small>
           </span>
           <input
@@ -875,12 +874,21 @@ function MessagesSection() {
           ) : (
             <div className="banner warn">
               <span className="grow">{status?.message ?? "Checking…"}</span>
-              <button
-                className="btn sm"
-                onClick={() => void api.upkeepOpenSettings(FULL_DISK)}
-              >
-                <ExternalLink size={13} /> Open Full Disk Access
-              </button>
+              {currentDevice() === "phone" ? (
+                <button
+                  className="btn sm primary"
+                  onClick={() => void api.messagesRequestAccess().then(setStatus, () => undefined)}
+                >
+                  <Check size={13} /> Allow
+                </button>
+              ) : (
+                <button
+                  className="btn sm"
+                  onClick={() => void api.upkeepOpenSettings(FULL_DISK)}
+                >
+                  <ExternalLink size={13} /> Open Full Disk Access
+                </button>
+              )}
               <button className="btn sm ghost" onClick={check}>
                 <RefreshCw size={13} /> Check again
               </button>
