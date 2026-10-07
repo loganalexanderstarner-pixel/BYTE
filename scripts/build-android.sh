@@ -46,6 +46,13 @@ mkdir -p "$ROOT/src-tauri/binaries"
 for b in llama-server whisper-cli sherpa-diarize sherpa-tts; do
   [ -e "$ROOT/src-tauri/binaries/$b-aarch64-linux-android" ] || : > "$ROOT/src-tauri/binaries/$b-aarch64-linux-android"
 done
+# 4. The debug APK is built with cargo's dev profile, which keeps full debug info: libbyte_lib.so was 396 MB (the APK
+#    142 MB) once the dependency cache was rebuilt, against 63 MB before. Keep line tables out, strip the rest, and
+#    optimise a little: unoptimised Rust is slow for the things the phone does besides the engine (PDF and file
+#    reading, the knowledge base, the database). Cargo reads these as profile overrides, so desktop builds are unchanged.
+export CARGO_PROFILE_DEV_DEBUG=0
+export CARGO_PROFILE_DEV_STRIP=debuginfo
+export CARGO_PROFILE_DEV_OPT_LEVEL="${CARGO_PROFILE_DEV_OPT_LEVEL:-1}"
 LOG_DIR="${LOG_DIR:-$ROOT/.cache/android-logs}"
 mkdir -p "$LOG_DIR"
 

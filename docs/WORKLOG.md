@@ -23,6 +23,15 @@ Format: `hash — title` · **Why** · **What** (files) · **Verify** · **Undo*
 
 ## 2026-10-05 (Android port: `claude/android-port`, branched from `claude/new-session-tu1a5x` + the Windows port's planner fixes)
 
+### (this commit) — Android APK size: no debug info, a little optimisation
+- **Why:** test-18 was 142 MB against 58 MB for test-17: `libbyte_lib.so` 396 MB against 63 MB (cargo's dev profile keeps full
+  debug info; test-17 had reused a cached build).
+- **What:** `scripts/build-android.sh` sets `CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_DEV_STRIP=debuginfo` and
+  `CARGO_PROFILE_DEV_OPT_LEVEL=1` (env overrides, desktop builds unchanged). Unoptimised Rust was also slow for file reading,
+  the knowledge base and the database on the phone.
+- **Verify:** the next test APK is about 60 MB; `unzip -lv` shows `libbyte_lib.so` well under 100 MB.
+- **Undo:** `git revert <hash>`.
+
 ### (this commit) — Texts (SMS) and the inbox on the phone
 - **Why:** the Messages inbox (threads, thread, Draft a reply, Reply, new-text notifications) was macOS-only (chat.db, AppleScript).
 - **What:** `SmsPlugin.kt` (a Tauri plugin in the app: read the system SMS store, names from Contacts, send with `SmsManager`,
