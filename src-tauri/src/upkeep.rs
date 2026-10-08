@@ -203,12 +203,12 @@ pub fn ask(q: &str) -> Option<Ask> {
         }
     }
     // Login items.
-    let at_login = has_any(&l, &[" at login", " at startup", " when i log in", " when i start", " on startup", " on login", " at log in", "login item", "startup item"]);
+    let at_login = has_any(&l, &[" at login", " at startup", " when i log in", " when i start", " on startup", " on login", " at log in", "login item", "startup item", " with windows", " when windows starts", " when windows boots", " when my pc starts", " when my pc boots", " when i turn on my pc", "startup app", "startup program"]);
     if at_login {
         for p in ["stop ", "don't open ", "dont open ", "don't launch ", "remove ", "disable "] {
             if let Some(rest) = l.strip_prefix(p) {
                 let mut name = rest.to_string();
-                for cut in [" from opening", " from launching", " from starting", " opening", " launching", " starting", " from login items", " from my login items", " from startup", " at login", " at startup", " when i log in", " on startup", " on login"] {
+                for cut in [" from opening", " from launching", " from starting", " opening", " launching", " starting", " from login items", " from my login items", " from startup", " at login", " at startup", " when i log in", " on startup", " on login", " with windows", " when windows starts", " when windows boots", " when my pc starts", " when my pc boots", " when i turn on my pc"] {
                     if let Some(i) = name.find(cut) {
                         name.truncate(i);
                     }
@@ -1359,9 +1359,16 @@ fn exe_stem(exe: &str) -> &str {
 /// A program name as people know it ("chrome.exe" is Google Chrome).
 pub fn pretty_proc(exe: &str) -> String {
     let own = exe_stem(exe);
-    let low = own.to_lowercase();
-    let stem = low.as_str();
-    let known = match stem {
+    if let Some(known) = known_program(own) {
+        return known.to_string();
+    }
+    let mut c = own.chars();
+    c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default()
+}
+
+/// The name people know a program by, for the ones BYTE recognizes (file name without ".exe", any case).
+fn known_program(stem: &str) -> Option<&'static str> {
+    Some(match stem.to_lowercase().as_str() {
         "chrome" => "Google Chrome",
         "msedge" => "Microsoft Edge",
         "firefox" => "Firefox",
@@ -1375,13 +1382,12 @@ pub fn pretty_proc(exe: &str) -> String {
         "code" => "Visual Studio Code",
         "llama-server" | "llama-server-vulkan" | "llama-server-cpu" => "BYTE's AI engine",
         "byte" => "BYTE",
-        _ => "",
-    };
-    if !known.is_empty() {
-        return known.to_string();
-    }
-    let mut c = own.chars();
-    c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default()
+        "parsecd" | "parsec" => "Parsec",
+        "curseforge" => "CurseForge",
+        "ollama" | "ollama app" => "Ollama",
+        "tailscale-ipn" | "tailscaled" => "Tailscale",
+        _ => return None,
+    })
 }
 
 /// Whether the health card may offer to close this program: never Windows itself, its services, the shell, a terminal,
@@ -1702,6 +1708,95 @@ pub fn match_login<'a>(items: &'a [(String, String)], want: &str) -> Option<&'a 
     items.iter().find(|(n, _)| n.to_lowercase() == w).or_else(|| items.iter().find(|(n, _)| n.to_lowercase().contains(&w) || (n.len() >= 4 && w.contains(&n.to_lowercase()))))
 }
 
+/// One thing that starts with Windows (`StartupList` prints these).
+#[derive(Debug, Clone, PartialEq)]
+pub struct StartupItem {
+    /// `user` or `machine`.
+    pub scope: String,
+    /// `run`, `run32` or `folder`.
+    pub kind: String,
+    /// The registry value or file name, exactly as Windows keeps it (what the switch needs).
+    pub name: String,
+    pub command: String,
+    pub on: bool,
+}
+
+pub fn parse_startup(out: &str) -> Vec<StartupItem> {
+    out.lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.trim_end_matches(['\r', '\n']).split('\t').collect();
+            (f.len() == 5 && !f[2].trim().is_empty() && matches!(f[1], "run" | "run32" | "folder") && matches!(f[0], "user" | "machine"))
+                .then(|| StartupItem { scope: f[0].into(), kind: f[1].into(), name: f[2].trim().into(), command: f[3].trim().into(), on: f[4].trim() != "0" })
+        })
+        .collect()
+}
+
+/// The program file in a startup command: `"C:\x\a.exe" -silent` and `C:\x\a.exe /background` are both `a.exe`; a shortcut's
+/// target is already just a path. Empty when there is no program in it.
+pub fn exe_of_command(cmd: &str) -> String {
+    let cmd = cmd.trim();
+    let path = if let Some(rest) = cmd.strip_prefix('"') {
+        rest.split('"').next().unwrap_or("")
+    } else if let Some(i) = cmd.to_lowercase().find(".exe") {
+        &cmd[..i + 4]
+    } else {
+        cmd.split_whitespace().next().unwrap_or("")
+    };
+    path.rsplit(['\\', '/']).next().unwrap_or("").trim().to_string()
+}
+
+/// What to call a startup entry: the program's well-known name when BYTE has one; else the entry's own name with the
+/// technical parts taken off (`electron.app.CurseForge` is CurseForge, `Edge…_A1306…` is Edge).
+pub fn startup_title(it: &StartupItem) -> String {
+    let exe = exe_of_command(&it.command);
+    if let Some(k) = known_program(exe_stem(&exe)) {
+        return k.to_string();
+    }
+    let name = it.name.trim_end_matches(".lnk").trim_end_matches(".LNK");
+    if name.contains(char::is_whitespace) {
+        return name.to_string();
+    }
+    // A long hex tail after an underscore is an id, not a name.
+    let name = match name.rsplit_once('_') {
+        Some((head, tail)) if tail.len() >= 16 && tail.chars().all(|c| c.is_ascii_hexdigit()) => head,
+        _ => name,
+    };
+    if name.contains('.') {
+        let generic = ["app", "electron", "com", "org", "io", "squirrel", "exe"];
+        let best = name.split('.').rev().find(|seg| !seg.is_empty() && !seg.chars().all(|c| c.is_ascii_digit()) && !generic.contains(&seg.to_lowercase().as_str()));
+        if let Some(b) = best {
+            return b.to_string();
+        }
+    }
+    name.to_string()
+}
+
+/// The startup entry a name means (the entry's name, its friendly name or its program, exact first, then contained).
+pub fn match_startup<'a>(items: &'a [StartupItem], want: &str) -> Option<&'a StartupItem> {
+    let w = want.trim().to_lowercase();
+    if w.len() < 2 {
+        return None;
+    }
+    let keys = |it: &StartupItem| -> Vec<String> {
+        let exe = exe_of_command(&it.command);
+        vec![it.name.to_lowercase(), startup_title(it).to_lowercase(), exe_stem(&exe).to_lowercase()]
+    };
+    items.iter().find(|it| keys(it).iter().any(|k| *k == w)).or_else(|| items.iter().find(|it| keys(it).iter().any(|k| !k.is_empty() && (k.contains(&w) || (k.len() >= 4 && w.contains(k.as_str()))))))
+}
+
+/// Why BYTE leaves an entry alone: Windows and drivers need theirs, and BYTE's own is in BYTE's Settings.
+pub fn protected_startup(it: &StartupItem) -> Option<&'static str> {
+    let cmd = it.command.to_lowercase().replace('/', "\\");
+    let exe = exe_of_command(&it.command).to_lowercase();
+    if cmd.contains("\\windows\\") || cmd.starts_with("%windir%") || cmd.starts_with("%systemroot%") || exe.starts_with("securityhealth") {
+        Some("it belongs to Windows itself or a driver")
+    } else if exe_stem(&exe) == "byte" {
+        Some("that one is BYTE's own; it's in BYTE's Settings")
+    } else {
+        None
+    }
+}
+
 /// Background helpers in LaunchAgents folders (information only).
 fn launch_agents(home: &Path) -> Vec<String> {
     let mut v = Vec::new();
@@ -1738,14 +1833,110 @@ fn health_notes(h: &Health) -> String {
     lines.join("\n")
 }
 
+/// "What opens when Windows starts": the list, as a card.
+async fn startup_items_pc(turn: &Turn<'_>, runner: &dyn Runner, id: String, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
+    send(ChatEvent::ToolCall { id: id.clone(), name: "mac_login_items".into(), args: json!({ "app": "Windows", "what": "List what opens when Windows starts" }) })?;
+    let items = match runner.run(&Command::Win(WinOp::StartupList)).await {
+        Ok(o) => parse_startup(&o),
+        Err(e) => {
+            let msg = e.text_for("Windows", true);
+            send(ChatEvent::ToolResult { id, ok: false, summary: msg.clone() })?;
+            return Ok(Some((SourceBook::default(), format!("BYTE couldn't read the startup list: {msg}"))));
+        }
+    };
+    let on = items.iter().filter(|i| i.on).count();
+    send(ChatEvent::ToolResult { id, ok: true, summary: format!("{on} open at startup") })?;
+    turn.log.record("mac_login_items", &json!({ "count": items.len() }), true, &format!("{on} on"));
+    let mut sorted: Vec<&StartupItem> = items.iter().collect();
+    sorted.sort_by_key(|i| (!i.on, startup_title(i).to_lowercase()));
+    let mut checks: Vec<Check> = sorted
+        .iter()
+        .map(|i| {
+            let exe = exe_of_command(&i.command);
+            let place = if i.scope == "machine" { ", for everyone on this PC" } else { "" };
+            let tip = match protected_startup(i) {
+                Some(why) => format!("BYTE leaves this one alone: {why}."),
+                None => String::new(),
+            };
+            check_pc(&startup_title(i), format!("{}{}{place}", if i.on { "Opens at startup" } else { "Off" }, if exe.is_empty() { String::new() } else { format!(" ({exe})") }), Level::Info, tip, None)
+        })
+        .collect();
+    checks.push(check_pc("Change these", "Settings → Apps → Startup", Level::Info, "Some apps start in other ways (scheduled tasks, Microsoft Store apps); Windows' own list shows those too.", Some("startup")));
+    send(ChatEvent::Health(Health { id: uuid::Uuid::new_v4().simple().to_string(), title: "What opens when Windows starts".into(), checks, procs: vec![] }))?;
+    let names = |want: bool| -> String {
+        let v: Vec<String> = sorted.iter().filter(|i| i.on == want).map(|i| startup_title(i)).collect();
+        if v.is_empty() { "none".into() } else { v.join(", ") }
+    };
+    Ok(Some((
+        SourceBook::default(),
+        format!(
+            "Open when Windows starts: {}.\nTurned off already: {}.\nSome of the open ones are Windows or drivers (security tray, audio, graphics), which BYTE leaves alone.\n\nList them briefly. The user can say \"stop <app> from opening at startup\" and BYTE will turn it off (with Undo), or use the Startup settings button on the card. Some apps also start through their own settings or the Microsoft Store; Windows' Startup settings page shows those.",
+            names(true),
+            names(false)
+        ),
+    )))
+}
+
+/// "Stop Spotify from opening at startup": asks first, turns the entry off (it stays installed), and can turn it back on.
+async fn startup_remove_pc(turn: &Turn<'_>, runner: &dyn Runner, id: String, name: String, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
+    let none = SourceBook::default;
+    let items = runner.run(&Command::Win(WinOp::StartupList)).await.map(|o| parse_startup(&o)).unwrap_or_default();
+    let Some(item) = match_startup(&items, &name).cloned() else {
+        return Ok(Some((
+            none(),
+            format!(
+                "\"{name}\" isn't in the startup list BYTE can change ({}). Some apps start through their own settings, a scheduled task or the Microsoft Store; tell the user to look in Settings → Apps → Startup.",
+                if items.is_empty() { "there are none".to_string() } else { items.iter().map(startup_title).collect::<Vec<_>>().join(", ") }
+            ),
+        )));
+    };
+    let title = startup_title(&item);
+    if let Some(why) = protected_startup(&item) {
+        return Ok(Some((none(), format!("BYTE won't turn off {title}: {why}. Say so briefly."))));
+    }
+    if !item.on {
+        return Ok(Some((none(), format!("{title} is already turned off at startup. Nothing changed. Say so in one sentence."))));
+    }
+    let what = format!("Stop {title} from opening when Windows starts");
+    send(ChatEvent::ToolCall { id: id.clone(), name: "mac_login_remove".into(), args: json!({ "app": "Windows", "what": what }) })?;
+    let fields = vec![
+        ("App".to_string(), format!("{title} ({})", exe_of_command(&item.command))),
+        ("Note".to_string(), "The app stays installed; it just won't open by itself. This is the same switch as Task Manager's Startup tab. Undo turns it back on.".to_string()),
+    ];
+    if !macctl::ask_ok(&what, "Windows", fields, cancel, send).await? {
+        send(ChatEvent::ToolResult { id, ok: false, summary: "You said no".into() })?;
+        return Ok(Some((none(), format!("The user chose to keep {title} opening at startup. Nothing changed. Say so in one sentence."))));
+    }
+    let set = |on| Command::Win(WinOp::StartupSet { kind: item.kind.clone(), name: item.name.clone(), on });
+    match runner.run(&set(false)).await {
+        Ok(_) => {
+            let undo = Some(macctl::keep_undo(Undo::Cmd(set(true))));
+            send(ChatEvent::ToolResult { id, ok: true, summary: "Turned off at startup".into() })?;
+            turn.log.record("mac_login_remove", &json!({ "name": title }), true, "turned off");
+            done_card(send, "Windows", &what, "It stays installed and opens when you open it.", true, undo)?;
+            Ok(Some((none(), format!("Done: {title} no longer opens when Windows starts (it's still installed). Undo on the card turns it back on."))))
+        }
+        Err(e) => {
+            let msg = e.text_for("Windows", true);
+            send(ChatEvent::ToolResult { id, ok: false, summary: msg.clone() })?;
+            Ok(Some((none(), format!("BYTE couldn't change the startup list: {msg}"))))
+        }
+    }
+}
+
 pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, runner: &dyn Runner, home: &Path, now: SystemTime, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
     let Some(a) = ask(question) else { return Ok(None) };
     let id = format!("byte_upkeep_{}", uuid::Uuid::new_v4().simple());
     let none = SourceBook::default;
     let pc = runner.pc();
     // The rest of a PC's upkeep (what slows it, the check-up, startup apps, uninstalling) arrives one piece at a time.
-    if pc && !matches!(a, Ask::Storage | Ask::Coach | Ask::Checkup) {
-        return Ok(Some((none(), "BYTE can look at what is using disk space on a PC, and check what slows it or run a check-up, but it can't yet list or change what starts with Windows, or uninstall programs. Say so plainly, and offer one of those instead.".into())));
+    if pc && !matches!(a, Ask::Storage | Ask::Coach | Ask::Checkup | Ask::LoginItems | Ask::LoginRemove { .. }) {
+        return Ok(Some((none(), "BYTE can look at what is using disk space on a PC, check what slows it, run a check-up, and list or turn off what starts with Windows, but it can't yet uninstall programs. Say so plainly, and offer one of those instead.".into())));
+    }
+    match &a {
+        Ask::LoginItems if pc => return startup_items_pc(turn, runner, id, send).await,
+        Ask::LoginRemove { name } if pc => return startup_remove_pc(turn, runner, id, name.clone(), cancel, send).await,
+        _ => {}
     }
     match a {
         Ask::Storage => {

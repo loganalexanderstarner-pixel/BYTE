@@ -510,6 +510,8 @@ struct PcFake {
     snapshot: StdMutex<Option<String>>,
     procs: StdMutex<Option<String>>,
     security: StdMutex<Option<String>>,
+    /// What the startup list prints.
+    startup: StdMutex<Option<String>>,
 }
 
 impl Runner for PcFake {
@@ -524,6 +526,8 @@ impl Runner for PcFake {
             Command::Win(WinOp::Snapshot) => self.snapshot.lock().unwrap().clone().ok_or(RunError::Missing),
             Command::Win(WinOp::Processes) => self.procs.lock().unwrap().clone().ok_or(RunError::Missing),
             Command::Win(WinOp::Security) => self.security.lock().unwrap().clone().ok_or(RunError::Missing),
+            Command::Win(WinOp::StartupList) => self.startup.lock().unwrap().clone().ok_or(RunError::Missing),
+            Command::Win(WinOp::StartupSet { on, .. }) => Ok(u8::from(*on).to_string()),
             _ => Err(RunError::Missing),
         };
         Box::pin(async move { r })
@@ -692,7 +696,7 @@ async fn a_pc_storage_question_shows_the_card_and_remembers_what_may_go() {
 #[tokio::test]
 async fn the_rest_of_pc_upkeep_is_said_not_pretended() {
     let d = tempfile::tempdir().unwrap();
-    for q in ["uninstall Zoom", "what opens at startup?"] {
+    for q in ["uninstall Zoom"] {
         let fake = PcFake::default();
         let (out, ev) = flow(q, &fake, d.path(), None).await;
         assert!(fake.ran.lock().unwrap().is_empty(), "{q}: nothing ran");
@@ -912,4 +916,175 @@ async fn live_pc_the_checkup_of_this_pc() {
             assert!(h.checks.iter().any(|c| c.label == "Windows Update"));
         }
     }
+}
+
+// ------------------------------------------------------- what starts with Windows
+
+/// What the startup list printed on the real PC (the user name changed), one entry per line, tab-separated.
+const PC_STARTUP: &str = "user\trun\tOneDrive\t\"C:\\Program Files\\Microsoft OneDrive\\OneDrive.exe\" /background\t0
+user\trun\tSteam\t\"C:\\Program Files (x86)\\Steam\\steam.exe\" -silent\t0
+user\trun\tDiscord\t\"C:\\Users\\ada\\AppData\\Local\\Discord\\Update.exe\" --processStart Discord.exe\t0
+user\trun\tEADM\t\"C:\\Program Files\\Electronic Arts\\EA Desktop\\EA Desktop\\EALauncher.exe\" -silentOs\t0
+user\trun\telectron.app.CurseForge\tC:\\Users\\ada\\AppData\\Local\\Programs\\CurseForge Windows\\CurseForge.exe --minimized\t0
+user\trun\tUnified Remote V3\t\"C:\\Program Files (x86)\\Unified Remote 3\\RemoteServerWin.exe\"\t1
+user\trun\tParsec.App.0\tC:\\Program Files\\Parsec\\parsecd.exe app_silent=1\t1
+user\trun\tMicrosoftEdgeAutoLaunch_A1306234171FE4BFED863ECABC261099\t\"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe\" --no-startup-window --win-session-start\t0
+machine\trun\tSecurityHealth\tC:\\WINDOWS\\system32\\SecurityHealthSystray.exe\t1
+machine\trun\tRtkAudUService\t\"C:\\WINDOWS\\System32\\DriverStore\\FileRepository\\realtekservice.inf_amd64_8f3e2cb35a0fd6a8\\RtkAudUService64.exe\" -background\t1
+machine\trun\tStartAUEP\t\"C:\\Program Files\\AMD\\Performance Profile Client\\AUEPMaster.exe\"\t1
+machine\trun\tCorsair iCUE5 Software\t\"C:\\Program Files\\Corsair\\Corsair iCUE5 Software\\iCUE Launcher.exe\" --autorun\t1
+user\tfolder\tOllama.lnk\tC:\\Users\\ada\\AppData\\Local\\Programs\\Ollama\\ollama app.exe\t0
+machine\tfolder\tTailscale.lnk\tC:\\Program Files\\Tailscale\\tailscale-ipn.exe\t1
+";
+
+#[test]
+fn the_startup_list_is_read_named_and_matched() {
+    let items = parse_startup(PC_STARTUP);
+    assert_eq!(items.len(), 14);
+    assert_eq!(items.iter().filter(|i| i.on).count(), 7);
+    assert_eq!((items[0].scope.as_str(), items[0].kind.as_str(), items[0].name.as_str(), items[0].on), ("user", "run", "OneDrive", false));
+    assert_eq!(items[0].command, "\"C:\\Program Files\\Microsoft OneDrive\\OneDrive.exe\" /background");
+    assert_eq!(items[12].kind, "folder");
+    // Lines that are not entries are skipped.
+    assert!(parse_startup("garbage\nuser\tnope\tx\ty\t1\nuser\trun\t\tcmd\t1\n").is_empty());
+
+    let titles: Vec<String> = items.iter().map(startup_title).collect();
+    assert_eq!(
+        titles,
+        ["OneDrive", "Steam", "Discord", "EADM", "CurseForge", "Unified Remote V3", "Parsec", "Microsoft Edge", "SecurityHealth", "RtkAudUService", "StartAUEP", "Corsair iCUE5 Software", "Ollama", "Tailscale"]
+    );
+    for (cmd, exe) in [
+        ("\"C:\\Program Files\\X\\x.exe\" -silent", "x.exe"),
+        ("C:\\Program Files\\Parsec\\parsecd.exe app_silent=1", "parsecd.exe"),
+        ("C:\\Users\\ada\\AppData\\Local\\Programs\\Ollama\\ollama app.exe", "ollama app.exe"),
+        ("\"C:\\a b\\Tool.EXE\"", "Tool.EXE"),
+        ("cmd /c start notepad", "cmd"),
+        ("", ""),
+    ] {
+        assert_eq!(exe_of_command(cmd), exe, "{cmd}");
+    }
+    let find = |w: &str| match_startup(&items, w).map(|i| i.name.clone());
+    assert_eq!(find("discord").as_deref(), Some("Discord"));
+    assert_eq!(find("Discord").as_deref(), Some("Discord"));
+    assert_eq!(find("edge").as_deref(), Some("MicrosoftEdgeAutoLaunch_A1306234171FE4BFED863ECABC261099"));
+    assert_eq!(find("parsec").as_deref(), Some("Parsec.App.0"));
+    assert_eq!(find("curseforge").as_deref(), Some("electron.app.CurseForge"));
+    assert_eq!(find("ollama").as_deref(), Some("Ollama.lnk"));
+    assert_eq!(find("icue").as_deref(), Some("Corsair iCUE5 Software"));
+    assert_eq!(find("onedrive").as_deref(), Some("OneDrive"));
+    assert_eq!(find("photoshop"), None);
+    assert_eq!(find("x"), None, "one letter matches everything");
+
+    // Windows and the drivers' entries, and BYTE's own, are never offered.
+    let why = |n: &str| protected_startup(items.iter().find(|i| i.name == n).unwrap());
+    assert!(why("SecurityHealth").is_some() && why("RtkAudUService").is_some());
+    for n in ["Discord", "Corsair iCUE5 Software", "Parsec.App.0"] {
+        assert!(why(n).is_none(), "{n}");
+    }
+    let own = StartupItem { scope: "user".into(), kind: "run".into(), name: "BYTE".into(), command: "\"C:\\Users\\ada\\AppData\\Local\\BYTE\\byte.exe\" --hidden".into(), on: true };
+    assert!(protected_startup(&own).unwrap().contains("BYTE's own"));
+}
+
+#[test]
+fn pc_phrases_for_startup_apps_are_understood() {
+    for q in ["what opens at startup?", "what starts with windows", "show my startup apps", "which programs run when windows starts", "list the startup programs"] {
+        assert_eq!(ask(q), Some(Ask::LoginItems), "{q}");
+    }
+    for (q, name) in [
+        ("stop Spotify from opening at startup", "spotify"),
+        ("stop discord from starting with windows", "discord"),
+        ("don't launch steam when windows starts", "steam"),
+        ("disable parsec at startup", "parsec"),
+    ] {
+        assert_eq!(ask(q), Some(Ask::LoginRemove { name: name.into() }), "{q}");
+    }
+}
+
+#[tokio::test]
+async fn the_pc_startup_card_lists_what_opens_and_what_is_off() {
+    let d = tempfile::tempdir().unwrap();
+    let f = PcFake::default();
+    f.startup.lock().unwrap().replace(PC_STARTUP.into());
+    let (out, ev) = flow("what opens at startup?", &f, d.path(), None).await;
+    let card = ev.iter().find_map(|e| if let ChatEvent::Health(h) = e { Some(h.clone()) } else { None }).expect("a card");
+    assert_eq!(card.title, "What opens when Windows starts");
+    let labels: Vec<&str> = card.checks.iter().map(|c| c.label.as_str()).collect();
+    assert_eq!(labels.len(), 15, "14 entries and the settings row");
+    let first_off = card.checks.iter().position(|c| c.value.starts_with("Off")).unwrap();
+    assert!(card.checks[..first_off].iter().all(|c| c.value.starts_with("Opens at startup")), "open ones first");
+    let get = |l: &str| card.checks.iter().find(|c| c.label == l).unwrap();
+    assert!(get("Parsec").value.contains("parsecd.exe") && get("Corsair iCUE5 Software").value.contains("for everyone"));
+    assert!(get("Discord").value.starts_with("Off"));
+    assert!(get("SecurityHealth").tip.contains("leaves this one alone"));
+    assert!(get("Change these").settings.as_deref().unwrap().starts_with("ms-settings:"));
+    let notes = out.unwrap().1;
+    assert!(notes.contains("Open when Windows starts: ") && notes.contains("Parsec") && notes.contains("Turned off already: ") && notes.contains("Discord"), "{notes}");
+    assert!(!notes.contains("login") && !notes.contains("Mac"), "{notes}");
+    let ran = f.ran.lock().unwrap().clone();
+    assert_eq!(ran, vec![Command::Win(WinOp::StartupList)], "looking changes nothing");
+}
+
+#[tokio::test]
+async fn turning_off_a_startup_app_asks_first_and_can_be_undone() {
+    let d = tempfile::tempdir().unwrap();
+    let f = PcFake::default();
+    f.startup.lock().unwrap().replace(PC_STARTUP.into());
+    // Saying no changes nothing.
+    let (out, ev) = flow("stop parsec from opening at startup", &f, d.path(), Some(false)).await;
+    assert!(ev.iter().any(|e| matches!(e, ChatEvent::Approval(_))));
+    assert!(!f.ran.lock().unwrap().iter().any(|c| matches!(c, Command::Win(WinOp::StartupSet { .. }))));
+    assert!(out.unwrap().1.contains("Nothing changed"));
+    // Yes turns that one entry off, by the name Windows keeps it under, and Undo turns it back on.
+    let (out, ev) = flow("stop parsec from opening at startup", &f, d.path(), Some(true)).await;
+    let set = Command::Win(WinOp::StartupSet { kind: "run".into(), name: "Parsec.App.0".into(), on: false });
+    assert!(f.ran.lock().unwrap().contains(&set));
+    let done = ev.iter().find_map(|e| if let ChatEvent::MacDone(m) = e { Some(m.clone()) } else { None }).expect("a done card");
+    assert!(done.ok && done.title.contains("Parsec") && done.title.contains("Windows starts"), "{done:?}");
+    let notes = out.unwrap().1;
+    assert!(notes.contains("no longer opens when Windows starts") && !notes.contains("login"), "{notes}");
+    match macctl::undo_step(&done.undo.expect("an undo token")) {
+        Some(macctl::Undo::Cmd(Command::Win(WinOp::StartupSet { kind, name, on }))) => assert_eq!((kind.as_str(), name.as_str(), on), ("run", "Parsec.App.0", true)),
+        other => panic!("undo should turn it back on, got {other:?}"),
+    }
+    // A folder shortcut is switched the same way, under its own kind.
+    let (_, _) = flow("stop corsair icue from opening at startup", &f, d.path(), Some(true)).await;
+    assert!(f.ran.lock().unwrap().contains(&Command::Win(WinOp::StartupSet { kind: "run".into(), name: "Corsair iCUE5 Software".into(), on: false })));
+}
+
+#[tokio::test]
+async fn startup_entries_that_are_off_or_belong_to_windows_or_are_unknown_are_not_changed() {
+    let d = tempfile::tempdir().unwrap();
+    let f = PcFake::default();
+    f.startup.lock().unwrap().replace(PC_STARTUP.into());
+    for (q, says) in [
+        ("stop discord from opening at startup", "already turned off"),
+        ("stop securityhealth from opening at startup", "belongs to Windows itself"),
+        ("stop rtkaud from opening at startup", "belongs to Windows itself"),
+        ("stop photoshop from opening at startup", "isn't in the startup list"),
+    ] {
+        let (out, ev) = flow(q, &f, d.path(), Some(true)).await;
+        assert!(!ev.iter().any(|e| matches!(e, ChatEvent::Approval(_))), "{q}: nothing to approve");
+        assert!(out.unwrap().1.contains(says), "{q}");
+    }
+    assert!(!f.ran.lock().unwrap().iter().any(|c| matches!(c, Command::Win(WinOp::StartupSet { .. }))));
+    // A PC that cannot read the list says so; it does not pretend.
+    let blind = PcFake::default();
+    let (out, ev) = flow("what opens at startup?", &blind, d.path(), None).await;
+    assert!(!ev.iter().any(|e| matches!(e, ChatEvent::Health(_))));
+    assert!(out.unwrap().1.contains("couldn't read the startup list"));
+}
+
+/// "What opens at startup?" on the real PC, through the whole flow. Prints the card; changes nothing.
+#[cfg(windows)]
+#[tokio::test]
+#[ignore = "reads the real startup entries; run with --ignored --nocapture"]
+async fn live_pc_the_startup_card_of_this_pc() {
+    let (out, ev) = flow("what opens at startup?", &crate::pcctl::WinRunner, &home(), None).await;
+    let card = ev.iter().find_map(|e| if let ChatEvent::Health(h) = e { Some(h.clone()) } else { None }).expect("a card");
+    println!("--- {}", card.title);
+    for c in &card.checks {
+        println!("  {}: {}{}", c.label, c.value, if c.tip.is_empty() { String::new() } else { format!("  -- {}", c.tip) });
+    }
+    println!("--- notes:\n{}", out.unwrap().1);
+    assert!(card.checks.len() >= 2 && card.checks.last().unwrap().label == "Change these");
 }

@@ -287,6 +287,29 @@ how every item below was found; none of them showed in a test.
 - **Trap:** on the PC, `cargo test` rebuilds OpenSSL when RUSTFLAGS differ, which
   needs Strawberry Perl on PATH. Use `scripts/windows-dev.bat`'s PATH.
 
+### 2026-10-08: PC upkeep, third slice: "what opens at startup?" and "stop X from opening at startup" on Windows
+- **Why:** login items were Mac-only; on a PC those questions answered "can't yet".
+- **What:** `WinOp::StartupList` reads what starts with Windows (the user's and the machine's Run keys, the 32-bit Run key, both
+  Startup folders, with each entry's on/off state from Windows' own `StartupApproved` flags) as tab-separated lines;
+  `WinOp::StartupSet` turns one entry on or off by writing that same per-user flag, the switch Task Manager's Startup tab uses.
+  Nothing is deleted: the entry, the program and its files stay, so Undo is the same switch turned back. The kind, name and
+  wish go to the script in a file (never on a command line), only the three kinds are accepted, and a name with a line break is
+  refused. In `upkeep.rs`: `parse_startup`, `exe_of_command`, `startup_title` (OneDrive, Discord and Steam by their names,
+  `MicrosoftEdgeAutoLaunch_<id>` is Microsoft Edge, `electron.app.CurseForge` is CurseForge, `Parsec.App.0` is Parsec),
+  `match_startup` (by entry name, friendly name or program), and `protected_startup`: Windows' and drivers' entries (anything run
+  from the Windows folder, the security tray) and BYTE's own are listed but never offered. The card lists open entries first,
+  then the ones already off, and links to Settings → Apps → Startup, because some apps start through scheduled tasks or the Store
+  and BYTE says so. Asking to turn one off shows the approval card; "no" changes nothing; an entry that is already off, a
+  protected one and an unknown name are explained without asking. Phrases: "with Windows", "when Windows starts", "startup apps".
+- **Verify:** Linux: 610 tests (new: the real startup list of the PC as a fixture (user name changed), titles, program names in
+  commands, matching, protection, the card, approval yes/no, Undo as the reverse switch, entries not changed, a PC that cannot
+  read the list). On the real PC: `live_pc_startup_list_and_round_trip` reads the real 14 entries (7 open, 7 off) and, on an
+  entry it adds itself (with a non-ASCII name), turns it off and on and sees the state change, then removes it;
+  `live_pc_the_startup_card_of_this_pc` runs the whole flow.
+- **Not done:** uninstalling (next slice), scheduled-task and Store startup apps (Windows' own Settings page covers them), file
+  tidying (`filectl`).
+- **Undo:** `git revert`; the Mac path is unchanged.
+
 ### 2026-10-08: PC upkeep, second slice: "why is my PC slow?" and "check my PC" on Windows
 - **Why:** the coach and the check-up (the health card) were Mac-only; on a PC they answered "can't yet".
 - **What:** four operations in `pcctl.rs` (`WinOp::Snapshot`, `Processes`, `Security`, plus `Quit`); the first three only read.
