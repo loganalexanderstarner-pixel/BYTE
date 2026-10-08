@@ -1382,10 +1382,6 @@ fn known_program(stem: &str) -> Option<&'static str> {
         "code" => "Visual Studio Code",
         "llama-server" | "llama-server-vulkan" | "llama-server-cpu" => "BYTE's AI engine",
         "byte" => "BYTE",
-        "parsecd" | "parsec" => "Parsec",
-        "curseforge" => "CurseForge",
-        "ollama" | "ollama app" => "Ollama",
-        "tailscale-ipn" | "tailscaled" => "Tailscale",
         _ => return None,
     })
 }

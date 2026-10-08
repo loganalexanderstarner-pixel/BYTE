@@ -920,21 +920,23 @@ async fn live_pc_the_checkup_of_this_pc() {
 
 // ------------------------------------------------------- what starts with Windows
 
-/// What the startup list printed on the real PC (the user name changed), one entry per line, tab-separated.
+/// A startup list in the shapes a real PC prints (invented apps, user name "ada"), one entry per line, tab-separated:
+/// quoted and unquoted commands, a long id after an underscore, a dotted name ending in a digit, an app that starts through
+/// its updater, Windows' and a driver's helpers, machine-wide entries, and Startup-folder shortcuts.
 const PC_STARTUP: &str = "user\trun\tOneDrive\t\"C:\\Program Files\\Microsoft OneDrive\\OneDrive.exe\" /background\t0
 user\trun\tSteam\t\"C:\\Program Files (x86)\\Steam\\steam.exe\" -silent\t0
 user\trun\tDiscord\t\"C:\\Users\\ada\\AppData\\Local\\Discord\\Update.exe\" --processStart Discord.exe\t0
-user\trun\tEADM\t\"C:\\Program Files\\Electronic Arts\\EA Desktop\\EA Desktop\\EALauncher.exe\" -silentOs\t0
-user\trun\telectron.app.CurseForge\tC:\\Users\\ada\\AppData\\Local\\Programs\\CurseForge Windows\\CurseForge.exe --minimized\t0
-user\trun\tUnified Remote V3\t\"C:\\Program Files (x86)\\Unified Remote 3\\RemoteServerWin.exe\"\t1
-user\trun\tParsec.App.0\tC:\\Program Files\\Parsec\\parsecd.exe app_silent=1\t1
-user\trun\tMicrosoftEdgeAutoLaunch_A1306234171FE4BFED863ECABC261099\t\"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe\" --no-startup-window --win-session-start\t0
+user\trun\tGameHub\t\"C:\\Program Files\\Game Hub\\GameHubLauncher.exe\" -silent\t0
+user\trun\telectron.app.Sketchpad\tC:\\Users\\ada\\AppData\\Local\\Programs\\Sketchpad Desktop\\Sketchpad.exe --minimized\t0
+user\trun\tPhoto Sync V2\t\"C:\\Program Files (x86)\\Photo Sync 2\\PhotoSyncServer.exe\"\t1
+user\trun\tSample.App.0\tC:\\Program Files\\Sample\\sampled.exe app_silent=1\t1
+user\trun\tMicrosoftEdgeAutoLaunch_0123456789ABCDEF0123456789ABCDEF\t\"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe\" --no-startup-window --win-session-start\t0
 machine\trun\tSecurityHealth\tC:\\WINDOWS\\system32\\SecurityHealthSystray.exe\t1
-machine\trun\tRtkAudUService\t\"C:\\WINDOWS\\System32\\DriverStore\\FileRepository\\realtekservice.inf_amd64_8f3e2cb35a0fd6a8\\RtkAudUService64.exe\" -background\t1
-machine\trun\tStartAUEP\t\"C:\\Program Files\\AMD\\Performance Profile Client\\AUEPMaster.exe\"\t1
-machine\trun\tCorsair iCUE5 Software\t\"C:\\Program Files\\Corsair\\Corsair iCUE5 Software\\iCUE Launcher.exe\" --autorun\t1
-user\tfolder\tOllama.lnk\tC:\\Users\\ada\\AppData\\Local\\Programs\\Ollama\\ollama app.exe\t0
-machine\tfolder\tTailscale.lnk\tC:\\Program Files\\Tailscale\\tailscale-ipn.exe\t1
+machine\trun\tRtkAudUService\t\"C:\\WINDOWS\\System32\\DriverStore\\FileRepository\\audioservice.inf_amd64_0123456789abcdef\\RtkAudUService64.exe\" -background\t1
+machine\trun\tStartGpuHelper\t\"C:\\Program Files\\Vendor\\GPU Helper\\GpuHelperMaster.exe\"\t1
+machine\trun\tKeyboard Lights Software\t\"C:\\Program Files\\Vendor\\Lights\\Lights Launcher.exe\" --autorun\t1
+user\tfolder\tNotes Sync.lnk\tC:\\Users\\ada\\AppData\\Local\\Programs\\Notes Sync\\notes sync.exe\t0
+machine\tfolder\tTunnel.lnk\tC:\\Program Files\\Tunnel\\tunnel-ipn.exe\t1
 ";
 
 #[test]
@@ -951,12 +953,12 @@ fn the_startup_list_is_read_named_and_matched() {
     let titles: Vec<String> = items.iter().map(startup_title).collect();
     assert_eq!(
         titles,
-        ["OneDrive", "Steam", "Discord", "EADM", "CurseForge", "Unified Remote V3", "Parsec", "Microsoft Edge", "SecurityHealth", "RtkAudUService", "StartAUEP", "Corsair iCUE5 Software", "Ollama", "Tailscale"]
+        ["OneDrive", "Steam", "Discord", "GameHub", "Sketchpad", "Photo Sync V2", "Sample", "Microsoft Edge", "SecurityHealth", "RtkAudUService", "StartGpuHelper", "Keyboard Lights Software", "Notes Sync", "Tunnel"]
     );
     for (cmd, exe) in [
         ("\"C:\\Program Files\\X\\x.exe\" -silent", "x.exe"),
-        ("C:\\Program Files\\Parsec\\parsecd.exe app_silent=1", "parsecd.exe"),
-        ("C:\\Users\\ada\\AppData\\Local\\Programs\\Ollama\\ollama app.exe", "ollama app.exe"),
+        ("C:\\Program Files\\Sample\\sampled.exe app_silent=1", "sampled.exe"),
+        ("C:\\Users\\ada\\AppData\\Local\\Programs\\Notes Sync\\notes sync.exe", "notes sync.exe"),
         ("\"C:\\a b\\Tool.EXE\"", "Tool.EXE"),
         ("cmd /c start notepad", "cmd"),
         ("", ""),
@@ -966,11 +968,11 @@ fn the_startup_list_is_read_named_and_matched() {
     let find = |w: &str| match_startup(&items, w).map(|i| i.name.clone());
     assert_eq!(find("discord").as_deref(), Some("Discord"));
     assert_eq!(find("Discord").as_deref(), Some("Discord"));
-    assert_eq!(find("edge").as_deref(), Some("MicrosoftEdgeAutoLaunch_A1306234171FE4BFED863ECABC261099"));
-    assert_eq!(find("parsec").as_deref(), Some("Parsec.App.0"));
-    assert_eq!(find("curseforge").as_deref(), Some("electron.app.CurseForge"));
-    assert_eq!(find("ollama").as_deref(), Some("Ollama.lnk"));
-    assert_eq!(find("icue").as_deref(), Some("Corsair iCUE5 Software"));
+    assert_eq!(find("edge").as_deref(), Some("MicrosoftEdgeAutoLaunch_0123456789ABCDEF0123456789ABCDEF"));
+    assert_eq!(find("sample").as_deref(), Some("Sample.App.0"));
+    assert_eq!(find("sketchpad").as_deref(), Some("electron.app.Sketchpad"));
+    assert_eq!(find("notes sync").as_deref(), Some("Notes Sync.lnk"));
+    assert_eq!(find("lights").as_deref(), Some("Keyboard Lights Software"));
     assert_eq!(find("onedrive").as_deref(), Some("OneDrive"));
     assert_eq!(find("photoshop"), None);
     assert_eq!(find("x"), None, "one letter matches everything");
@@ -978,7 +980,7 @@ fn the_startup_list_is_read_named_and_matched() {
     // Windows and the drivers' entries, and BYTE's own, are never offered.
     let why = |n: &str| protected_startup(items.iter().find(|i| i.name == n).unwrap());
     assert!(why("SecurityHealth").is_some() && why("RtkAudUService").is_some());
-    for n in ["Discord", "Corsair iCUE5 Software", "Parsec.App.0"] {
+    for n in ["Discord", "Keyboard Lights Software", "Sample.App.0"] {
         assert!(why(n).is_none(), "{n}");
     }
     let own = StartupItem { scope: "user".into(), kind: "run".into(), name: "BYTE".into(), command: "\"C:\\Users\\ada\\AppData\\Local\\BYTE\\byte.exe\" --hidden".into(), on: true };
@@ -994,7 +996,7 @@ fn pc_phrases_for_startup_apps_are_understood() {
         ("stop Spotify from opening at startup", "spotify"),
         ("stop discord from starting with windows", "discord"),
         ("don't launch steam when windows starts", "steam"),
-        ("disable parsec at startup", "parsec"),
+        ("disable sample at startup", "sample"),
     ] {
         assert_eq!(ask(q), Some(Ask::LoginRemove { name: name.into() }), "{q}");
     }
@@ -1013,12 +1015,12 @@ async fn the_pc_startup_card_lists_what_opens_and_what_is_off() {
     let first_off = card.checks.iter().position(|c| c.value.starts_with("Off")).unwrap();
     assert!(card.checks[..first_off].iter().all(|c| c.value.starts_with("Opens at startup")), "open ones first");
     let get = |l: &str| card.checks.iter().find(|c| c.label == l).unwrap();
-    assert!(get("Parsec").value.contains("parsecd.exe") && get("Corsair iCUE5 Software").value.contains("for everyone"));
+    assert!(get("Sample").value.contains("sampled.exe") && get("Keyboard Lights Software").value.contains("for everyone"));
     assert!(get("Discord").value.starts_with("Off"));
     assert!(get("SecurityHealth").tip.contains("leaves this one alone"));
     assert!(get("Change these").settings.as_deref().unwrap().starts_with("ms-settings:"));
     let notes = out.unwrap().1;
-    assert!(notes.contains("Open when Windows starts: ") && notes.contains("Parsec") && notes.contains("Turned off already: ") && notes.contains("Discord"), "{notes}");
+    assert!(notes.contains("Open when Windows starts: ") && notes.contains("Sample") && notes.contains("Turned off already: ") && notes.contains("Discord"), "{notes}");
     assert!(!notes.contains("login") && !notes.contains("Mac"), "{notes}");
     let ran = f.ran.lock().unwrap().clone();
     assert_eq!(ran, vec![Command::Win(WinOp::StartupList)], "looking changes nothing");
@@ -1030,25 +1032,25 @@ async fn turning_off_a_startup_app_asks_first_and_can_be_undone() {
     let f = PcFake::default();
     f.startup.lock().unwrap().replace(PC_STARTUP.into());
     // Saying no changes nothing.
-    let (out, ev) = flow("stop parsec from opening at startup", &f, d.path(), Some(false)).await;
+    let (out, ev) = flow("stop sample from opening at startup", &f, d.path(), Some(false)).await;
     assert!(ev.iter().any(|e| matches!(e, ChatEvent::Approval(_))));
     assert!(!f.ran.lock().unwrap().iter().any(|c| matches!(c, Command::Win(WinOp::StartupSet { .. }))));
     assert!(out.unwrap().1.contains("Nothing changed"));
     // Yes turns that one entry off, by the name Windows keeps it under, and Undo turns it back on.
-    let (out, ev) = flow("stop parsec from opening at startup", &f, d.path(), Some(true)).await;
-    let set = Command::Win(WinOp::StartupSet { kind: "run".into(), name: "Parsec.App.0".into(), on: false });
+    let (out, ev) = flow("stop sample from opening at startup", &f, d.path(), Some(true)).await;
+    let set = Command::Win(WinOp::StartupSet { kind: "run".into(), name: "Sample.App.0".into(), on: false });
     assert!(f.ran.lock().unwrap().contains(&set));
     let done = ev.iter().find_map(|e| if let ChatEvent::MacDone(m) = e { Some(m.clone()) } else { None }).expect("a done card");
-    assert!(done.ok && done.title.contains("Parsec") && done.title.contains("Windows starts"), "{done:?}");
+    assert!(done.ok && done.title.contains("Sample") && done.title.contains("Windows starts"), "{done:?}");
     let notes = out.unwrap().1;
     assert!(notes.contains("no longer opens when Windows starts") && !notes.contains("login"), "{notes}");
     match macctl::undo_step(&done.undo.expect("an undo token")) {
-        Some(macctl::Undo::Cmd(Command::Win(WinOp::StartupSet { kind, name, on }))) => assert_eq!((kind.as_str(), name.as_str(), on), ("run", "Parsec.App.0", true)),
+        Some(macctl::Undo::Cmd(Command::Win(WinOp::StartupSet { kind, name, on }))) => assert_eq!((kind.as_str(), name.as_str(), on), ("run", "Sample.App.0", true)),
         other => panic!("undo should turn it back on, got {other:?}"),
     }
-    // A folder shortcut is switched the same way, under its own kind.
-    let (_, _) = flow("stop corsair icue from opening at startup", &f, d.path(), Some(true)).await;
-    assert!(f.ran.lock().unwrap().contains(&Command::Win(WinOp::StartupSet { kind: "run".into(), name: "Corsair iCUE5 Software".into(), on: false })));
+    // A Startup-folder shortcut is switched the same way, under its own kind and its file name.
+    let (_, _) = flow("stop tunnel from opening at startup", &f, d.path(), Some(true)).await;
+    assert!(f.ran.lock().unwrap().contains(&Command::Win(WinOp::StartupSet { kind: "folder".into(), name: "Tunnel.lnk".into(), on: false })));
 }
 
 #[tokio::test]
