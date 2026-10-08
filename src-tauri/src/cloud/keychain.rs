@@ -140,6 +140,18 @@ mod linux_tests {
         assert_eq!(store.get(account).unwrap(), None);
     }
 
+    /// The app calls the secret store from async code. With the wrong runtime feature the keyring panicked here
+    /// ("Cannot start a runtime from within a runtime"), which a release build turns into an abort of the whole app.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[ignore = "needs a running Secret Service, like secret_service_round_trips"]
+    async fn the_keyring_works_from_inside_the_async_runtime() {
+        let store = Keychain;
+        store.set("byte-test-async", "byte_test_not_a_real_key").unwrap();
+        assert_eq!(store.get("byte-test-async").unwrap().as_deref(), Some("byte_test_not_a_real_key"));
+        store.delete("byte-test-async").unwrap();
+        assert_eq!(store.get("byte-test-async").unwrap(), None);
+    }
+
     #[test]
     fn a_missing_keyring_says_what_to_install() {
         let e = keyring::Error::NoStorageAccess("no secret service".into());

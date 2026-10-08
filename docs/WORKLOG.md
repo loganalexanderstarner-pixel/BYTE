@@ -308,6 +308,14 @@ how every item below was found; none of them showed in a test.
   (Secret Service over D-Bus, `keyring` with the pure-Rust zbus backend, so no libdbus is needed at run time); with none
   running the error says to install GNOME Keyring or KDE Wallet. Tested for real against GNOME Keyring in a desktop-style
   session (create the login keyring, save, read, replace, delete): `cargo test --lib secret_service_round_trips -- --ignored`.
+  **Packaging:** `tauri.linux.conf.json` (a .deb and an AppImage; the package depends on WebKitGTK, GTK and the tray library
+  and recommends Vulkan and a keyring) and `tauri.linux-release.conf.json` (the six sidecars). A debug .deb was built here
+  (`npm run tauri build -- --debug --bundles deb --config src-tauri/tauri.linux-release.conf.json`), unpacked and run: the app,
+  the three engine variants and the icon land in `usr/bin` and the app starts, finds its saved chat and loads the model.
+  **A crash found by running the package:** the keyring's `tokio` feature blocks on the app's own tokio runtime, which panics
+  ("Cannot start a runtime from within a runtime"); a release build is `panic = "abort"`, so it would have killed the whole app
+  at startup. Fixed by using the `async-io` feature. The test `the_keyring_works_from_inside_the_async_runtime` fails with the
+  old setting (checked) and passes with the new one.
   **Shared GPU (a real bug found on this machine, where the cluster's own engine holds 10 of 16 GB):** the budget came from the
   card's total memory, so a model that did not fit what was free failed to start and the retries could not know why.
   `SystemInfo::with_free_vram` plans a LOAD from the memory free now (NVIDIA through `nvidia-smi`, AMD through sysfs), adding

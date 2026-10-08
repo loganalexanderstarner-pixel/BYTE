@@ -95,8 +95,10 @@ cpal = "0.18"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Secrets live in the desktop's keyring (GNOME Keyring, KDE Wallet) through the Secret Service on D-Bus. zbus is pure Rust,
-# so the machine needs no libdbus; the tokio runtime is the one the app already has.
-keyring = { version = "3", features = ["async-secret-service", "tokio", "crypto-rust"] }
+# so the machine needs no libdbus. The async-io runtime, NOT tokio: with the tokio feature the keyring blocks on the app's own
+# tokio runtime when it is called from async code, which panics ("Cannot start a runtime from within a runtime"), and a release
+# build turns that panic into an abort of the whole app. async-io's blocking is safe from any thread.
+keyring = { version = "3", features = ["async-secret-service", "async-io", "crypto-rust"] }
 
 [target.'cfg(windows)'.dependencies]
 # Secrets (the cloud key, connector tokens) live in Windows Credential Manager, never in files.
