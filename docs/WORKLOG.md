@@ -287,6 +287,29 @@ how every item below was found; none of them showed in a test.
 - **Trap:** on the PC, `cargo test` rebuilds OpenSSL when RUSTFLAGS differ, which
   needs Strawberry Perl on PATH. Use `scripts/windows-dev.bat`'s PATH.
 
+### 2026-10-08: PC upkeep, fourth slice: "uninstall X" on Windows
+- **Why:** the last of the Mac's upkeep questions that answered "can't yet" on a PC.
+- **What:** `WinOp::Programs` lists what is installed (the Uninstall keys of this user, the PC and the 32-bit view, without
+  Windows components, updates and sub-entries, plus Microsoft Store apps that can be removed); `WinOp::Uninstall { id }` runs
+  the program's own registered uninstaller, found again by `id` in the registry at that moment: the command is never taken
+  from the list, from the model or from anything a person wrote, the id goes to the script in a file, and only ids the list
+  prints are accepted (`program_id_ok`: `reg|HKCU|<key name>`, `HKLM`, `HKLM32`, or `appx|<package full name>`; no path
+  characters, quotes, line breaks). Windows Installer's "change" command is turned into "remove", as Settings does; the
+  uninstaller runs in a normal window so its own prompts and Windows' permission prompt show; BYTE waits up to 15 s and
+  says `removed` if the entry is gone, `started` if the wizard is still open. A Store app is removed for this user.
+  Unlike the Mac there is no Trash to put it back from, so the approval card says first, in plain words, that Undo isn't
+  possible and how to get the program back, and the done card has no Undo button. BYTE refuses (and says why) Windows'
+  parts, runtimes (Visual C++, .NET, WebView2, DirectX), drivers and hardware software, the user's antivirus, and BYTE itself;
+  two matches means it asks which. With this, no upkeep question answers "can't yet" on a PC, so that guard is gone.
+- **Verify:** Linux: 614 tests (new: the list parser, titles, matching including exact-beats-contains, the refusals, the id
+  gate with 20 bad ids, the whole flow: no, yes, a wizard still open, a Store app, ambiguous / missing / system programs /
+  a failing uninstaller / a PC that cannot list). On the real PC: `live_pc_programs_are_listed` reads the real list;
+  `live_pc_uninstall_runs_the_registered_uninstaller` adds a fake program of its own to the registry whose "uninstaller" removes its
+  own entry, runs it through `WinOp::Uninstall` and sees `removed`, then checks that bad ids are refused. No real program is
+  ever uninstalled by a test.
+- **Not done:** removing a program's leftovers in AppData (BYTE does not look inside AppData), file tidying (`filectl`).
+- **Undo:** `git revert`; the Mac path is unchanged.
+
 ### 2026-10-08: PC upkeep, third slice: "what opens at startup?" and "stop X from opening at startup" on Windows
 - **Why:** login items were Mac-only; on a PC those questions answered "can't yet".
 - **What:** `WinOp::StartupList` reads what starts with Windows (the user's and the machine's Run keys, the 32-bit Run key, both

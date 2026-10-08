@@ -61,6 +61,27 @@ pub enum WinOp {
     /// Turns one entry on or off the way Task Manager's Startup tab does (Windows' own "approved" flag, for this user): the
     /// entry itself, the program and its files stay as they are. `kind` and `name` are as `StartupList` printed them.
     StartupSet { kind: String, name: String, on: bool },
+    /// The programs installed for this user or the whole PC, read-only, tab-separated: `source` (`reg` or `appx`), `id`, `name`,
+    /// `version`, `publisher`, `size in KB` (0 when unknown). Windows components, updates and drivers' sub-entries are left out.
+    Programs,
+    /// Runs one listed program's own uninstaller, found again by its `id` (never a command from anywhere else). A Microsoft Store
+    /// app is removed for this user. Prints `removed` when the program is gone, `started` when its uninstaller is still working.
+    Uninstall { id: String },
+}
+
+/// Whether `id` is one that `WinOp::Programs` prints: a registry entry (`reg|HKCU|<key name>`, also `HKLM` and `HKLM32` for the
+/// 32-bit view) or a Store package (`appx|<full package name>`). Nothing else is ever handed to the uninstall script.
+pub fn program_id_ok(id: &str) -> bool {
+    let plain = |s: &str, extra: &[char]| !s.is_empty() && s.len() <= 200 && s.chars().all(|c| c.is_alphanumeric() || extra.contains(&c));
+    let mut parts = id.splitn(3, '|');
+    match (parts.next(), parts.next(), parts.next()) {
+        (Some("reg"), Some("HKCU" | "HKLM" | "HKLM32"), Some(key)) => {
+            // Key names are what installers chose: GUIDs in braces, product names with spaces, dots and dashes. Never a path.
+            !key.is_empty() && key.len() <= 200 && !key.contains(['\\', '/', '|', '"', '\n', '\r', '\t']) && key.chars().all(|c| !c.is_control())
+        }
+        (Some("appx"), Some(full), None) => plain(full, &['.', '_', '-', '~']),
+        _ => false,
+    }
 }
 
 /// The operation that does `action` on a PC, when Windows can do it from here.
@@ -431,6 +452,8 @@ mod win {
             WinOp::Quit(name) => quit(name),
             WinOp::StartupList => startup_list(),
             WinOp::StartupSet { kind, name, on } => startup_set(kind, name, *on),
+            WinOp::Programs => programs(),
+            WinOp::Uninstall { id } => uninstall(id),
         }
     }
 
@@ -623,6 +646,81 @@ Write-Output ($l[2])
         let wish = dir.join(format!("startup-{}.txt", uuid::Uuid::new_v4().simple()));
         std::fs::write(&wish, format!("{kind}\n{name}\n{}", u8::from(on))).map_err(|e| RunError::Failed(e.to_string()))?;
         let out = run_script("startup-set.ps1", SCRIPT, &[&wish]);
+        let _ = std::fs::remove_file(&wish);
+        out
+    }
+
+    fn programs() -> Result<String, RunError> {
+        const SCRIPT: &str = r#"$ErrorActionPreference = 'SilentlyContinue'
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+function Clean($s) { ([string]$s) -replace "[\t\r\n|]+", ' ' }
+$roots = @(
+  @{ hive = 'HKCU';   path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' },
+  @{ hive = 'HKLM';   path = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall' },
+  @{ hive = 'HKLM32'; path = 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall' }
+)
+foreach ($r in $roots) {
+  foreach ($k in (Get-ChildItem -LiteralPath $r.path)) {
+    $p = Get-ItemProperty -LiteralPath $k.PSPath
+    if (-not $p.DisplayName) { continue }
+    if ($p.SystemComponent -eq 1) { continue }
+    if ($p.ParentKeyName -or $p.ParentDisplayName) { continue }
+    if (-not ($p.UninstallString -or $p.QuietUninstallString)) { continue }
+    if ($k.PSChildName -match '[\\/|"]') { continue }
+    "reg`treg|$($r.hive)|$($k.PSChildName)`t$(Clean $p.DisplayName)`t$(Clean $p.DisplayVersion)`t$(Clean $p.Publisher)`t$([int64]$p.EstimatedSize)"
+  }
+}
+foreach ($a in (Get-AppxPackage)) {
+  if ($a.IsFramework -or $a.NonRemovable -or $a.SignatureKind -eq 'System' -or -not $a.InstallLocation) { continue }
+  "appx`tappx|$($a.PackageFullName)`t$(Clean $a.Name)`t$(Clean $a.Version)`t$(Clean $a.Publisher)`t0"
+}
+"#;
+        run_script("programs.ps1", SCRIPT, &[])
+    }
+
+    /// Runs the uninstaller a program registered, found again by its id: the command is read from the registry here, never
+    /// taken from the list or from anything a person wrote. A Store app is removed for this user. The id goes to the script in
+    /// a file, and only an id `program_id_ok` accepts.
+    fn uninstall(id: &str) -> Result<String, RunError> {
+        const SCRIPT: &str = r#"param([string]$Wish)
+$id = (Get-Content -LiteralPath $Wish -Encoding UTF8 | Select-Object -First 1)
+if ($id -match '^appx\|([A-Za-z0-9_.~-]+)$') {
+  Remove-AppxPackage -Package $Matches[1] -ErrorAction Stop
+  Write-Output 'removed'
+  exit 0
+}
+if ($id -notmatch '^reg\|(HKCU|HKLM|HKLM32)\|([^\\/|"]+)$') { [Console]::Error.WriteLine('That program can''t be uninstalled from here.'); exit 2 }
+$root = switch ($Matches[1]) {
+  'HKCU' { 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' }
+  'HKLM' { 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall' }
+  default { 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall' }
+}
+$key = Join-Path $root $Matches[2]
+$p = Get-ItemProperty -LiteralPath $key -ErrorAction SilentlyContinue
+if (-not $p -or -not $p.DisplayName -or $p.SystemComponent -eq 1) { [Console]::Error.WriteLine('That program isn''t installed any more.'); exit 3 }
+$cmd = if ($p.UninstallString) { [string]$p.UninstallString } else { [string]$p.QuietUninstallString }
+# Windows Installer entries often say /I (change); uninstalling is /X, as Settings does.
+$cmd = $cmd -replace '(?i)^(\s*"?(?:[^"]*\\)?msiexec(?:\.exe)?"?\s+)/I', '$1/X'
+if ($cmd -match '^\s*"([^"]+)"\s*(.*)$') { $exe = $Matches[1]; $rest = $Matches[2] }
+elseif ($cmd -match '^\s*(.+?\.exe)(?:\s+(.*))?$') { $exe = $Matches[1]; $rest = $Matches[2] }
+else { [Console]::Error.WriteLine('This program''s uninstaller can''t be started from here.'); exit 4 }
+if (-not ($exe -match '(?i)^msiexec(\.exe)?$') -and -not (Test-Path -LiteralPath $exe -PathType Leaf)) { [Console]::Error.WriteLine('The uninstaller isn''t where the program said it was.'); exit 5 }
+if ($rest) { Start-Process -FilePath $exe -ArgumentList $rest } else { Start-Process -FilePath $exe }
+# A quick uninstaller finishes at once; a wizard waits for the person.
+for ($i = 0; $i -lt 30; $i++) {
+  Start-Sleep -Milliseconds 500
+  if (-not (Test-Path -LiteralPath $key)) { Write-Output 'removed'; exit 0 }
+}
+Write-Output 'started'
+"#;
+        if !program_id_ok(id) {
+            return Err(RunError::Failed("That program can't be uninstalled from here.".into()));
+        }
+        let dir = std::env::temp_dir().join("BYTE-upkeep");
+        std::fs::create_dir_all(&dir).map_err(|e| RunError::Failed(e.to_string()))?;
+        let wish = dir.join(format!("uninstall-{}.txt", uuid::Uuid::new_v4().simple()));
+        std::fs::write(&wish, id).map_err(|e| RunError::Failed(e.to_string()))?;
+        let out = run_script("uninstall.ps1", SCRIPT, &[&wish]);
         let _ = std::fs::remove_file(&wish);
         out
     }
@@ -1096,6 +1194,55 @@ mod live {
         assert!(run_op(&WinOp::StartupSet { kind: "task".into(), name: "x".into(), on: false }).is_err());
         assert!(run_op(&WinOp::StartupSet { kind: "run".into(), name: "".into(), on: false }).is_err());
         assert!(run_op(&WinOp::StartupSet { kind: "run".into(), name: "a\nb".into(), on: false }).is_err());
+    }
+
+    #[test]
+    #[ignore = "reads the real list of installed programs"]
+    fn live_pc_programs_are_listed() {
+        let out = run_op(&WinOp::Programs).expect("the programs can be listed");
+        let rows: Vec<Vec<&str>> = out.lines().map(|l| l.split('\t').collect()).collect();
+        println!("{} programs; the first 12:", rows.len());
+        for r in rows.iter().take(12) {
+            println!("  {r:?}");
+        }
+        assert!(rows.len() >= 5, "a PC has programs");
+        for r in &rows {
+            assert_eq!(r.len(), 6, "six fields: {r:?}");
+            assert!(program_id_ok(r[1]), "an id the uninstall accepts: {:?}", r[1]);
+            assert!(!r[2].is_empty());
+        }
+    }
+
+    #[test]
+    #[ignore = "adds a program of its own to the registry, uninstalls it through the flow's operation, and makes sure it is gone"]
+    fn live_pc_uninstall_runs_the_registered_uninstaller() {
+        const KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\BYTE live test program";
+        struct Cleanup;
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::process::Command::new("reg").args(["delete", KEY, "/f"]).output();
+            }
+        }
+        let _cleanup = Cleanup;
+        let reg = |args: &[&str]| assert!(std::process::Command::new("reg").args(args).output().unwrap().status.success(), "reg {args:?}");
+        reg(&["add", KEY, "/v", "DisplayName", "/t", "REG_SZ", "/d", "BYTE live test program", "/f"]);
+        reg(&["add", KEY, "/v", "DisplayVersion", "/t", "REG_SZ", "/d", "1.2.3", "/f"]);
+        // The "uninstaller" is a command that removes the program's own entry, like a real one at the end.
+        let command = format!(r#""C:\Windows\System32\cmd.exe" /c reg delete "{KEY}" /f"#);
+        reg(&["add", KEY, "/v", "UninstallString", "/t", "REG_SZ", "/d", &command, "/f"]);
+        let listed = run_op(&WinOp::Programs).unwrap();
+        let line = listed.lines().find(|l| l.contains("BYTE live test program")).expect("the program is listed");
+        println!("listed as {line:?}");
+        let f: Vec<&str> = line.split('\t').collect();
+        assert_eq!((f[0], f[1], f[3]), ("reg", "reg|HKCU|BYTE live test program", "1.2.3"), "{line:?}");
+        assert_eq!(run_op(&WinOp::Uninstall { id: f[1].into() }).unwrap(), "removed");
+        assert!(!run_op(&WinOp::Programs).unwrap().contains("BYTE live test program"), "it is gone from the list");
+        // Gone is gone: asking again is an error, not a success.
+        assert!(run_op(&WinOp::Uninstall { id: f[1].into() }).is_err());
+        // Only ids the list prints are accepted.
+        for bad in ["", "reg|HKCU|a\\b", "reg|HKCR|x", "reg|HKCU|", "appx|a b", "cmd /c calc", "reg|HKLM|..\\..\\x", "appx|x|y"] {
+            assert!(run_op(&WinOp::Uninstall { id: bad.into() }).is_err(), "{bad:?}");
+        }
     }
 
     #[test]

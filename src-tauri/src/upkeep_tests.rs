@@ -512,6 +512,9 @@ struct PcFake {
     security: StdMutex<Option<String>>,
     /// What the startup list prints.
     startup: StdMutex<Option<String>>,
+    /// What the installed-programs list prints, and what an uninstall prints (`removed` when unset).
+    programs: StdMutex<Option<String>>,
+    uninstalled: StdMutex<Option<Result<String, RunError>>>,
 }
 
 impl Runner for PcFake {
@@ -528,6 +531,8 @@ impl Runner for PcFake {
             Command::Win(WinOp::Security) => self.security.lock().unwrap().clone().ok_or(RunError::Missing),
             Command::Win(WinOp::StartupList) => self.startup.lock().unwrap().clone().ok_or(RunError::Missing),
             Command::Win(WinOp::StartupSet { on, .. }) => Ok(u8::from(*on).to_string()),
+            Command::Win(WinOp::Programs) => self.programs.lock().unwrap().clone().ok_or(RunError::Missing),
+            Command::Win(WinOp::Uninstall { .. }) => self.uninstalled.lock().unwrap().clone().unwrap_or_else(|| Ok("removed".into())),
             _ => Err(RunError::Missing),
         };
         Box::pin(async move { r })
@@ -691,18 +696,6 @@ async fn a_pc_storage_question_shows_the_card_and_remembers_what_may_go() {
     assert!(!notes.contains("Mac") && !notes.contains("Trash") && !notes.contains("Finder"), "{notes}");
     assert_eq!(take_allowed(&card.scan_id, "installers"), Some(vec![old]));
     assert!(fake.ran.lock().unwrap().is_empty(), "looking changes nothing and asks the system for nothing");
-}
-
-#[tokio::test]
-async fn the_rest_of_pc_upkeep_is_said_not_pretended() {
-    let d = tempfile::tempdir().unwrap();
-    for q in ["uninstall Zoom"] {
-        let fake = PcFake::default();
-        let (out, ev) = flow(q, &fake, d.path(), None).await;
-        assert!(fake.ran.lock().unwrap().is_empty(), "{q}: nothing ran");
-        assert!(!ev.iter().any(|e| matches!(e, ChatEvent::Health(_) | ChatEvent::Storage(_))), "{q}: no card");
-        assert!(out.unwrap().1.contains("can't yet"), "{q}");
-    }
 }
 
 #[tokio::test]
@@ -1089,4 +1082,129 @@ async fn live_pc_the_startup_card_of_this_pc() {
     }
     println!("--- notes:\n{}", out.unwrap().1);
     assert!(card.checks.len() >= 2 && card.checks.last().unwrap().label == "Change these");
+}
+
+// ------------------------------------------------------- uninstalling on a PC
+
+/// The installed programs in the shapes a PC prints them (invented programs): a GUID-keyed installer entry, a 32-bit entry, a
+/// per-user entry, a runtime, a driver, BYTE, and two Store apps (one of them a part of Windows).
+const PC_PROGRAMS: &str = "reg\treg|HKLM|{8A69D345-D564-463C-AFF1-A69D9E530F96}\tFotoMaker\t4.2.1\tNorthwind Software\t512000
+reg\treg|HKLM32|Zipper\tZipper Archive Manager\t3.0\tContoso\t20480
+reg\treg|HKCU|Fotoshare\tFotoshare\t1.0\tContoso\t0
+reg\treg|HKCU|Sketchpad\tSketchpad\t9.1.0\tSketchpad Inc\t310000
+reg\treg|HKLM|{11111111-2222-3333-4444-555555555555}\tMicrosoft Visual C++ 2015-2022 Redistributable (x64) - 14.38.33135\t14.38.33135.0\tMicrosoft Corporation\t24000
+reg\treg|HKLM|NVIDIA Graphics Driver 551.23\tNVIDIA Graphics Driver 551.23\t551.23\tNVIDIA Corporation\t0
+reg\treg|HKCU|BYTE\tBYTE\t0.12.6\tBYTE\t200000
+reg\treg|HKLM|Contoso AntiVirus\tContoso AntiVirus\t7.0\tContoso\t0
+appx\tappx|Clipchamp.Clipchamp_3.1.8.0_x64__yxz26nhyzhsrt\tClipchamp.Clipchamp\t3.1.8.0\tCN=Contoso\t0
+appx\tappx|Microsoft.WindowsStore_22401.1400.5.0_x64__8wekyb3d8bbwe\tMicrosoft.WindowsStore\t22401.1400.5.0\tCN=Contoso\t0
+";
+
+#[test]
+fn installed_programs_are_read_named_matched_and_the_system_ones_refused() {
+    let items = parse_programs(PC_PROGRAMS);
+    assert_eq!(items.len(), 10);
+    assert_eq!((items[0].source.as_str(), items[0].id.as_str(), items[0].size_kb), ("reg", "reg|HKLM|{8A69D345-D564-463C-AFF1-A69D9E530F96}", 512_000));
+    // Bad lines are skipped: a wrong id, a wrong number of fields, no name; the same program twice is one.
+    let bad = "reg\treg|HKCR|x\tNope\t1\tp\t0\nreg\treg|HKCU|a\\b\tNope\t1\tp\t0\nreg\treg|HKCU|x\t\t1\tp\t0\nreg\treg|HKCU|x\tShort\nrun\treg|HKCU|y\tNope\t1\tp\t0\n";
+    assert!(parse_programs(bad).is_empty());
+    let twice = "reg\treg|HKLM|a\tTwice\t1.0\tp\t5\nreg\treg|HKLM32|a\tTwice\t1.0\tp\t5\nreg\treg|HKLM32|b\tTwice\t2.0\tp\t5\n";
+    assert_eq!(parse_programs(twice).len(), 2, "the same name and version once; another version is another program");
+
+    let title = |name: &str| program_title(&items.iter().find(|p| p.name == name).unwrap().clone());
+    assert_eq!((title("Clipchamp.Clipchamp").as_str(), title("FotoMaker").as_str()), ("Clipchamp", "FotoMaker"));
+    let names = |w: &str| match_programs(&items, w).iter().map(|p| program_title(p)).collect::<Vec<_>>();
+    assert_eq!(names("fotomaker"), ["FotoMaker"]);
+    assert_eq!(names("Zipper"), ["Zipper Archive Manager"]);
+    assert_eq!(names("foto"), ["FotoMaker", "Fotoshare"], "two matches: BYTE asks which");
+    assert_eq!(names("fotoshare"), ["Fotoshare"], "an exact name beats a longer one that contains it");
+    assert_eq!(names("clipchamp"), ["Clipchamp"]);
+    assert!(names("photoshop").is_empty() && names("x").is_empty());
+
+    let why = |n: &str| refuse_program(items.iter().find(|p| p.name == n).unwrap());
+    for n in ["Microsoft Visual C++ 2015-2022 Redistributable (x64) - 14.38.33135", "NVIDIA Graphics Driver 551.23", "BYTE", "Contoso AntiVirus", "Microsoft.WindowsStore"] {
+        assert!(why(n).is_some(), "{n}");
+    }
+    for n in ["FotoMaker", "Zipper Archive Manager", "Sketchpad", "Clipchamp.Clipchamp"] {
+        assert_eq!(why(n), None, "{n}");
+    }
+}
+
+#[tokio::test]
+async fn uninstalling_on_a_pc_asks_first_says_it_cannot_be_undone_and_runs_the_registered_uninstaller() {
+    let d = tempfile::tempdir().unwrap();
+    let f = PcFake::default();
+    f.programs.lock().unwrap().replace(PC_PROGRAMS.into());
+    // No: nothing runs.
+    let (out, ev) = flow("uninstall FotoMaker", &f, d.path(), Some(false)).await;
+    let ask = ev.iter().find_map(|e| if let ChatEvent::Approval(a) = e { Some(a.clone()) } else { None }).expect("asked first");
+    let text = ask.fields.iter().map(|x| format!("{}: {}", x.label, x.value)).collect::<Vec<_>>().join("\n");
+    assert!(text.contains("FotoMaker 4.2.1") && text.contains("Northwind Software") && text.contains(&size_text(512_000 * 1024)), "{text}");
+    assert!(text.contains("Undo isn't possible") && text.contains("own uninstaller"), "{text}");
+    assert!(!f.ran.lock().unwrap().iter().any(|c| matches!(c, Command::Win(WinOp::Uninstall { .. }))));
+    assert!(out.unwrap().1.contains("Nothing was removed"));
+    // Yes: the program's id goes to the uninstaller, and there is no Undo button.
+    let (out, ev) = flow("uninstall FotoMaker", &f, d.path(), Some(true)).await;
+    assert!(f.ran.lock().unwrap().contains(&Command::Win(WinOp::Uninstall { id: "reg|HKLM|{8A69D345-D564-463C-AFF1-A69D9E530F96}".into() })));
+    let done = ev.iter().find_map(|e| if let ChatEvent::MacDone(m) = e { Some(m.clone()) } else { None }).expect("a done card");
+    assert!(done.ok && done.undo.is_none() && done.title == "Uninstalled FotoMaker", "{done:?}");
+    let notes = out.unwrap().1;
+    assert!(notes.contains("is uninstalled") && notes.contains("can't be undone"), "{notes}");
+    assert!(!notes.contains("Trash") && !notes.contains("Mac"), "{notes}");
+    // An uninstaller still open (a wizard) is reported as started, not as done.
+    f.uninstalled.lock().unwrap().replace(Ok("started".into()));
+    let (out, ev) = flow("uninstall zipper", &f, d.path(), Some(true)).await;
+    let done = ev.iter().find_map(|e| if let ChatEvent::MacDone(m) = e { Some(m.clone()) } else { None }).unwrap();
+    assert!(done.title.starts_with("Started the uninstaller") && done.undo.is_none(), "{done:?}");
+    assert!(out.unwrap().1.contains("follow its window"));
+    // A Store app is removed for the user, and says so.
+    f.uninstalled.lock().unwrap().take();
+    let (_, ev) = flow("uninstall clipchamp", &f, d.path(), Some(true)).await;
+    let ask = ev.iter().find_map(|e| if let ChatEvent::Approval(a) = e { Some(a.clone()) } else { None }).unwrap();
+    assert!(ask.fields.iter().any(|x| x.value.contains("Microsoft Store app is removed for your account")));
+    assert!(f.ran.lock().unwrap().contains(&Command::Win(WinOp::Uninstall { id: "appx|Clipchamp.Clipchamp_3.1.8.0_x64__yxz26nhyzhsrt".into() })));
+}
+
+#[tokio::test]
+async fn pc_programs_that_are_ambiguous_missing_or_part_of_windows_are_not_uninstalled() {
+    let d = tempfile::tempdir().unwrap();
+    let f = PcFake::default();
+    f.programs.lock().unwrap().replace(PC_PROGRAMS.into());
+    for (q, says) in [
+        ("uninstall foto", "Several programs match"),
+        ("uninstall photoshop", "no program called"),
+        ("uninstall the nvidia graphics driver", "won't uninstall"),
+        ("uninstall visual c++", "won't uninstall"),
+        ("uninstall BYTE", "BYTE itself"),
+        ("uninstall contoso antivirus", "protects this PC"),
+    ] {
+        let (out, ev) = flow(q, &f, d.path(), Some(true)).await;
+        assert!(!ev.iter().any(|e| matches!(e, ChatEvent::Approval(_))), "{q}: nothing to approve");
+        let said = out.unwrap().1;
+        assert!(said.contains(says), "{q}: {said}");
+    }
+    assert!(!f.ran.lock().unwrap().iter().any(|c| matches!(c, Command::Win(WinOp::Uninstall { .. }))));
+    // A failing uninstaller is reported, with no done card.
+    f.uninstalled.lock().unwrap().replace(Err(RunError::Failed("The uninstaller isn't where the program said it was.".into())));
+    let (out, ev) = flow("uninstall sketchpad", &f, d.path(), Some(true)).await;
+    assert!(!ev.iter().any(|e| matches!(e, ChatEvent::MacDone(_))));
+    assert!(out.unwrap().1.contains("couldn't uninstall Sketchpad"));
+    // A PC that cannot list its programs says so.
+    let (out, _) = flow("uninstall sketchpad", &PcFake::default(), d.path(), Some(true)).await;
+    assert!(out.unwrap().1.contains("couldn't read the list of installed programs"));
+}
+
+#[test]
+fn only_ids_from_the_programs_list_reach_the_uninstaller() {
+    use crate::pcctl::program_id_ok;
+    for good in ["reg|HKCU|Sketchpad", "reg|HKLM|{8A69D345-D564-463C-AFF1-A69D9E530F96}", "reg|HKLM32|Zipper 3.0 (x64)", "appx|Clipchamp.Clipchamp_3.1.8.0_x64__yxz26nhyzhsrt", "reg|HKCU|7-Zip"] {
+        assert!(program_id_ok(good), "{good}");
+    }
+    let long = format!("reg|HKCU|{}", "a".repeat(201));
+    for bad in [
+        "", "reg", "reg|HKCU", "reg|HKCU|", "reg|HKCR|x", "reg|hkcu|x", "reg|HKCU|a\\b", "reg|HKCU|a/b", "reg|HKCU|a|b", "reg|HKCU|a\"b", "reg|HKCU|a\nb", "reg|HKCU|a\tb",
+        "appx|", "appx|a b", "appx|a;b", "appx|x|y", "appx|..\\x", "cmd /c calc", "reg|HKLM|..\\..\\Run", long.as_str(),
+    ] {
+        assert!(!program_id_ok(bad), "{bad:?}");
+    }
 }

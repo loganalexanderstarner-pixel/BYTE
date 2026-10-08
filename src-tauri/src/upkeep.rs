@@ -1793,6 +1793,88 @@ pub fn protected_startup(it: &StartupItem) -> Option<&'static str> {
     }
 }
 
+/// One installed program (`Programs` prints these).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Program {
+    /// `reg` (an installer's entry) or `appx` (a Microsoft Store app).
+    pub source: String,
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub publisher: String,
+    pub size_kb: u64,
+}
+
+pub fn parse_programs(out: &str) -> Vec<Program> {
+    let mut seen = std::collections::HashSet::new();
+    out.lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.trim_end_matches(['\r', '\n']).split('\t').collect();
+            if f.len() != 6 || !matches!(f[0], "reg" | "appx") || !crate::pcctl::program_id_ok(f[1]) || f[2].trim().is_empty() {
+                return None;
+            }
+            // The same program is often registered in two views of the registry.
+            seen.insert((f[2].trim().to_lowercase(), f[3].trim().to_string())).then(|| Program {
+                source: f[0].into(),
+                id: f[1].into(),
+                name: f[2].trim().into(),
+                version: f[3].trim().into(),
+                publisher: f[4].trim().into(),
+                size_kb: f[5].trim().parse().unwrap_or(0),
+            })
+        })
+        .collect()
+}
+
+/// What to call a program: a Store app's name is `Maker.App`, so it is the last part.
+pub fn program_title(p: &Program) -> String {
+    if p.source == "appx" && p.name.contains('.') {
+        if let Some(last) = p.name.rsplit('.').find(|s| !s.is_empty() && !s.chars().all(|c| c.is_ascii_digit())) {
+            return last.to_string();
+        }
+    }
+    p.name.clone()
+}
+
+/// The programs a name means: an exact name if there is one, else every program whose name contains it.
+pub fn match_programs<'a>(items: &'a [Program], want: &str) -> Vec<&'a Program> {
+    let w = want.trim().to_lowercase();
+    if w.len() < 2 {
+        return Vec::new();
+    }
+    let exact: Vec<&Program> = items.iter().filter(|p| p.name.to_lowercase() == w || program_title(p).to_lowercase() == w).collect();
+    if !exact.is_empty() {
+        return exact;
+    }
+    items.iter().filter(|p| [p.name.to_lowercase(), program_title(p).to_lowercase()].iter().any(|k| k.contains(&w) || (k.len() >= 4 && w.contains(k.as_str())))).collect()
+}
+
+/// Why BYTE won't uninstall a program: Windows' own parts, the runtimes other programs run on, drivers and hardware software,
+/// the user's antivirus, and BYTE itself. (Windows' list leaves out system components already; this is the second wall.)
+pub fn refuse_program(p: &Program) -> Option<&'static str> {
+    let n = p.name.to_lowercase();
+    let t = program_title(p).to_lowercase();
+    if n == "byte" || t == "byte" {
+        return Some("that's BYTE itself; it's removed from Windows' own Settings → Apps if you ever want to");
+    }
+    if p.source == "appx" {
+        const PARTS: &[&str] = &["microsoft.windows", "microsoft.vclibs", "microsoft.ui.xaml", "microsoft.net", "microsoft.desktopappinstaller", "microsoft.store", "microsoft.microsoftedge", "microsoft.directx", "microsoft.services"];
+        if PARTS.iter().any(|x| n.starts_with(x)) {
+            return Some("it's part of Windows that other apps need");
+        }
+        return None;
+    }
+    const PREFIXES: &[&str] = &["microsoft visual c++", "microsoft .net", ".net ", "microsoft windows", "windows ", "microsoft edge", "microsoft update health", "directx", "vulkan run time", "intel(r)", "intel®", "nvidia graphics", "nvidia physx", "nvidia hd audio", "amd software", "amd chipset", "realtek"];
+    const WORDS: &[&str] = &["webview2", "driver", "chipset", "firmware", "bluetooth", "redistributable", "runtime"];
+    if PREFIXES.iter().any(|x| n.starts_with(x)) || WORDS.iter().any(|w| n.contains(w)) {
+        return Some("it's part of Windows, a driver or a runtime that other programs and the PC need");
+    }
+    if ["antivirus", "defender", "security", "malwarebytes"].iter().any(|w| n.contains(w)) {
+        return Some("it protects this PC, so BYTE leaves it for you to remove yourself");
+    }
+    None
+}
+
 /// Background helpers in LaunchAgents folders (information only).
 fn launch_agents(home: &Path) -> Vec<String> {
     let mut v = Vec::new();
@@ -1873,6 +1955,73 @@ async fn startup_items_pc(turn: &Turn<'_>, runner: &dyn Runner, id: String, send
     )))
 }
 
+/// "Uninstall X" on a PC: finds the program in what is installed, asks, and runs the program's own uninstaller. That cannot be
+/// undone from here, and the card says so before anything happens.
+async fn uninstall_pc(turn: &Turn<'_>, runner: &dyn Runner, id: String, app: String, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
+    let none = SourceBook::default;
+    let items = match runner.run(&Command::Win(WinOp::Programs)).await {
+        Ok(o) => parse_programs(&o),
+        Err(e) => return Ok(Some((none(), format!("BYTE couldn't read the list of installed programs: {}", e.text_for("Windows", true))))),
+    };
+    let found = match_programs(&items, &app);
+    if found.is_empty() {
+        return Ok(Some((none(), format!("There's no program called \"{app}\" among the installed programs. Ask the user for its name as shown in Settings → Apps → Installed apps."))));
+    }
+    if found.len() > 1 {
+        let names: Vec<String> = found.iter().take(8).map(|p| program_title(p)).collect();
+        return Ok(Some((none(), format!("Several programs match \"{app}\": {}. Ask which one to uninstall.", names.join(", ")))));
+    }
+    let p = found[0].clone();
+    let name = program_title(&p);
+    if let Some(why) = refuse_program(&p) {
+        return Ok(Some((none(), format!("BYTE won't uninstall {name}: {why}. Say so briefly."))));
+    }
+    let what = format!("Uninstall {name}");
+    send(ChatEvent::ToolCall { id: id.clone(), name: "mac_uninstall".into(), args: json!({ "app": "Windows", "what": what }) })?;
+    let mut fields = vec![("Program".to_string(), [name.clone(), p.version.clone()].iter().filter(|s| !s.is_empty()).cloned().collect::<Vec<_>>().join(" "))];
+    if !p.publisher.is_empty() && p.source == "reg" {
+        fields.push(("From".to_string(), p.publisher.clone()));
+    }
+    if p.size_kb > 0 {
+        fields.push(("Size".to_string(), size_text(p.size_kb * 1024)));
+    }
+    fields.push((
+        "Note".to_string(),
+        if p.source == "appx" {
+            "This Microsoft Store app is removed for your account, with its saved data. Undo isn't possible; you can install it again from the Microsoft Store."
+        } else {
+            "The program's own uninstaller runs: you may see its window or a Windows permission prompt. Undo isn't possible here; to get it back, install it again from its website or the Microsoft Store. Your documents aren't touched, but its settings may stay in AppData."
+        }
+        .to_string(),
+    ));
+    if !macctl::ask_ok(&what, "Windows", fields, cancel, send).await? {
+        send(ChatEvent::ToolResult { id, ok: false, summary: "You said no".into() })?;
+        return Ok(Some((none(), format!("The user chose to keep {name}. Nothing was removed. Say so in one sentence."))));
+    }
+    match runner.run(&Command::Win(WinOp::Uninstall { id: p.id.clone() })).await {
+        Ok(out) => {
+            let gone = out.trim() == "removed";
+            send(ChatEvent::ToolResult { id, ok: true, summary: if gone { "Uninstalled".into() } else { "Uninstaller started".into() } })?;
+            turn.log.record("mac_uninstall", &json!({ "name": name, "source": p.source }), true, if gone { "uninstalled" } else { "started" });
+            let detail = if gone { "It's no longer installed. To get it back, install it again from its website or the Microsoft Store." } else { "Its uninstaller is open: follow it to finish. To get the program back later, install it again from its website or the Microsoft Store." };
+            done_card(send, "Windows", &if gone { format!("Uninstalled {name}") } else { format!("Started the uninstaller for {name}") }, detail, true, None)?;
+            Ok(Some((
+                none(),
+                if gone {
+                    format!("Done: {name} is uninstalled. This can't be undone from BYTE; the user can install it again from its website or the Microsoft Store. Say that in one sentence.")
+                } else {
+                    format!("BYTE started {name}'s own uninstaller; it was still open when BYTE looked. Tell the user to follow its window (and any Windows permission prompt) to finish, and that BYTE can't undo it.")
+                },
+            )))
+        }
+        Err(e) => {
+            let msg = e.text_for("Windows", true);
+            send(ChatEvent::ToolResult { id, ok: false, summary: msg.clone() })?;
+            Ok(Some((none(), format!("BYTE couldn't uninstall {name}: {msg}"))))
+        }
+    }
+}
+
 /// "Stop Spotify from opening at startup": asks first, turns the entry off (it stays installed), and can turn it back on.
 async fn startup_remove_pc(turn: &Turn<'_>, runner: &dyn Runner, id: String, name: String, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
     let none = SourceBook::default;
@@ -1925,11 +2074,8 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, runner: &dyn Runne
     let id = format!("byte_upkeep_{}", uuid::Uuid::new_v4().simple());
     let none = SourceBook::default;
     let pc = runner.pc();
-    // The rest of a PC's upkeep (what slows it, the check-up, startup apps, uninstalling) arrives one piece at a time.
-    if pc && !matches!(a, Ask::Storage | Ask::Coach | Ask::Checkup | Ask::LoginItems | Ask::LoginRemove { .. }) {
-        return Ok(Some((none(), "BYTE can look at what is using disk space on a PC, check what slows it, run a check-up, and list or turn off what starts with Windows, but it can't yet uninstall programs. Say so plainly, and offer one of those instead.".into())));
-    }
     match &a {
+        Ask::Uninstall { app } if pc => return uninstall_pc(turn, runner, id, app.clone(), cancel, send).await,
         Ask::LoginItems if pc => return startup_items_pc(turn, runner, id, send).await,
         Ask::LoginRemove { name } if pc => return startup_remove_pc(turn, runner, id, name.clone(), cancel, send).await,
         _ => {}
