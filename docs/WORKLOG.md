@@ -287,6 +287,42 @@ how every item below was found; none of them showed in a test.
 - **Trap:** on the PC, `cargo test` rebuilds OpenSSL when RUSTFLAGS differ, which
   needs Strawberry Perl on PATH. Use `scripts/windows-dev.bat`'s PATH.
 
+### 2026-10-08: Linux, first slice: the app runs, sees the GPU, downloads a model and chats
+- **Why:** Linux is the next target after Windows and Android (`docs/PORTING-WINDOWS-LINUX.md`, L1). Until now it compiled
+  (CI runs the Rust tests on Linux) but every Linux machine looked like it had no graphics card, the engine script built a
+  native-CPU-only binary, the tray library missing at run time aborted the whole app, and every screen said "Mac".
+- **What:** `gpu_linux.rs` reads the cards from `/sys/class/drm`, `nvidia-smi` and `lspci` (pure parsers over text from real
+  machines: 14 tests; an RTX 4060 Ti, a Radeon, Intel graphics, hybrid laptops, VMs). `build-llama-server.sh` has a Linux
+  branch (portable CPU baseline `GGML_NATIVE=OFF`, RUNPATH `$ORIGIN/../lib/byte`, C++ runtime linked in, CUDA / Vulkan / CPU as
+  separate sidecars; a check that the binary links nothing a clean machine lacks). `gpu::engine_sidecar` maps Vulkan to
+  `llama-server-vulkan` and the processor to `llama-server-cpu` on Linux (the default CUDA build cannot start without
+  NVIDIA's `libcuda`). `syslib.rs` asks whether a shared library is installed; the tray and the Vulkan check use it, so a
+  desktop without the appindicator library simply has no tray icon instead of aborting. Quick Ask defaults to Ctrl+Alt+Space
+  on Linux (Alt+Space is the window menu of GNOME, KDE and most window managers).
+  **Wording:** a third platform. `Os` (Rust `platform_text`, TS `platform.ts`), help-article blocks `<!-- linux -->` and
+  `<!-- pc -->` (Windows or Linux), Linux word swaps (file manager, system keyring, account password), key glyphs follow
+  "not a Mac". `isLinux()` needs a WebKit user agent (Node's `navigator.platform` is "linux" too, and Android says Linux).
+  Help text only says what Linux does today (no hotkey, clipboard or PC control yet); tests guarantee a Linux reader is
+  never shown a Mac or a Windows step.
+  **Shared GPU (a real bug found on this machine, where the cluster's own engine holds 10 of 16 GB):** the budget came from the
+  card's total memory, so a model that did not fit what was free failed to start and the retries could not know why.
+  `SystemInfo::with_free_vram` plans a LOAD from the memory free now (NVIDIA through `nvidia-smi`, AMD through sysfs), adding
+  back what BYTE's own engine holds (asked of the driver by process id), and lets a chosen dense model run up to 80% on the
+  processor (`SHARED_CARD_STRETCH`; the usual cap of 15% stays for recommendations). A restart that cannot be planned no longer
+  marks a working engine as failed (the tuner's optional restart did exactly that and left the screen red over a running engine).
+- **Verify:** 589 Rust and 268 front-end tests. On this machine (Ubuntu 24.04, RTX 4060 Ti, headless with Xvfb): the CPU and Vulkan
+  engines built and answered through BYTE's own chat client (66 and 238 tokens/s on a 0.6B model); the whole app started,
+  showed the welcome and "Checking your PC" screens with the real Ryzen 9 7900X / RTX 4060 Ti 16 GB / 30 GB / 392 GB, offered
+  models, downloaded Qwen3.5 9B (7.5 GB) with its own downloader, loaded it split across the GPU and processor beside the
+  cluster's engine, titled the chat itself and answered at 9.8 tokens/s; Settings opens with Ctrl+,.
+- **Not done yet (each is a later slice):** the CUDA engine (no `nvcc` here; CI will build it), whisper and sherpa for Linux,
+  secrets (Secret Service), OCR (Tesseract), the lock, clipboard history, the selected-text hotkey, voice and spoken answers,
+  PC control, autostart, packaging (.deb and AppImage) and the release job, glibc floor (build on Ubuntu 22.04 in CI).
+- **Traps:** `pkill -f` / `pgrep -f` with a pattern that also appears in your own command line kills or matches your own
+  shell. Tauri copies sidecars into `target/debug/` at build time and a later `chmod` of the source does not reach the copy.
+  The app asks for the tray library at the moment the icon is made, not at start.
+- **Undo:** `git revert` this commit; Mac and Windows behaviour is unchanged (their tests pass untouched).
+
 ### 2026-10-08: PC control, the Windows counterpart of Mac control (`pcctl.rs`)
 - **Why:** on Windows the whole "BYTE does things on your computer" feature was off (`macctl::applies` and the
   prompt were gated to macOS), and the help text said it "isn't available on Windows yet". W3 of

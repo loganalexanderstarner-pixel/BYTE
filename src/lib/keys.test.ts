@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { defaultQuickAskKeys, defaultSelectionKeys, keysFromEvent, keysProblem, platformKeys, prettyKeys } from "./keys";
+import { defaultQuickAskKeys, defaultSelectionKeys, isLinux, isPcOs, isWindows, keysFromEvent, keysProblem, platformKeys, prettyKeys } from "./keys";
 
 const ev = (code: string, m: Partial<{ alt: boolean; ctrl: boolean; meta: boolean; shift: boolean }> = {}) => ({
   code,
@@ -69,5 +69,38 @@ describe("default shortcuts", () => {
   it("are unchanged on a Mac", () => {
     expect(defaultQuickAskKeys(false)).toBe("Alt+Space");
     expect(defaultSelectionKeys(false)).toBe("Alt+Super+KeyB");
+  });
+});
+
+describe("which computer this is", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const browser = (platform: string, userAgent: string) => vi.stubGlobal("navigator", { platform, userAgent });
+
+  it("is Linux in the Linux app's web view", () => {
+    browser("Linux x86_64", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15");
+    expect(isLinux()).toBe(true);
+    expect(isWindows()).toBe(false);
+    expect(isPcOs()).toBe(true);
+  });
+  it("is not Linux in Node (the tests), which also reports platform linux", () => {
+    browser("linux", "Node.js/22");
+    expect(isLinux()).toBe(false);
+    expect(isPcOs()).toBe(false);
+  });
+  it("is not Linux on Android, whose web view says Linux too", () => {
+    browser("Linux armv8l", "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36");
+    expect(isLinux()).toBe(false);
+  });
+  it("is Windows in the Windows app and a Mac otherwise", () => {
+    browser("Win32", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/120");
+    expect(isWindows()).toBe(true);
+    expect(isPcOs()).toBe(true);
+    browser("MacIntel", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15");
+    expect(isPcOs()).toBe(false);
+  });
+  it("shows Linux readers PC keys", () => {
+    browser("Linux x86_64", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15");
+    expect(platformKeys("New chat (⌘N)")).toBe("New chat (Ctrl+N)");
+    expect(defaultQuickAskKeys()).toBe("Control+Alt+Space");
   });
 });

@@ -137,7 +137,12 @@ fn vulkan_loader_present() -> bool {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+fn vulkan_loader_present() -> bool {
+    crate::gpu_linux::vulkan_loader_present()
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
 fn vulkan_loader_present() -> bool {
     true
 }
@@ -171,7 +176,11 @@ pub fn runs_on_cpu_only(windows: bool, arm64: bool) -> bool {
 /// Windows, where it is the one that covers AMD and Intel.
 pub fn engine_sidecar(backend: crate::chip::Backend) -> &'static str {
     match backend {
-        crate::chip::Backend::Vulkan if cfg!(windows) => "llama-server-vulkan",
+        crate::chip::Backend::Vulkan if cfg!(any(windows, target_os = "linux")) => "llama-server-vulkan",
+        // Linux has a build of its own for the processor: the default one is the CUDA build, which needs NVIDIA's
+        // driver library to even start, and a machine with no NVIDIA card has none. (On Windows the CUDA build is
+        // the processor engine too; see runs_on_cpu_only.)
+        crate::chip::Backend::Cpu if cfg!(target_os = "linux") => "llama-server-cpu",
         _ => "llama-server",
     }
 }
@@ -261,9 +270,40 @@ fn read_adapters() -> Vec<Gpu> {
     out
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+fn read_adapters() -> Vec<Gpu> {
+    crate::gpu_linux::read()
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
 fn read_adapters() -> Vec<Gpu> {
     Vec::new()
+}
+
+/// What the best discrete card has free right now, in bytes, when the driver says (NVIDIA and AMD on Linux). Unlike
+/// `detect`, this is read every time: other programs come and go.
+pub fn free_vram() -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    {
+        best_discrete(detect()).and_then(crate::gpu_linux::free_vram)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
+    }
+}
+
+/// What the programs with these process ids hold on the graphics card right now, in bytes, when the driver says.
+pub fn vram_used_by(pids: &[u32]) -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    {
+        crate::gpu_linux::used_by(pids)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = pids;
+        None
+    }
 }
 
 /// The machine's GPUs, read once (a few milliseconds, and cards do not change while
@@ -348,9 +388,9 @@ mod tests {
         use crate::chip::Backend;
         assert_eq!(engine_sidecar(Backend::Cuda), "llama-server");
         assert_eq!(engine_sidecar(Backend::Metal), "llama-server");
-        assert_eq!(engine_sidecar(Backend::Cpu), "llama-server", "no GPU runs on the build that bundles its own runtime");
+        assert_eq!(engine_sidecar(Backend::Cpu), if cfg!(target_os = "linux") { "llama-server-cpu" } else { "llama-server" }, "no GPU runs on the build that bundles its own runtime");
         let vk = engine_sidecar(Backend::Vulkan);
-        assert_eq!(vk, if cfg!(windows) { "llama-server-vulkan" } else { "llama-server" });
+        assert_eq!(vk, if cfg!(any(windows, target_os = "linux")) { "llama-server-vulkan" } else { "llama-server" });
     }
 
     #[test]

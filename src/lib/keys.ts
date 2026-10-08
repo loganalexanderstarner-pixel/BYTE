@@ -2,13 +2,13 @@
 
 /** The selected-text hotkey before the backend has said otherwise: ⌥⌘B on a Mac, Ctrl+Alt+B on Windows
  *  (Alt+Win+B is already Windows' HDR toggle). Matches `selection::HOTKEY` in Rust. */
-export function defaultSelectionKeys(windows: boolean = isWindows()): string {
+export function defaultSelectionKeys(windows: boolean = isPcOs()): string {
   return windows ? "Control+Alt+KeyB" : "Alt+Super+KeyB";
 }
 
 /** Quick Ask's shortcut before the backend has said otherwise. Not Alt+Space on Windows: that is the
  *  window menu of every app there. Matches `settings::default_quick_keys` in Rust. */
-export function defaultQuickAskKeys(windows: boolean = isWindows()): string {
+export function defaultQuickAskKeys(windows: boolean = isPcOs()): string {
   return windows ? "Control+Alt+Space" : "Alt+Space";
 }
 
@@ -18,11 +18,27 @@ export function isWindows(): boolean {
 }
 
 /**
+ * True in the Linux app: its web view (WebKitGTK) reports "Linux x86_64" and a WebKit user agent. Two lookalikes
+ * are excluded: Android's web view also says "Linux", and Node (which the tests run in) has a `navigator` whose
+ * platform is "linux" but no WebKit in its user agent.
+ */
+export function isLinux(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent ?? "";
+  return /^Linux/i.test(navigator.platform ?? "") && /AppleWebKit/i.test(ua) && !/Android/i.test(ua);
+}
+
+/** Any computer that is not a Mac: the keys are Ctrl and Alt, and the words call it a PC. */
+export function isPcOs(): boolean {
+  return isWindows() || isLinux();
+}
+
+/**
  * Rewrites Mac key glyphs inside UI text for Windows: "New chat (⌘N)" becomes
  * "New chat (Ctrl+N)". The identity on a Mac. The in-app handlers already accept
  * Ctrl as well as Command, so only what is SHOWN needed changing.
  */
-export function platformKeys(text: string, windows: boolean = isWindows()): string {
+export function platformKeys(text: string, windows: boolean = isPcOs()): string {
   if (!windows) return text;
   return text.replace(/⌘/g, "Ctrl+").replace(/⌃/g, "Ctrl+").replace(/⌥/g, "Alt+").replace(/⇧/g, "Shift+");
 }
@@ -32,7 +48,7 @@ export function platformKeys(text: string, windows: boolean = isWindows()): stri
  * parameter so both forms can be checked anywhere; it defaults to the real one.
  * On Windows "Super" is the Windows key and "CmdOrCtrl" is Ctrl.
  */
-export function prettyKeys(keys: string, windows: boolean = isWindows()): string {
+export function prettyKeys(keys: string, windows: boolean = isPcOs()): string {
   let ctrl = false;
   let alt = false;
   let shift = false;
@@ -74,7 +90,7 @@ export function keysFromEvent(e: Pick<KeyboardEvent, "code" | "altKey" | "ctrlKe
 }
 
 /** Why these keys can't be a global shortcut (null when they can). */
-export function keysProblem(keys: string, windows: boolean = isWindows()): string | null {
+export function keysProblem(keys: string, windows: boolean = isPcOs()): string | null {
   const parts = keys.split("+");
   if (!parts.some((p) => ["Control", "Alt", "Super"].includes(p))) {
     return windows ? "Add Ctrl, Alt or Win, so normal typing still works." : "Add ⌘, ⌥ or ⌃, so normal typing still works.";

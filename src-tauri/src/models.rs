@@ -476,7 +476,7 @@ pub fn plan(model: &CatalogModel, v: &Variant, info: &SystemInfo, desired_ctx: u
     if p.fit != Fit::TooBig {
         return p;
     }
-    system::plan_offload(v.size_bytes, model.arch, desired_ctx, info.total_ram_bytes, info.gpu_budget_bytes, expert_share(model)).unwrap_or(p)
+    system::plan_offload(v.size_bytes, model.arch, desired_ctx, info.total_ram_bytes, info.gpu_budget_bytes, expert_share(model), info.stretch_cap).unwrap_or(p)
 }
 
 /// Effective speed (GB/s) at which a CPU reads model weights from system memory next to a
@@ -1147,6 +1147,7 @@ mod tests {
             boost: false,
             measured: Default::default(),
             calibration: None,
+            stretch_cap: system::MAX_STRETCH,
         }
     }
 
@@ -1241,6 +1242,7 @@ mod tests {
             boost: false,
             measured: Default::default(),
             calibration: None,
+            stretch_cap: system::MAX_STRETCH,
         }
     }
 
@@ -1663,6 +1665,7 @@ fn dump_models_for_ui() {
         boost: false,
         measured: Default::default(),
         calibration: None,
+        stretch_cap: system::MAX_STRETCH,
         gpus: vec![],
         backend: crate::chip::Backend::Metal,
         platform: "macos",

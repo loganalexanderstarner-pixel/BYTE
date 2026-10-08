@@ -16,6 +16,8 @@ Turn on **Lock BYTE with Touch ID** and BYTE asks for Touch ID (or your Mac's pa
 **Back up now** makes one encrypted file with your chats, memories, settings and notes. If iCloud Drive is on, it goes to iCloud Drive → BYTE Backups, so it's safe even if your Mac is lost. Only your passphrase opens it: write it down somewhere safe. Turn on **Back up every week** (the passphrase is kept in your Keychain); the newest 5 backups are kept. To bring a backup back, press **Restore…** next to it (or **Restore from a file…**), type its passphrase, and BYTE restarts with it. Your current chats are set aside, not deleted. Models aren't in backups; they can be downloaded again.
 <!-- win -->
 **Back up now** makes one encrypted file with your chats, memories, settings and notes. Only your passphrase opens it: write it down somewhere safe. Turn on **Back up every week** (the passphrase is kept in Windows Credential Manager); the newest 5 backups are kept. To bring a backup back, press **Restore…** next to it (or **Restore from a file…**), type its passphrase, and BYTE restarts with it. Your current chats are set aside, not deleted. Models aren't in backups; they can be downloaded again.
+<!-- linux -->
+**Back up now** makes one encrypted file with your chats, memories, settings and notes. Only your passphrase opens it: write it down somewhere safe. Turn on **Back up every week** (the passphrase is kept in your system keyring); the newest 5 backups are kept. To bring a backup back, press **Restore…** next to it (or **Restore from a file…**), type its passphrase, and BYTE restarts with it. Your current chats are set aside, not deleted. Models aren't in backups; they can be downloaded again.
 <!-- all -->
 
 ## Kids mode
@@ -49,5 +51,7 @@ The Privacy tab shows the permissions Windows controls for BYTE (the Microphone,
 - The microphone is only used while you dictate, talk, or have "Hey BYTE" on (macOS shows its orange dot). Nothing is recorded or kept.
 <!-- win -->
 - The microphone is only used while you dictate, talk, or have "Hey BYTE" on (Windows shows a microphone icon in the taskbar). Nothing is recorded or kept.
+<!-- linux -->
+- The microphone is only used while you dictate, talk, or have "Hey BYTE" on. Nothing is recorded or kept.
 <!-- all -->
 - Web searches go to search engines; nothing else leaves your Mac unless you use BYTE Cloud.

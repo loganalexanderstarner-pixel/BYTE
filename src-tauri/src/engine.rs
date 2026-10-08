@@ -225,7 +225,17 @@ impl Engine {
         }
         // The image adapter (vision models) needs memory next to the model: its file plus working buffers.
         let vision_extra = mmproj.as_ref().and_then(|p| std::fs::metadata(p).ok()).map(|m| m.len() + 300_000_000).unwrap_or(0);
-        let info = system::system_info(&models_dir).minus(reserved + vision_extra);
+        // Other programs may be using the card right now (a game, a browser, another engine): plan from what is free,
+        // counting what BYTE's own engine holds and is about to give back.
+        let own = {
+            let inner = self.inner.lock().await;
+            // What the running engine really holds on the card (the driver knows, by process), else what it was planned to need.
+            inner.child.as_ref().and_then(|c| crate::gpu::vram_used_by(&[c.pid()])).unwrap_or(match (&inner.status, &inner.loaded) {
+                (EngineStatus::Ready { .. }, Some(l)) => l.needed_bytes,
+                _ => 0,
+            })
+        };
+        let info = system::system_info(&models_dir).minus(reserved + vision_extra).with_free_vram(crate::gpu::free_vram(), own);
         let desired_ctx = ctx_override.unwrap_or(DEFAULT_CONTEXT);
         // The helper model needs its own memory; use it only if everything still fits comfortably.
         let draft = draft.filter(|d| {
@@ -263,7 +273,11 @@ impl Engine {
             } else {
                 format!("{} can't run on {}. {}", model.name, crate::platform_text::here("this Mac"), plan.note)
             };
-            self.set_status(app, EngineStatus::Error { message: message.clone() }).await;
+            // An engine that is already running is left running: a restart that cannot be planned (the tuner asking for
+            // a bigger cache, say) is no reason to call the working engine broken.
+            if !matches!(self.inner.lock().await.status, EngineStatus::Ready { .. }) {
+                self.set_status(app, EngineStatus::Error { message: message.clone() }).await;
+            }
             return Err(AppError::msg(message));
         }
         self.stop().await;

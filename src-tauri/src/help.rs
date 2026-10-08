@@ -23,7 +23,7 @@ const SOURCES: &[&str] = &[
 /// on Windows), worded once.
 fn articles() -> &'static [String] {
     static RENDERED: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
-    RENDERED.get_or_init(|| SOURCES.iter().map(|a| crate::platform_text::localize(a, cfg!(windows))).collect())
+    RENDERED.get_or_init(|| SOURCES.iter().map(|a| crate::platform_text::localize(a, crate::platform_text::Os::this())).collect())
 }
 
 /// A question about using BYTE itself ("how do I change BYTE's voice?", "can you read my files?").
@@ -53,7 +53,7 @@ fn best_among<'a>(articles: &'a [String], q: &str, n: usize) -> Vec<&'a str> {
     let common = |w: &String| articles.iter().filter(|a| words(a).contains(w)).count() * 2 > articles.len();
     // The name of the platform says nothing about which article fits either: a Windows reader's
     // articles all mention Windows, as a Mac reader's mention macOS.
-    const PLATFORM_WORDS: &[&str] = &["windows", "macos", "apple", "microsoft"];
+    const PLATFORM_WORDS: &[&str] = &["windows", "macos", "apple", "microsoft", "linux", "ubuntu", "gnome"];
     let qw: Vec<String> = words(q).into_iter().filter(|w| !common(w) && !PLATFORM_WORDS.contains(&w.as_str())).collect();
     let mut scored: Vec<(usize, &str)> = articles
         .iter()
@@ -84,7 +84,7 @@ pub fn section(q: &str) -> String {
 If it doesn't cover the question, say so and suggest the help center (⌘?).\n\n<<<\n{}\n>>>",
         found.iter().map(|a| links(a)).collect::<Vec<_>>().join("\n\n---\n\n")
     );
-    if cfg!(windows) {
+    if crate::platform_text::Os::this() != crate::platform_text::Os::Mac {
         crate::platform_text::keys(&text)
     } else {
         text
@@ -94,12 +94,13 @@ If it doesn't cover the question, say so and suggest the help center (⌘?).\n\n
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform_text::Os;
 
     #[test]
     fn a_windows_reader_is_never_told_a_mac_step() {
         let mac_only = ["⌘", "⌥", "macOS", "Finder", "Touch ID", "Keychain", "iCloud", "Open Anyway", "System Settings", "menu bar", "Siri", "Gatekeeper"];
         for source in SOURCES {
-            let text = crate::platform_text::localize(source, true);
+            let text = crate::platform_text::localize(source, crate::platform_text::Os::Windows);
             for word in mac_only {
                 assert!(!text.contains(word), "{:?} mentions {word}", text.lines().next());
             }
@@ -107,11 +108,25 @@ mod tests {
     }
 
     #[test]
+    fn a_linux_reader_is_never_told_a_mac_or_windows_step() {
+        let mac_only = ["⌘", "⌥", "macOS", "Finder", "Touch ID", "Keychain", "iCloud", "Open Anyway", "System Settings", "menu bar", "Siri", "Gatekeeper"];
+        let windows_only = ["Windows", "SmartScreen", "PowerShell", "File Explorer", "Credential Manager", "Hello", "taskbar", "Run anyway", "Alt+Win"];
+        for source in SOURCES {
+            let text = crate::platform_text::localize(source, Os::Linux);
+            for word in mac_only.iter().chain(windows_only.iter()) {
+                assert!(!text.contains(word), "{:?} mentions {word}", text.lines().next());
+            }
+        }
+        // And the Windows-only help is not lost to the Windows reader.
+        assert!(SOURCES.iter().any(|s| crate::platform_text::localize(s, Os::Windows).contains("SmartScreen")));
+    }
+
+    #[test]
     fn the_articles_on_a_mac_are_what_was_written() {
         for source in SOURCES {
-            assert!(!crate::platform_text::localize(source, false).contains("<!--"));
+            assert!(!crate::platform_text::localize(source, crate::platform_text::Os::Mac).contains("<!--"));
         }
-        assert!(SOURCES.iter().any(|s| crate::platform_text::localize(s, false).contains("⌘K")));
+        assert!(SOURCES.iter().any(|s| crate::platform_text::localize(s, crate::platform_text::Os::Mac).contains("⌘K")));
     }
 
 
@@ -125,8 +140,8 @@ mod tests {
         }
     }
 
-    fn rendered(windows: bool) -> Vec<String> {
-        SOURCES.iter().map(|a| crate::platform_text::localize(a, windows)).collect()
+    fn rendered(os: crate::platform_text::Os) -> Vec<String> {
+        SOURCES.iter().map(|a| crate::platform_text::localize(a, os)).collect()
     }
 
     #[test]
@@ -141,14 +156,14 @@ mod tests {
     /// (so this holds whichever machine the tests run on): the model must be handed the fix.
     #[test]
     fn the_blocked_app_question_gets_the_fix_on_either_platform() {
-        for (windows, question, fix) in [
-            (false, "macOS says BYTE can't be opened, open anyway", "Open Anyway"),
-            (true, "SmartScreen protected my PC when I opened BYTE, run anyway", "Run anyway"),
-            (true, "Windows protected your PC when I opened BYTE", "Run anyway"),
+        for (os, question, fix) in [
+            (Os::Mac, "macOS says BYTE can't be opened, open anyway", "Open Anyway"),
+            (Os::Windows, "SmartScreen protected my PC when I opened BYTE, run anyway", "Run anyway"),
+            (Os::Windows, "Windows protected your PC when I opened BYTE", "Run anyway"),
         ] {
-            let articles = rendered(windows);
+            let articles = rendered(os);
             let got = best_among(&articles, question, 2);
-            assert!(got.iter().any(|a| a.contains(fix)), "windows={windows} {question:?}: {:?}", got.iter().map(|a| a.lines().next()).collect::<Vec<_>>());
+            assert!(got.iter().any(|a| a.contains(fix)), "{os:?} {question:?}: {:?}", got.iter().map(|a| a.lines().next()).collect::<Vec<_>>());
         }
     }
 }

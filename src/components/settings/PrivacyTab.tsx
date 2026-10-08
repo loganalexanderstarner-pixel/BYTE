@@ -39,7 +39,7 @@ import type {
 } from "../../lib/types";
 import { useStore, type SettingsTab } from "../../state/store";
 import { osText } from "../../lib/platform";
-import { isWindows, platformKeys as K } from "../../lib/keys";
+import { isLinux, isWindows, platformKeys as K } from "../../lib/keys";
 
 /** Settings → Privacy: the offline switch, the lock, Mac permissions and everything BYTE did. */
 export function PrivacyTab() {
@@ -243,7 +243,9 @@ function LockSection() {
           )}
           {error && <div className="banner danger">{error}</div>}
           <p className="faint small">
-            {isWindows()
+            {isLinux()
+              ? "Your chats are already encrypted on this PC. The lock keeps someone using your unlocked PC out of BYTE. (The encryption key itself isn't tied to your account password.)"
+              : isWindows()
               ? "Your chats are already encrypted on this PC. The lock keeps someone using your unlocked PC out of BYTE. (The encryption key itself isn't tied to Windows Hello.)"
               : osText("Your chats are already encrypted on this Mac. The lock keeps someone using your unlocked Mac out of BYTE. (Tying the encryption key itself to Touch ID needs a paid Apple developer signature, which BYTE doesn't use.)")}
           </p>
@@ -275,7 +277,7 @@ function PermissionsSection() {
     <section className="settings-section">
       <h3>{osText("Mac permissions")}</h3>
       <p className="faint small">
-        {isWindows() ? "Windows keeps these in Settings → Privacy & security. Change them any time." : osText("macOS asks the first time BYTE needs each one. Change them any time in System Settings → Privacy & Security.")}
+        {isLinux() ? "Linux doesn't ask for these one by one. Your desktop's sound settings control the microphone." : isWindows() ? "Windows keeps these in Settings → Privacy & security. Change them any time." : osText("macOS asks the first time BYTE needs each one. Change them any time in System Settings → Privacy & Security.")}
       </p>
       <ul className="privacy-list perms">
         {perms.map((p) => (

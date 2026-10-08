@@ -14,6 +14,9 @@ macOS asks again for permissions after each update. System Settings → Privacy 
 <!-- win -->
 **"Hey BYTE" or dictation stopped working**
 Open Settings → Privacy & security → Microphone and make sure **Let desktop apps access your microphone** is on, then restart BYTE.
+<!-- linux -->
+**"Hey BYTE" or dictation stopped working**
+Open your desktop's Sound settings → Input, check the right microphone is selected and not muted, then restart BYTE. If BYTE runs as a Flatpak or Snap, allow it to use the microphone in its permissions.
 <!-- all -->
 
 **Answers are slow**
@@ -31,4 +34,6 @@ Downloads resume where they left off: press **Resume**.
 **BYTE says it needs the microphone, but isn't in System Settings → Microphone.** Versions before 0.12.5 couldn't ask macOS for the microphone. Update BYTE (Settings → About), then press the mic: macOS asks once. If you answered "Don't Allow" earlier, switch BYTE on in System Settings → Privacy & Security → Microphone, or reset the answer in Terminal with `tccutil reset Microphone com.loganstarner.byte` and try again. Because BYTE isn't signed by Apple, macOS may ask again after an update.
 <!-- win -->
 **BYTE says it needs the microphone.** Open Settings → Privacy & security → Microphone, turn on **Microphone access** and **Let desktop apps access your microphone**, then press the mic in BYTE again.
+<!-- linux -->
+**BYTE says it needs the microphone.** Open your desktop's Sound settings → Input, check the right microphone is selected and not muted, then try again.
 <!-- all -->

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { cpuName, engineWith, graphicsLabel, hardwareNote, isPc, machine, osText } from "./platform";
+import { cpuName, currentOs, engineWith, graphicsLabel, hardwareNote, isPc, machine, osText } from "./platform";
 import type { SystemInfo } from "./types";
 
 const base = { chip: "", freeDiskBytes: 0, osVersion: "", cpuCores: 8, chipInfo: {} as SystemInfo["chipInfo"], gpuBudgetBytes: 0 };
@@ -100,5 +100,25 @@ describe("Windows paths in settings copy", () => {
   it("names the Windows place for reduced motion", () => {
     expect(osText("Auto follows macOS (System Settings → Accessibility → Display).", true)).toBe("Auto follows Windows (Settings → Accessibility → Visual effects).");
     expect(osText("Auto follows macOS (System Settings → Accessibility → Display).", false)).toBe("Auto follows macOS (System Settings → Accessibility → Display).");
+  });
+});
+
+describe("osText for a Linux reader", () => {
+  it("swaps the Mac words for Linux ones, and the nouns that differ from Windows", () => {
+    expect(osText("Show in Finder on your Mac", "linux")).toBe("Show in file manager on your PC");
+    expect(osText("Stored in your Mac's Keychain", "linux")).toBe("Stored in your system keyring");
+    expect(osText("Keychain", "linux")).toBe("system keyring");
+    expect(osText("Lock with Touch ID in the menu bar", "linux")).toBe("Lock with your account password in the system tray");
+    expect(osText("macOS Privacy & Security, System Settings", "linux")).toBe("Linux Privacy, Settings");
+    expect(osText("Mac control and Macs", "linux")).toBe("PC control and PCs");
+  });
+  it("keeps Windows and the Mac as they were", () => {
+    expect(osText("Show in Finder, Touch ID, your Mac's Keychain", "windows")).toBe("Show in File Explorer, Windows Hello, Windows Credential Manager");
+    expect(osText("Show in Finder, Touch ID, your Mac's Keychain", true)).toBe("Show in File Explorer, Windows Hello, Windows Credential Manager");
+    expect(osText("Show in Finder on this Mac", "mac")).toBe("Show in Finder on this Mac");
+    expect(osText("Show in Finder on this Mac", false)).toBe("Show in Finder on this Mac");
+  });
+  it("is a Mac where nothing says otherwise (the tests run in Node)", () => {
+    expect(currentOs()).toBe("mac");
   });
 });

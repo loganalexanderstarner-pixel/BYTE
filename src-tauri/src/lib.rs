@@ -11,6 +11,8 @@ mod db;
 mod decide;
 mod docs;
 mod gpu;
+mod gpu_linux;
+mod syslib;
 mod drafts;
 mod games;
 mod prices;

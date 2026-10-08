@@ -1,4 +1,4 @@
-import { isWindows } from "./keys";
+import { isLinux, isPcOs, isWindows } from "./keys";
 import type { SystemInfo } from "./types";
 
 /**
@@ -8,7 +8,14 @@ import type { SystemInfo } from "./types";
  */
 export function isPc(system?: Pick<SystemInfo, "platform"> | null): boolean {
   if (system?.platform) return system.platform !== "macos";
-  return isWindows();
+  return isPcOs();
+}
+
+export type Os = "mac" | "windows" | "linux";
+
+/** The operating system this window is running on. A Mac when it is neither (and in tests). */
+export function currentOs(): Os {
+  return isWindows() ? "windows" : isLinux() ? "linux" : "mac";
 }
 
 /** What to call the computer in running text: "Mac" or "PC". */
@@ -86,23 +93,27 @@ export function engineWith(system?: Pick<SystemInfo, "backend"> | null): string 
  * order, because "your Mac's Keychain" has to become one phrase, not "your PC's Credential
  * Manager".
  */
-export function osText(text: string, windows: boolean = isWindows()): string {
-  if (!windows) return text;
+export function osText(text: string, os: Os | boolean = currentOs()): string {
+  // A plain `true` is the Windows reader (how this was first written); `false` is a Mac.
+  const target: Os = typeof os === "boolean" ? (os ? "windows" : "mac") : os;
+  if (target === "mac") return text;
+  const linux = target === "linux";
+  const keyring = linux ? "your system keyring" : "Windows Credential Manager";
   return text
-    .replace(/\b(?:[Yy]our|[Tt]he|[Tt]his) (?:Mac|macOS)'s Keychain\b/g, "Windows Credential Manager")
-    .replace(/\bthe macOS Keychain\b/g, "Windows Credential Manager")
-    .replace(/\b[Yy]our Keychain\b/g, "Windows Credential Manager")
-    .replace(/\bKeychain\b/g, "Credential Manager")
+    .replace(/\b(?:[Yy]our|[Tt]he|[Tt]his) (?:Mac|macOS)'s Keychain\b/g, keyring)
+    .replace(/\bthe macOS Keychain\b/g, keyring)
+    .replace(/\b[Yy]our Keychain\b/g, keyring)
+    .replace(/\bKeychain\b/g, linux ? "system keyring" : "Credential Manager")
     .replace(/\bApple Silicon GPU\b/g, "graphics card or processor")
-    .replace(/\bShow in Finder\b/g, "Show in File Explorer")
-    .replace(/\bFinder\b/g, "File Explorer")
+    .replace(/\bShow in Finder\b/g, linux ? "Show in file manager" : "Show in File Explorer")
+    .replace(/\bFinder\b/g, linux ? "file manager" : "File Explorer")
     .replace(/\bmenu[- ]bar\b/gi, (m) => (m[0] === "M" ? "System tray" : "system tray"))
-    .replace(/\bTouch ID\b/g, "Windows Hello")
+    .replace(/\bTouch ID\b/g, linux ? "your account password" : "Windows Hello")
     .replace(/\bMac control\b/g, "PC control")
-    .replace(/\bSystem Settings → Accessibility → Display\b/g, "Settings → Accessibility → Visual effects")
+    .replace(/\bSystem Settings → Accessibility → Display\b/g, linux ? "your desktop's accessibility settings" : "Settings → Accessibility → Visual effects")
     .replace(/\bSystem Settings\b/g, "Settings")
-    .replace(/\bPrivacy & Security\b/g, "Privacy & security")
-    .replace(/\bmacOS\b/g, "Windows")
+    .replace(/\bPrivacy & Security\b/g, linux ? "Privacy" : "Privacy & security")
+    .replace(/\bmacOS\b/g, linux ? "Linux" : "Windows")
     .replace(/\bMacs\b/g, "PCs")
     .replace(/\bMac(?='s\b)/g, "PC")
     .replace(/\bMac\b/g, "PC");

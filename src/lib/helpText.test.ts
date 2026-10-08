@@ -15,6 +15,16 @@ describe("platform blocks", () => {
     expect(forPlatform("a\n<!-- mac -->\nb\nc", false)).toBe("a\nb\nc");
     expect(forPlatform("a\n<!-- mac -->\nb\nc", true)).toBe("a");
   });
+  it("shows a pc block to Windows and Linux readers, and a linux block to Linux readers alone", () => {
+    const t = ["x", "<!-- pc -->", "both", "<!-- linux -->", "linux only", "<!-- win -->", "windows only", "<!-- all -->", "y"].join("\n");
+    expect(forPlatform(t, "mac")).toBe("x\ny");
+    expect(forPlatform(t, "windows")).toBe("x\nboth\nwindows only\ny");
+    expect(forPlatform(t, "linux")).toBe("x\nboth\nlinux only\ny");
+  });
+  it("rewords for Linux with its own words", () => {
+    expect(localize("Press ⌘K on your Mac.", "linux")).toBe("Press Ctrl+K on your PC.");
+    expect(localize("Show in Finder on your Mac", "linux")).toBe("Show in file manager on your PC");
+  });
   it("leaves text without markers alone on a Mac, and rewords it on Windows", () => {
     expect(localize("Press ⌘K on your Mac.", false)).toBe("Press ⌘K on your Mac.");
     expect(localize("Press ⌘K on your Mac.", true)).toBe("Press Ctrl+K on your PC.");
@@ -49,6 +59,20 @@ describe("the bundled help articles", () => {
     expect(get("troubleshooting")).toMatch(/Run anyway/);
     expect(get("shortcuts")).toMatch(/\| Ctrl\+Alt\+B \|/);
     expect(win.find((a) => a.id === "mac-control")!.title).toBe("PC control, hotkeys and clipboard");
+  });
+
+  it("never tell a Linux reader a Mac step or a Windows one", () => {
+    const linux = articlesFor("linux", files);
+    const other = [/⌘/, /⌥/, /macOS/, /Finder/, /Touch ID/, /Keychain/, /iCloud/, /Open Anyway/, /System Settings/, /menu bar/, /Siri/, /Gatekeeper/, /Windows/, /SmartScreen/, /PowerShell/, /File Explorer/, /Credential Manager/, /Hello/, /taskbar/, /Run anyway/, /Alt\+Win/];
+    for (const a of linux) {
+      for (const re of other) expect(`${a.title}\n${a.body}`, `${a.id} mentions ${re}`).not.toMatch(re);
+      expect(a.body, a.id).not.toMatch(/<!--/);
+    }
+    const get = (id: string) => linux.find((a) => a.id === id)!;
+    expect(get("shortcuts").body).toMatch(/\| Ctrl\+Alt\+Space \|/);
+    expect(get("shortcuts").body).not.toMatch(/Ctrl\+Alt\+B/);
+    expect(get("mac-control").title).toBe("Hotkeys and clipboard");
+    expect(get("privacy").body).toMatch(/system keyring/);
   });
 
   it("are unchanged on a Mac", () => {

@@ -1,5 +1,5 @@
 // BYTE's offline help center: articles bundled from src/help/*.md, searched and linked here.
-import { isWindows } from "./keys";
+import { currentOs, type Os } from "./platform";
 import { localize } from "./helpText";
 
 const files = import.meta.glob("../help/*.md", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
@@ -11,19 +11,19 @@ export interface Article {
   body: string;
 }
 
-/** The bundled articles, worded for a Mac or for Windows. */
-export function articlesFor(windows: boolean, sources: Record<string, string> = files): Article[] {
+/** The bundled articles, worded for a Mac, Windows or Linux (a boolean is the old form: true is Windows). */
+export function articlesFor(os: Os | boolean, sources: Record<string, string> = files): Article[] {
   return Object.entries(sources)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([path, raw]) => {
-      const text = localize(raw, windows);
+      const text = localize(raw, os);
       const id = path.split("/").pop()!.replace(/^\d+-/, "").replace(/\.md$/, "");
       const title = /^#\s+(.+)$/m.exec(text)?.[1]?.trim() ?? id;
       return { id, title, body: text.replace(/^#\s+.+\n+/, "") };
     });
 }
 
-export const ARTICLES: Article[] = articlesFor(isWindows());
+export const ARTICLES: Article[] = articlesFor(currentOs());
 
 /** Articles matching every word, title hits first, then how often the words appear. */
 export function searchHelp(query: string, articles: Article[] = ARTICLES): Article[] {

@@ -39,6 +39,9 @@ pub struct SystemInfo {
     /// correct estimates for models not measured yet. Set by `models::calibrate`.
     #[serde(skip)]
     pub calibration: Option<f64>,
+    /// The most of a dense model that may run on the CPU when it does not fit the card (see `plan_offload`).
+    #[serde(skip)]
+    pub stretch_cap: f64,
 }
 
 impl SystemInfo {
@@ -83,7 +86,26 @@ impl SystemInfo {
         self.total_ram_bytes = self.total_ram_bytes.saturating_sub(bytes);
         self
     }
+
+    /// Plans a load from the card memory that is free right now. The budget above comes from the card's total, which
+    /// is right for what to recommend, but a game, a browser or another engine may be using part of the card at the
+    /// moment a model loads, and a plan that counts on memory that is taken fails to start. `free` is what the card
+    /// reports free; `own` is what BYTE's own engine holds and is about to give back (a restart). A small margin is
+    /// left for the engine's working buffers. Only a discrete card has a pool of its own; elsewhere nothing changes.
+    pub fn with_free_vram(mut self, free: Option<u64>, own: u64) -> Self {
+        if let (Some(free), true) = (free, self.has_discrete_card()) {
+            let usable = free.saturating_add(own).saturating_sub(FREE_VRAM_MARGIN);
+            if usable < self.gpu_budget_bytes {
+                self.gpu_budget_bytes = usable;
+                self.stretch_cap = SHARED_CARD_STRETCH;
+            }
+        }
+        self
+    }
 }
+
+/// Memory kept back from what the card says is free: the engine's compute buffers and the display's changes while it loads.
+const FREE_VRAM_MARGIN: u64 = 512 * 1024 * 1024;
 
 pub fn system_info(data_dir: &std::path::Path) -> SystemInfo {
     let mut sys = System::new();
@@ -114,6 +136,7 @@ pub fn system_info(data_dir: &std::path::Path) -> SystemInfo {
         calibration: None,
         apple_silicon: apple,
         gpu_budget_bytes: gpu_budget_for(total, vram, wired_limit_override()),
+        stretch_cap: MAX_STRETCH,
         free_disk_bytes: free_disk_for(data_dir),
         os_version: System::long_os_version().unwrap_or_default(),
         cpu_cores: sys.cpus().len(),
@@ -401,7 +424,12 @@ pub fn plan_fit(
 }
 
 /// Dense models may run at most this share of their weights on the CPU.
-const MAX_STRETCH: f64 = 0.15;
+pub const MAX_STRETCH: f64 = 0.15;
+
+/// The same limit when the card is shared with other programs and BYTE has to make do with what is free (see
+/// `with_free_vram`): the person already chose this model, and slower beats refusing to run it. Most of a model
+/// may then run on the CPU.
+pub const SHARED_CARD_STRETCH: f64 = 0.8;
 
 /// With part of a model on the CPU, the whole file still sits in memory, so
 /// macOS, BYTE's window and the GPU driver need this much left over (3 GB
@@ -419,7 +447,7 @@ const OFFLOAD_GPU_MARGIN: u64 = 1_000_000_000;
 /// `None` when that doesn't help either.
 ///
 /// `expert_share`: fraction of the weights that are experts (0 for dense).
-pub fn plan_offload(weights_bytes: u64, arch: ModelArch, desired_ctx: u32, total_ram: u64, gpu_budget: u64, expert_share: f64) -> Option<FitPlan> {
+pub fn plan_offload(weights_bytes: u64, arch: ModelArch, desired_ctx: u32, total_ram: u64, gpu_budget: u64, expert_share: f64, max_stretch: f64) -> Option<FitPlan> {
     let per_tok = arch.kv_bytes_per_token().max(1);
     let desired = desired_ctx.min(arch.max_ctx).max(MIN_CONTEXT);
     let base = weights_bytes + RUNTIME_OVERHEAD;
@@ -443,7 +471,7 @@ pub fn plan_offload(weights_bytes: u64, arch: ModelArch, desired_ctx: u32, total
         }
         (n as u32, None, format!("Runs with {n} of {layers} expert layers on the CPU, a little slower. Close other heavy apps."))
     } else {
-        if excess as f64 > weights_bytes as f64 * MAX_STRETCH {
+        if excess as f64 > weights_bytes as f64 * max_stretch {
             return None;
         }
         let per_layer = (weights_bytes / layers).max(1);
@@ -626,3 +654,67 @@ mod battery_tests {
 #[cfg(test)]
 #[path = "hardware_fixtures_tests.rs"]
 mod hardware_fixtures_tests;
+
+#[cfg(test)]
+mod free_vram_tests {
+    use super::*;
+
+    fn pc_with_card(vram_gib: u64) -> SystemInfo {
+        let mut i = system_info(std::path::Path::new("."));
+        i.platform = "windows";
+        i.backend = crate::chip::Backend::Cuda;
+        i.gpus = vec![crate::gpu::Gpu { name: "NVIDIA GeForce RTX 4060 Ti".into(), vendor: crate::gpu::Vendor::Nvidia, dedicated_bytes: vram_gib * GIB, shared_bytes: 0, integrated: false }];
+        i.gpu_budget_bytes = gpu_budget_for(32 * GIB, Some(vram_gib * GIB), None);
+        i
+    }
+
+    #[test]
+    fn a_card_that_is_mostly_taken_gets_a_small_budget() {
+        let i = pc_with_card(16);
+        let whole = i.gpu_budget_bytes;
+        // Another program holds 10 GiB: about 6 GiB free, less the margin.
+        let shared = i.clone().with_free_vram(Some(6 * GIB), 0);
+        assert_eq!(shared.gpu_budget_bytes, 6 * GIB - FREE_VRAM_MARGIN);
+        assert!(shared.gpu_budget_bytes < whole);
+    }
+
+    #[test]
+    fn a_free_card_keeps_its_normal_budget_and_the_engines_own_memory_counts_as_free() {
+        let i = pc_with_card(16);
+        let whole = i.gpu_budget_bytes;
+        assert_eq!(i.clone().with_free_vram(Some(16 * GIB), 0).gpu_budget_bytes, whole, "never more than the card's budget");
+        // BYTE's engine holds 9 GiB of the 10 GiB in use and is about to restart: 7 free + 9 own.
+        assert_eq!(i.clone().with_free_vram(Some(7 * GIB), 9 * GIB).gpu_budget_bytes, whole);
+        assert_eq!(i.with_free_vram(None, 0).gpu_budget_bytes, whole, "no reading, no change");
+    }
+
+    #[test]
+    fn a_full_card_leaves_nothing_and_never_underflows() {
+        assert_eq!(pc_with_card(16).with_free_vram(Some(100 * 1024 * 1024), 0).gpu_budget_bytes, 0);
+    }
+
+    #[test]
+    fn a_shared_card_lets_the_chosen_model_run_mostly_on_the_processor() {
+        // Qwen3.5 9B Q6: 36 layers, 7.46 GB of weights; 30 GiB of RAM; only about 5 GiB of the card is free.
+        let arch = ModelArch { n_layer: 36, kv_layers: 36, n_head_kv: 8, head_dim: 128, max_ctx: 32768 };
+        let weights = 7_458_000_000u64;
+        let (ram, budget) = (30 * GIB, 5 * GIB - FREE_VRAM_MARGIN);
+        assert!(plan_offload(weights, arch, 16384, ram, budget, 0.0, MAX_STRETCH).is_none(), "the normal cap refuses");
+        let p = plan_offload(weights, arch, 16384, ram, budget, 0.0, SHARED_CARD_STRETCH).expect("runs when the card is shared");
+        let on = p.gpu_layers.expect("a dense model is split by layers");
+        assert!(on > 0 && on < 36, "some layers on the card, the rest on the processor: {on}");
+        // And the card's normal budget is untouched by any of this.
+        let info = pc_with_card(16);
+        assert_eq!(info.stretch_cap, MAX_STRETCH);
+        let shared = info.with_free_vram(Some(5 * GIB), 0);
+        assert_eq!(shared.stretch_cap, SHARED_CARD_STRETCH);
+    }
+
+    #[test]
+    fn memory_shared_with_the_processor_is_left_alone() {
+        let mut i = pc_with_card(16);
+        i.backend = crate::chip::Backend::Cpu;
+        let before = i.gpu_budget_bytes;
+        assert_eq!(i.with_free_vram(Some(GIB), 0).gpu_budget_bytes, before);
+    }
+}

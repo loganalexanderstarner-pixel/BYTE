@@ -7,7 +7,7 @@ import { dueText } from "../../lib/tasks";
 import type { AutoStep, Automation, RunView, ShortcutMade } from "../../lib/types";
 import { useStore } from "../../state/store";
 import { osText } from "../../lib/platform";
-import { isWindows } from "../../lib/keys";
+import { isPcOs } from "../../lib/keys";
 
 type When = "manual" | "launch" | "schedule";
 
@@ -95,7 +95,7 @@ function Builder({ start, onDone }: { start: Automation; onDone: (saved: boolean
               aria-label={`Step ${i + 1} kind`}
               title={STEP_KINDS.find((k) => k.type === s.type)?.hint}
             >
-              {STEP_KINDS.filter((k) => !(isWindows() && k.type === "shortcut")).map((k) => (
+              {STEP_KINDS.filter((k) => !(isPcOs() && k.type === "shortcut")).map((k) => (
                 <option key={k.type} value={k.type}>
                   {k.label}
                 </option>
@@ -241,7 +241,7 @@ export function AutomationsSection({ onClose }: { onClose: () => void }) {
                 <button className="btn sm ghost" disabled={busy} onClick={() => void guard(() => api.automationRun(a.id))} title="Run it now">
                   <Play size={13} /> {busy ? "Running…" : "Run now"}
                 </button>
-                {!isWindows() && (
+                {!isPcOs() && (
                   <button className="icon-btn sm" onClick={() => shortcut(a)} title={osText("Add to Shortcuts (menu bar, Siri)")} aria-label={`Make a Shortcut for ${a.name}`}>
                     <Link2 size={13} />
                   </button>

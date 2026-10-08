@@ -24,4 +24,11 @@ BYTE can do things on your PC when you ask, and it works with the text you selec
 - **Ctrl+Alt+B** on selected text in any app opens it in BYTE (reply, explain, rewrite), then **Paste into** puts the result back. It can't read an app that is running as administrator.
 - The clipboard history keeps your recent copies on this PC only, and never keeps what looks like a password or a secret.
 - **PowerShell commands** (a switch in Settings, off until you turn it on): ask "run a command to show my disk space" or "use the terminal to see what's using port 3000". BYTE proposes one command, explains it in plain words and runs it **only after you press Do it**. It only runs commands that read or show information, plus a few careful ones that move or delete a single file. Formatting, the registry, downloads, other programs and anything that needs administrator rights are never run.
+<!-- linux -->
+# Hotkeys and clipboard
+
+Controlling other apps, reminders, calendars and system settings by voice or text, the selected-text hotkey and the clipboard history aren't available on Linux yet.
+
+- Your reminders and notes still work: they are kept inside BYTE (Tasks and Notes).
+- **Ctrl+Alt+Space** opens Quick Ask from any app on X11 desktops. Wayland doesn't let one app listen for keys in another, so there open BYTE from its tray icon or window.
 <!-- all -->

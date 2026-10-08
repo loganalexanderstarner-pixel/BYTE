@@ -1,7 +1,7 @@
 import { ByteVoicesRow, SpeakerLabelsRow, SpeechRows, VideoHelperRow, WakeRow } from "./VoiceExtras";
 import { VoiceModels } from "../chat/VoiceModels";
 import { KeyboardSection } from "./KeyboardSection";
-import { defaultSelectionKeys, isWindows, prettyKeys } from "../../lib/keys";
+import { defaultSelectionKeys, isLinux, isPcOs, isWindows, prettyKeys } from "../../lib/keys";
 import { open as openDialog, ask } from "@tauri-apps/plugin-dialog";
 import { Download, Gauge, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, X, Zap, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -33,7 +33,9 @@ import { engineWith, osText } from "../../lib/platform";
 
 
 /** Running on a PC: the Mac-only feature rows are reworded or left out. */
-const pcHost = isWindows();
+// Any computer that is not a Mac (Windows or Linux) gets PC words; Windows alone has PowerShell.
+const pcHost = isPcOs();
+const linuxHost = isLinux();
 
 export function SettingsModal() {
   const tab = useStore((s) => s.settingsTab)!;
@@ -923,12 +925,12 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
-            {pcHost ? "PC control, hotkeys and clipboard" : osText("Mac control")}
-            <small>{pcHost ? "Lets BYTE do things on this PC when you ask (dark mode, volume, Wi-Fi, music, Windows settings, email and calendar drafts), read the text you select in other apps (the hotkey below) and keep a clipboard history. Reminders and notes stay inside BYTE." : osText("“Remind me to call Mom tomorrow at 3pm”, “make a note: …”, “what's on my calendar today?”, “turn on dark mode”, “play some jazz”, “run my Morning shortcut”, “check my email”, “reply to Sam’s email saying I can make it”, “text Mom that I’m running late”, “find my tax return pdf”, “organize my Downloads”, “convert the selected photos to jpg”, “run a command to show my disk space”. BYTE asks before adding or changing anything, never sends email or texts itself (you press Send), and macOS asks once per app.")}</small>
+            {linuxHost ? "Hotkeys and clipboard" : pcHost ? "PC control, hotkeys and clipboard" : osText("Mac control")}
+            <small>{linuxHost ? "Lets BYTE read the text you select in other apps (the hotkey below) and keep a clipboard history. Controlling other apps and system settings by voice or text isn't available on Linux yet." : pcHost ? "Lets BYTE do things on this PC when you ask (dark mode, volume, Wi-Fi, music, Windows settings, email and calendar drafts), read the text you select in other apps (the hotkey below) and keep a clipboard history. Reminders and notes stay inside BYTE." : osText("“Remind me to call Mom tomorrow at 3pm”, “make a note: …”, “what's on my calendar today?”, “turn on dark mode”, “play some jazz”, “run my Morning shortcut”, “check my email”, “reply to Sam’s email saying I can make it”, “text Mom that I’m running late”, “find my tax return pdf”, “organize my Downloads”, “convert the selected photos to jpg”, “run a command to show my disk space”. BYTE asks before adding or changing anything, never sends email or texts itself (you press Send), and macOS asks once per app.")}</small>
           </span>
           <input type="checkbox" checked={settings?.macControl ?? true} onChange={(e) => void update({ macControl: e.target.checked })} />
         </label>
-        {pcHost && (
+        {isWindows() && (
           <label className="field">
             <span>
               PowerShell commands

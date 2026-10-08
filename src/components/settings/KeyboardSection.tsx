@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { errorText } from "../../lib/api";
-import { defaultSelectionKeys, isWindows, keysFromEvent, keysProblem, platformKeys as K, prettyKeys, defaultQuickAskKeys } from "../../lib/keys";
+import { defaultSelectionKeys, isLinux, isWindows, keysFromEvent, keysProblem, platformKeys as K, prettyKeys, defaultQuickAskKeys } from "../../lib/keys";
 import type { Settings } from "../../lib/types";
 import { useStore } from "../../state/store";
 import { osText } from "../../lib/platform";
@@ -76,7 +76,7 @@ export function KeyboardSection({ settings }: { settings: Settings | null }) {
       <div className="field">
         <span>
           Selected text hotkey
-          <small>{isWindows() ? "Select text in any app and press it: the writing studio opens with that text. Turned on or off with “PC control, hotkeys and clipboard” above." : osText("Select text in any app and press it: the writing studio opens with that text. Turned on or off with Mac control above.")}</small>
+          <small>{isLinux() ? "Select text in any app and press it: the writing studio opens with that text. Turned on or off with “Hotkeys and clipboard” above." : isWindows() ? "Select text in any app and press it: the writing studio opens with that text. Turned on or off with “PC control, hotkeys and clipboard” above." : osText("Select text in any app and press it: the writing studio opens with that text. Turned on or off with Mac control above.")}</small>
         </span>
         <KeyRecorder value={settings?.selectionKeys ?? defaultSelectionKeys()} label="Selected text" disabled={!selOn} onSave={(k) => update({ selectionKeys: k })} />
       </div>

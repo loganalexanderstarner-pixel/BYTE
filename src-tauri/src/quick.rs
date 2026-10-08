@@ -254,6 +254,12 @@ pub fn quick_open(app: AppHandle, conversation_id: Option<String>) {
 pub fn apply_tray(app: &AppHandle, on: bool) {
     let exists = app.tray_by_id(TRAY).is_some();
     if on && !exists {
+        // Linux draws the icon through an indicator library that is loaded when the icon is made; without it the
+        // whole app would abort, so a machine that lacks it simply has no tray icon.
+        if cfg!(target_os = "linux") && !crate::syslib::present(&["libayatana-appindicator3.so.1", "libappindicator3.so.1", "libayatana-appindicator3.so", "libappindicator3.so"]) {
+            log::warn!("no tray icon: the system has no appindicator library (install libayatana-appindicator3-1)");
+            return;
+        }
         if let Err(e) = build_tray(app) {
             log::warn!("menu-bar icon: {e}");
         }

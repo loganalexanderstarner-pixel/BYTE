@@ -4,7 +4,7 @@
 |---|---|
 <!-- mac -->
 | ⌥Space | Quick Ask from any app |
-<!-- win -->
+<!-- pc -->
 | Ctrl+Alt+Space | Quick Ask from any app |
 <!-- all -->
 | ⌘K | Find chats, settings, modes and themes |

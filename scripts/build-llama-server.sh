@@ -20,8 +20,10 @@ SRC="$WORK/src-$LLAMA_TAG"
 # CUDA libraries in the installer is worth what it buys.
 # On ARM64 Windows (Snapdragon laptops) there is no CUDA and no Vulkan build: the engine is the
 # CPU one, and it takes the plain sidecar name.
+# Linux on ARM64 (a Raspberry Pi, an Ampere server) is the same: the CPU engine is the engine.
 case "$TRIPLE" in
   aarch64-*-windows-msvc) DEFAULT_BACKEND=cpu ;;
+  aarch64-*-linux-gnu)    DEFAULT_BACKEND=cpu ;;
   *)                      DEFAULT_BACKEND=cuda ;;
 esac
 ENGINE_BACKEND="${ENGINE_BACKEND:-$DEFAULT_BACKEND}"
@@ -101,6 +103,23 @@ if [ ! -f "$BUILD/bin/${BIN_SUBDIR}llama-server$EXE" ]; then
       esac
       JOBS="${NUMBER_OF_PROCESSORS:-8}"
       ;;
+    *-linux-gnu)
+      # NATIVE=OFF for the reason given under Windows: this box is Zen 4 and NATIVE=ON would bake
+      # AVX-512 into an engine that must also run on a laptop from 2015.
+      # The libraries the engine needs that are not on every Linux (CUDA's cudart and cublas) are
+      # found beside the sidecar, in ../lib/byte (the .deb and AppImage layout) or next to it
+      # (a development tree): RUNPATH, not LD_LIBRARY_PATH, so nothing has to be exported.
+      # The C++ runtime is linked in so the engine does not depend on the distribution's version.
+      FLAGS+=(-DGGML_NATIVE=OFF -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON '-DCMAKE_INSTALL_RPATH=$ORIGIN/../lib/byte;$ORIGIN'
+              '-DCMAKE_EXE_LINKER_FLAGS=-static-libstdc++ -static-libgcc')
+      case "$ENGINE_BACKEND" in
+        cpu)    ;;
+        vulkan) FLAGS+=(-DGGML_VULKAN=ON) ;;
+        # 89 is Ada (RTX 40 series), the card this was first built for; ship: CUDA_ARCHS="75;80;86;89;120".
+        *)      FLAGS+=(-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCHS:-89}") ;;
+      esac
+      JOBS="$(nproc)"
+      ;;
     *)
       FLAGS+=(-DGGML_NATIVE=ON)
       JOBS="$(nproc)"
@@ -127,6 +146,15 @@ chmod +x "$DEST"
 if [[ "$TRIPLE" == *-apple-darwin ]]; then
   if otool -L "$DEST" | tail -n +2 | grep -vE '^\s*(/usr/lib/|/System/Library/)'; then
     echo "error: llama-server links against non-system libraries" >&2
+    exit 1
+  fi
+fi
+
+# On Linux the engine may depend on the C library and, by design, on the CUDA / Vulkan runtime libraries
+# (found through RUNPATH, shipped beside it); anything else would fail on a clean machine.
+if [[ "$TRIPLE" == *-linux-gnu ]]; then
+  if ldd "$DEST" | awk '{print $1}' | grep -vE '^(linux-vdso|linux-gnu|/lib|/usr/lib|libc\.so|libm\.so|libdl\.so|libpthread\.so|librt\.so|libgomp\.so|ld-linux|libcuda\.so|libcudart\.so|libcublas(Lt)?\.so|libvulkan\.so|libnvidia|$)'; then
+    echo "error: llama-server links against libraries a clean Linux machine lacks (listed above)" >&2
     exit 1
   fi
 fi

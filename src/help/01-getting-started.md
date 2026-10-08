@@ -8,7 +8,7 @@ BYTE is an AI assistant that runs on your Mac. Your chats, files and notes stay 
 
 <!-- mac -->
 > **Tip:** Press **⌘K** to find any chat, setting, mode or theme, and **⌥Space** to ask from any app (Quick Ask).
-<!-- win -->
+<!-- pc -->
 > **Tip:** Press **Ctrl+K** to find any chat, setting, mode or theme, and **Ctrl+Alt+Space** to ask from any app (Quick Ask).
 <!-- all -->
 
