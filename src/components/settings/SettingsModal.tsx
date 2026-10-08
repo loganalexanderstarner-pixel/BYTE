@@ -986,7 +986,7 @@ function AboutTab() {
         <label className="field">
           <span>
             {isWindows() ? "PC upkeep" : osText("Mac upkeep")}
-            <small>{isWindows() ? "“What's taking up space?”, “find duplicate files”, “free up space”. BYTE looks, then moves what you choose to the Recycle Bin, and Undo puts it back. More checks (what slows the PC, startup apps, uninstalling) are coming." : osText("“What's taking up space?”, “find duplicate files”, “why is my Mac slow?”, “what's draining my battery?”, “check my Mac”, “uninstall Zoom”, “what opens at login?”. Anything removed goes to the Trash (Undo puts it back); BYTE never empties the Trash or touches macOS itself.")}</small>
+            <small>{isWindows() ? "“What's taking up space?”, “find duplicate files”, “why is my PC slow?”, “check my PC”, “what opens at startup?”, “uninstall Zoom”. BYTE looks first and asks before it changes anything. Files you choose go to the Recycle Bin (Undo puts them back), a startup app is only switched off (Undo switches it on), and uninstalling runs the program's own uninstaller, which can't be undone. BYTE leaves Windows itself, drivers and your antivirus alone." : osText("“What's taking up space?”, “find duplicate files”, “why is my Mac slow?”, “what's draining my battery?”, “check my Mac”, “uninstall Zoom”, “what opens at login?”. Anything removed goes to the Trash (Undo puts it back); BYTE never empties the Trash or touches macOS itself.")}</small>
           </span>
           <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.macUpkeep ?? true} onChange={(e) => void update({ macUpkeep: e.target.checked })} />
         </label>

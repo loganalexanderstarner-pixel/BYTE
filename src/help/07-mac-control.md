@@ -20,6 +20,7 @@ BYTE can do things on your PC when you ask, and it works with the text you selec
 - **Emails** open as a draft in your mail app for you to send; BYTE never sends an email by itself. Give it the address ("email sam@example.com about Friday"), because a PC has no address book for BYTE to look in.
 - **Calendar:** "add lunch with Sam to my calendar tomorrow at noon" opens the event in your calendar app, which asks you to save it.
 - **Reminders and notes** are kept inside BYTE (Tasks and Notes), and you can undo a note from its card. BYTE can't send texts from a PC, run Shortcuts, or read your inbox or calendar.
+- **PC upkeep** (a switch in Settings): "what's taking up space?", "find duplicate files", "why is my PC slow?", "check my PC", "what opens at startup?" and "uninstall Zoom". BYTE looks first and asks before it changes anything. Files go to the Recycle Bin and Undo puts them back; a startup app is only switched off, and Undo switches it on again. Uninstalling runs the program's own uninstaller, so it can't be undone; BYTE leaves Windows itself, drivers and your antivirus alone.
 
 - **Ctrl+Alt+B** on selected text in any app opens it in BYTE (reply, explain, rewrite), then **Paste into** puts the result back. It can't read an app that is running as administrator.
 - The clipboard history keeps your recent copies on this PC only, and never keeps what looks like a password or a secret.

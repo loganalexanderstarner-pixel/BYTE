@@ -704,7 +704,8 @@ $cmd = $cmd -replace '(?i)^(\s*"?(?:[^"]*\\)?msiexec(?:\.exe)?"?\s+)/I', '$1/X'
 if ($cmd -match '^\s*"([^"]+)"\s*(.*)$') { $exe = $Matches[1]; $rest = $Matches[2] }
 elseif ($cmd -match '^\s*(.+?\.exe)(?:\s+(.*))?$') { $exe = $Matches[1]; $rest = $Matches[2] }
 else { [Console]::Error.WriteLine('This program''s uninstaller can''t be started from here.'); exit 4 }
-if (-not ($exe -match '(?i)^msiexec(\.exe)?$') -and -not (Test-Path -LiteralPath $exe -PathType Leaf)) { [Console]::Error.WriteLine('The uninstaller isn''t where the program said it was.'); exit 5 }
+$present = (Test-Path -LiteralPath $exe -PathType Leaf) -or [bool](Get-Command $exe -CommandType Application -ErrorAction SilentlyContinue)
+if (-not $present) { [Console]::Error.WriteLine('The uninstaller isn''t where the program said it was.'); exit 5 }
 if ($rest) { Start-Process -FilePath $exe -ArgumentList $rest } else { Start-Process -FilePath $exe }
 # A quick uninstaller finishes at once; a wizard waits for the person.
 for ($i = 0; $i -lt 30; $i++) {

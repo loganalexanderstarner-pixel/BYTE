@@ -301,12 +301,15 @@ how every item below was found; none of them showed in a test.
   possible and how to get the program back, and the done card has no Undo button. BYTE refuses (and says why) Windows'
   parts, runtimes (Visual C++, .NET, WebView2, DirectX), drivers and hardware software, the user's antivirus, and BYTE itself;
   two matches means it asks which. With this, no upkeep question answers "can't yet" on a PC, so that guard is gone.
-- **Verify:** Linux: 614 tests (new: the list parser, titles, matching including exact-beats-contains, the refusals, the id
+- **Verify:** Linux: 613 tests (new: the list parser, titles, matching including exact-beats-contains, the refusals, the id
   gate with 20 bad ids, the whole flow: no, yes, a wizard still open, a Store app, ambiguous / missing / system programs /
-  a failing uninstaller / a PC that cannot list). On the real PC: `live_pc_programs_are_listed` reads the real list;
+  a failing uninstaller / a PC that cannot list). On the real PC: `live_pc_programs_are_listed` reads the real list (171 programs on the owner's PC, ids all accepted by the gate);
   `live_pc_uninstall_runs_the_registered_uninstaller` adds a fake program of its own to the registry whose "uninstaller" removes its
   own entry, runs it through `WinOp::Uninstall` and sees `removed`, then checks that bad ids are refused. No real program is
-  ever uninstalled by a test.
+  ever uninstalled by a test. The script's way of reading uninstall strings was also tried on sample strings on the PC without running
+  anything (`/I` becomes `/X`, quoted and unquoted paths, `rundll32`, a missing file, a non-.exe command); that showed bare program
+  names such as `rundll32.exe` need resolving through the path, which the script now does. Settings and the Windows help article
+  now describe all of PC upkeep (they said more checks were coming).
 - **Not done:** removing a program's leftovers in AppData (BYTE does not look inside AppData), file tidying (`filectl`).
 - **Undo:** `git revert`; the Mac path is unchanged.
 
