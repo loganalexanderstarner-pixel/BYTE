@@ -1823,6 +1823,11 @@ pub async fn undo(token: &str) -> AppResult<bool> {
         }
         Some(Undo::Created(files)) => {
             for f in &files {
+                // On a PC the copy goes to the Recycle Bin, so one that was edited since can still be fetched back.
+                #[cfg(windows)]
+                if crate::recycle::move_to_recycle_bin(f).is_ok() {
+                    continue;
+                }
                 let _ = std::fs::remove_file(f);
             }
             Ok(true)

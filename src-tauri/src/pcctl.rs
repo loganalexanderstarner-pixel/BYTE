@@ -71,7 +71,17 @@ pub enum WinOp {
     /// prints `name<TAB>path` for matches in the file name and `text<TAB>path` for matches inside documents, newest first. The
     /// words are letters, digits and a few joiners only (`find_word_ok`); they reach the query through a file.
     FindFiles { words: Vec<String>, root: std::path::PathBuf },
+    /// The files selected in the File Explorer window that is on top, one full path per line (empty when nothing is selected or
+    /// no Explorer window is open).
+    ExplorerSelection,
+    /// Saves a copy of a photo: as `format` (`jpeg`, `png`, `tiff` or `bmp`), no larger than `max` pixels on the long side when
+    /// given, turned the right way up by the camera's orientation. Prints the new size (`1200x800`). Never overwrites: `out` must
+    /// not exist. The original is untouched.
+    ConvertPhoto { src: std::path::PathBuf, out: std::path::PathBuf, format: String, max: Option<u32> },
 }
+
+/// The photo formats a PC can save (a Mac's `sips` can also write HEIC).
+pub const PHOTO_OUT: &[&str] = &["jpeg", "png", "tiff", "bmp"];
 
 /// Whether a search word is safe to put in a Windows Search query: letters, digits, `-`, `_` and `.`, up to 40 of them.
 pub fn find_word_ok(w: &str) -> bool {
@@ -478,6 +488,8 @@ mod win {
             WinOp::Programs => programs(),
             WinOp::Uninstall { id } => uninstall(id),
             WinOp::FindFiles { words, root } => find_files(words, root),
+            WinOp::ExplorerSelection => explorer_selection(),
+            WinOp::ConvertPhoto { src, out, format, max } => convert_photo(src, out, format, *max),
         }
     }
 
@@ -693,6 +705,119 @@ Write-Output ($l[2])
             CoTaskMemFree(Some(p.as_ptr() as *const std::ffi::c_void));
             s.filter(|s| !s.is_empty()).map(std::path::PathBuf::from)
         }
+    }
+
+    /// The window class of a File Explorer window.
+    fn topmost_explorer() -> Option<isize> {
+        use windows::core::BOOL;
+        use windows::Win32::Foundation::{HWND, LPARAM};
+        use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetClassNameW, IsWindowVisible};
+        struct Found(Option<isize>);
+        unsafe extern "system" fn each(hwnd: HWND, lparam: LPARAM) -> BOOL {
+            let found = &mut *(lparam.0 as *mut Found);
+            if IsWindowVisible(hwnd).as_bool() {
+                let mut buf = [0u16; 64];
+                let n = GetClassNameW(hwnd, &mut buf);
+                if n > 0 && String::from_utf16_lossy(&buf[..n as usize]) == "CabinetWClass" {
+                    found.0 = Some(hwnd.0 as isize);
+                    return BOOL(0);
+                }
+            }
+            BOOL(1)
+        }
+        let mut found = Found(None);
+        // Windows lists the windows from the top of the stack down, so the first Explorer window is the one used last.
+        // SAFETY: `found` outlives the call, and the callback only writes to it.
+        let _ = unsafe { EnumWindows(Some(each), LPARAM(&mut found as *mut Found as isize)) };
+        found.0
+    }
+
+    fn explorer_selection() -> Result<String, RunError> {
+        const SCRIPT: &str = r#"param([string]$Wish)
+$ErrorActionPreference = 'SilentlyContinue'
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+$h = [int64](Get-Content -LiteralPath $Wish | Select-Object -First 1)
+$shell = New-Object -ComObject Shell.Application
+foreach ($w in $shell.Windows()) {
+  if ([int64]$w.HWND -eq $h) {
+    $items = @($w.Document.SelectedItems())
+    if ($items.Count -gt 0) { foreach ($i in $items) { ([string]$i.Path) -replace "[\r\n]+", ' ' }; break }
+  }
+}
+"#;
+        let Some(hwnd) = topmost_explorer() else { return Ok(String::new()) };
+        let dir = std::env::temp_dir().join("BYTE-upkeep");
+        std::fs::create_dir_all(&dir).map_err(|e| RunError::Failed(e.to_string()))?;
+        let wish = dir.join(format!("selection-{}.txt", uuid::Uuid::new_v4().simple()));
+        std::fs::write(&wish, hwnd.to_string()).map_err(|e| RunError::Failed(e.to_string()))?;
+        let out = run_script("selection.ps1", SCRIPT, &[&wish]);
+        let _ = std::fs::remove_file(&wish);
+        out
+    }
+
+    fn convert_photo(src: &std::path::Path, out: &std::path::Path, fmt: &str, max: Option<u32>) -> Result<String, RunError> {
+        // Windows' own imaging (WIC through WPF). The camera's orientation is applied, because a re-saved photo has no
+        // orientation tag left to say which way is up; JPEG has no transparency, so that is flattened on white.
+        const SCRIPT: &str = r#"param([string]$Wish)
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName PresentationCore, WindowsBase
+$l = @(Get-Content -LiteralPath $Wish -Encoding UTF8)
+$src = $l[0]; $out = $l[1]; $fmt = $l[2]; $max = [int]$l[3]
+if (Test-Path -LiteralPath $out) { throw 'A file with that name already exists.' }
+$stream = [IO.File]::OpenRead($src)
+try {
+  $dec = [Windows.Media.Imaging.BitmapDecoder]::Create($stream, [Windows.Media.Imaging.BitmapCreateOptions]::PreservePixelFormat, [Windows.Media.Imaging.BitmapCacheOption]::OnLoad)
+  $frame = $dec.Frames[0]
+  $bmp = [Windows.Media.Imaging.BitmapSource]$frame
+  $angle = 0
+  try {
+    $o = $frame.Metadata.GetQuery('/app1/ifd/{ushort=274}')
+    if ($o -eq 3) { $angle = 180 } elseif ($o -eq 6) { $angle = 90 } elseif ($o -eq 8) { $angle = 270 }
+  } catch {}
+  if ($angle -ne 0) { $bmp = New-Object Windows.Media.Imaging.TransformedBitmap($bmp, (New-Object Windows.Media.RotateTransform($angle))) }
+  if ($max -gt 0) {
+    $long = [Math]::Max($bmp.PixelWidth, $bmp.PixelHeight)
+    if ($long -gt $max) { $s = $max / $long; $bmp = New-Object Windows.Media.Imaging.TransformedBitmap($bmp, (New-Object Windows.Media.ScaleTransform($s, $s))) }
+  }
+  switch ($fmt) {
+    'jpeg' {
+      $enc = New-Object Windows.Media.Imaging.JpegBitmapEncoder
+      $enc.QualityLevel = 90
+      $dv = New-Object Windows.Media.DrawingVisual
+      $dc = $dv.RenderOpen()
+      $dc.DrawRectangle([Windows.Media.Brushes]::White, $null, (New-Object Windows.Rect(0, 0, $bmp.PixelWidth, $bmp.PixelHeight)))
+      $dc.DrawImage($bmp, (New-Object Windows.Rect(0, 0, $bmp.PixelWidth, $bmp.PixelHeight)))
+      $dc.Close()
+      $rt = New-Object Windows.Media.Imaging.RenderTargetBitmap($bmp.PixelWidth, $bmp.PixelHeight, 96, 96, [Windows.Media.PixelFormats]::Pbgra32)
+      $rt.Render($dv)
+      $bmp = $rt
+    }
+    'png' { $enc = New-Object Windows.Media.Imaging.PngBitmapEncoder }
+    'tiff' { $enc = New-Object Windows.Media.Imaging.TiffBitmapEncoder }
+    'bmp' { $enc = New-Object Windows.Media.Imaging.BmpBitmapEncoder }
+    default { throw 'That format can''t be saved here.' }
+  }
+  $enc.Frames.Add([Windows.Media.Imaging.BitmapFrame]::Create($bmp))
+  $fs = [IO.File]::Open($out, [IO.FileMode]::CreateNew)
+  try { $enc.Save($fs) } finally { $fs.Close() }
+  Write-Output ('{0}x{1}' -f $bmp.PixelWidth, $bmp.PixelHeight)
+} finally { $stream.Close() }
+"#;
+        let size = max.unwrap_or(0);
+        if !PHOTO_OUT.contains(&fmt) || (size != 0 && !(100..=20_000).contains(&size)) || out.exists() || !src.is_file() {
+            return Err(RunError::Failed("That photo can't be converted.".into()));
+        }
+        let (src_text, out_text) = (src.display().to_string(), out.display().to_string());
+        if src_text.contains(['\n', '\r']) || out_text.contains(['\n', '\r']) {
+            return Err(RunError::Failed("That photo can't be converted.".into()));
+        }
+        let dir = std::env::temp_dir().join("BYTE-upkeep");
+        std::fs::create_dir_all(&dir).map_err(|e| RunError::Failed(e.to_string()))?;
+        let wish = dir.join(format!("photo-{}.txt", uuid::Uuid::new_v4().simple()));
+        std::fs::write(&wish, format!("{src_text}\n{out_text}\n{fmt}\n{size}")).map_err(|e| RunError::Failed(e.to_string()))?;
+        let result = run_script("convert-photo.ps1", SCRIPT, &[&wish]);
+        let _ = std::fs::remove_file(&wish);
+        result
     }
 
     fn find_files(words: &[String], root: &std::path::Path) -> Result<String, RunError> {
@@ -1277,6 +1402,99 @@ mod live {
         assert!(run_op(&WinOp::StartupSet { kind: "task".into(), name: "x".into(), on: false }).is_err());
         assert!(run_op(&WinOp::StartupSet { kind: "run".into(), name: "".into(), on: false }).is_err());
         assert!(run_op(&WinOp::StartupSet { kind: "run".into(), name: "a\nb".into(), on: false }).is_err());
+    }
+
+    /// Runs fixed PowerShell text that only mentions the test's own temporary folder.
+    fn ps(script: &str) -> String {
+        let out = std::process::Command::new("powershell").args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script]).output().unwrap();
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    }
+
+    #[test]
+    #[ignore = "makes photos in a temporary folder and converts them"]
+    fn live_pc_convert_photo_resizes_turns_upright_and_never_overwrites() {
+        let dir = std::env::temp_dir().join(format!("byte-photo-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _cleanup = Cleanup(dir.clone());
+        let d = dir.display();
+        // A 400x200 PNG, and a 400x200 JPEG whose camera says "turn 90 degrees" (so it is really 200 wide and 400 tall).
+        ps(&format!(
+            r#"Add-Type -AssemblyName System.Drawing
+$b = New-Object Drawing.Bitmap 400, 200
+$g = [Drawing.Graphics]::FromImage($b); $g.Clear([Drawing.Color]::SteelBlue); $g.Dispose()
+$b.Save('{d}\wide.png', [Drawing.Imaging.ImageFormat]::Png)
+$p = [System.Runtime.Serialization.FormatterServices]::GetUninitializedObject([Drawing.Imaging.PropertyItem])
+$p.Id = 0x0112; $p.Type = 3; $p.Len = 2; $p.Value = [byte[]](6, 0)
+$b.SetPropertyItem($p)
+$b.Save('{d}\turned.jpg', [Drawing.Imaging.ImageFormat]::Jpeg)
+$b.Dispose()"#
+        ));
+        let size = |name: &str| ps(&format!(r#"Add-Type -AssemblyName System.Drawing; $i = [Drawing.Image]::FromFile('{d}\{name}'); '{{0}}x{{1}}' -f $i.Width, $i.Height; $i.Dispose()"#));
+        assert_eq!((size("wide.png"), size("turned.jpg")), ("400x200".to_string(), "400x200".to_string()));
+        let convert = |src: &str, out: &str, format: &str, max: Option<u32>| run_op(&WinOp::ConvertPhoto { src: dir.join(src), out: dir.join(out), format: format.into(), max });
+        // Smaller, and as a JPEG: 400x200 limited to 200 on the long side is 200x100, and it really is a JPEG.
+        assert_eq!(convert("wide.png", "small.jpg", "jpeg", Some(200)).unwrap(), "200x100");
+        assert_eq!(&std::fs::read(dir.join("small.jpg")).unwrap()[..3], &[0xFF, 0xD8, 0xFF]);
+        assert_eq!(size("small.jpg"), "200x100");
+        // The camera's turn is applied: upright it is 200x400, and 100 on the long side makes 50x100.
+        assert_eq!(convert("turned.jpg", "upright.png", "png", Some(100)).unwrap(), "50x100");
+        assert_eq!(size("upright.png"), "50x100");
+        // Just another kind, at full size.
+        assert_eq!(convert("wide.png", "wide.tif", "tiff", None).unwrap(), "400x200");
+        assert_eq!(convert("wide.png", "wide.bmp", "bmp", None).unwrap(), "400x200");
+        // The originals are untouched, and nothing is ever overwritten.
+        assert_eq!((size("wide.png"), size("turned.jpg")), ("400x200".to_string(), "400x200".to_string()));
+        let before = std::fs::read(dir.join("small.jpg")).unwrap();
+        assert!(convert("wide.png", "small.jpg", "jpeg", Some(100)).is_err());
+        assert_eq!(std::fs::read(dir.join("small.jpg")).unwrap(), before);
+        // Refused: a kind a PC can't write, a silly size, a missing or unreadable photo.
+        assert!(convert("wide.png", "x.gif", "gif", None).is_err());
+        assert!(convert("wide.png", "x.png", "png", Some(50)).is_err());
+        assert!(convert("wide.png", "x.png", "png", Some(50_000)).is_err());
+        assert!(convert("missing.png", "y.png", "png", None).is_err());
+        std::fs::write(dir.join("broken.png"), b"not a picture").unwrap();
+        assert!(convert("broken.png", "z.png", "png", None).is_err());
+        assert!(!dir.join("z.png").exists(), "a failed conversion leaves nothing behind");
+    }
+
+    #[test]
+    #[ignore = "opens a File Explorer window on a temporary folder, reads its selection and closes that window"]
+    fn live_pc_explorer_selection_reads_the_window_on_top() {
+        let dir = std::env::temp_dir().join(format!("byte-sel-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("pick me.txt");
+        std::fs::write(&file, "x").unwrap();
+        std::fs::write(dir.join("other.txt"), "y").unwrap();
+        let name = dir.file_name().unwrap().to_string_lossy().to_string();
+        struct Cleanup(std::path::PathBuf, String);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                // Close only the window that shows this test's folder.
+                let _ = std::process::Command::new("powershell")
+                    .args(["-NoProfile", "-NonInteractive", "-Command", &format!("(New-Object -ComObject Shell.Application).Windows() | Where-Object {{ $_.LocationURL -like '*{}*' }} | ForEach-Object {{ $_.Quit() }}", self.1)])
+                    .output();
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _cleanup = Cleanup(dir.clone(), name);
+        use std::os::windows::process::CommandExt;
+        std::process::Command::new("explorer.exe").raw_arg(format!("/select,\"{}\"", file.display())).spawn().unwrap();
+        let mut seen = String::new();
+        let found = (0..40).any(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            seen = run_op(&WinOp::ExplorerSelection).unwrap_or_default();
+            seen.lines().any(|l| l.eq_ignore_ascii_case(&file.display().to_string()))
+        });
+        assert!(found, "the selection of the top Explorer window was {seen:?}");
+        assert_eq!(seen.lines().count(), 1, "only the one file is selected: {seen:?}");
     }
 
     #[test]

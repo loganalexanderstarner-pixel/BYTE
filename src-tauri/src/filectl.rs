@@ -419,6 +419,30 @@ fn is_photo(p: &Path) -> bool {
     kind_folder(p) == "Images" && !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("svg"))
 }
 
+/// Photo kinds a PC can save: (word, WIC format, file extension).
+const PC_PHOTO_FORMATS: &[(&str, &str, &str)] = &[("jpg", "jpeg", "jpg"), ("jpeg", "jpeg", "jpg"), ("png", "png", "png"), ("tiff", "tiff", "tiff"), ("tif", "tiff", "tiff"), ("bmp", "bmp", "bmp")];
+
+/// `convert_plan` for a PC: every photo gets an explicit format. With only a size given, a photo keeps its kind when a PC can save
+/// that kind (JPEG, PNG, TIFF, BMP) and is saved as PNG otherwise (a GIF, WebP or HEIC photo, for example).
+pub fn convert_plan_pc(files: &[PathBuf], to: Option<&str>, max: Option<u32>) -> Vec<(PathBuf, PathBuf, &'static str)> {
+    let mut taken = std::collections::HashSet::new();
+    let chosen = to.and_then(|t| PC_PHOTO_FORMATS.iter().find(|(w, _, _)| *w == t));
+    files
+        .iter()
+        .filter(|f| is_photo(f))
+        .map(|f| {
+            let dir = f.parent().unwrap_or(Path::new("."));
+            let stem = f.file_stem().and_then(|s| s.to_str()).unwrap_or("photo");
+            let own = f.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+            let (_, fmt, ext) = chosen.or_else(|| PC_PHOTO_FORMATS.iter().find(|(w, _, _)| *w == own)).copied().unwrap_or(("png", "png", "png"));
+            let name = if max.is_some() { format!("{stem} (small).{ext}") } else { format!("{stem}.{ext}") };
+            let out = free_name(dir, &name, &taken);
+            taken.insert(out.clone());
+            (f.clone(), out, fmt)
+        })
+        .collect()
+}
+
 /// Output paths for converting: same folder, new extension (or "name (small)").
 pub fn convert_plan(files: &[PathBuf], to: Option<&str>, max: Option<u32>) -> Vec<(PathBuf, PathBuf, Option<&'static str>)> {
     let mut taken = std::collections::HashSet::new();
@@ -516,9 +540,10 @@ fn card(send: Emit<'_>, app: &str, title: &str, detail: &str, ok: bool, undo: Op
 }
 
 async fn selection(runner: &dyn Runner) -> Result<Vec<PathBuf>, String> {
-    match runner.run(&Command::Osa { script: FINDER_SELECTION, args: vec![] }).await {
+    let (cmd, app) = if runner.pc() { (Command::Win(WinOp::ExplorerSelection), "File Explorer") } else { (Command::Osa { script: FINDER_SELECTION, args: vec![] }, "Finder") };
+    match runner.run(&cmd).await {
         Ok(out) => Ok(out.lines().map(str::trim).filter(|l| !l.is_empty()).map(PathBuf::from).collect()),
-        Err(e) => Err(e.text("Finder")),
+        Err(e) => Err(e.text_for(app, runner.pc())),
     }
 }
 
@@ -540,10 +565,10 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, runner: &dyn Runne
     if pc {
         match &a {
             Ask::Find { query } => return find_pc(turn, runner, id, query, home, send).await,
-            Ask::Convert { .. } | Ask::AboutSelection => {
-                return Ok(Some((SourceBook::default(), "BYTE can't yet read what is selected in File Explorer or convert photos on a PC. Say so plainly, and offer to look for a file by name, to tidy a folder, or to work with a file the user attaches with the paperclip.".to_string())));
+            Ask::Convert { to: Some(t), .. } if t == "heic" => {
+                return Ok(Some((SourceBook::default(), "Windows can't save photos as HEIC (it can open them if Microsoft's HEIF extension is installed). Tell the user that, and offer JPG, PNG, TIFF or BMP instead.".to_string())));
             }
-            Ask::Organize { .. } => {}
+            _ => {}
         }
     }
     match a {
@@ -619,11 +644,11 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, runner: &dyn Runne
         Ask::Convert { to, max } => {
             let files = match selection(runner).await {
                 Ok(f) => f,
-                Err(e) => return Ok(Some((SourceBook::default(), format!("BYTE couldn't read the Finder selection: {e}\n\n{tell}")))),
+                Err(e) => return Ok(Some((SourceBook::default(), format!("BYTE couldn't read the {app} selection: {e}\n\n{tell}")))),
             };
-            let plan = convert_plan(&files, to.as_deref(), max);
+            let plan: Vec<(PathBuf, PathBuf, Option<&'static str>)> = if pc { convert_plan_pc(&files, to.as_deref(), max).into_iter().map(|(a, b, c)| (a, b, Some(c))).collect() } else { convert_plan(&files, to.as_deref(), max) };
             if plan.is_empty() {
-                return Ok(Some((SourceBook::default(), "No photos are selected in Finder. Ask the user to select the photos in Finder first, then ask again.".to_string())));
+                return Ok(Some((SourceBook::default(), format!("No photos are selected in {app}. Ask the user to select the photos in {app} first, then ask again."))));
             }
             let what = match (&to, max) {
                 (Some(t), Some(m)) => format!("Save {} photos as {} at most {m} px", plan.len(), t.to_uppercase()),
@@ -631,13 +656,13 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, runner: &dyn Runne
                 (None, Some(m)) => format!("Save smaller copies of {} photos (at most {m} px)", plan.len()),
                 (None, None) => format!("Copy {} photos", plan.len()),
             };
-            send(ChatEvent::ToolCall { id: id.clone(), name: "mac_convert".into(), args: json!({ "app": "Finder", "what": what }) })?;
+            send(ChatEvent::ToolCall { id: id.clone(), name: "mac_convert".into(), args: json!({ "app": app, "what": what }) })?;
             let names: Vec<String> = plan.iter().take(8).map(|(_, out, _)| out.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string()).collect();
             let fields = vec![
                 ("New files".to_string(), format!("{}{}", names.join(", "), if plan.len() > 8 { format!(" and {} more", plan.len() - 8) } else { String::new() })),
-                ("Note".to_string(), "Saved next to the originals, which stay as they are.".to_string()),
+                ("Note".to_string(), if pc { "Saved next to the originals, which stay as they are. Photos are turned the right way up, and the camera's details (such as where it was taken) aren't copied. Undo moves the new files to the Recycle Bin.".to_string() } else { "Saved next to the originals, which stay as they are.".to_string() }),
             ];
-            if !macctl::ask_ok(&what, "Finder", fields, cancel, send).await? {
+            if !macctl::ask_ok(&what, app, fields, cancel, send).await? {
                 send(ChatEvent::ToolResult { id, ok: false, summary: "You said no".into() })?;
                 return Ok(Some((SourceBook::default(), "The user chose not to convert the photos. Nothing was changed. Say so in one sentence.".to_string())));
             }
@@ -647,30 +672,34 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, runner: &dyn Runne
                 if cancel.is_cancelled() {
                     return Err(AppError::Cancelled);
                 }
-                match runner.run(&sips_command(src, out, *fmt, max)).await {
+                let cmd = match (pc, fmt) {
+                    (true, Some(f)) => Command::Win(WinOp::ConvertPhoto { src: src.clone(), out: out.clone(), format: f.to_string(), max }),
+                    _ => sips_command(src, out, *fmt, max),
+                };
+                match runner.run(&cmd).await {
                     Ok(_) => made.push(out.clone()),
-                    Err(e) => failed.push(format!("{}: {}", src.file_name().and_then(|n| n.to_str()).unwrap_or("?"), e.text("sips"))),
+                    Err(e) => failed.push(format!("{}: {}", src.file_name().and_then(|n| n.to_str()).unwrap_or("?"), e.text_for(if pc { "Windows" } else { "sips" }, pc))),
                 }
             }
             let undo = (!made.is_empty()).then(|| macctl::keep_undo(Undo::Created(made.clone())));
             let detail = format!("{} of {} saved", made.len(), plan.len());
             send(ChatEvent::ToolResult { id, ok: failed.is_empty(), summary: detail.clone() })?;
-            card(send, "Finder", &what, &detail, failed.is_empty(), undo)?;
+            card(send, app, &what, &detail, failed.is_empty(), undo)?;
             let problems = if failed.is_empty() { String::new() } else { format!(" These didn't work: {}.", failed.join("; ")) };
             Ok(Some((SourceBook::default(), format!("Done: BYTE saved {} new photo files next to the originals.{problems}\n\n{tell}", made.len()))))
         }
         Ask::AboutSelection => {
-            send(ChatEvent::ToolCall { id: id.clone(), name: "mac_finder_selection".into(), args: json!({ "app": "Finder", "what": "Read the files selected in Finder" }) })?;
+            send(ChatEvent::ToolCall { id: id.clone(), name: "mac_finder_selection".into(), args: json!({ "app": app, "what": format!("Read the files selected in {app}") }) })?;
             let files = match selection(runner).await {
                 Ok(f) => f,
                 Err(e) => {
                     send(ChatEvent::ToolResult { id, ok: false, summary: e.clone() })?;
-                    return Ok(Some((SourceBook::default(), format!("BYTE couldn't read the Finder selection: {e}\n\n{tell}"))));
+                    return Ok(Some((SourceBook::default(), format!("BYTE couldn't read the {app} selection: {e}\n\n{tell}"))));
                 }
             };
             if files.is_empty() {
                 send(ChatEvent::ToolResult { id, ok: false, summary: "Nothing selected".into() })?;
-                return Ok(Some((SourceBook::default(), "Nothing is selected in Finder. Ask the user to select the files first.".to_string())));
+                return Ok(Some((SourceBook::default(), format!("Nothing is selected in {app}. Ask the user to select the files first."))));
             }
             let mut parts = Vec::new();
             for f in files.iter().take(READ_MAX) {
@@ -683,7 +712,7 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, runner: &dyn Runne
             let summary = format!("Read {} of {} selected files", parts.len(), files.len());
             send(ChatEvent::ToolResult { id, ok: true, summary: summary.clone() })?;
             let more = if files.len() > READ_MAX { format!("\n\n({} more files were selected; only the first {READ_MAX} were read.)", files.len() - READ_MAX) } else { String::new() };
-            Ok(Some((SourceBook::default(), format!("The files the user selected in Finder:\n\n{}{more}\n\nAnswer the user's request about them.", parts.join("\n\n---\n\n")))))
+            Ok(Some((SourceBook::default(), format!("The files the user selected in {app}:\n\n{}{more}\n\nAnswer the user's request about them.", parts.join("\n\n---\n\n")))))
         }
     }
 }

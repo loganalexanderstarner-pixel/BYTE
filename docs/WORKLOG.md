@@ -287,6 +287,28 @@ how every item below was found; none of them showed in a test.
 - **Trap:** on the PC, `cargo test` rebuilds OpenSSL when RUSTFLAGS differ, which
   needs Strawberry Perl on PATH. Use `scripts/windows-dev.bat`'s PATH.
 
+### 2026-10-08: Files on Windows, second part: the File Explorer selection and converting photos
+- **Why:** "summarize the files I selected" and "make the selected photos smaller / convert them to jpg" said "can't yet" on a PC.
+- **What:** `WinOp::ExplorerSelection` finds the File Explorer window that was used last (the first one in the window stack) and asks the
+  shell for its selected items; `WinOp::ConvertPhoto` saves a copy through Windows' own imaging (WIC via WPF) as JPEG, PNG, TIFF
+  or BMP, optionally no larger than N pixels on the long side. A camera's orientation tag is applied (a re-saved photo has no tag
+  left, so a phone photo would otherwise come out sideways); JPEG is flattened on white; the camera's other details (location)
+  are not copied, and the card says so. Nothing is overwritten (checked in Rust and in the script, and the file is created
+  with `CreateNew`), the original is never touched, and a failed conversion leaves no file. With only a size asked, a photo keeps
+  its kind when a PC can write it and becomes a PNG otherwise (GIF, WebP, HEIC). HEIC can't be written on Windows, which is said
+  plainly. `convert_plan_pc` names the copies like the Mac does ("trip (small).jpg"). Undo of created copies now uses the
+  Recycle Bin on Windows (a plain delete if it refuses), so a copy that was edited afterwards can still be fetched back; this
+  also applies to notes made from a PC.
+- **Verify:** Linux: 625 tests (new: formats and names, the flow with a failing photo and its Undo, HEIC refused, nothing selected,
+  an unreadable Explorer, questions about the selection). On the real PC: `live_pc_convert_photo_resizes_turns_upright_and_never_overwrites`
+  makes a PNG and a JPEG that the camera says to turn, converts them (400x200 to 200x100 as a real JPEG; the turned one to 50x100
+  upright), checks the originals, refuses to overwrite, and refuses bad kinds, sizes, missing and broken photos;
+  `live_pc_explorer_selection_reads_the_window_on_top` opens an Explorer window on a temporary folder with one file selected,
+  reads exactly that file and closes only that window. HEIC input was not tried (it needs Microsoft's HEIF extension).
+- **Not done:** reading the selection on the Desktop itself (icons on the desktop are not an Explorer window), and with several
+  Explorer tabs open the first tab Windows lists may be read.
+- **Undo:** `git revert`; the Mac path is unchanged.
+
 ### 2026-10-08: Files on Windows, first part: "find my tax return" and "organize my Downloads"
 - **Why:** `filectl` (find files, tidy a folder, convert the selected photos, ask about the selected files) was macOS-only.
   Finding used Spotlight, tidying was already plain Rust (plan, move, Undo), the other two need Finder and `sips`.

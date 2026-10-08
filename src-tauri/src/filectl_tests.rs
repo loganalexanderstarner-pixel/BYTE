@@ -206,6 +206,10 @@ fn e2e_finder_script_compiles() {
 struct PcFiles {
     ran: StdMutex<Vec<Command>>,
     found: StdMutex<Option<Result<String, RunError>>>,
+    /// What File Explorer says is selected (one path per line); unset means it cannot say.
+    selected: StdMutex<Option<Result<String, RunError>>>,
+    /// Per photo, in order: what the conversion says (`Ok("size")` when unset).
+    converted: StdMutex<Vec<Result<String, RunError>>>,
 }
 
 impl Runner for PcFiles {
@@ -216,6 +220,11 @@ impl Runner for PcFiles {
         self.ran.lock().unwrap().push(cmd.clone());
         let r = match cmd {
             Command::Win(WinOp::FindFiles { .. }) => self.found.lock().unwrap().clone().unwrap_or(Err(RunError::Missing)),
+            Command::Win(WinOp::ExplorerSelection) => self.selected.lock().unwrap().clone().unwrap_or(Err(RunError::Missing)),
+            Command::Win(WinOp::ConvertPhoto { .. }) => {
+                let mut c = self.converted.lock().unwrap();
+                if c.is_empty() { Ok("1200x800".into()) } else { c.remove(0) }
+            }
             _ => Err(RunError::Missing),
         };
         Box::pin(async move { r })
@@ -416,15 +425,86 @@ async fn tidying_a_pc_folder_asks_first_moves_loose_files_and_undo_puts_them_bac
     assert!(d.path().join("Videos/Video/clip.mp4").exists(), "{ev:?}");
 }
 
+#[test]
+fn a_pc_saves_photos_in_the_kinds_it_can_write() {
+    let files: Vec<PathBuf> = ["C:\\p\\a.HEIC", "C:\\p\\b.jpg", "C:\\p\\c.png", "C:\\p\\d.tiff", "C:\\p\\e.gif", "C:\\p\\notes.txt", "C:\\p\\f.svg"].iter().map(PathBuf::from).collect();
+    let show = |plan: Vec<(PathBuf, PathBuf, &'static str)>| plan.into_iter().map(|(_, out, fmt)| format!("{}={fmt}", out.display().to_string().rsplit('\\').next().unwrap())).collect::<Vec<_>>();
+    // Only a size: a photo keeps its kind when a PC can write it, and is saved as PNG when not; text and vector files are skipped.
+    assert_eq!(show(convert_plan_pc(&files, None, Some(1600))), ["a (small).png=png", "b (small).jpg=jpeg", "c (small).png=png", "d (small).tiff=tiff", "e (small).png=png"]);
+    // A kind was asked for.
+    assert_eq!(show(convert_plan_pc(&files[..3], Some("jpg"), None)), ["a.jpg=jpeg", "b.jpg=jpeg", "c.jpg=jpeg"]);
+    assert_eq!(show(convert_plan_pc(&files[..2], Some("png"), Some(800))), ["a (small).png=png", "b (small).png=png"]);
+}
+
 #[tokio::test]
-async fn photo_conversion_and_the_explorer_selection_are_said_not_pretended() {
+async fn converting_the_explorer_selection_asks_first_keeps_originals_and_can_be_undone() {
     let d = tempfile::tempdir().unwrap();
-    for q in ["convert the selected photos to jpg", "summarize the files I selected in File Explorer"] {
-        let f = PcFiles::default();
-        let (out, ev) = flow_in(q, &f, d.path(), None).await;
-        assert!(f.ran.lock().unwrap().is_empty() && !ev.iter().any(|e| matches!(e, ChatEvent::Approval(_))), "{q}");
-        assert!(out.unwrap().1.contains("can't yet"), "{q}");
+    let (heic, jpg, txt) = (touch(d.path(), "IMG_1.HEIC"), touch(d.path(), "trip.jpg"), touch(d.path(), "notes.txt"));
+    let f = PcFiles::default();
+    f.selected.lock().unwrap().replace(Ok(format!("{}\n{}\n{}\n", heic.display(), jpg.display(), txt.display())));
+    // No: nothing is made.
+    let (out, ev) = flow_in("make the selected photos in explorer smaller", &f, d.path(), Some(false)).await;
+    let ask = ev.iter().find_map(|e| if let ChatEvent::Approval(a) = e { Some(a.clone()) } else { None }).expect("asked first");
+    let text = ask.fields.iter().map(|x| format!("{}: {}", x.label, x.value)).collect::<Vec<_>>().join("\n");
+    assert!(text.contains("IMG_1 (small).png") && text.contains("trip (small).jpg") && !text.contains("notes") && text.contains("Recycle Bin") && !text.contains("Finder"), "{text}");
+    assert_eq!(ask.site, "File Explorer");
+    assert!(!f.ran.lock().unwrap().iter().any(|c| matches!(c, Command::Win(WinOp::ConvertPhoto { .. }))));
+    assert!(out.unwrap().1.contains("Nothing was changed"));
+    // Yes: one conversion per photo with an explicit kind and the size limit; the originals stay; Undo removes the copies.
+    f.converted.lock().unwrap().extend([Ok("1600x900".into()), Err(RunError::Failed("The image format is not supported.".into()))]);
+    let (out, ev) = flow_in("make the selected photos in explorer smaller", &f, d.path(), Some(true)).await;
+    let ran = f.ran.lock().unwrap().clone();
+    let first = Command::Win(WinOp::ConvertPhoto { src: heic.clone(), out: d.path().join("IMG_1 (small).png"), format: "png".into(), max: Some(1600) });
+    let second = Command::Win(WinOp::ConvertPhoto { src: jpg.clone(), out: d.path().join("trip (small).jpg"), format: "jpeg".into(), max: Some(1600) });
+    assert!(ran.contains(&first) && ran.contains(&second), "{ran:?}");
+    assert!(heic.exists() && jpg.exists(), "originals stay");
+    let done = ev.iter().find_map(|e| if let ChatEvent::MacDone(m) = e { Some(m.clone()) } else { None }).expect("a done card");
+    assert!(!done.ok && done.app == "File Explorer" && done.detail.starts_with("1 of 2 saved"), "{done:?}");
+    let notes = out.unwrap().1;
+    assert!(notes.contains("saved 1 new photo files") && notes.contains("trip.jpg: ") && notes.contains("not supported") && !notes.contains("sips"), "{notes}");
+    match macctl::undo_step(&done.undo.expect("an undo token")) {
+        Some(Undo::Created(files)) => assert_eq!(files, vec![d.path().join("IMG_1 (small).png")]),
+        other => panic!("undo should remove the new copies, got {other:?}"),
     }
+}
+
+#[tokio::test]
+async fn converting_to_a_kind_a_pc_cannot_write_or_with_nothing_selected_changes_nothing() {
+    let d = tempfile::tempdir().unwrap();
+    let f = PcFiles::default();
+    f.selected.lock().unwrap().replace(Ok(touch(d.path(), "a.jpg").display().to_string()));
+    let (out, ev) = flow_in("convert the selected photos to heic", &f, d.path(), Some(true)).await;
+    assert!(f.ran.lock().unwrap().is_empty() && !ev.iter().any(|e| matches!(e, ChatEvent::Approval(_))));
+    assert!(out.unwrap().1.contains("can't save photos as HEIC"));
+    // Nothing selected, or only things that are not photos.
+    for sel in ["", "C:\\x\\notes.txt\n"] {
+        let f = PcFiles::default();
+        f.selected.lock().unwrap().replace(Ok(sel.into()));
+        let (out, ev) = flow_in("convert the selected photos to jpg", &f, d.path(), Some(true)).await;
+        assert!(!ev.iter().any(|e| matches!(e, ChatEvent::Approval(_))));
+        assert!(out.unwrap().1.contains("No photos are selected in File Explorer"));
+    }
+    // File Explorer that cannot be read says so, in its own name.
+    let (out, _) = flow_in("convert the selected photos to jpg", &PcFiles::default(), d.path(), None).await;
+    let said = out.unwrap().1;
+    assert!(said.contains("couldn't read the File Explorer selection") && !said.contains("Finder"), "{said}");
+}
+
+#[tokio::test]
+async fn questions_about_the_explorer_selection_read_those_files() {
+    let d = tempfile::tempdir().unwrap();
+    let note = d.path().join("lease notes.txt");
+    std::fs::write(&note, "Rent is 1,200 a month. The lease ends on June 30.").unwrap();
+    let f = PcFiles::default();
+    f.selected.lock().unwrap().replace(Ok(note.display().to_string()));
+    let (out, ev) = flow_in("summarize the files I selected in File Explorer", &f, d.path(), None).await;
+    let notes = out.unwrap().1;
+    assert!(notes.contains("selected in File Explorer") && notes.contains("Rent is 1,200") && !notes.contains("Finder"), "{notes}");
+    assert!(ev.iter().any(|e| matches!(e, ChatEvent::ToolResult { ok: true, .. })));
+    // Nothing selected says so.
+    f.selected.lock().unwrap().replace(Ok(String::new()));
+    let (out, _) = flow_in("summarize the files I selected in File Explorer", &f, d.path(), None).await;
+    assert!(out.unwrap().1.contains("Nothing is selected in File Explorer"));
 }
 
 /// "Find …" on the real PC, through the whole flow with the real Windows Search. Prints what it found; changes nothing.
