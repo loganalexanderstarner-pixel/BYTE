@@ -33,8 +33,9 @@ that folder (the models are in its `models` folder and are the large part).
 - **Web search** without a BYTE cloud key uses DuckDuckGo, which sometimes shows a bot check to a home
   connection after many searches; answers then fall back to weaker sources. Connect your BYTE cloud key
   (**Settings → Cloud**) for the full search.
-- The Mac-only "control your computer" features (Reminders, Mail, Messages, Mac upkeep, Shortcuts) are
-  not on Windows; the settings that belong to them are hidden.
+- Texts (Messages), Shortcuts, and reading your mail or calendar are not on Windows. The rest of "control
+  your computer" is: dark mode, volume, Wi-Fi, music, Settings pages, email and calendar drafts, PC upkeep
+  (storage, what slows the PC, check-up, startup apps, uninstalling) and files (find, tidy, convert photos).
 - **Windows Hello lock** is available but its prompt has only been checked for availability, not used.
 - Updates: the check runs, but installing an update downloads the whole installer (about 560 MB).
 - Not testable here: Intel graphics, NPUs, and an AMD graphics card on the Windows driver (an AMD

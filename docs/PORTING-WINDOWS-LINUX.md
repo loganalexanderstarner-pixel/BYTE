@@ -358,7 +358,7 @@ Report to Logan after each one: what works, screenshots, numbers, what's next.
 - **Open at login:** the Run key or Task Scheduler.
 
 ### W3. Windows: OS control and upkeep
-- **Done 2026-10-08:** `pcctl.rs` (PC control: dark mode, volume, Wi-Fi, display, Settings pages, music, email and calendar drafts; notes and reminders stay in BYTE). Still to do here: texts, Upkeep, filectl on Windows, Outlook for reading mail and calendar.
+- **Done 2026-10-08:** `pcctl.rs` (PC control: dark mode, volume, Wi-Fi, display, Settings pages, music, email and calendar drafts; notes and reminders stay in BYTE) and the Windows form of `upkeep.rs` and `filectl.rs`: storage with Recycle Bin and Undo, the coach and check-up, startup apps, uninstalling, finding files (Windows Search), tidying, the File Explorer selection, converting photos. All of it was run on a real PC; see the work-log entries of that day for how, and for what is deliberately different from the Mac (uninstalling has no Undo; startup apps are switched off, not removed). Still to do here: texts (Phone Link has no API), Outlook for reading mail and calendar, toast action buttons.
 - `macctl.rs` (Notes, Reminders, Calendar, Mail, Music…) → the Windows way: PowerShell and COM (Outlook,
   Office), UI Automation, toast notifications with actions, Windows calendar/to-do where reachable.
   The same approval card and Undo apply.
@@ -407,7 +407,8 @@ argument to test binaries alone (`rustc-link-arg-tests` is rejected), and the
 general `rustc-link-arg` would also change the shipped app. A build-script change
 that tried it broke the Windows build for two hours.
 
-State on 2026-10-05: 514 passed, 0 failed, 57 ignored. Four `upkeep` tests are
-ignored on Windows because Upkeep is the Mac housekeeping feature; its protection
-list is Mac paths and its `/../` traversal check would not match `\..\`, so both
-need Windows equivalents before the feature is offered there.
+State on 2026-10-08: 625 passed, 0 failed, 80 ignored (the ignored ones are live tests that
+need a person at the PC or a real engine; run them as `docs/WINDOWS-TESTING.md` says). Upkeep's
+protection list and traversal check now have Windows forms (string-based, so they are tested on
+every OS). Run the plain `cargo test --lib` on the PC before pushing, not only the live tests:
+CI's Windows job runs it, and it once caught a test that reached the real Downloads folder.
