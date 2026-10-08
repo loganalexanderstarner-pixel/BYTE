@@ -304,7 +304,13 @@ how every item below was found; none of them showed in a test.
   check-up (or for a laptop's battery wear), so the coach stays quick.
 - **Verify:** Linux: 605 tests (new: parsers on real output, the Quit allow-list including odd Unicode names, the coach and
   the check-up on a busy and a healthy fake PC, a PC that cannot answer, the whole flow in PC words). On the real PC, in the
-  desktop session: `live_pc_the_checkup_of_this_pc` runs the real readers and prints both cards.
+  desktop session: `live_pc_the_checkup_of_this_pc` runs the real readers (coach 0.6 s, check-up 1.3-1.6 s; it found 22.2 GB
+  free of 2 TB and rated it Bad, Defender on and current, firewall on, last update yesterday, device encryption off) and
+  `live_pc_quit_asks_a_programs_windows_to_close` opens Notepad, finds its window, asks it to close and sees it go (it
+  removes only the Notepads it started). Two bugs only the real PC showed, both in the test: a child that inherits the
+  test's output pipe keeps the whole run waiting (now null handles), and the card's list is cut to the busiest programs so
+  an idle Notepad is not in it (the test reads the process table). The list now follows what is short: biggest by memory
+  when memory is under 25% free, busiest by processor otherwise (the reader returns both sets).
 - **Not done:** startup apps, uninstalling (next slices), file tidying (`filectl`).
 - **Undo:** `git revert`; the Mac path is unchanged (its tests pass untouched).
 
