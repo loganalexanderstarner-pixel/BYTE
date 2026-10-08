@@ -76,7 +76,7 @@ export function KeyboardSection({ settings }: { settings: Settings | null }) {
       <div className="field">
         <span>
           Selected text hotkey
-          <small>{isWindows() ? "Select text in any app and press it: the writing studio opens with that text. Turned on or off with “Hotkeys and clipboard” above." : osText("Select text in any app and press it: the writing studio opens with that text. Turned on or off with Mac control above.")}</small>
+          <small>{isWindows() ? "Select text in any app and press it: the writing studio opens with that text. Turned on or off with “PC control, hotkeys and clipboard” above." : osText("Select text in any app and press it: the writing studio opens with that text. Turned on or off with Mac control above.")}</small>
         </span>
         <KeyRecorder value={settings?.selectionKeys ?? defaultSelectionKeys()} label="Selected text" disabled={!selOn} onSave={(k) => update({ selectionKeys: k })} />
       </div>

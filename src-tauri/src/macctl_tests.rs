@@ -122,6 +122,7 @@ fn user_words_never_become_script_code() {
                 assert_eq!(program, "shortcuts");
                 assert_eq!(args[1], evil, "one argument, no shell");
             }
+            Command::Win(_) => panic!("the Mac builds no PC operation: {a:?}"),
         }
     }
     // No fixed script runs shell commands at all.
@@ -214,9 +215,15 @@ fn script_output_becomes_notes() {
 struct Fake {
     ran: StdMutex<Vec<Command>>,
     replies: StdMutex<Vec<Result<String, RunError>>>,
+    /// Pretend to be the PC's runner.
+    pc: bool,
 }
 
 impl Runner for Fake {
+    fn pc(&self) -> bool {
+        self.pc
+    }
+
     fn run<'a>(&'a self, cmd: &'a Command) -> futures_util::future::BoxFuture<'a, Result<String, RunError>> {
         self.ran.lock().unwrap().push(cmd.clone());
         let r = {
@@ -598,4 +605,117 @@ fn plain_texts_split_person_and_message() {
     assert_eq!(super::plain_text("classification models"), None);
     assert_eq!(super::plain_text("Mom"), None);
     assert_eq!(super::plain_text("I am late"), None);
+}
+
+// ------------------------------------------------------------ the same flow on a PC
+
+fn pc_fake() -> Fake {
+    Fake { pc: true, ..Default::default() }
+}
+
+fn done_card(ev: &[ChatEvent]) -> MacDone {
+    ev.iter().find_map(|e| if let ChatEvent::MacDone(d) = e { Some(d.clone()) } else { None }).expect("a result card")
+}
+
+#[tokio::test]
+async fn on_a_pc_dark_mode_is_a_windows_operation_with_a_pc_card() {
+    let fake = pc_fake();
+    fake.replies.lock().unwrap().push(Ok("true".into()));
+    let (out, ev) = flow("turn on dark mode", &fake, None).await;
+    assert_eq!(fake.ran.lock().unwrap().clone(), vec![Command::Win(WinOp::DarkMode(Switch::On))]);
+    let card = done_card(&ev);
+    assert!(card.ok && card.app == "Settings" && card.undo.is_none(), "{card:?}");
+    assert!(out.unwrap().1.contains("dark mode is now on"));
+}
+
+#[tokio::test]
+async fn on_a_pc_the_volume_and_the_music_use_the_media_session() {
+    let fake = pc_fake();
+    fake.replies.lock().unwrap().push(Ok("30".into()));
+    let (_, ev) = flow("set the volume to 30", &fake, None).await;
+    assert_eq!(fake.ran.lock().unwrap().clone(), vec![Command::Win(WinOp::Volume(30))]);
+    assert_eq!(done_card(&ev).app, "Sound");
+
+    let fake = pc_fake();
+    fake.replies.lock().unwrap().push(Ok(format!("Blue in Green{US}Miles Davis")));
+    let (out, ev) = flow("pause the music", &fake, None).await;
+    assert_eq!(fake.ran.lock().unwrap().clone(), vec![Command::Win(WinOp::MediaPause)]);
+    let card = done_card(&ev);
+    assert!(card.app == "Media" && card.detail.starts_with("Paused"), "{card:?}");
+    assert!(out.unwrap().1.contains("paused \"Blue in Green\" by Miles Davis"));
+
+    let fake = pc_fake();
+    fake.replies.lock().unwrap().push(Ok("not running".into()));
+    let (out, _) = flow("what's playing", &fake, None).await;
+    assert!(out.unwrap().1.contains("No music or video app is playing"));
+}
+
+#[tokio::test]
+async fn on_a_pc_settings_open_on_a_windows_page() {
+    for (q, uri, label) in [
+        ("open bluetooth settings", "ms-settings:bluetooth", "Bluetooth & devices"),
+        ("open the windows update settings", "ms-settings:windowsupdate", "Windows Update"),
+        ("show me the sound settings", "ms-settings:sound", "Sound"),
+    ] {
+        let fake = pc_fake();
+        let (out, ev) = flow(q, &fake, None).await;
+        assert_eq!(fake.ran.lock().unwrap().clone(), vec![Command::Win(WinOp::Open(uri.into()))], "{q}");
+        assert_eq!(done_card(&ev).detail, format!("{label} settings"), "{q}");
+        assert!(out.unwrap().1.contains("Windows Settings"), "{q}");
+    }
+}
+
+#[tokio::test]
+async fn on_a_pc_an_email_needs_an_address_because_there_is_no_contacts_app() {
+    let fake = pc_fake();
+    let (out, _) = flow("email Sam about Friday", &fake, None).await;
+    assert!(fake.ran.lock().unwrap().is_empty(), "nothing ran: {:?}", fake.ran.lock().unwrap());
+    let text = out.unwrap().1;
+    assert!(text.contains("on the PC") && text.contains("email address"), "{text}");
+}
+
+#[tokio::test]
+async fn on_a_pc_what_windows_cannot_do_is_said_and_nothing_runs() {
+    for (q, says) in [
+        ("text Mom I'm on my way", "Phone Link"),
+        ("run my Morning shortcut", "no Shortcuts app"),
+        ("remind me to call Mom tomorrow at 3pm", "BYTE's own Tasks"),
+        ("what's on my calendar this week", "calendar"),
+        ("any new emails", "inbox"),
+    ] {
+        let fake = pc_fake();
+        let (out, ev) = flow(q, &fake, None).await;
+        assert!(fake.ran.lock().unwrap().is_empty(), "{q}: {:?}", fake.ran.lock().unwrap());
+        assert!(!ev.iter().any(|e| matches!(e, ChatEvent::Approval(_))), "{q}: nothing to approve");
+        let text = out.unwrap().1;
+        assert!(text.to_lowercase().contains(&says.to_lowercase()), "{q}: {text}");
+    }
+}
+
+#[tokio::test]
+async fn on_a_pc_turning_wifi_off_asks_first_and_saying_no_leaves_it_on() {
+    let fake = pc_fake();
+    let (out, ev) = flow("turn off wifi", &fake, Some(false)).await;
+    assert!(fake.ran.lock().unwrap().is_empty());
+    let card = ev.iter().find_map(|e| if let ChatEvent::Approval(a) = e { Some(a.clone()) } else { None }).expect("approval card");
+    assert_eq!(card.title, "Turn Wi-Fi off");
+    assert_eq!(card.site, "Settings");
+    assert!(out.unwrap().1.contains("chose not to"));
+}
+
+#[tokio::test]
+async fn a_pc_failure_is_worded_for_a_pc() {
+    let fake = pc_fake();
+    fake.replies.lock().unwrap().push(Err(RunError::Missing));
+    let (out, ev) = flow("set the volume to 30", &fake, None).await;
+    let card = done_card(&ev);
+    assert!(!card.ok && card.detail.contains("isn't available on this PC"), "{card:?}");
+    assert!(!out.unwrap().1.contains("Mac"));
+}
+
+#[test]
+fn the_mac_still_reads_settings_with_its_own_pane_names() {
+    // Only a PC's runner changes the pane table.
+    assert!(matches!(plan_on("open software update settings", false), Some(Plan::Ready(Action::OpenSettings { pane })) if pane == "software update"));
+    assert!(matches!(plan_on("open windows update settings", true), Some(Plan::Ready(Action::OpenSettings { pane })) if pane == "windows update"));
 }

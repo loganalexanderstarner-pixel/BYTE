@@ -11,9 +11,15 @@ BYTE can act on your Mac: reminders, calendar, notes, Mail drafts, texts, music,
 - **⌥⌘B** on selected text in any app opens it in BYTE (reply, explain, rewrite). This needs Accessibility permission.
 - **Mac upkeep:** "what's taking up space?", "why is my Mac slow?", "uninstall Zoom".
 <!-- win -->
-# Hotkeys and clipboard
+# PC control, hotkeys and clipboard
 
-BYTE works with the text you select in other apps and keeps a clipboard history. Controlling other apps, reminders, calendars and system settings by voice or text is a Mac feature that isn't available on Windows yet.
+BYTE can do things on your PC when you ask, and it works with the text you select in other apps. Anything that adds something lasting shows an **approval card** first.
+
+- **Settings and sound:** "turn on dark mode", "set the volume to 30", "mute", "turn off Wi-Fi", "turn off the display", "open Bluetooth settings". BYTE does it and tells you what it did.
+- **Music:** "pause the music", "next song" and "what's playing" work with whatever is playing (Spotify, your browser, Media Player). "Play some jazz" opens a search in Spotify, or in YouTube Music if you don't have Spotify; press play on the result.
+- **Emails** open as a draft in your mail app for you to send; BYTE never sends an email by itself. Give it the address ("email sam@example.com about Friday"), because a PC has no address book for BYTE to look in.
+- **Calendar:** "add lunch with Sam to my calendar tomorrow at noon" opens the event in your calendar app, which asks you to save it.
+- **Reminders and notes** are kept inside BYTE (Tasks and Notes), and you can undo a note from its card. BYTE can't send texts from a PC, run Shortcuts, or read your inbox or calendar.
 
 - **Ctrl+Alt+B** on selected text in any app opens it in BYTE (reply, explain, rewrite), then **Paste into** puts the result back. It can't read an app that is running as administrator.
 - The clipboard history keeps your recent copies on this PC only, and never keeps what looks like a password or a secret.

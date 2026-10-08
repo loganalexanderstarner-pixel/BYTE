@@ -281,6 +281,7 @@ fn key(cmd: &Command) -> String {
             let names = [(TRASH, "TRASH"), (PUT_BACK, "PUT_BACK"), (FRONT_APPS, "FRONT_APPS"), (QUIT_APP, "QUIT_APP"), (QUIT_ID, "QUIT_ID"), (LOGIN_LIST, "LOGIN_LIST"), (LOGIN_REMOVE, "LOGIN_REMOVE"), (LOGIN_ADD, "LOGIN_ADD")];
             names.iter().find(|(s, _)| s == script).map(|(_, n)| n.to_string()).unwrap_or_else(|| "OTHER".into())
         }
+        Command::Win(_) => "WIN".into(),
     }
 }
 

@@ -22,7 +22,7 @@ that folder (the models are in its `models` folder and are the large part).
 - **Settings → Models**: other models, with how well each fits this PC.
 - Attach a PDF or a photo of text; BYTE reads it (Windows' own text recognition).
 - Voice: press the microphone (Windows will ask once for permission), or try spoken answers.
-- **Settings → Hotkeys and clipboard → PowerShell commands** (off until you turn it on): ask "run a
+- **Settings → PC control, hotkeys and clipboard → PowerShell commands** (off until you turn it on): ask "run a
   command to show my disk space". BYTE shows the command and what it does and runs it only after you
   press **Do it**.
 - **Help** (the lifebuoy at the top): articles worded for Windows.

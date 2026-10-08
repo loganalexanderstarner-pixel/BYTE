@@ -30,6 +30,7 @@ use tokio_util::sync::CancellationToken;
 use crate::agent::{Emit, Turn};
 use crate::chat::{self, ChatEvent};
 use crate::error::{AppError, AppResult};
+use crate::pcctl::WinOp;
 use crate::tools::SourceBook;
 
 /// How long an app may take (the first time, macOS waits for the user's Allow).
@@ -37,8 +38,8 @@ const RUN_WAIT: Duration = Duration::from_secs(90);
 /// How long an approval card waits.
 const APPROVAL_WAIT: Duration = Duration::from_secs(600);
 /// Field separators in script output (ASCII unit / record separators).
-const US: char = '\u{1f}';
-const RS: char = '\u{1e}';
+pub(crate) const US: char = '\u{1f}';
+pub(crate) const RS: char = '\u{1e}';
 
 // ------------------------------------------------------------------ actions
 
@@ -89,6 +90,8 @@ pub enum Command {
     Osa { script: &'static str, args: Vec<String> },
     /// A system tool (`pmset`, `open`, `networksetup`, `shortcuts`), no shell.
     Exec { program: &'static str, args: Vec<String> },
+    /// A PC operation (see pcctl.rs); the Mac runner doesn't know it.
+    Win(WinOp),
 }
 
 impl Action {
@@ -103,6 +106,28 @@ impl Action {
             SafariTab => "Safari",
             DarkMode(_) => "System Events",
             Volume(_) | Mute(_) | Wifi(_) | SleepDisplay | OpenSettings { .. } => "System Settings",
+            ShortcutsList | ShortcutRun { .. } => "Shortcuts",
+            MailList { .. } | MailDraft { .. } => "Mail",
+            MessageSend { .. } => "Messages",
+            ContactFind { .. } => "Contacts",
+        }
+    }
+
+    /// `app`, as the card names it on a PC (`pc`) or a Mac.
+    pub fn app_for(&self, pc: bool) -> &'static str {
+        if !pc {
+            return self.app();
+        }
+        use Action::*;
+        match self {
+            NoteCreate { .. } | NoteFind { .. } => "BYTE Notes",
+            ReminderAdd { .. } | RemindersList { .. } => "BYTE Tasks",
+            EventAdd { .. } | EventsList { .. } => "Calendar",
+            MusicPlay { .. } | MusicPause | MusicNext | MusicPrevious | NowPlaying => "Media",
+            SafariTab => "Browser",
+            DarkMode(_) | Wifi(_) | OpenSettings { .. } => "Settings",
+            Volume(_) | Mute(_) => "Sound",
+            SleepDisplay => "Display",
             ShortcutsList | ShortcutRun { .. } => "Shortcuts",
             MailList { .. } | MailDraft { .. } => "Mail",
             MessageSend { .. } => "Messages",
@@ -175,6 +200,23 @@ impl Action {
             MailDraft { name, to, .. } => format!("Open an email to {} in Mail, ready to send", if name.is_empty() { to } else { name }),
             MessageSend { name, to, .. } => format!("Send a text to {}", if name.is_empty() { to } else { name }),
             ContactFind { name } => format!("Look up {name} in Contacts"),
+        }
+    }
+
+    /// `describe`, worded for a PC (`pc`) or a Mac.
+    pub fn describe_for(&self, pc: bool) -> String {
+        if !pc {
+            return self.describe();
+        }
+        use Action::*;
+        match self {
+            NoteCreate { title, .. } => format!("Save a note \"{title}\" in BYTE Notes"),
+            NoteFind { query } => format!("Look for notes about \"{query}\" in BYTE Notes"),
+            EventAdd { title, .. } => format!("Open \"{title}\" in your calendar app"),
+            MusicPlay { query } if !query.is_empty() => format!("Look up \"{query}\" to play"),
+            OpenSettings { pane } => format!("Open {} settings", crate::pcctl::pane_label(pane)),
+            MailDraft { name, to, .. } => format!("Open an email to {} in your mail app, ready to send", if name.is_empty() { to } else { name }),
+            _ => self.describe(),
         }
     }
 
@@ -781,6 +823,11 @@ enum Plan {
 }
 
 fn plan(q: &str) -> Option<Plan> {
+    plan_on(q, cfg!(windows))
+}
+
+/// `plan`, for a Mac (`pc` false) or a PC. Only the names of Settings pages differ.
+fn plan_on(q: &str, pc: bool) -> Option<Plan> {
     let l = clean(q);
     if l.is_empty() || is_how_to(&l) || l.len() > 600 {
         return None;
@@ -828,7 +875,7 @@ fn plan(q: &str) -> Option<Plan> {
         return ready(SleepDisplay);
     }
     if starts(&l, &["open ", "show ", "take me to ", "go to "]) && (l.contains("settings") || l.contains("preferences")) {
-        let pane = pane_for(&l).map(|p| p.0).unwrap_or("").to_string();
+        let pane = if pc { crate::pcctl::pane_for(&l).unwrap_or("") } else { pane_for(&l).map(|p| p.0).unwrap_or("") }.to_string();
         return ready(OpenSettings { pane });
     }
     // Safari.
@@ -918,9 +965,9 @@ fn plan(q: &str) -> Option<Plan> {
     None
 }
 
-/// BYTE should do this on the Mac (module on, macOS).
+/// BYTE should do this on this computer (module on; macOS or Windows).
 pub fn applies(enabled: bool, question: &str) -> bool {
-    cfg!(target_os = "macos") && enabled && wants(question)
+    (cfg!(target_os = "macos") || cfg!(windows)) && enabled && wants(question)
 }
 
 /// The message asks for a Mac action (any OS; tests use this).
@@ -934,13 +981,13 @@ fn number_in(l: &str) -> Option<u32> {
 
 // ------------------------------------------------------------------- times
 
-fn when_text(d: NaiveDateTime) -> String {
+pub(crate) fn when_text(d: NaiveDateTime) -> String {
     let t = d.time();
     let time = if t.minute() == 0 { d.format("%-I %p").to_string() } else { d.format("%-I:%M %p").to_string() };
     format!("{} at {time}", d.format("%a, %b %-d"))
 }
 
-fn minutes_text(m: u32) -> String {
+pub(crate) fn minutes_text(m: u32) -> String {
     match (m / 60, m % 60) {
         (0, m) => format!("{m} min"),
         (h, 0) => format!("{h} h"),
@@ -1281,6 +1328,17 @@ async fn details(turn: &Turn<'_>, family: Family, q: &str, now: NaiveDateTime, r
         let said = !l.is_empty() && [format!("{l} {noun}"), format!("{noun} {l}"), format!("\"{l}\" {noun}"), format!("{noun} \"{l}\"")].iter().any(|p| lower.contains(p.as_str()));
         if said { n } else { String::new() }
     };
+    // A PC can't do these (see pcctl::unsupported); they come back as the action, and the answer explains.
+    if runner.pc() {
+        match family {
+            Family::MailReply => return Ok(Ok(Action::MailList { query: String::new(), days: 1 })),
+            Family::Message => return Ok(Ok(Action::MessageSend { to: String::new(), name: String::new(), body: String::new(), chat: String::new() })),
+            Family::Shortcut => return Ok(Ok(Action::ShortcutsList)),
+            Family::Reminder => return Ok(Ok(Action::ReminderAdd { title: String::new(), due: None, list: String::new() })),
+            Family::RemindersList => return Ok(Ok(Action::RemindersList { list: String::new() })),
+            _ => {}
+        }
+    }
     Ok(match family {
         Family::Reminder => {
             let v = ask(
@@ -1434,6 +1492,8 @@ async fn details(turn: &Turn<'_>, family: Family, q: &str, now: NaiveDateTime, r
                 original_text = m.get(3).unwrap_or(&"").to_string();
             } else if who.contains('@') {
                 to = who.split_whitespace().find(|w| w.contains('@')).unwrap_or(&who).trim_matches(|c: char| c == '<' || c == '>' || c == ',').to_string();
+            } else if runner.pc() {
+                return Ok(Err(format!("What's {who}'s email address? I can't look people up on a PC.")));
             } else {
                 match find_person(runner, &who, |p| p.emails.clone()).await? {
                     Ok((n, addr)) => {
@@ -1571,6 +1631,19 @@ impl RunError {
         }
     }
 
+    /// `text`, worded for a PC (`pc`) or a Mac.
+    pub fn text_for(&self, app: &str, pc: bool) -> String {
+        if !pc {
+            return self.text(app);
+        }
+        match self {
+            RunError::NotAllowed => format!("Windows didn't let BYTE use {app}. Check Settings \u{2192} Privacy & security, then try again."),
+            RunError::Missing => format!("{app} isn't available on this PC."),
+            RunError::Timeout => format!("{app} didn't answer in time."),
+            RunError::Failed(e) => format!("{app} said: {e}"),
+        }
+    }
+
     pub fn text(&self, app: &str) -> String {
         match self {
             RunError::NotAllowed => format!(
@@ -1586,6 +1659,11 @@ impl RunError {
 /// Runs commands (the Mac; tests use a fake).
 pub trait Runner: Send + Sync {
     fn run<'a>(&'a self, cmd: &'a Command) -> futures_util::future::BoxFuture<'a, Result<String, RunError>>;
+
+    /// True for the PC's runner: the words, apps and operations of Windows instead of the Mac's.
+    fn pc(&self) -> bool {
+        false
+    }
 }
 
 /// The real runner: `osascript` and system tools, no shell.
@@ -1627,6 +1705,7 @@ impl Runner for MacRunner {
                     c.args(args);
                     c
                 }
+                Command::Win(_) => return Err(RunError::Missing),
             };
             c.kill_on_drop(true).stdin(std::process::Stdio::null());
             let out = match tokio::time::timeout(RUN_WAIT, c.output()).await {
@@ -1646,6 +1725,12 @@ impl Runner for MacRunner {
 
 /// Runs an action: Wi-Fi needs its device first, shortcuts must exist.
 async fn execute(runner: &dyn Runner, action: &Action) -> Result<String, RunError> {
+    if runner.pc() {
+        return match crate::pcctl::op_for(action) {
+            Some(op) => runner.run(&Command::Win(op)).await,
+            None => Err(RunError::Missing),
+        };
+    }
     match action {
         Action::Wifi(on) => {
             let ports = runner.run(&action.command()).await?;
@@ -1908,11 +1993,16 @@ Don't claim anything that isn't in these notes.";
 
 /// Does what the message asks on the Mac. Returns notes for the written answer.
 pub async fn run(turn: &Turn<'_>, question: &str, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
-    run_with(turn, question, chrono::Local::now().naive_local(), &MacRunner, cancel, send).await
+    let now = chrono::Local::now().naive_local();
+    if cfg!(windows) {
+        run_with(turn, question, now, &crate::pcctl::WinRunner, cancel, send).await
+    } else {
+        run_with(turn, question, now, &MacRunner, cancel, send).await
+    }
 }
 
 pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, now: NaiveDateTime, runner: &dyn Runner, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
-    let Some(p) = plan(question) else { return Ok(None) };
+    let Some(p) = plan_on(question, runner.pc()) else { return Ok(None) };
     let mut action = match p {
         Plan::Ready(a) => a,
         Plan::Ask(f) => {
@@ -1922,10 +2012,16 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, now: NaiveDateTime
             };
             match got {
                 Ok(a) => a,
-                Err(ask) => return Ok(Some((SourceBook::default(), format!("BYTE needs one more detail before doing this on the Mac. Ask the user exactly this, briefly: {ask}")))),
+                Err(ask) => return Ok(Some((SourceBook::default(), format!("BYTE needs one more detail before doing this on the {}. Ask the user exactly this, briefly: {ask}", if runner.pc() { "PC" } else { "Mac" })))),
             }
         }
     };
+    let pc = runner.pc();
+    if pc {
+        if let Some(note) = crate::pcctl::unsupported(&action) {
+            return Ok(Some((SourceBook::default(), note)));
+        }
+    }
     // A shortcut must exist: pick the installed one closest to what was asked.
     if let Action::ShortcutRun { name, input } = &action {
         let installed = runner.run(&Action::ShortcutsList.command()).await.unwrap_or_default();
@@ -1937,14 +2033,18 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, now: NaiveDateTime
             }
         }
     }
-    let app = action.app();
+    let app = action.app_for(pc);
     let id = format!("byte_mac_{}", uuid::Uuid::new_v4().simple());
-    let args = json!({ "app": app, "what": action.describe() });
+    let args = json!({ "app": app, "what": action.describe_for(pc) });
     send(ChatEvent::ToolCall { id: id.clone(), name: action.tool().into(), args: args.clone() })?;
 
     if action.needs_ok() {
         let editable: &[&str] = if matches!(action, Action::MessageSend { .. }) { &["Text"] } else { &[] };
-        let (ok, edits) = ask_ok_edit(&action.describe(), app, action.fields(), editable, cancel, send).await?;
+        let mut fields = action.fields();
+        if pc {
+            crate::pcctl::pc_fields(&action, &mut fields);
+        }
+        let (ok, edits) = ask_ok_edit(&action.describe_for(pc), app, fields, editable, cancel, send).await?;
         // The text as the user left it on the card (edited, fixed or rephrased there).
         if let (Action::MessageSend { body, .. }, Some(text)) = (&mut action, edits.iter().find(|f| f.label == "Text").map(|f| f.value.trim().to_string())) {
             if !text.is_empty() {
@@ -1954,10 +2054,14 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, now: NaiveDateTime
         if !ok {
             send(ChatEvent::ToolResult { id, ok: false, summary: "You said no".into() })?;
             turn.log.record(action.tool(), &args, false, "declined");
-            return Ok(Some((SourceBook::default(), format!("The user chose not to let BYTE {}. Nothing was changed. Say so in one sentence.", lower_first(&action.describe())))));
+            return Ok(Some((SourceBook::default(), format!("The user chose not to let BYTE {}. Nothing was changed. Say so in one sentence.", lower_first(&action.describe_for(pc))))));
         }
     }
 
+    // On a PC, notes are BYTE's own: they're saved and searched here, not in another app.
+    if pc && matches!(action, Action::NoteCreate { .. } | Action::NoteFind { .. }) {
+        return pc_notes(turn, id, &action, &args, send).await;
+    }
     let out = tokio::select! {
         r = execute(runner, &action) => r,
         _ = cancel.cancelled() => return Err(AppError::Cancelled),
@@ -1966,7 +2070,7 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, now: NaiveDateTime
     if let (Err(e), Action::MessageSend { to, name, body, .. }) = (&out, &action) {
         if runner.run(&Command::Osa { script: MESSAGE_DRAFT, args: vec![body.clone(), sms_url(to, body)] }).await.is_ok() {
             let who = if name.is_empty() { to } else { name };
-            let why = e.text(app);
+            let why = e.text_for(app, pc);
             send(ChatEvent::ToolResult { id, ok: false, summary: "Opened in Messages instead".into() })?;
             turn.log.record(action.tool(), &args, false, &why);
             send(ChatEvent::MacDone(MacDone { app: app.into(), title: format!("Couldn't send it, so Messages is open with the text to {who}"), detail: why.clone(), ok: false, undo: None }))?;
@@ -1975,20 +2079,67 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, now: NaiveDateTime
     }
     match out {
         Ok(out) => {
-            let (detail, notes) = read_out(&action, &out);
-            let undo = undo_for(&action, &out).map(|cmd| keep_undo(Undo::Cmd(cmd)));
+            let (detail, notes) = if pc { crate::pcctl::read_out(&action, &out).unwrap_or_else(|| read_out(&action, &out)) } else { read_out(&action, &out) };
+            let undo = if pc { None } else { undo_for(&action, &out).map(|cmd| keep_undo(Undo::Cmd(cmd))) };
             send(ChatEvent::ToolResult { id, ok: true, summary: detail.clone() })?;
             turn.log.record(action.tool(), &args, true, &detail);
-            send(ChatEvent::MacDone(MacDone { app: app.into(), title: action.describe(), detail, ok: true, undo }))?;
+            send(ChatEvent::MacDone(MacDone { app: app.into(), title: action.describe_for(pc), detail, ok: true, undo }))?;
             Ok(Some((SourceBook::default(), format!("{notes}\n\n{TELL}"))))
         }
         Err(e) => {
-            let msg = e.text(app);
+            let msg = e.text_for(app, pc);
             send(ChatEvent::ToolResult { id, ok: false, summary: msg.clone() })?;
             turn.log.record(action.tool(), &args, false, &msg);
-            send(ChatEvent::MacDone(MacDone { app: app.into(), title: action.describe(), detail: msg.clone(), ok: false, undo: None }))?;
-            Ok(Some((SourceBook::default(), format!("BYTE tried to {} but it didn't work: {msg}\n\nExplain this to the user briefly, with the steps to fix it if there are any.", lower_first(&action.describe())))))
+            send(ChatEvent::MacDone(MacDone { app: app.into(), title: action.describe_for(pc), detail: msg.clone(), ok: false, undo: None }))?;
+            Ok(Some((SourceBook::default(), format!("BYTE tried to {} but it didn't work: {msg}\n\nExplain this to the user briefly, with the steps to fix it if there are any.", lower_first(&action.describe_for(pc))))))
         }
+    }
+}
+
+/// A PC's notes are BYTE's own (Documents/BYTE/Notes): saved with an Undo that removes the file, or searched.
+async fn pc_notes(turn: &Turn<'_>, id: String, action: &Action, args: &Value, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
+    let Some(app) = turn.app else {
+        let msg = "BYTE's notes aren't available here.".to_string();
+        send(ChatEvent::ToolResult { id, ok: false, summary: msg.clone() })?;
+        return Ok(Some((SourceBook::default(), format!("BYTE couldn't use its notes: {msg}"))));
+    };
+    let app_name = action.app_for(true);
+    match action {
+        Action::NoteCreate { title, body } => {
+            let input = crate::notes::NoteInput { title: title.clone(), body: body.clone(), source: "chat".into(), ..Default::default() };
+            match crate::notes::save_note(app, &input).await {
+                Ok(note) => {
+                    let undo = keep_undo(Undo::Created(vec![std::path::PathBuf::from(&note.path)]));
+                    let detail = format!("\"{}\" in {}", note.title, note.folder);
+                    send(ChatEvent::ToolResult { id, ok: true, summary: detail.clone() })?;
+                    turn.log.record(action.tool(), args, true, &detail);
+                    send(ChatEvent::MacDone(MacDone { app: app_name.into(), title: action.describe_for(true), detail, ok: true, undo: Some(undo) }))?;
+                    Ok(Some((SourceBook::default(), format!("Done: BYTE saved the note \"{}\" in its Notes (folder {}).\n\n{TELL}", note.title, note.folder))))
+                }
+                Err(e) => {
+                    let msg = e.to_string();
+                    send(ChatEvent::ToolResult { id, ok: false, summary: msg.clone() })?;
+                    turn.log.record(action.tool(), args, false, &msg);
+                    send(ChatEvent::MacDone(MacDone { app: app_name.into(), title: action.describe_for(true), detail: msg.clone(), ok: false, undo: None }))?;
+                    Ok(Some((SourceBook::default(), format!("BYTE tried to save the note but it didn't work: {msg}\n\nExplain this to the user briefly."))))
+                }
+            }
+        }
+        Action::NoteFind { query } => {
+            let root = crate::notes::root(app).await?;
+            let found = crate::notes::search(&crate::notes::list(&root), query);
+            let (detail, notes) = if found.is_empty() {
+                ("No matching notes".to_string(), format!("BYTE searched the user's notes for \"{query}\" and found nothing."))
+            } else {
+                let list: Vec<String> = found.iter().take(5).map(|n| format!("- **{}**: {}", n.title, n.body.chars().take(400).collect::<String>().replace('\n', " "))).collect();
+                (format!("{} notes found", found.len()), format!("The user's notes that match \"{query}\" (from BYTE's Notes):\n{}", list.join("\n")))
+            };
+            send(ChatEvent::ToolResult { id, ok: true, summary: detail.clone() })?;
+            turn.log.record(action.tool(), args, true, &detail);
+            send(ChatEvent::MacDone(MacDone { app: app_name.into(), title: action.describe_for(true), detail, ok: true, undo: None }))?;
+            Ok(Some((SourceBook::default(), format!("{notes}\n\n{TELL}"))))
+        }
+        _ => Ok(None),
     }
 }
 

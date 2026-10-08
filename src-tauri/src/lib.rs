@@ -22,6 +22,7 @@ mod jobs;
 mod kitchen;
 mod lab;
 mod macctl;
+mod pcctl;
 mod messages;
 mod looker;
 mod engine;

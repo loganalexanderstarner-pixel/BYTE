@@ -287,7 +287,42 @@ how every item below was found; none of them showed in a test.
 - **Trap:** on the PC, `cargo test` rebuilds OpenSSL when RUSTFLAGS differ, which
   needs Strawberry Perl on PATH. Use `scripts/windows-dev.bat`'s PATH.
 
+### 2026-10-08: PC control, the Windows counterpart of Mac control (`pcctl.rs`)
+- **Why:** on Windows the whole "BYTE does things on your computer" feature was off (`macctl::applies` and the
+  prompt were gated to macOS), and the help text said it "isn't available on Windows yet". W3 of
+  `docs/PORTING-WINDOWS-LINUX.md`.
+- **What:** `macctl.rs` keeps the sentence reader, approval card, result card and notes for the model; only the
+  last step differs. New `src-tauri/src/pcctl.rs`: `WinOp` (pure data) and a `WinRunner`; `macctl::Command` gains
+  `Win(WinOp)`, `Runner` gains `pc()`, and `Action` gains `app_for(pc)` / `describe_for(pc)`. Nothing the Mac does
+  changed: every Mac test passes unmodified (two test helpers got a `Win` arm). On a PC:
+  dark mode (registry + `WM_SETTINGCHANGE`), volume and mute (Core Audio `IAudioEndpointVolume`), Wi-Fi (the
+  `Windows.Devices.Radios` API), display off (`SC_MONITORPOWER`), Settings pages (`ms-settings:` addresses, 60 keys),
+  music (the system media session: pause, resume, next, previous, what's playing; "play X" opens a Spotify search,
+  else YouTube Music), an email draft (`mailto:`), a calendar entry (an .ics file the calendar app opens and asks to
+  save). Notes go to BYTE's own Notes (with Undo), reminders to BYTE's Tasks (already routed before this module).
+  Said plainly instead of attempted: texts (Phone Link has no API), Shortcuts, the browser's current tab, reading the
+  inbox or calendar. No Contacts app, so an email needs an address. The user's words are never part of a command
+  line: each operation is a Rust function that receives them as data (tested with hostile text).
+  Also: `prompt::PC_CONTROL`, the help article's Windows block, the Settings switch text ("PC control, hotkeys and
+  clipboard"), `Cargo.toml` (windows crate features for audio, registry, COM, radios, media session).
+- **Verify:** 13 `pcctl` tests + 8 PC flow tests in `macctl_tests.rs` (run anywhere; the flow tests drive the real
+  `run_with` with a fake PC runner); 569 Rust tests and 257 front-end tests pass. On the real PC (Windows 11, a
+  logged-in desktop session; `cargo test --lib live_pc -- --ignored --test-threads=1`): volume set to 37/12/20 and
+  read back from the mixer, mute and the unmute-on-volume rule, dark mode on/off/toggle read back from the registry,
+  the Sound page of Settings opened (`SystemSettings.exe` in the console session), the Wi-Fi radio found, and a
+  looping tone in a throwaway Edge profile read as "now playing", paused (session reports stopped) and resumed. Each
+  live test restores what it changed.
+- **Not verified:** a real mail app opening a `mailto:` draft or a calendar app importing the .ics (no mail or
+  calendar app was set up on the test PC), display-off (would blank the screen mid-session), Wi-Fi off (would cut the
+  SSH link the tests use), Spotify (installed, not signed in), and the whole thing through the chat window with a
+  model (only the module and its flow tests).
+- **Trap:** `cargo test` on Windows still needs the two `comctl32` linker flags (see "Running the Rust tests on
+  Windows"); without them the test exe dies with 0xC0000139 and the real error is hidden by an output filter.
+  Also `windows::Foundation::IAsyncOperation` is not where it was: use `.and_then(|o| o.join())` and never name it.
+- **Undo:** `git revert` this commit. `pcctl.rs` is additive; the Mac path is unchanged.
+
 ### Still open
+(Written 2026-10-04; several items are done since, see the later entries above.)
 - **The layout is device-class, not continuous.** Breakpoints stop at 560px; a
   folded cover screen is ~320px and Android split-screen is arbitrary. The owner
   wants it to adapt to any screen including foldables, which needs container

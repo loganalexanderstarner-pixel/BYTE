@@ -923,8 +923,8 @@ function AboutTab() {
         </label>
         <label className="field">
           <span>
-            {pcHost ? "Hotkeys and clipboard" : osText("Mac control")}
-            <small>{pcHost ? "Lets BYTE read the text you select in other apps (the hotkey below) and keep a clipboard history. Controlling other apps, reminders, calendars and system settings by voice or text is a Mac feature that isn't available on Windows yet." : osText("“Remind me to call Mom tomorrow at 3pm”, “make a note: …”, “what's on my calendar today?”, “turn on dark mode”, “play some jazz”, “run my Morning shortcut”, “check my email”, “reply to Sam’s email saying I can make it”, “text Mom that I’m running late”, “find my tax return pdf”, “organize my Downloads”, “convert the selected photos to jpg”, “run a command to show my disk space”. BYTE asks before adding or changing anything, never sends email or texts itself (you press Send), and macOS asks once per app.")}</small>
+            {pcHost ? "PC control, hotkeys and clipboard" : osText("Mac control")}
+            <small>{pcHost ? "Lets BYTE do things on this PC when you ask (dark mode, volume, Wi-Fi, music, Windows settings, email and calendar drafts), read the text you select in other apps (the hotkey below) and keep a clipboard history. Reminders and notes stay inside BYTE." : osText("“Remind me to call Mom tomorrow at 3pm”, “make a note: …”, “what's on my calendar today?”, “turn on dark mode”, “play some jazz”, “run my Morning shortcut”, “check my email”, “reply to Sam’s email saying I can make it”, “text Mom that I’m running late”, “find my tax return pdf”, “organize my Downloads”, “convert the selected photos to jpg”, “run a command to show my disk space”. BYTE asks before adding or changing anything, never sends email or texts itself (you press Send), and macOS asks once per app.")}</small>
           </span>
           <input type="checkbox" checked={settings?.macControl ?? true} onChange={(e) => void update({ macControl: e.target.checked })} />
         </label>

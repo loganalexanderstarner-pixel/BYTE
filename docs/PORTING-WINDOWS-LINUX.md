@@ -358,6 +358,7 @@ Report to Logan after each one: what works, screenshots, numbers, what's next.
 - **Open at login:** the Run key or Task Scheduler.
 
 ### W3. Windows: OS control and upkeep
+- **Done 2026-10-08:** `pcctl.rs` (PC control: dark mode, volume, Wi-Fi, display, Settings pages, music, email and calendar drafts; notes and reminders stay in BYTE). Still to do here: texts, Upkeep, filectl on Windows, Outlook for reading mail and calendar.
 - `macctl.rs` (Notes, Reminders, Calendar, Mail, Music…) → the Windows way: PowerShell and COM (Outlook,
   Office), UI Automation, toast notifications with actions, Windows calendar/to-do where reachable.
   The same approval card and Undo apply.

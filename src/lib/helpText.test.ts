@@ -48,7 +48,7 @@ describe("the bundled help articles", () => {
     expect(get("getting-started")).toMatch(/Run anyway/);
     expect(get("troubleshooting")).toMatch(/Run anyway/);
     expect(get("shortcuts")).toMatch(/\| Ctrl\+Alt\+B \|/);
-    expect(win.find((a) => a.id === "mac-control")!.title).toBe("Hotkeys and clipboard");
+    expect(win.find((a) => a.id === "mac-control")!.title).toBe("PC control, hotkeys and clipboard");
   });
 
   it("are unchanged on a Mac", () => {
