@@ -304,6 +304,10 @@ how every item below was found; none of them showed in a test.
   "not a Mac". `isLinux()` needs a WebKit user agent (Node's `navigator.platform` is "linux" too, and Android says Linux).
   Help text only says what Linux does today (no hotkey, clipboard or PC control yet); tests guarantee a Linux reader is
   never shown a Mac or a Windows step.
+  **Secrets:** the cloud key, connector tokens and the weekly-backup passphrase now live in the desktop's keyring on Linux
+  (Secret Service over D-Bus, `keyring` with the pure-Rust zbus backend, so no libdbus is needed at run time); with none
+  running the error says to install GNOME Keyring or KDE Wallet. Tested for real against GNOME Keyring in a desktop-style
+  session (create the login keyring, save, read, replace, delete): `cargo test --lib secret_service_round_trips -- --ignored`.
   **Shared GPU (a real bug found on this machine, where the cluster's own engine holds 10 of 16 GB):** the budget came from the
   card's total memory, so a model that did not fit what was free failed to start and the retries could not know why.
   `SystemInfo::with_free_vram` plans a LOAD from the memory free now (NVIDIA through `nvidia-smi`, AMD through sysfs), adding
@@ -316,7 +320,7 @@ how every item below was found; none of them showed in a test.
   models, downloaded Qwen3.5 9B (7.5 GB) with its own downloader, loaded it split across the GPU and processor beside the
   cluster's engine, titled the chat itself and answered at 9.8 tokens/s; Settings opens with Ctrl+,.
 - **Not done yet (each is a later slice):** the CUDA engine (no `nvcc` here; CI will build it), whisper and sherpa for Linux,
-  secrets (Secret Service), OCR (Tesseract), the lock, clipboard history, the selected-text hotkey, voice and spoken answers,
+  OCR (Tesseract), the lock, clipboard history, the selected-text hotkey, voice and spoken answers,
   PC control, autostart, packaging (.deb and AppImage) and the release job, glibc floor (build on Ubuntu 22.04 in CI).
 - **Traps:** `pkill -f` / `pgrep -f` with a pattern that also appears in your own command line kills or matches your own
   shell. Tauri copies sidecars into `target/debug/` at build time and a later `chmod` of the source does not reach the copy.

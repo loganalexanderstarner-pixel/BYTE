@@ -76,8 +76,10 @@ impl SecretStore for Secrets {
 const STORE: &str = "Keychain";
 #[cfg(all(windows, not(test)))]
 const STORE: &str = "Credential Manager";
+#[cfg(all(target_os = "linux", not(test)))]
+const STORE: &str = "system keyring";
 
-#[cfg(all(any(target_os = "macos", windows), not(test)))]
+#[cfg(all(any(target_os = "macos", windows, target_os = "linux"), not(test)))]
 mod keychain {
     use super::STORE;
     use super::SERVICE;
@@ -87,21 +89,21 @@ mod keychain {
         match keyring::Entry::new(SERVICE, account).and_then(|e| e.get_password()) {
             Ok(k) => Ok(Some(k)),
             Err(keyring::Error::NoEntry) => Ok(None),
-            Err(e) => Err(AppError::msg(format!("Couldn't read the {STORE}: {e}"))),
+            Err(e) => Err(AppError::msg(format!("Couldn't read the {STORE}: {}", crate::cloud::keychain::why(&e)))),
         }
     }
     pub fn set(account: &str, secret: &str) -> AppResult<()> {
-        keyring::Entry::new(SERVICE, account).and_then(|e| e.set_password(secret)).map_err(|e| AppError::msg(format!("Couldn't save to the {STORE}: {e}")))
+        keyring::Entry::new(SERVICE, account).and_then(|e| e.set_password(secret)).map_err(|e| AppError::msg(format!("Couldn't save to the {STORE}: {}", crate::cloud::keychain::why(&e))))
     }
     pub fn delete(account: &str) -> AppResult<()> {
         match keyring::Entry::new(SERVICE, account).and_then(|e| e.delete_credential()) {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(e) => Err(AppError::msg(format!("Couldn't remove it from the {STORE}: {e}"))),
+            Err(e) => Err(AppError::msg(format!("Couldn't remove it from the {STORE}: {}", crate::cloud::keychain::why(&e)))),
         }
     }
 }
 
-#[cfg(any(not(any(target_os = "macos", windows)), test))]
+#[cfg(any(not(any(target_os = "macos", windows, target_os = "linux")), test))]
 mod keychain {
     use crate::error::{AppError, AppResult};
 
@@ -109,7 +111,7 @@ mod keychain {
         Ok(None)
     }
     pub fn set(_account: &str, _secret: &str) -> AppResult<()> {
-        Err(AppError::msg("BYTE keeps connector secrets in the system's secret store (the macOS Keychain or Windows Credential Manager), which this system doesn't have yet."))
+        Err(AppError::msg("BYTE keeps connector secrets in the system's secret store (the macOS Keychain, Windows Credential Manager or the Linux desktop's keyring), which this system doesn't have yet."))
     }
     pub fn delete(_account: &str) -> AppResult<()> {
         Ok(())
