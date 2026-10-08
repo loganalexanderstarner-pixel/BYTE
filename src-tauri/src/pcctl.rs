@@ -471,7 +471,7 @@ mod win {
 
     /// The process ids that own a window the person can see: visible, with a title, and not a tool window or a child of
     /// another window. These are "apps" in the sense the card means; the rest is Windows and background services.
-    fn window_pids() -> std::collections::HashSet<u32> {
+    pub(super) fn window_pids() -> std::collections::HashSet<u32> {
         windows_of(None).into_iter().map(|(_, pid)| pid).collect()
     }
 
@@ -990,32 +990,57 @@ mod live {
     #[test]
     #[ignore = "opens Notepad on the real PC for a moment and asks it to close"]
     fn live_pc_quit_asks_a_programs_windows_to_close() {
+        use sysinfo::{ProcessesToUpdate, System};
+        /// Notepad's processes now: (pid, has a visible window).
+        fn notepads() -> Vec<(u32, bool)> {
+            let mut sys = System::new();
+            sys.refresh_processes(ProcessesToUpdate::All, true);
+            let windowed = win::window_pids();
+            sys.processes()
+                .iter()
+                .filter(|(_, p)| p.name().to_string_lossy().to_lowercase().trim_end_matches(".exe") == "notepad")
+                .map(|(pid, _)| (pid.as_u32(), windowed.contains(&pid.as_u32())))
+                .collect()
+        }
+        /// Whatever happens, the Notepads this test started do not stay open on the person's desktop.
+        struct Cleanup {
+            before: Vec<u32>,
+            dir: std::path::PathBuf,
+        }
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let mut sys = System::new();
+                sys.refresh_processes(ProcessesToUpdate::All, true);
+                for (pid, p) in sys.processes() {
+                    if p.name().to_string_lossy().to_lowercase().trim_end_matches(".exe") == "notepad" && !self.before.contains(&pid.as_u32()) {
+                        p.kill();
+                    }
+                }
+                let _ = std::fs::remove_dir_all(&self.dir);
+            }
+        }
         let dir = std::env::temp_dir().join(format!("byte-quit-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("quit-me.txt");
         std::fs::write(&file, "BYTE live test").unwrap();
-        let _ = std::process::Command::new("notepad.exe").arg(&file).spawn().expect("notepad starts");
-        let listed = |name: &str| -> Option<bool> {
-            let out = run_op(&WinOp::Processes).ok()?;
-            out.lines().find_map(|l| {
-                let f: Vec<&str> = l.split('|').collect();
-                (f.len() == 4 && f[0].to_lowercase().trim_end_matches(".exe") == name).then(|| f[3] == "1")
-            })
-        };
+        let _cleanup = Cleanup { before: notepads().into_iter().map(|(pid, _)| pid).collect(), dir };
+        assert!(_cleanup.before.is_empty(), "Notepad is already open on this PC; close it first so the test only touches its own");
+        // No inherited output handles: a child holding the test's pipe would keep the whole run waiting for it.
+        use std::process::Stdio;
+        std::process::Command::new("notepad.exe").arg(&file).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().expect("notepad starts");
         let up = (0..40).any(|_| {
             std::thread::sleep(std::time::Duration::from_millis(500));
-            listed("notepad") == Some(true)
+            notepads().iter().any(|(_, w)| *w)
         });
-        assert!(up, "Notepad should show up in the list with a window");
+        assert!(up, "Notepad should have a window; its processes: {:?}", notepads());
         let asked: u32 = run_op(&WinOp::Quit("Notepad.exe".into())).expect("quit").trim().parse().unwrap();
         println!("asked {asked} window(s) to close");
         assert!(asked >= 1);
         let gone = (0..40).any(|_| {
             std::thread::sleep(std::time::Duration::from_millis(500));
-            listed("notepad").is_none()
+            notepads().is_empty()
         });
-        let _ = std::fs::remove_dir_all(&dir);
-        assert!(gone, "Notepad should have closed itself when asked");
+        assert!(gone, "Notepad should have closed itself when asked; still: {:?}", notepads());
         // Nothing running by that name is not an error, just nothing to close.
         assert_eq!(run_op(&WinOp::Quit("no-such-program-byte".into())).unwrap(), "0");
     }
