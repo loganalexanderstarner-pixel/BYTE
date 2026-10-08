@@ -506,6 +506,10 @@ struct PcFake {
     ran: StdMutex<Vec<Command>>,
     /// What the Recycle operation prints (one line per file); `ok` for each when unset.
     recycle: StdMutex<Option<String>>,
+    /// What the Snapshot, Processes and Security operations print; unset means the PC can't answer.
+    snapshot: StdMutex<Option<String>>,
+    procs: StdMutex<Option<String>>,
+    security: StdMutex<Option<String>>,
 }
 
 impl Runner for PcFake {
@@ -517,6 +521,9 @@ impl Runner for PcFake {
         let r = match cmd {
             Command::Win(WinOp::Recycle(p)) => Ok(self.recycle.lock().unwrap().clone().unwrap_or_else(|| vec!["ok"; p.len()].join("\n"))),
             Command::Win(WinOp::Restore(p)) => Ok(p.len().to_string()),
+            Command::Win(WinOp::Snapshot) => self.snapshot.lock().unwrap().clone().ok_or(RunError::Missing),
+            Command::Win(WinOp::Processes) => self.procs.lock().unwrap().clone().ok_or(RunError::Missing),
+            Command::Win(WinOp::Security) => self.security.lock().unwrap().clone().ok_or(RunError::Missing),
             _ => Err(RunError::Missing),
         };
         Box::pin(async move { r })
@@ -685,12 +692,29 @@ async fn a_pc_storage_question_shows_the_card_and_remembers_what_may_go() {
 #[tokio::test]
 async fn the_rest_of_pc_upkeep_is_said_not_pretended() {
     let d = tempfile::tempdir().unwrap();
-    for q in ["why is my PC so slow", "check my PC", "uninstall Zoom", "what opens at startup?"] {
+    for q in ["uninstall Zoom", "what opens at startup?"] {
         let fake = PcFake::default();
         let (out, ev) = flow(q, &fake, d.path(), None).await;
         assert!(fake.ran.lock().unwrap().is_empty(), "{q}: nothing ran");
         assert!(!ev.iter().any(|e| matches!(e, ChatEvent::Health(_) | ChatEvent::Storage(_))), "{q}: no card");
         assert!(out.unwrap().1.contains("can't yet"), "{q}");
+    }
+}
+
+#[tokio::test]
+async fn a_pc_slowness_question_shows_the_card_in_pc_words() {
+    let d = tempfile::tempdir().unwrap();
+    for (q, title, tool_what) in [("why is my PC so slow", "How your PC is doing", "slowing the PC"), ("check my PC", "PC check-up", "PC check-up")] {
+        let f = PcFake::default();
+        busy_pc(&f);
+        let (out, ev) = flow(q, &f, d.path(), None).await;
+        let card = ev.iter().find_map(|e| if let ChatEvent::Health(h) = e { Some(h.clone()) } else { None }).unwrap_or_else(|| panic!("{q}: no health card"));
+        assert_eq!(card.title, title);
+        let args = ev.iter().find_map(|e| if let ChatEvent::ToolCall { args, .. } = e { Some(args.to_string()) } else { None }).unwrap();
+        assert!(args.contains(tool_what) && !args.contains("Mac"), "{args}");
+        let notes = out.unwrap().1;
+        assert!(notes.contains("this PC") && !notes.contains("Mac") && !notes.contains("Terminal"), "{notes}");
+        assert!(ev.iter().any(|e| matches!(e, ChatEvent::ToolResult { ok: true, .. })));
     }
 }
 
@@ -727,3 +751,160 @@ fn live_pc_the_storage_scan_of_this_profile() {
     assert!(card.folders.iter().all(|f| f.name != "AppData"));
 }
 
+// ------------------------------------------------------- a PC's health
+
+/// What the three readers printed on the real PC (an up-to-date desktop), with the disk line the check-up adds.
+const PC_SNAPSHOT: &str = "mem=33409183744;20796620800\nboot=1791431648\nos=Windows 11 Home\ndisk=1000000000000;600000000000\n";
+const PC_SECURITY: &str = "defender=True;True;Normal;1\nfirewall=Domain:True,Private:True,Public:True\nbitlocker=0\nupdate=2026-10-07\nreboot=0\n";
+
+fn secs_ago(days: u64) -> u64 {
+    SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() - days * 86_400
+}
+
+fn busy_pc(f: &PcFake) {
+    f.snapshot.lock().unwrap().replace(format!(
+        "mem=16000000000;1200000000\nboot={}\nos=Windows 11 Home\ndisk=500000000000;15000000000\npower=41;0;7800\n",
+        secs_ago(20)
+    ));
+    f.procs.lock().unwrap().replace(
+        "chrome.exe|97.3|2200000000|1\nsvchost.exe|12.0|90000000|0\nexplorer.exe|3.0|150000000|1\nbyte.exe|2.0|400000000|1\nSpotify.exe|1.5|300000000|1\n".into(),
+    );
+    f.security.lock().unwrap().replace("defender=False;False;Normal;40\nfirewall=Domain:True,Private:True,Public:False\nbitlocker=0\nupdate=2026-06-01\nreboot=1\nbattery=50000;35000\ncycles=612\n".into());
+}
+
+#[test]
+fn a_pcs_snapshot_and_security_readings_are_parsed() {
+    let s = parse_pc_snapshot(PC_SNAPSHOT);
+    assert_eq!((s.mem_total, s.mem_free), (33_409_183_744, 20_796_620_800));
+    assert_eq!(s.disk, Some((1_000_000_000_000, 600_000_000_000)));
+    assert_eq!((s.boot, s.os.as_str(), s.power), (Some(1_791_431_648), "Windows 11 Home", None), "a desktop has no battery line");
+    let laptop = parse_pc_snapshot("mem=1;1\npower=41;0;7800\n");
+    assert_eq!(laptop.power, Some((41, false, Some(7800))));
+    assert_eq!(parse_pc_snapshot("mem=1;1\npower=100;1;-1\n").power, Some((100, true, None)), "-1 means unknown");
+    assert_eq!(parse_pc_snapshot("nonsense"), PcSnapshot::default());
+    assert_eq!(parse_pc_snapshot("disk=0;0").disk, None, "a disk of no size is no disk");
+
+    let sec = parse_pc_security(PC_SECURITY);
+    assert_eq!(sec.defender, Some((true, true, "Normal".into(), 1)));
+    assert_eq!(sec.firewall, vec![("Domain".into(), true), ("Private".into(), true), ("Public".into(), true)]);
+    assert_eq!((sec.bitlocker, sec.reboot, sec.battery, sec.cycles), (Some(0), false, None, None));
+    assert_eq!(sec.update, chrono::NaiveDate::from_ymd_opt(2026, 10, 7));
+    assert_eq!(parse_pc_security("garbage"), PcSecurity::default());
+}
+
+#[test]
+fn only_windowed_ordinary_programs_can_be_quit_from_the_card() {
+    let (procs, quit) = pc_procs("chrome.exe|97.3|2200000000|1\nsvchost.exe|12.0|90000000|0\nexplorer.exe|3.0|150000000|1\nbyte.exe|2.0|400000000|1\nllama-server.exe|40|9000000000|0\nbad line\nx|y|z|1\n");
+    let names: Vec<&str> = procs.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(names, ["Google Chrome", "Svchost", "Explorer", "BYTE", "BYTE's AI engine"], "unreadable lines are skipped");
+    assert_eq!(procs[0].app.as_deref(), Some("Google Chrome"));
+    assert_eq!(procs[0].mem, size_text(2_200_000_000));
+    for p in &procs[1..] {
+        assert_eq!(p.app, None, "{} must not get a Quit button", p.name);
+    }
+    assert_eq!(quit, vec![("Google Chrome".to_string(), "chrome.exe".to_string())]);
+    for never in ["explorer.exe", "EXPLORER", "svchost.exe", "winlogon.exe", "byte.exe", "powershell.exe", "msedgewebview2.exe", "System"] {
+        assert!(!quittable_pc(never), "{never}");
+    }
+    assert!(quittable_pc("Spotify.exe") && quittable_pc("notepad"));
+    assert_eq!(pretty_proc("MSEdge.exe"), "Microsoft Edge");
+    assert_eq!(pretty_proc("7zFM.exe"), "7zFM");
+    assert_eq!(pretty_proc("İstanbul.EXE"), "İstanbul", "a letter that lowercases to more bytes must not break the cut");
+    assert_eq!(pretty_proc(".exe"), "", "nothing left is nothing to show");
+    assert!(quittable_pc("İstanbul.exe") && quittable_pc("é"));
+}
+
+#[tokio::test]
+async fn the_pc_coach_finds_what_slows_it_and_only_offers_to_quit_programs() {
+    let f = PcFake::default();
+    busy_pc(&f);
+    let h = health(&f, Path::new("C:\\Users\\ada"), true, SystemTime::now()).await;
+    let get = |label: &str| h.checks.iter().find(|c| c.label == label).cloned();
+    assert_eq!(get("Storage").unwrap().level, Level::Bad);
+    assert_eq!(get("Memory").unwrap().level, Level::Bad);
+    assert_eq!(get("Processor").unwrap().level, Level::Warn);
+    assert!(get("Processor").unwrap().value.contains("Google Chrome (97%)"));
+    assert_eq!(get("Last restart").unwrap().level, Level::Warn);
+    assert_eq!(get("Battery health").unwrap().level, Level::Warn, "70% of new");
+    assert!(get("Battery health").unwrap().value.contains("70%") && get("Battery health").unwrap().value.contains("612"));
+    assert!(get("Battery").unwrap().value.contains("on battery") && get("Battery").unwrap().value.contains("2h 10m"));
+    assert!(get("Virus protection").is_none() && get("Firewall").is_none(), "the coach skips the check-up items");
+    assert!(h.checks.windows(2).all(|w| w[0].level <= w[1].level), "worst first");
+    // The settings links are Windows ones.
+    let storage = get("Storage").unwrap();
+    assert!(storage.settings.as_deref().unwrap().starts_with("ms-settings:"), "{:?}", storage.settings);
+    assert_eq!(h.procs[0].app.as_deref(), Some("Google Chrome"));
+    assert_eq!(h.procs[1].app, None, "a service isn't a program");
+    let known = PC_QUIT.lock().unwrap().iter().any(|(id, m)| *id == h.id && m == &vec![("Google Chrome".to_string(), "chrome.exe".to_string()), ("Spotify".to_string(), "Spotify.exe".to_string())]);
+    assert!(known, "the card remembers which program each Quit button means");
+    let listed = QUITTABLE.lock().unwrap().iter().any(|(id, apps)| *id == h.id && apps == &vec!["Google Chrome".to_string(), "Spotify".to_string()]);
+    assert!(listed);
+    assert!(f.ran.lock().unwrap().iter().any(|c| matches!(c, Command::Win(WinOp::Security))), "a battery's wear needs the slow reader");
+}
+
+#[tokio::test]
+async fn the_pc_checkup_covers_security_updates_and_encryption() {
+    let f = PcFake::default();
+    busy_pc(&f);
+    let h = health(&f, Path::new("C:\\Users\\ada"), false, SystemTime::now()).await;
+    let get = |label: &str| h.checks.iter().find(|c| c.label == label).cloned().unwrap();
+    assert_eq!(get("Virus protection").level, Level::Bad);
+    assert_eq!(get("Windows Update").level, Level::Warn, "a restart is waiting");
+    assert_eq!(get("Firewall").level, Level::Warn, "public networks are off");
+    assert_eq!(get("Disk encryption").level, Level::Info);
+    assert_eq!(get("Disk encryption").settings.as_deref(), Some(crate::pcctl::settings_uri("encryption").as_str()));
+    assert_eq!(get("Windows").value, "Windows 11 Home");
+    assert!(h.procs.is_empty() && !h.checks.iter().any(|c| c.label == "Processor"));
+    assert!(h.checks.windows(2).all(|w| w[0].level <= w[1].level));
+
+    // A healthy desktop: nothing to worry about.
+    let ok = PcFake::default();
+    ok.snapshot.lock().unwrap().replace(PC_SNAPSHOT.replace("boot=1791431648", &format!("boot={}", secs_ago(2))));
+    ok.security.lock().unwrap().replace(PC_SECURITY.replace("2026-10-07", &chrono::Local::now().format("%Y-%m-%d").to_string()));
+    let h = health(&ok, Path::new("C:\\Users\\ada"), false, SystemTime::now()).await;
+    for label in ["Storage", "Memory", "Last restart", "Virus protection", "Windows Update", "Firewall"] {
+        let c = h.checks.iter().find(|c| c.label == label).unwrap_or_else(|| panic!("{label}"));
+        assert_eq!(c.level, Level::Ok, "{label}: {c:?}");
+    }
+    assert!(h.checks.iter().all(|c| c.level != Level::Bad && c.level != Level::Warn));
+    assert!(!h.checks.iter().any(|c| c.label.starts_with("Battery")), "a desktop has no battery");
+
+    // Another antivirus in charge is not an alarm.
+    let other = PcFake::default();
+    other.security.lock().unwrap().replace("defender=True;False;Passive mode;3\n".into());
+    let h = health(&other, Path::new("C:\\Users\\ada"), false, SystemTime::now()).await;
+    assert_eq!(h.checks.iter().find(|c| c.label == "Virus protection").unwrap().level, Level::Info);
+
+    // A PC that can't answer at all still gives a (shorter) card.
+    let empty = health(&PcFake::default(), Path::new("C:\\Users\\ada"), false, SystemTime::now()).await;
+    assert!(empty.checks.iter().all(|c| matches!(c.label.as_str(), "Backups" | "Virus protection")), "{:?}", empty.checks);
+}
+
+/// The coach and the check-up on the real PC, with the real readers. Prints both cards; checks only what must hold anywhere.
+#[cfg(windows)]
+#[tokio::test]
+#[ignore = "runs the real Windows readers (about 10 s); run with --ignored --nocapture in the desktop session"]
+async fn live_pc_the_checkup_of_this_pc() {
+    let runner = crate::pcctl::WinRunner;
+    for coach in [true, false] {
+        let started = Instant::now();
+        let h = health(&runner, &home(), coach, SystemTime::now()).await;
+        println!("--- {} ({:.1} s)", h.title, started.elapsed().as_secs_f32());
+        for c in &h.checks {
+            println!("  [{:?}] {}: {}{}{}", c.level, c.label, c.value, if c.tip.is_empty() { String::new() } else { format!("  -- {}", c.tip) }, c.settings.as_deref().map(|s| format!("  <{s}>")).unwrap_or_default());
+        }
+        for p in &h.procs {
+            println!("  proc {} {:.0}% {} quit={:?}", p.name, p.cpu, p.mem, p.app);
+        }
+        assert!(h.checks.iter().any(|c| c.label == "Storage"), "the disk is always readable");
+        assert!(h.checks.iter().any(|c| c.label == "Memory"));
+        assert!(h.checks.iter().any(|c| c.label == "Last restart"));
+        assert!(h.checks.windows(2).all(|w| w[0].level <= w[1].level));
+        assert_eq!(h.procs.is_empty(), !coach, "only the coach lists busy programs");
+        assert!(h.procs.iter().all(|p| p.app.as_deref().map_or(true, |a| crate::upkeep::quittable_pc(&PC_QUIT.lock().unwrap().iter().find(|(id, _)| *id == h.id).and_then(|(_, m)| m.iter().find(|(d, _)| d == a).map(|(_, e)| e.clone())).unwrap()))));
+        if !coach {
+            assert!(h.checks.iter().any(|c| c.label == "Virus protection"));
+            assert!(h.checks.iter().any(|c| c.label == "Windows Update"));
+        }
+    }
+}

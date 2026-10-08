@@ -46,6 +46,15 @@ pub enum WinOp {
     Restore(Vec<std::path::PathBuf>),
     /// Shows a file in File Explorer, selected.
     Reveal(std::path::PathBuf),
+    /// Memory, disk, boot time and power, as lines: `mem=<total>;<available>` and `disk=<total>;<free>` (bytes),
+    /// `boot=<unix seconds>`, `os=<name>`, and on a laptop `power=<percent>;<on mains 1/0>;<seconds left, -1 unknown>`.
+    Snapshot,
+    /// The programs using the PC, one line per program name: `name|cpu percent|bytes|has a window 1/0`, busiest first.
+    Processes,
+    /// Windows Security, the firewall, disk encryption, updates and battery wear, read-only, as `key=value` lines.
+    Security,
+    /// Asks a program's windows to close, by program name; prints how many windows were asked.
+    Quit(String),
 }
 
 /// The operation that does `action` on a PC, when Windows can do it from here.
@@ -111,6 +120,8 @@ const PANES: &[(&str, &str, &str)] = &[
     ("brightness", "Display", "display"),
     ("resolution", "Display", "display"),
     ("night light", "Night light", "nightlight"),
+    ("encryption", "Device encryption", "deviceencryption"),
+    ("bitlocker", "Device encryption", "deviceencryption"),
     ("battery", "Battery", "batterysaver"),
     ("power", "Power & sleep", "powersleep"),
     ("sleep", "Power & sleep", "powersleep"),
@@ -406,7 +417,149 @@ mod win {
                 .join("\n")),
             WinOp::Restore(paths) => restore(paths),
             WinOp::Reveal(path) => reveal(path),
+            WinOp::Snapshot => snapshot(),
+            WinOp::Processes => processes(),
+            WinOp::Security => security(),
+            WinOp::Quit(name) => quit(name),
         }
+    }
+
+    /// Runs a fixed PowerShell script from a file in the temp folder, with `args` after it, and returns what it printed.
+    /// The script text is always one of the constants in this file; nothing a person typed is ever part of it or of the
+    /// command line.
+    fn run_script(name: &str, text: &str, args: &[&std::path::Path]) -> Result<String, RunError> {
+        use std::os::windows::process::CommandExt;
+        let dir = std::env::temp_dir().join("BYTE-upkeep");
+        std::fs::create_dir_all(&dir).map_err(|e| RunError::Failed(e.to_string()))?;
+        let script = dir.join(name);
+        std::fs::write(&script, text).map_err(|e| RunError::Failed(e.to_string()))?;
+        let out = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File"])
+            .arg(&script)
+            .args(args)
+            .creation_flags(0x0800_0000)
+            .output()
+            .map_err(|e| if e.kind() == std::io::ErrorKind::NotFound { RunError::Missing } else { RunError::Failed(e.to_string()) })?;
+        if !out.status.success() {
+            return Err(RunError::Failed(String::from_utf8_lossy(&out.stderr).lines().next().unwrap_or("PowerShell failed").to_string()));
+        }
+        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    }
+
+    fn snapshot() -> Result<String, RunError> {
+        use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
+        let mut sys = sysinfo::System::new();
+        sys.refresh_memory();
+        let mut lines = vec![
+            format!("mem={};{}", sys.total_memory(), sys.available_memory()),
+            format!("boot={}", sysinfo::System::boot_time()),
+            format!("os={}", sysinfo::System::long_os_version().unwrap_or_default()),
+        ];
+        let home = std::env::var_os("USERPROFILE").map(std::path::PathBuf::from).unwrap_or_else(|| std::path::PathBuf::from("C:\\"));
+        let (total, free) = crate::system::disk_space_for(&home);
+        if total > 0 {
+            lines.push(format!("disk={total};{free}"));
+        }
+        let mut st = SYSTEM_POWER_STATUS::default();
+        // BatteryFlag 128 is "no battery" and 255 "unknown"; a percent of 255 is unknown too.
+        if unsafe { GetSystemPowerStatus(&mut st) }.is_ok() && st.BatteryFlag != 128 && st.BatteryFlag != 255 && st.BatteryLifePercent <= 100 {
+            let left: i64 = if st.BatteryLifeTime == u32::MAX { -1 } else { i64::from(st.BatteryLifeTime) };
+            lines.push(format!("power={};{};{left}", st.BatteryLifePercent, u8::from(st.ACLineStatus == 1)));
+        }
+        Ok(lines.join("\n"))
+    }
+
+    /// The process ids that own a window the person can see: visible, with a title, and not a tool window or a child of
+    /// another window. These are "apps" in the sense the card means; the rest is Windows and background services.
+    fn window_pids() -> std::collections::HashSet<u32> {
+        windows_of(None).into_iter().map(|(_, pid)| pid).collect()
+    }
+
+    /// (window, process id) for each such window; only those of the given processes when a set is given.
+    fn windows_of(only: Option<&std::collections::HashSet<u32>>) -> Vec<(windows::Win32::Foundation::HWND, u32)> {
+        use windows::core::BOOL;
+        use windows::Win32::Foundation::{HWND, LPARAM};
+        use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindow, GetWindowLongW, GetWindowTextLengthW, GetWindowThreadProcessId, IsWindowVisible, GWL_EXSTYLE, GW_OWNER, WS_EX_TOOLWINDOW};
+        struct Found(Vec<(HWND, u32)>);
+        unsafe extern "system" fn each(hwnd: HWND, lparam: LPARAM) -> BOOL {
+            let found = &mut *(lparam.0 as *mut Found);
+            let owned = GetWindow(hwnd, GW_OWNER).map(|h| !h.0.is_null()).unwrap_or(false);
+            let tool = (GetWindowLongW(hwnd, GWL_EXSTYLE) as u32) & WS_EX_TOOLWINDOW.0 != 0;
+            if IsWindowVisible(hwnd).as_bool() && GetWindowTextLengthW(hwnd) > 0 && !owned && !tool {
+                let mut pid = 0u32;
+                GetWindowThreadProcessId(hwnd, Some(&mut pid));
+                found.0.push((hwnd, pid));
+            }
+            BOOL(1)
+        }
+        let mut found = Found(Vec::new());
+        // SAFETY: `found` outlives the call, and the callback only pushes to it.
+        let _ = unsafe { EnumWindows(Some(each), LPARAM(&mut found as *mut Found as isize)) };
+        found.0.into_iter().filter(|(_, pid)| only.is_none_or(|set| set.contains(pid))).collect()
+    }
+
+    fn processes() -> Result<String, RunError> {
+        use sysinfo::{ProcessesToUpdate, System};
+        let mut sys = System::new();
+        sys.refresh_processes(ProcessesToUpdate::All, true);
+        // A processor reading needs two samples a moment apart.
+        std::thread::sleep(std::time::Duration::from_millis(600));
+        sys.refresh_processes(ProcessesToUpdate::All, true);
+        let windows = window_pids();
+        let mut by: std::collections::HashMap<String, (f32, u64, bool)> = std::collections::HashMap::new();
+        for (pid, p) in sys.processes() {
+            let name = p.name().to_string_lossy().to_string();
+            if name.eq_ignore_ascii_case("System Idle Process") || name.is_empty() {
+                continue;
+            }
+            let e = by.entry(name).or_default();
+            e.0 += p.cpu_usage();
+            e.1 += p.memory();
+            e.2 |= windows.contains(&pid.as_u32());
+        }
+        let mut rows: Vec<(String, (f32, u64, bool))> = by.into_iter().collect();
+        rows.sort_by(|a, b| b.1 .0.total_cmp(&a.1 .0).then(b.1 .1.cmp(&a.1 .1)));
+        Ok(rows.into_iter().take(14).map(|(n, (cpu, mem, w))| format!("{n}|{cpu:.1}|{mem}|{}", u8::from(w))).collect::<Vec<_>>().join("\n"))
+    }
+
+    fn quit(name: &str) -> Result<String, RunError> {
+        use windows::Win32::Foundation::{LPARAM, WPARAM};
+        use windows::Win32::UI::WindowsAndMessaging::{PostMessageW, WM_CLOSE};
+        use sysinfo::{ProcessesToUpdate, System};
+        let mut sys = System::new();
+        sys.refresh_processes(ProcessesToUpdate::All, true);
+        let want = name.to_lowercase();
+        let want = want.strip_suffix(".exe").unwrap_or(&want).to_string();
+        let pids: std::collections::HashSet<u32> = sys
+            .processes()
+            .iter()
+            .filter(|(_, p)| {
+                let have = p.name().to_string_lossy().to_lowercase();
+                have.strip_suffix(".exe").unwrap_or(&have) == want
+            })
+            .map(|(pid, _)| pid.as_u32())
+            .collect();
+        let mut asked = 0;
+        // WM_CLOSE is what the window's close button sends: the program may ask to save first, as it would for the person.
+        for (hwnd, _) in windows_of(Some(&pids)) {
+            if unsafe { PostMessageW(Some(hwnd), WM_CLOSE, WPARAM(0), LPARAM(0)) }.is_ok() {
+                asked += 1;
+            }
+        }
+        Ok(asked.to_string())
+    }
+
+    fn security() -> Result<String, RunError> {
+        const SCRIPT: &str = r#"$ErrorActionPreference = 'SilentlyContinue'
+try { $mp = Get-MpComputerStatus; if ($mp) { "defender=$($mp.AntivirusEnabled);$($mp.RealTimeProtectionEnabled);$($mp.AMRunningMode);$($mp.AntivirusSignatureAge)" } } catch {}
+try { $fw = Get-NetFirewallProfile | ForEach-Object { "$($_.Name):$($_.Enabled)" }; if ($fw) { "firewall=" + ($fw -join ',') } } catch {}
+try { $b = (New-Object -ComObject Shell.Application).NameSpace($env:SystemDrive + '').Self.ExtendedProperty('System.Volume.BitLockerProtection'); if ($null -ne $b) { "bitlocker=$b" } } catch {}
+try { $r = (New-Object -ComObject Microsoft.Update.AutoUpdate).Results; if ($r.LastInstallationSuccessDate) { "update=" + $r.LastInstallationSuccessDate.ToString('yyyy-MM-dd') } } catch {}
+if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') { "reboot=1" } else { "reboot=0" }
+try { $d = (Get-CimInstance -Namespace root\wmi -ClassName BatteryStaticData).DesignedCapacity; $f = (Get-CimInstance -Namespace root\wmi -ClassName BatteryFullChargedCapacity).FullChargedCapacity; if ($d -and $f) { "battery=$d;$f" } } catch {}
+try { $c = (Get-CimInstance -Namespace root\wmi -ClassName BatteryCycleCount).CycleCount; if ($c) { "cycles=$c" } } catch {}
+"#;
+        run_script("security.ps1", SCRIPT, &[])
     }
 
     /// Puts files back from the Recycle Bin with a fixed script: the paths go in a file, one per line, and the script
@@ -432,25 +585,13 @@ foreach ($w in $wanted) {
 }
 Write-Output $done
 "#;
-        use std::os::windows::process::CommandExt;
         let dir = std::env::temp_dir().join("BYTE-upkeep");
         std::fs::create_dir_all(&dir).map_err(|e| RunError::Failed(e.to_string()))?;
-        let script = dir.join("restore.ps1");
         let list = dir.join(format!("restore-{}.txt", uuid::Uuid::new_v4().simple()));
-        std::fs::write(&script, SCRIPT).map_err(|e| RunError::Failed(e.to_string()))?;
         std::fs::write(&list, paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join("\n")).map_err(|e| RunError::Failed(e.to_string()))?;
-        let out = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File"])
-            .arg(&script)
-            .arg(&list)
-            .creation_flags(0x0800_0000)
-            .output();
+        let out = run_script("restore.ps1", SCRIPT, &[&list]);
         let _ = std::fs::remove_file(&list);
-        let out = out.map_err(|e| if e.kind() == std::io::ErrorKind::NotFound { RunError::Missing } else { RunError::Failed(e.to_string()) })?;
-        if !out.status.success() {
-            return Err(RunError::Failed(String::from_utf8_lossy(&out.stderr).lines().next().unwrap_or("PowerShell failed").to_string()));
-        }
-        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+        out
     }
 
     /// File Explorer with the file selected. `/select,` takes the path after a comma and wants it quoted as one piece, which
@@ -918,6 +1059,18 @@ mod live {
         assert_eq!(std::fs::read_to_string(&file).unwrap(), "throwaway contents", "it is back, unchanged");
         // Put it in the bin for good housekeeping and leave nothing in the temp folder.
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    #[ignore = "reads memory, processes, security settings and battery of the real PC"]
+    fn live_pc_health_readers_answer() {
+        for (name, op) in [("snapshot", WinOp::Snapshot), ("processes", WinOp::Processes), ("security", WinOp::Security)] {
+            let t = std::time::Instant::now();
+            let out = run_op(&op).unwrap_or_else(|e| panic!("{name}: {e:?}"));
+            println!("--- {name} ({:.1}s)\n{out}", t.elapsed().as_secs_f32());
+        }
+        // Asking a program that is not running to close does nothing, and says so.
+        assert_eq!(run_op(&WinOp::Quit("byte-no-such-program.exe".into())).unwrap(), "0");
     }
 
     #[test]

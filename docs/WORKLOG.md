@@ -287,6 +287,27 @@ how every item below was found; none of them showed in a test.
 - **Trap:** on the PC, `cargo test` rebuilds OpenSSL when RUSTFLAGS differ, which
   needs Strawberry Perl on PATH. Use `scripts/windows-dev.bat`'s PATH.
 
+### 2026-10-08: PC upkeep, second slice: "why is my PC slow?" and "check my PC" on Windows
+- **Why:** the coach and the check-up (the health card) were Mac-only; on a PC they answered "can't yet".
+- **What:** four operations in `pcctl.rs` (`WinOp::Snapshot`, `Processes`, `Security`, plus `Quit`); the first three only read.
+  Snapshot is memory, disk, boot time, the Windows version and (laptops only) the battery; Processes is the busiest programs
+  with CPU, memory and whether each has a window (sysinfo, two samples); Security asks Windows Security (Defender, firewall
+  profiles, encryption of the system drive), the newest installed update, whether a restart is waiting, and battery wear. All
+  print plain `key=value` or `name|cpu|bytes|window` lines that `upkeep.rs` parses (`parse_pc_snapshot`,
+  `parse_pc_security`, `pc_procs`), so every rule is tested on Linux against output captured on the real PC. `health_pc` asks
+  the same questions as the Mac card (storage, memory, busy programs, battery and its wear, last restart; check-up: Windows
+  Update, virus protection, firewall, disk encryption, backups) with links into Windows Settings. A program gets a Quit
+  button only if it has a window and is not Windows itself, a service, the shell, a terminal, the web view other programs
+  share, or BYTE and its engine (`quittable_pc`); the card remembers which program each friendly name means (`PC_QUIT`), so
+  the button can only close what the card listed, and `WinOp::Quit` asks the windows to close (WM_CLOSE), never ends the
+  process. Another antivirus in charge is shown as information, not an alarm. The slower security reader runs only for the
+  check-up (or for a laptop's battery wear), so the coach stays quick.
+- **Verify:** Linux: 605 tests (new: parsers on real output, the Quit allow-list including odd Unicode names, the coach and
+  the check-up on a busy and a healthy fake PC, a PC that cannot answer, the whole flow in PC words). On the real PC, in the
+  desktop session: `live_pc_the_checkup_of_this_pc` runs the real readers and prints both cards.
+- **Not done:** startup apps, uninstalling (next slices), file tidying (`filectl`).
+- **Undo:** `git revert`; the Mac path is unchanged (its tests pass untouched).
+
 ### 2026-10-08: PC upkeep, first slice: "what's taking up space?" on Windows
 - **Why:** upkeep (storage, what slows the Mac, the check-up, uninstalling, login items) and file tidying were macOS-only
   (`applies` was gated to macOS), so on Windows "what's taking up space?" or "find duplicate files" did nothing.

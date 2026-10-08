@@ -115,7 +115,7 @@ windows = { version = "0.62", features = [
   "Win32_Graphics_Dxgi", "Win32_System_LibraryLoader", "Win32_Storage_FileSystem",
   # pcctl.rs (PC control): the sound mixer, the registry (dark mode), the radios (Wi-Fi) and the media session.
   "Win32_Media_Audio", "Win32_Media_Audio_Endpoints", "Win32_System_Com", "Win32_System_Com_StructuredStorage",
-  "Win32_System_Variant", "Win32_System_Registry", "Media_Control", "Devices_Radios",
+  "Win32_System_Variant", "Win32_System_Registry", "Media_Control", "Devices_Radios", "Win32_System_Power",
 ] }
 
 [dev-dependencies]

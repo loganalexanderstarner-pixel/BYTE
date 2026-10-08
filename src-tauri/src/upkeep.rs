@@ -1166,6 +1166,9 @@ async fn out_of(runner: &dyn Runner, program: &'static str, args: &[&str]) -> Op
 /// Reads the Mac's state and turns it into checks. `coach`: slowness and battery
 /// first (with the busiest programs); otherwise a general check-up.
 pub async fn health(runner: &dyn Runner, home: &Path, coach: bool, now: SystemTime) -> Health {
+    if runner.pc() {
+        return health_pc(runner, coach, now).await;
+    }
     let mut checks = Vec::new();
     let now_s = now.duration_since(SystemTime::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
 
@@ -1276,12 +1279,302 @@ pub async fn health(runner: &dyn Runner, home: &Path, coach: bool, now: SystemTi
     Health { id, title: if coach { "How your Mac is doing".into() } else { "Mac check-up".into() }, checks, procs }
 }
 
+// ------------------------------------------------------- a PC's health
+
+/// What a PC's `Snapshot` operation printed.
+#[derive(Debug, Default, PartialEq)]
+pub struct PcSnapshot {
+    pub mem_total: u64,
+    pub mem_free: u64,
+    pub disk: Option<(u64, u64)>,
+    /// Unix seconds.
+    pub boot: Option<u64>,
+    pub os: String,
+    /// (percent, on mains, seconds left): only a laptop has this.
+    pub power: Option<(u8, bool, Option<u64>)>,
+}
+
+/// The value after `key=` on a line of a `key=value` listing.
+fn kv<'a>(out: &'a str, key: &str) -> Option<&'a str> {
+    out.lines().find_map(|l| l.trim().strip_prefix(key).and_then(|r| r.strip_prefix('=')))
+}
+
+fn two_numbers(v: &str) -> Option<(u64, u64)> {
+    let (a, b) = v.split_once(';')?;
+    Some((a.trim().parse().ok()?, b.trim().parse().ok()?))
+}
+
+pub fn parse_pc_snapshot(out: &str) -> PcSnapshot {
+    let (mem_total, mem_free) = kv(out, "mem").and_then(two_numbers).unwrap_or((0, 0));
+    let power = kv(out, "power").and_then(|v| {
+        let mut f = v.split(';');
+        let pct: u8 = f.next()?.trim().parse().ok()?;
+        let mains = f.next()? .trim() == "1";
+        let left = f.next().and_then(|l| l.trim().parse::<i64>().ok()).filter(|l| *l >= 0).map(|l| l as u64);
+        Some((pct.min(100), mains, left))
+    });
+    PcSnapshot { mem_total, mem_free, disk: kv(out, "disk").and_then(two_numbers).filter(|(t, _)| *t > 0), boot: kv(out, "boot").and_then(|b| b.trim().parse().ok()), os: kv(out, "os").unwrap_or("").trim().to_string(), power }
+}
+
+/// What a PC's `Security` operation printed.
+#[derive(Debug, Default, PartialEq)]
+pub struct PcSecurity {
+    /// (virus protection on, real-time protection on, running mode, days since its definitions were updated).
+    pub defender: Option<(bool, bool, String, u32)>,
+    /// (profile, on) for the Domain, Private and Public networks.
+    pub firewall: Vec<(String, bool)>,
+    /// Windows' code for the system drive's encryption: 1 is on, 0 off.
+    pub bitlocker: Option<u32>,
+    pub update: Option<chrono::NaiveDate>,
+    pub reboot: bool,
+    /// (designed capacity, what it holds fully charged now).
+    pub battery: Option<(u64, u64)>,
+    pub cycles: Option<u32>,
+}
+
+pub fn parse_pc_security(out: &str) -> PcSecurity {
+    let truth = |s: &str| s.trim().eq_ignore_ascii_case("true");
+    PcSecurity {
+        defender: kv(out, "defender").and_then(|v| {
+            let f: Vec<&str> = v.split(';').collect();
+            (f.len() >= 4).then(|| (truth(f[0]), truth(f[1]), f[2].trim().to_string(), f[3].trim().parse().unwrap_or(0)))
+        }),
+        firewall: kv(out, "firewall").map(|v| v.split(',').filter_map(|p| p.split_once(':')).map(|(n, on)| (n.trim().to_string(), truth(on))).collect()).unwrap_or_default(),
+        bitlocker: kv(out, "bitlocker").and_then(|v| v.trim().parse().ok()),
+        update: kv(out, "update").and_then(|v| chrono::NaiveDate::parse_from_str(v.trim(), "%Y-%m-%d").ok()),
+        reboot: kv(out, "reboot").is_some_and(|v| v.trim() == "1"),
+        battery: kv(out, "battery").and_then(two_numbers).filter(|(d, f)| *d > 0 && *f > 0),
+        cycles: kv(out, "cycles").and_then(|v| v.trim().parse().ok()),
+    }
+}
+
+/// A program's file name without its ".exe" (any case), keeping the rest as written.
+fn exe_stem(exe: &str) -> &str {
+    match exe.len().checked_sub(4).and_then(|at| exe.get(at..).map(|tail| (at, tail))) {
+        Some((at, tail)) if tail.eq_ignore_ascii_case(".exe") => &exe[..at],
+        _ => exe,
+    }
+}
+
+/// A program name as people know it ("chrome.exe" is Google Chrome).
+pub fn pretty_proc(exe: &str) -> String {
+    let own = exe_stem(exe);
+    let low = own.to_lowercase();
+    let stem = low.as_str();
+    let known = match stem {
+        "chrome" => "Google Chrome",
+        "msedge" => "Microsoft Edge",
+        "firefox" => "Firefox",
+        "brave" => "Brave",
+        "opera" => "Opera",
+        "discord" => "Discord",
+        "spotify" => "Spotify",
+        "teams" | "ms-teams" => "Microsoft Teams",
+        "onedrive" => "OneDrive",
+        "steam" | "steamwebhelper" => "Steam",
+        "code" => "Visual Studio Code",
+        "llama-server" | "llama-server-vulkan" | "llama-server-cpu" => "BYTE's AI engine",
+        "byte" => "BYTE",
+        _ => "",
+    };
+    if !known.is_empty() {
+        return known.to_string();
+    }
+    let mut c = own.chars();
+    c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default()
+}
+
+/// Whether the health card may offer to close this program: never Windows itself, its services, the shell, a terminal,
+/// the web view other programs share, or BYTE and its engine.
+pub fn quittable_pc(exe: &str) -> bool {
+    let low = exe_stem(exe).to_lowercase();
+    let stem = low.as_str();
+    const NEVER: &[&str] = &[
+        "explorer", "byte", "llama-server", "llama-server-vulkan", "llama-server-cpu", "dwm", "svchost", "system", "csrss", "winlogon", "services", "lsass", "searchhost",
+        "startmenuexperiencehost", "shellexperiencehost", "textinputhost", "applicationframehost", "systemsettings", "taskmgr", "msedgewebview2", "sihost", "ctfmon",
+        "fontdrvhost", "wininit", "smss", "registry", "memcompression", "conhost", "powershell", "pwsh", "cmd", "windowsterminal",
+    ];
+    !NEVER.contains(&stem)
+}
+
+/// A PC's `Processes` lines (`name|cpu|bytes|has a window`) as the card's list: friendly names, and `app` only for a program
+/// with a window that is safe to ask to close. The second part pairs each such friendly name with its real program name.
+pub fn pc_procs(out: &str) -> (Vec<Proc>, Vec<(String, String)>) {
+    let mut procs = Vec::new();
+    let mut quit = Vec::new();
+    for line in out.lines() {
+        let mut f = line.trim().split('|');
+        let (Some(exe), Some(cpu), Some(mem), Some(win)) = (f.next(), f.next(), f.next(), f.next()) else { continue };
+        let (Ok(cpu), Ok(mem)) = (cpu.parse::<f32>(), mem.parse::<u64>()) else { continue };
+        let name = pretty_proc(exe);
+        let app = (win == "1" && quittable_pc(exe)).then(|| name.clone());
+        if let Some(a) = &app {
+            quit.push((a.clone(), exe.to_string()));
+        }
+        procs.push(Proc { name, cpu, mem: size_text(mem), app });
+    }
+    (procs, quit)
+}
+
+/// Program name behind each quittable friendly name on a card, by card id.
+static PC_QUIT: Lazy<Mutex<Vec<(String, Vec<(String, String)>)>>> = Lazy::new(|| Mutex::new(Vec::new()));
+
+/// A `check` whose settings link is a Windows Settings page.
+fn check_pc(label: &str, value: impl Into<String>, level: Level, tip: impl Into<String>, pane: Option<&str>) -> Check {
+    let (settings, settings_label) = match pane {
+        Some(p) => (Some(crate::pcctl::settings_uri(p)), Some(crate::pcctl::pane_label(p).to_string())),
+        None => (None, None),
+    };
+    Check { label: label.into(), value: value.into(), level, tip: tip.into(), settings, settings_label }
+}
+
+fn ago(days: u64) -> String {
+    match days {
+        0 => "Today".into(),
+        1 => "Yesterday".into(),
+        n => format!("{n} days ago"),
+    }
+}
+
+/// The health card for a PC: the same questions as the Mac's, answered from what Windows says.
+async fn health_pc(runner: &dyn Runner, coach: bool, now: SystemTime) -> Health {
+    let mut checks = Vec::new();
+    let now_s = now.duration_since(SystemTime::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let today = chrono::DateTime::<chrono::Local>::from(now).date_naive();
+    let snap = runner.run(&Command::Win(WinOp::Snapshot)).await.map(|o| parse_pc_snapshot(&o)).unwrap_or_default();
+    // Disk.
+    if let Some((total, free)) = snap.disk {
+        let pct = free as f64 * 100.0 / total as f64;
+        let (level, tip) = if pct < 5.0 {
+            (Level::Bad, "Almost full: Windows needs free space to update and run smoothly. Ask BYTE \"what's taking up space\".")
+        } else if pct < 12.0 {
+            (Level::Warn, "Getting full; a PC slows down when space runs low. Ask BYTE \"what's taking up space\".")
+        } else {
+            (Level::Ok, "")
+        };
+        checks.push(check_pc("Storage", format!("{} free of {} ({pct:.0}%)", size_text(free), size_text(total)), level, tip, (level != Level::Ok).then_some("storage")));
+    }
+    // Memory.
+    if snap.mem_total > 0 {
+        let free = (snap.mem_free * 100 / snap.mem_total) as u8;
+        let (level, tip) = if free < 10 {
+            (Level::Bad, "Memory is nearly full, so Windows swaps to disk and slows down. Quit programs you're not using (browser tabs count).")
+        } else if free < 25 {
+            (Level::Warn, "Memory is getting tight. Quitting unused programs and tabs helps.")
+        } else {
+            (Level::Ok, "")
+        };
+        checks.push(check_pc("Memory", format!("{free}% free"), level, tip, None));
+    }
+    // Busy programs.
+    let mut procs = Vec::new();
+    let mut quit = Vec::new();
+    if coach {
+        if let Ok(out) = runner.run(&Command::Win(WinOp::Processes)).await {
+            let (all, q) = pc_procs(&out);
+            procs = all.into_iter().take(8).collect();
+            quit = q;
+        }
+        let hot: Vec<&Proc> = procs.iter().filter(|p| p.cpu >= 50.0).collect();
+        if hot.is_empty() {
+            checks.push(check_pc("Processor", "Nothing is working the processor hard right now", Level::Ok, "", None));
+        } else {
+            let names: Vec<String> = hot.iter().map(|p| format!("{} ({:.0}%)", p.name, p.cpu)).collect();
+            checks.push(check_pc("Processor", format!("Busy: {}", names.join(", ")), Level::Warn, "These are using a lot of processor time, which slows other programs, warms the PC and drains the battery. Quit what you're not using, or ask the busy program to stop what it's doing.", None));
+        }
+    }
+    // The slow, read-only reading of Windows Security, updates and battery wear; only when it can matter.
+    let sec = if !coach || snap.power.is_some() { runner.run(&Command::Win(WinOp::Security)).await.map(|o| parse_pc_security(&o)).unwrap_or_default() } else { PcSecurity::default() };
+    // Battery.
+    if let Some((pct, mains, left)) = snap.power {
+        let left = left.filter(|_| !mains).map(|s| format!(", about {}h {:02}m left", s / 3600, s % 3600 / 60)).unwrap_or_default();
+        checks.push(check_pc("Battery", format!("{pct}%, {}{left}", if mains { "plugged in" } else { "on battery" }), Level::Info, "", None));
+        if let Some((design, full)) = sec.battery {
+            let max = (full * 100 / design).min(100);
+            let value = format!("Holds {max}% of its original charge{}", sec.cycles.map(|n| format!(", {n} charge cycles")).unwrap_or_default());
+            let (level, tip) = if max < 50 {
+                (Level::Bad, "The battery is badly worn. A replacement from the maker or a repair shop will help.")
+            } else if max < 80 {
+                (Level::Warn, "The battery holds noticeably less than when new. Battery saver, and keeping it between 20% and 80% charged, slows further wear.")
+            } else {
+                (Level::Ok, "")
+            };
+            checks.push(check_pc("Battery health", value, level, tip, (level != Level::Ok).then_some("battery")));
+        }
+    }
+    // Restarted lately?
+    if let Some(boot) = snap.boot {
+        let days = now_s.saturating_sub(boot) / 86_400;
+        let (level, tip) = if days >= 14 { (Level::Warn, "A restart now and then clears out memory and finishes updates. Choose Restart: Shut down keeps part of Windows running (Fast startup).") } else { (Level::Ok, "") };
+        checks.push(check_pc("Last restart", ago(days), level, tip, None));
+    }
+    if !coach {
+        if !snap.os.is_empty() {
+            checks.push(check_pc("Windows", snap.os.clone(), Level::Info, "", Some("windows update")));
+        }
+        if sec.reboot {
+            checks.push(check_pc("Windows Update", "A restart is waiting to finish installing updates", Level::Warn, "Restart when it suits you, so the updates take effect.", Some("windows update")));
+        } else if let Some(d) = sec.update {
+            let days = (today - d).num_days().max(0) as u64;
+            let (level, tip) = if days > 60 { (Level::Warn, "Windows hasn't installed an update in over two months. Open Windows Update and check for updates.") } else { (Level::Ok, "") };
+            checks.push(check_pc("Windows Update", format!("Last installed {}", ago(days).to_lowercase()), level, tip, (level != Level::Ok).then_some("windows update")));
+        }
+        match &sec.defender {
+            Some((_, _, mode, _)) if mode.starts_with("Passive") || mode.starts_with("SxS") => checks.push(check_pc("Virus protection", "Another antivirus program is in charge", Level::Info, "", Some("security"))),
+            Some((on, realtime, _, age)) if !on || !realtime => {
+                let _ = age;
+                checks.push(check_pc("Virus protection", "Off", Level::Bad, "Windows Security's virus protection is off, so this PC isn't protected. Open Windows Security and turn it on, or install an antivirus.", Some("security")));
+            }
+            Some((_, _, _, age)) if *age > 7 => checks.push(check_pc("Virus protection", format!("On, but its definitions are {age} days old"), Level::Warn, "Open Windows Update so Windows Security can fetch new definitions.", Some("security"))),
+            Some(_) => checks.push(check_pc("Virus protection", "On and up to date", Level::Ok, "", None)),
+            None => checks.push(check_pc("Virus protection", "BYTE couldn't read it (another antivirus may be installed)", Level::Info, "", Some("security"))),
+        }
+        if !sec.firewall.is_empty() {
+            let off: Vec<&str> = sec.firewall.iter().filter(|(_, on)| !on).map(|(n, _)| n.as_str()).collect();
+            if off.is_empty() {
+                checks.push(check_pc("Firewall", "On", Level::Ok, "", None));
+            } else if off.contains(&"Public") {
+                checks.push(check_pc("Firewall", "Off for public networks", Level::Warn, "Worth turning on if you use public Wi-Fi (Windows Security → Firewall & network protection).", Some("security")));
+            } else {
+                checks.push(check_pc("Firewall", format!("Off for {} networks", off.join(" and ").to_lowercase()), Level::Info, "", Some("security")));
+            }
+        }
+        match sec.bitlocker {
+            Some(1) => checks.push(check_pc("Disk encryption", "On", Level::Ok, "", None)),
+            Some(0) => checks.push(check_pc("Disk encryption", "Off", Level::Info, "Encryption keeps your files unreadable if the PC is lost or stolen. Windows offers it as Device encryption or BitLocker, depending on the edition.", Some("encryption"))),
+            _ => {}
+        }
+        checks.push(check_pc("Backups", "BYTE can't see Windows Backup or File History", Level::Info, "Make sure your important files are also in OneDrive or on another drive.", Some("backup")));
+    }
+    checks.sort_by_key(|c| c.level);
+    let id = uuid::Uuid::new_v4().simple().to_string();
+    let quittable: Vec<String> = procs.iter().filter_map(|p| p.app.clone()).collect();
+    if let (Ok(mut q), Ok(mut names)) = (QUITTABLE.lock(), PC_QUIT.lock()) {
+        q.push((id.clone(), quittable));
+        names.push((id.clone(), quit));
+        let (n, m) = (q.len(), names.len());
+        if n > 5 {
+            q.drain(..n - 5);
+        }
+        if m > 5 {
+            names.drain(..m - 5);
+        }
+    }
+    Health { id, title: if coach { "How your PC is doing".into() } else { "PC check-up".into() }, checks, procs }
+}
+
 /// The health card's "Quit" button (only apps that card listed).
 #[tauri::command]
 pub async fn upkeep_quit(card: String, app: String) -> AppResult<bool> {
     let ok = QUITTABLE.lock().ok().is_some_and(|q| q.iter().any(|(id, apps)| *id == card && apps.contains(&app)));
     if !ok {
         return Err(AppError::msg("BYTE can only quit the apps on that card."));
+    }
+    if cfg!(windows) {
+        // The card knows the program by its friendly name; Windows needs the real one.
+        let exe = PC_QUIT.lock().ok().and_then(|q| q.iter().find(|(id, _)| *id == card).and_then(|(_, m)| m.iter().find(|(d, _)| *d == app).map(|(_, e)| e.clone())));
+        let exe = exe.ok_or_else(|| AppError::msg("BYTE can only quit the apps on that card."))?;
+        return crate::pcctl::WinRunner.run(&Command::Win(WinOp::Quit(exe))).await.map(|asked| asked.trim() != "0").map_err(|e| AppError::msg(e.text_for(&app, true)));
     }
     MacRunner.run(&Command::Osa { script: QUIT_APP, args: vec![app.clone()] }).await.map(|_| true).map_err(|e| AppError::msg(e.text(&app)))
 }
@@ -1439,8 +1732,8 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, runner: &dyn Runne
     let none = SourceBook::default;
     let pc = runner.pc();
     // The rest of a PC's upkeep (what slows it, the check-up, startup apps, uninstalling) arrives one piece at a time.
-    if pc && !matches!(a, Ask::Storage) {
-        return Ok(Some((none(), "BYTE can look at what is using disk space on a PC, but it can't yet check what slows the PC, run a check-up, list or change what starts with Windows, or uninstall programs. Say so plainly, and offer the storage check instead.".into())));
+    if pc && !matches!(a, Ask::Storage | Ask::Coach | Ask::Checkup) {
+        return Ok(Some((none(), "BYTE can look at what is using disk space on a PC, and check what slows it or run a check-up, but it can't yet list or change what starts with Windows, or uninstall programs. Say so plainly, and offer one of those instead.".into())));
     }
     match a {
         Ask::Storage => {
@@ -1499,16 +1792,29 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, runner: &dyn Runne
         }
         Ask::Coach | Ask::Checkup => {
             let coach = a == Ask::Coach;
-            send(ChatEvent::ToolCall { id: id.clone(), name: "mac_health".into(), args: json!({ "app": "System", "what": if coach { "Check what's slowing the Mac or using the battery" } else { "Run a Mac check-up" } }) })?;
+            let (app, what) = match (pc, coach) {
+                (true, true) => ("Windows", "Check what's slowing the PC or using the battery"),
+                (true, false) => ("Windows Security", "Run a PC check-up"),
+                (false, true) => ("System", "Check what's slowing the Mac or using the battery"),
+                (false, false) => ("System", "Run a Mac check-up"),
+            };
+            send(ChatEvent::ToolCall { id: id.clone(), name: "mac_health".into(), args: json!({ "app": app, "what": what }) })?;
             let h = health(runner, home, coach, now).await;
             let issues = h.checks.iter().filter(|c| c.level <= Level::Warn).count();
             let summary = if issues == 0 { "All good".to_string() } else { format!("{issues} things to look at") };
             send(ChatEvent::ToolResult { id, ok: true, summary: summary.clone() })?;
             turn.log.record("mac_health", &json!({ "coach": coach }), true, &summary);
-            let notes = format!(
-                "BYTE checked this Mac just now (shown in the card above):\n{}\n\nExplain what matters most first in plain words, then practical fixes. Mention that the card has buttons for settings and for quitting busy apps. Don't suggest Terminal commands, cleaner apps or resetting SMC/NVRAM.",
-                health_notes(&h)
-            );
+            let notes = if pc {
+                format!(
+                    "BYTE checked this PC just now (shown in the card above):\n{}\n\nExplain what matters most first in plain words, then practical fixes. Mention that the card has buttons for Windows settings and for quitting busy programs. Don't suggest PowerShell or command-line steps, registry edits, \"optimizer\" or cleaner programs, or turning off Windows Security.",
+                    health_notes(&h)
+                )
+            } else {
+                format!(
+                    "BYTE checked this Mac just now (shown in the card above):\n{}\n\nExplain what matters most first in plain words, then practical fixes. Mention that the card has buttons for settings and for quitting busy apps. Don't suggest Terminal commands, cleaner apps or resetting SMC/NVRAM.",
+                    health_notes(&h)
+                )
+            };
             send(ChatEvent::Health(h))?;
             Ok(Some((none(), notes)))
         }
