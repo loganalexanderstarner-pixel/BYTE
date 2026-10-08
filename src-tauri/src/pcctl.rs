@@ -55,6 +55,12 @@ pub enum WinOp {
     Security,
     /// Asks a program's windows to close, by program name; prints how many windows were asked.
     Quit(String),
+    /// What starts with Windows, read-only: one line per entry, tab-separated `scope`, `kind`, `name`, `command`, `on 1/0`.
+    /// Scope is `user` or `machine`; kind is `run` (the Run key), `run32` (the 32-bit Run key) or `folder` (a Startup folder).
+    StartupList,
+    /// Turns one entry on or off the way Task Manager's Startup tab does (Windows' own "approved" flag, for this user): the
+    /// entry itself, the program and its files stay as they are. `kind` and `name` are as `StartupList` printed them.
+    StartupSet { kind: String, name: String, on: bool },
 }
 
 /// The operation that does `action` on a PC, when Windows can do it from here.
@@ -120,6 +126,8 @@ const PANES: &[(&str, &str, &str)] = &[
     ("brightness", "Display", "display"),
     ("resolution", "Display", "display"),
     ("night light", "Night light", "nightlight"),
+    ("startup", "Startup apps", "startupapps"),
+    ("startup apps", "Startup apps", "startupapps"),
     ("encryption", "Device encryption", "deviceencryption"),
     ("bitlocker", "Device encryption", "deviceencryption"),
     ("battery", "Battery", "batterysaver"),
@@ -421,6 +429,8 @@ mod win {
             WinOp::Processes => processes(),
             WinOp::Security => security(),
             WinOp::Quit(name) => quit(name),
+            WinOp::StartupList => startup_list(),
+            WinOp::StartupSet { kind, name, on } => startup_set(kind, name, *on),
         }
     }
 
@@ -555,6 +565,66 @@ mod win {
             }
         }
         Ok(asked.to_string())
+    }
+
+    fn startup_list() -> Result<String, RunError> {
+        const SCRIPT: &str = r#"$ErrorActionPreference = 'SilentlyContinue'
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+$approved = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved'
+function Clean($s) { ([string]$s) -replace "[\t\r\n]+", ' ' }
+function On($sub, $name) {
+  $v = (Get-ItemProperty -LiteralPath "$approved\$sub" -Name $name).$name
+  if ($v -is [byte[]] -and $v.Length -gt 0 -and ($v[0] -band 1) -eq 1) { 0 } else { 1 }
+}
+$runs = @(
+  @{ scope = 'user';    key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run';                kind = 'run';   sub = 'Run' },
+  @{ scope = 'machine'; key = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run';                kind = 'run';   sub = 'Run' },
+  @{ scope = 'machine'; key = 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Run';   kind = 'run32'; sub = 'Run32' }
+)
+foreach ($r in $runs) {
+  $k = Get-Item -LiteralPath $r.key
+  if ($k) { foreach ($n in $k.GetValueNames()) { if ($n) { "$($r.scope)`t$($r.kind)`t$(Clean $n)`t$(Clean $k.GetValue($n))`t$(On $r.sub $n)" } } }
+}
+$folders = @(
+  @{ scope = 'user';    dir = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup" },
+  @{ scope = 'machine'; dir = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp" }
+)
+foreach ($f in $folders) {
+  Get-ChildItem -LiteralPath $f.dir -File -Force | Where-Object { $_.Name -ne 'desktop.ini' } | ForEach-Object {
+    $target = $_.FullName
+    if ($_.Extension -eq '.lnk') { try { $target = (New-Object -ComObject WScript.Shell).CreateShortcut($_.FullName).TargetPath } catch {} }
+    "$($f.scope)`tfolder`t$(Clean $_.Name)`t$(Clean $target)`t$(On 'StartupFolder' $_.Name)"
+  }
+}
+"#;
+        run_script("startup-list.ps1", SCRIPT, &[])
+    }
+
+    /// Turns a startup entry on or off through the per-user "approved" flag that Task Manager's Startup tab writes. The kind,
+    /// name and wish go in a file, never on a command line; the script only ever writes that one registry value.
+    fn startup_set(kind: &str, name: &str, on: bool) -> Result<String, RunError> {
+        const SCRIPT: &str = r#"param([string]$Wish)
+$l = @(Get-Content -LiteralPath $Wish -Encoding UTF8)
+if ($l.Count -lt 3) { Write-Error 'bad request'; exit 2 }
+$sub = switch ($l[0]) { 'run' { 'Run' } 'run32' { 'Run32' } 'folder' { 'StartupFolder' } default { '' } }
+if (-not $sub -or -not $l[1]) { Write-Error 'bad request'; exit 2 }
+$key = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\$sub"
+if (-not (Test-Path -LiteralPath $key)) { New-Item -Path $key -Force | Out-Null }
+if ($l[2] -eq '1') { $bytes = [byte[]](2,0,0,0,0,0,0,0,0,0,0,0) }
+else { $bytes = [byte[]](3,0,0,0) + [BitConverter]::GetBytes([int64](Get-Date).ToFileTime()) }
+Set-ItemProperty -LiteralPath $key -Name $l[1] -Value $bytes -Type Binary
+Write-Output ($l[2])
+"#;
+        if name.is_empty() || name.contains(['\n', '\r']) || !matches!(kind, "run" | "run32" | "folder") {
+            return Err(RunError::Failed("That startup entry can't be changed.".into()));
+        }
+        let dir = std::env::temp_dir().join("BYTE-upkeep");
+        std::fs::create_dir_all(&dir).map_err(|e| RunError::Failed(e.to_string()))?;
+        let wish = dir.join(format!("startup-{}.txt", uuid::Uuid::new_v4().simple()));
+        std::fs::write(&wish, format!("{kind}\n{name}\n{}", u8::from(on))).map_err(|e| RunError::Failed(e.to_string()))?;
+        let out = run_script("startup-set.ps1", SCRIPT, &[&wish]);
+        let _ = std::fs::remove_file(&wish);
+        out
     }
 
     fn security() -> Result<String, RunError> {
@@ -985,6 +1055,47 @@ mod live {
         assert_eq!(run_op(&WinOp::DarkMode(Switch::Toggle)).unwrap(), "false");
         run_op(&WinOp::DarkMode(if was_light { Switch::Off } else { Switch::On })).unwrap();
         assert_eq!(win::apps_use_light(), Some(was_light));
+    }
+
+    #[test]
+    #[ignore = "reads the real startup list, then turns an entry the test adds itself off and on"]
+    fn live_pc_startup_list_and_round_trip() {
+        let list = || run_op(&WinOp::StartupList).expect("the startup list can be read");
+        let before = list();
+        println!("--- startup entries on this PC:\n{before}");
+        for l in before.lines() {
+            assert_eq!(l.split('\t').count(), 5, "five fields: {l:?}");
+        }
+        // An entry of the test's own in the user's Run key, removed again whatever happens.
+        const RUN: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
+        const APPROVED: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+        const NAME: &str = "BYTE live test entry é";
+        struct Cleanup;
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                for key in [RUN, APPROVED] {
+                    let _ = std::process::Command::new("reg").args(["delete", key, "/v", NAME, "/f"]).output();
+                }
+            }
+        }
+        let _cleanup = Cleanup;
+        let added = std::process::Command::new("reg").args(["add", RUN, "/v", NAME, "/t", "REG_SZ", "/d", r#""C:\Windows\System32\cmd.exe" /c exit"#, "/f"]).output().unwrap();
+        assert!(added.status.success());
+        let mine = || list().lines().find(|l| l.contains("BYTE live test entry")).map(str::to_string);
+        let line = mine().expect("the new entry is listed");
+        println!("new entry: {line:?}");
+        let f: Vec<&str> = line.split('\t').collect();
+        assert_eq!((f[0], f[1], f[2], f[4]), ("user", "run", NAME, "1"), "{line:?}");
+        assert!(f[3].contains("cmd.exe"));
+        let set = |on| run_op(&WinOp::StartupSet { kind: "run".into(), name: NAME.into(), on }).unwrap_or_else(|e| panic!("set {on}: {e:?}"));
+        assert_eq!(set(false), "0");
+        assert!(mine().unwrap().ends_with("\t0"), "{:?}", mine());
+        assert_eq!(set(true), "1");
+        assert!(mine().unwrap().ends_with("\t1"), "{:?}", mine());
+        // Anything but the three kinds, or an empty name, is refused before PowerShell is asked.
+        assert!(run_op(&WinOp::StartupSet { kind: "task".into(), name: "x".into(), on: false }).is_err());
+        assert!(run_op(&WinOp::StartupSet { kind: "run".into(), name: "".into(), on: false }).is_err());
+        assert!(run_op(&WinOp::StartupSet { kind: "run".into(), name: "a\nb".into(), on: false }).is_err());
     }
 
     #[test]
