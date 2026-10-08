@@ -545,7 +545,7 @@ pub async fn tick(app: &AppHandle) {
     match crate::tasks::take_due_reminders(&state.db, &now) {
         Ok(due) => {
             for t in due {
-                notify(app, "Reminder", &t.title);
+                crate::toast::reminder(app, &t);
             }
         }
         Err(e) => log::warn!("reminders: {e}"),

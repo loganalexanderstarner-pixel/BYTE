@@ -25,6 +25,7 @@ mod kitchen;
 mod lab;
 mod macctl;
 mod pcctl;
+mod toast;
 mod messages;
 mod looker;
 mod engine;

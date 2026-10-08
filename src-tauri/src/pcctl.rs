@@ -71,8 +71,8 @@ pub enum WinOp {
     /// prints `name<TAB>path` for matches in the file name and `text<TAB>path` for matches inside documents, newest first. The
     /// words are letters, digits and a few joiners only (`find_word_ok`); they reach the query through a file.
     FindFiles { words: Vec<String>, root: std::path::PathBuf },
-    /// The files selected in the File Explorer window that is on top, one full path per line (empty when nothing is selected or
-    /// no Explorer window is open).
+    /// The files selected in the File Explorer window that is on top, or else the icons selected on the Desktop, one full path
+    /// per line (empty when nothing is selected).
     ExplorerSelection,
     /// Saves a copy of a photo: as `format` (`jpeg`, `png`, `tiff` or `bmp`), no larger than `max` pixels on the long side when
     /// given, turned the right way up by the camera's orientation. Prints the new size (`1200x800`). Never overwrites: `out` must
@@ -738,14 +738,24 @@ $ErrorActionPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $h = [int64](Get-Content -LiteralPath $Wish | Select-Object -First 1)
 $shell = New-Object -ComObject Shell.Application
-foreach ($w in $shell.Windows()) {
-  if ([int64]$w.HWND -eq $h) {
-    $items = @($w.Document.SelectedItems())
-    if ($items.Count -gt 0) { foreach ($i in $items) { ([string]$i.Path) -replace "[\r\n]+", ' ' }; break }
+function Show($items) { foreach ($i in $items) { ([string]$i.Path) -replace "[\r\n]+", ' ' } }
+$found = 0
+if ($h -ne 0) {
+  foreach ($w in $shell.Windows()) {
+    if ([int64]$w.HWND -eq $h) {
+      $items = @($w.Document.SelectedItems())
+      if ($items.Count -gt 0) { Show $items; $found = $items.Count; break }
+    }
   }
 }
+# Nothing selected in a window (or no window): the icons selected on the Desktop itself.
+if ($found -eq 0) {
+  $loc = [ref]0; $root = [ref]0; $hw = [ref]0
+  $desktop = $shell.Windows().FindWindowSW($loc, $root, 8, $hw, 1)
+  if ($desktop) { Show @($desktop.Document.SelectedItems()) }
+}
 "#;
-        let Some(hwnd) = topmost_explorer() else { return Ok(String::new()) };
+        let hwnd = topmost_explorer().unwrap_or(0);
         let dir = std::env::temp_dir().join("BYTE-upkeep");
         std::fs::create_dir_all(&dir).map_err(|e| RunError::Failed(e.to_string()))?;
         let wish = dir.join(format!("selection-{}.txt", uuid::Uuid::new_v4().simple()));
@@ -1462,6 +1472,48 @@ $b.Dispose()"#
         std::fs::write(dir.join("broken.png"), b"not a picture").unwrap();
         assert!(convert("broken.png", "z.png", "png", None).is_err());
         assert!(!dir.join("z.png").exists(), "a failed conversion leaves nothing behind");
+    }
+
+    #[test]
+    #[ignore = "puts a temporary file on the real Desktop, selects it, reads the selection and removes the file"]
+    fn live_pc_desktop_selection_is_read_when_no_window_has_one() {
+        let desktop = known_folder("Desktop").expect("the Desktop folder");
+        let file = desktop.join(format!("BYTE selection test {}.txt", std::process::id()));
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_file(&self.0);
+            }
+        }
+        let _cleanup = Cleanup(file.clone());
+        std::fs::write(&file, "x").unwrap();
+        // With a File Explorer window on top that has its own selection, the Desktop isn't asked: the test needs a quiet start.
+        let before = run_op(&WinOp::ExplorerSelection).unwrap_or_default();
+        assert!(before.is_empty() || !before.to_lowercase().contains("byte selection test"), "{before:?}");
+        // Select the file's icon the way a click would (the shell's own view of the Desktop).
+        let name = file.file_name().unwrap().to_string_lossy().to_string();
+        let selected = ps(&format!(
+            r#"$shell = New-Object -ComObject Shell.Application
+$loc = [ref]0; $root = [ref]0; $hw = [ref]0
+$d = $shell.Windows().FindWindowSW($loc, $root, 8, $hw, 1)
+for ($i = 0; $i -lt 20 -and -not $d.Document.Folder.ParseName('{name}'); $i++) {{ Start-Sleep -Milliseconds 300 }}
+$item = $d.Document.Folder.ParseName('{name}')
+$d.Document.SelectItem($item, 29)
+'selected'"#
+        ));
+        assert_eq!(selected, "selected");
+        let mut seen = String::new();
+        let found = (0..20).any(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            seen = run_op(&WinOp::ExplorerSelection).unwrap_or_default();
+            seen.lines().any(|l| l.eq_ignore_ascii_case(&file.display().to_string()))
+        });
+        if !found && !before.is_empty() {
+            println!("skipped: a File Explorer window with its own selection is on top ({before:?})");
+            return;
+        }
+        assert!(found, "the Desktop selection was {seen:?}");
+        assert_eq!(seen.lines().count(), 1, "{seen:?}");
     }
 
     #[test]

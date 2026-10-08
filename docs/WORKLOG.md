@@ -287,6 +287,30 @@ how every item below was found; none of them showed in a test.
 - **Trap:** on the PC, `cargo test` rebuilds OpenSSL when RUSTFLAGS differ, which
   needs Strawberry Perl on PATH. Use `scripts/windows-dev.bat`'s PATH.
 
+### 2026-10-08: Windows, the last small pieces: reminder toasts with buttons, and the Desktop selection
+- **Why:** the remaining items on the Windows list. A reminder was a plain notification; the Desktop's selected icons were not
+  read. Checking the other two items (reading Outlook, texts through Phone Link) showed they cannot be built honestly yet, see below.
+- **What:** `toast.rs`. A due reminder is a Windows toast (`scenario="reminder"`) with a **Snooze** list (5 minutes, 10 minutes, an
+  hour; Windows handles it, so it works even when BYTE has closed), **Done** (BYTE marks the task done; a repeating task moves to its
+  next time) and **Dismiss**. A button's argument is `done:<digits>` or `open` and nothing else means anything; the reminder text is
+  escaped as text (markup, quotes, control characters cannot add a button; cut at 200 characters). BYTE registers itself as
+  the sender ("BYTE", under its identifier) so Windows accepts the toast, keeps the last 40 toast objects alive so their buttons
+  work, and falls back to the old plain notification on any other system or if a toast can't be shown. Desktop: when the File
+  Explorer window used last has nothing selected (or there is none), `ExplorerSelection` asks the shell for the Desktop's selected icons.
+- **Verify:** Linux: 629 tests (new: the app id equals the app config's identifier, arguments, well-formed toast XML for hostile
+  titles, Done on a one-off and a repeating task, a task that is gone). On the real PC: the toast is created and appears in the
+  notification list (checked by tag; the test removes it again); the Desktop test makes a file on the Desktop, selects its icon
+  through the shell, and reads exactly that file, and the File Explorer window test still passes. **Not verified:** a press on the
+  Done button. This PC shows no banners (Windows is in a quiet mode) and the notification list can't be driven by a script on this
+  Windows build (tried accessibility on the banner and on Win+N), so it needs a person; the live test waits for one when
+  `BYTE_LIVE_TOAST_WAIT=60` is set.
+- **Not built, and why:** *Reading Outlook mail and calendar* (classic Outlook through COM): Outlook is installed on the test PC but
+  has no account, and starting it from a script hangs on its first-run dialog (a hidden Outlook was left behind and removed), so
+  nothing could be tried against a mailbox. *Texts through Phone Link:* Phone Link is installed but no phone is linked (its local
+  database holds only empty settings tables), so there is nothing to read, and sending needs its window, which can't be seen. Both
+  need the owner to sign in / link a phone first; the plan for each is in `docs/PORTING-WINDOWS-LINUX.md`.
+- **Undo:** `git revert`; the plain notification path is unchanged for everything but reminders.
+
 ### 2026-10-08: Files on Windows, second part: the File Explorer selection and converting photos
 - **Why:** "summarize the files I selected" and "make the selected photos smaller / convert them to jpg" said "can't yet" on a PC.
 - **What:** `WinOp::ExplorerSelection` finds the File Explorer window that was used last (the first one in the window stack) and asks the
