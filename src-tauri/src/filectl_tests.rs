@@ -4,6 +4,7 @@ use std::time::{Duration, SystemTime};
 use super::*;
 use crate::engine::Endpoint;
 use crate::macctl::RunError;
+use crate::pcctl::WinOp;
 
 #[test]
 fn file_requests_are_recognized_and_others_are_not() {
@@ -83,6 +84,11 @@ fn converting_keeps_originals_and_passes_paths_as_arguments() {
     assert!(args.contains(&evil.display().to_string()), "the path is one argument, no shell");
 }
 
+/// An hour from now, so that files made a moment ago are not "still downloading".
+fn now_for_tests() -> SystemTime {
+    SystemTime::now() + Duration::from_secs(3600)
+}
+
 #[derive(Default)]
 struct Fake {
     ran: StdMutex<Vec<Command>>,
@@ -105,6 +111,10 @@ impl Runner for Fake {
 }
 
 async fn flow(q: &str, fake: &Fake, approve: Option<bool>) -> (Option<(SourceBook, String)>, Vec<ChatEvent>) {
+    flow_in(q, fake, &home(), approve).await
+}
+
+async fn flow_in(q: &str, fake: &dyn Runner, home: &Path, approve: Option<bool>) -> (Option<(SourceBook, String)>, Vec<ChatEvent>) {
     let dir = tempfile::tempdir().unwrap();
     let log = crate::tools::ActionLog::new(dir.path().join("a.jsonl"));
     let http = crate::chat::local_client();
@@ -135,7 +145,7 @@ async fn flow(q: &str, fake: &Fake, approve: Option<bool>) -> (Option<(SourceBoo
             }
         });
     }
-    let out = run_with(&turn, q, fake, SystemTime::now(), &CancellationToken::new(), &send).await.unwrap();
+    let out = run_with(&turn, q, fake, home, now_for_tests(), &CancellationToken::new(), &send).await.unwrap();
     let ev = seen.lock().unwrap().clone();
     (out, ev)
 }
@@ -186,5 +196,246 @@ fn e2e_finder_script_compiles() {
     for (i, s) in SCRIPTS.iter().enumerate() {
         let out = std::process::Command::new("/usr/bin/osacompile").arg("-o").arg(dir.path().join(format!("{i}.scpt"))).arg("-e").arg(s).output().unwrap();
         assert!(out.status.success(), "script {i}: {}", String::from_utf8_lossy(&out.stderr));
+    }
+}
+
+// ------------------------------------------------------------------ the same on a PC
+
+/// A fake PC: answers the search with what the test set, and records every command.
+#[derive(Default)]
+struct PcFiles {
+    ran: StdMutex<Vec<Command>>,
+    found: StdMutex<Option<Result<String, RunError>>>,
+}
+
+impl Runner for PcFiles {
+    fn pc(&self) -> bool {
+        true
+    }
+    fn run<'a>(&'a self, cmd: &'a Command) -> futures_util::future::BoxFuture<'a, Result<String, RunError>> {
+        self.ran.lock().unwrap().push(cmd.clone());
+        let r = match cmd {
+            Command::Win(WinOp::FindFiles { .. }) => self.found.lock().unwrap().clone().unwrap_or(Err(RunError::Missing)),
+            _ => Err(RunError::Missing),
+        };
+        Box::pin(async move { r })
+    }
+}
+
+#[test]
+fn a_pc_reader_asks_for_files_in_pc_words() {
+    assert_eq!(ask("find my tax return pdf on my pc"), Some(Ask::Find { query: "tax return".into() }));
+    assert_eq!(ask("where's my resume on this computer?"), Some(Ask::Find { query: "resume".into() }));
+    assert_eq!(ask("search my pc for the lease document"), Some(Ask::Find { query: "lease".into() }));
+    assert_eq!(ask("find the lease file in file explorer"), Some(Ask::Find { query: "lease".into() }));
+    assert_eq!(ask("organize my Videos"), Some(Ask::Organize { folder: "Videos".into(), by: By::Kind }));
+    assert_eq!(ask("tidy my downloads by month"), Some(Ask::Organize { folder: "Downloads".into(), by: By::Month }));
+    assert_eq!(ask("summarize the files I selected in File Explorer"), Some(Ask::AboutSelection));
+    assert_eq!(ask("make the selected photos in explorer smaller"), Some(Ask::Convert { to: None, max: Some(1600) }));
+    // A Mac's wording still means what it did.
+    assert_eq!(ask("organize my movies"), Some(Ask::Organize { folder: "Movies".into(), by: By::Kind }));
+    assert_eq!(folder_name(true, "Movies"), "Videos");
+    assert_eq!(folder_name(false, "Videos"), "Movies");
+    assert_eq!(folder_name(true, "Downloads"), "Downloads");
+}
+
+#[test]
+fn a_pcs_files_are_grouped_and_its_own_files_left_alone() {
+    assert_eq!(kind_folder_for(true, Path::new("setup.EXE")), "Installers");
+    assert_eq!(kind_folder_for(true, Path::new("Win11.iso")), "Installers");
+    assert_eq!(kind_folder_for(true, Path::new("app.msix")), "Installers");
+    assert_eq!(kind_folder_for(false, Path::new("setup.exe")), "Other", "a Mac does not call a .exe an installer");
+    assert_eq!(kind_folder_for(true, Path::new("Zoom.pkg")), "Installers");
+    let d = tempfile::tempdir().unwrap();
+    for n in ["a.jpg", "setup.exe", "Tools.lnk", "desktop.ini", "Thumbs.db", "~$report.docx", "web.url", "b.pdf", "c.opdownload"] {
+        touch(d.path(), n);
+    }
+    let plan = tidy_plan_for(true, d.path(), By::Kind, now_for_tests()).unwrap();
+    let names: Vec<String> = plan.iter().map(|(_, to)| to.strip_prefix(d.path()).unwrap().display().to_string().replace('\\', "/")).collect();
+    assert_eq!(names, ["Images/a.jpg", "Documents/b.pdf", "Installers/setup.exe"], "shortcuts and Windows' own files stay");
+    // On a Mac the same folder is tidied by the Mac's rules.
+    let mac = tidy_plan_for(false, d.path(), By::Kind, now_for_tests()).unwrap();
+    assert!(mac.iter().any(|(_, to)| to.ends_with("Other/setup.exe")) && mac.iter().any(|(_, to)| to.ends_with("Other/Tools.lnk")));
+}
+
+#[test]
+fn on_a_pc_files_in_use_stay_and_the_rest_move() {
+    let d = tempfile::tempdir().unwrap();
+    let plan: Vec<(PathBuf, PathBuf)> = ["a.pdf", "open.docx", "b.pdf", "denied.pdf"].iter().map(|n| (touch(d.path(), n), d.path().join("Documents").join(n))).collect();
+    let rename = |from: &Path, to: &Path| -> std::io::Result<()> {
+        match from.file_name().and_then(|n| n.to_str()).unwrap() {
+            "open.docx" => Err(std::io::Error::from_raw_os_error(32)),
+            "denied.pdf" => Err(std::io::Error::from_raw_os_error(5)),
+            _ => std::fs::rename(from, to),
+        }
+    };
+    let (done, in_use, err) = apply_moves_with(true, &plan, &rename);
+    assert!(err.is_none(), "{err:?}");
+    assert_eq!(done.len(), 2);
+    assert_eq!(in_use, ["open.docx", "denied.pdf"]);
+    assert!(d.path().join("Documents/a.pdf").exists() && d.path().join("Documents/b.pdf").exists() && d.path().join("open.docx").exists());
+    // Any other error stops the tidy, as it does on a Mac, and what was done can be undone.
+    let boom = |from: &Path, to: &Path| -> std::io::Result<()> {
+        if from.ends_with("c.pdf") {
+            Err(std::io::Error::other("disk on fire"))
+        } else {
+            std::fs::rename(from, to)
+        }
+    };
+    let plan2: Vec<(PathBuf, PathBuf)> = ["c.pdf", "d.pdf"].iter().map(|n| (touch(d.path(), n), d.path().join("More").join(n))).collect();
+    let (done, _, err) = apply_moves_with(true, &plan2, &boom);
+    assert!(done.is_empty() && err.unwrap().contains("disk on fire"));
+    // A Mac never skips: a locked-looking error is an error.
+    let (_, in_use, err) = apply_moves_with(false, &plan[1..2], &rename);
+    assert!(in_use.is_empty() && err.is_some());
+}
+
+#[test]
+fn search_results_are_filtered_ranked_and_deduplicated() {
+    let out = "name\tC:\\Users\\ada\\.rustup\\toolchains\\x\\tax.html\n\
+        name\tC:\\Users\\ada\\AppData\\Local\\Temp\\tax-cache.tmp\n\
+        name\tC:\\Users\\ada\\Documents\\syntax-notes.txt\n\
+        text\tC:\\Users\\ada\\Documents\\Letters\\accountant.docx\n\
+        name\tC:\\Users\\ada\\Documents\\Taxes\\2025 Tax Return.pdf\n\
+        name\tC:\\Users\\ada\\documents\\taxes\\2025 tax return.pdf\n\
+        name\tC:\\Users\\ada\\Downloads\\tax-form-1040.pdf\n\
+        name\tC:\\Users\\ada\\project\\node_modules\\tax\\index.js\n\
+        garbage line\n\
+        name\t\n";
+    let hits = parse_found(out);
+    assert_eq!(hits.len(), 8, "the two bad lines are skipped");
+    let words = vec!["tax".to_string(), "return".to_string()];
+    let home = Path::new("C:\\Users\\ada");
+    let ranked = rank_found(hits, &words, home);
+    let shown: Vec<String> = ranked.iter().map(|p| p.display().to_string()).collect();
+    assert_eq!(
+        shown,
+        ["C:\\Users\\ada\\Documents\\Taxes\\2025 Tax Return.pdf", "C:\\Users\\ada\\Downloads\\tax-form-1040.pdf", "C:\\Users\\ada\\Documents\\syntax-notes.txt", "C:\\Users\\ada\\Letters\\accountant.docx".replace("\\Letters", "\\Documents\\Letters").as_str()],
+        "names with every word first, then names with one of them, then other name matches, then text matches; no app data, hidden folders or dependencies; the same file once"
+    );
+    // With one word the form is as good a match as the return, and newest-first order decides.
+    let one = rank_found(parse_found(out), &["tax".to_string()], home);
+    assert!(one[0].display().to_string().ends_with("2025 Tax Return.pdf"), "{one:?}");
+    assert!(one[1].display().to_string().ends_with("tax-form-1040.pdf"), "{one:?}");
+    for (path, kept) in [
+        ("C:\\Users\\ada\\Documents\\a.pdf", true),
+        ("C:/Users/ada/OneDrive/Documents/a.pdf", true),
+        ("C:\\Users\\ada\\AppData\\Roaming\\a.pdf", false),
+        ("C:\\Users\\ada\\.cache\\a.pdf", false),
+        ("C:\\Users\\ada\\work\\.git\\config", false),
+        ("C:\\Users\\ada\\.hidden.pdf", false),
+        ("C:\\Windows\\System32\\a.dll", false),
+        ("C:\\Program Files (x86)\\App\\a.txt", false),
+        ("C:\\$Recycle.Bin\\S-1\\a.pdf", false),
+    ] {
+        assert_eq!(keep_found(Path::new(path)), kept, "{path}");
+    }
+}
+
+#[test]
+fn without_windows_search_a_walk_finds_files_by_name() {
+    let d = tempfile::tempdir().unwrap();
+    for rel in ["Documents/Taxes/2025 Tax Return.pdf", "Documents/tax notes.txt", "Documents/holiday.jpg", "AppData/Local/tax.tmp", ".cache/tax.bin", "node_modules/tax/index.js"] {
+        let p = d.path().join(rel);
+        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+        std::fs::write(&p, rel).unwrap();
+    }
+    let found = walk_find(d.path(), &["tax".to_string(), "return".to_string()], std::time::Instant::now() + Duration::from_secs(5));
+    let names: Vec<String> = found.iter().map(|(_, p)| p.file_name().unwrap().to_string_lossy().to_string()).collect();
+    assert_eq!(names, ["2025 Tax Return.pdf"], "every word, and not from app data, hidden or dependency folders");
+    let two = walk_find(d.path(), &["tax".to_string()], std::time::Instant::now() + Duration::from_secs(5));
+    assert_eq!(two.len(), 2);
+    // An expired deadline stops the walk without an error.
+    assert!(walk_find(d.path(), &["tax".to_string()], std::time::Instant::now() - Duration::from_secs(1)).len() <= 1);
+}
+
+#[tokio::test]
+async fn finding_a_file_on_a_pc_asks_windows_search_and_speaks_in_pc_words() {
+    let d = tempfile::tempdir().unwrap();
+    let f = PcFiles::default();
+    f.found.lock().unwrap().replace(Ok("name\tC:\\Users\\ada\\Documents\\Taxes\\2025 Tax Return.pdf\ntext\tC:\\Users\\ada\\AppData\\x.docx\n".into()));
+    let (out, ev) = flow_in("find my tax return pdf", &f, d.path(), None).await;
+    let ran = f.ran.lock().unwrap().clone();
+    assert_eq!(ran, vec![Command::Win(WinOp::FindFiles { words: vec!["tax".into(), "return".into()], root: d.path().to_path_buf() })]);
+    let notes = out.unwrap().1;
+    assert!(notes.contains("2025 Tax Return.pdf") && notes.contains("Windows Search") && notes.contains("File Explorer"), "{notes}");
+    assert!(!notes.contains("AppData") && !notes.contains("Mac") && !notes.contains("Spotlight") && !notes.contains("Finder"), "{notes}");
+    assert!(ev.iter().any(|e| matches!(e, ChatEvent::ToolResult { ok: true, summary, .. } if summary == "1 files found")));
+    // Nothing found says so and suggests other words.
+    f.found.lock().unwrap().replace(Ok(String::new()));
+    let (out, _) = flow_in("find my passport scan pdf", &f, d.path(), None).await;
+    assert!(out.unwrap().1.contains("found nothing"));
+}
+
+#[tokio::test]
+async fn when_windows_search_is_off_the_pc_is_walked_by_file_name() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("Documents/Lease 2026.pdf");
+    std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+    std::fs::write(&p, "x").unwrap();
+    let f = PcFiles::default(); // the search answers "missing"
+    let (out, _) = flow_in("find the lease document on my pc", &f, d.path(), None).await;
+    let notes = out.unwrap().1;
+    assert!(notes.contains("Lease 2026.pdf") && notes.contains("Windows Search isn't running"), "{notes}");
+}
+
+#[tokio::test]
+async fn tidying_a_pc_folder_asks_first_moves_loose_files_and_undo_puts_them_back() {
+    let d = tempfile::tempdir().unwrap();
+    let dl = d.path().join("Downloads");
+    std::fs::create_dir_all(&dl).unwrap();
+    for n in ["a.jpg", "setup.exe", "b.pdf", "Tools.lnk"] {
+        touch(&dl, n);
+    }
+    let f = PcFiles::default();
+    // No: nothing moves.
+    let (out, ev) = flow_in("organize my downloads", &f, d.path(), Some(false)).await;
+    let ask = ev.iter().find_map(|e| if let ChatEvent::Approval(a) = e { Some(a.clone()) } else { None }).expect("asked first");
+    let text = ask.fields.iter().map(|x| format!("{}: {}", x.label, x.value)).collect::<Vec<_>>().join("\n");
+    assert!(text.contains("3 files") && text.contains("Installers: 1") && text.contains("shortcuts") && !text.contains("Finder") && !text.contains("Mac"), "{text}");
+    assert_eq!(ask.site, "File Explorer");
+    assert!(dl.join("a.jpg").exists() && out.unwrap().1.contains("Nothing was moved"));
+    // Yes: they move, the shortcut stays, and Undo is a way back.
+    let (out, ev) = flow_in("organize my downloads", &f, d.path(), Some(true)).await;
+    assert!(dl.join("Images/a.jpg").exists() && dl.join("Installers/setup.exe").exists() && dl.join("Documents/b.pdf").exists() && dl.join("Tools.lnk").exists());
+    let done = ev.iter().find_map(|e| if let ChatEvent::MacDone(m) = e { Some(m.clone()) } else { None }).expect("a done card");
+    assert!(done.ok && done.app == "File Explorer", "{done:?}");
+    let notes = out.unwrap().1;
+    assert!(notes.contains("Done: BYTE moved 3 files") && !notes.contains("Mac"), "{notes}");
+    match macctl::undo_step(&done.undo.expect("an undo token")) {
+        Some(Undo::Moves(moves)) => assert_eq!(moves.len(), 3),
+        other => panic!("undo should put the moves back, got {other:?}"),
+    }
+    // A folder that cannot be read says where Windows might be blocking it.
+    let (out, _) = flow_in("organize my music", &f, d.path(), Some(true)).await;
+    assert!(out.unwrap().1.contains("Controlled folder access"));
+    // Videos is a PC's Movies.
+    std::fs::create_dir_all(d.path().join("Videos")).unwrap();
+    touch(&d.path().join("Videos"), "clip.mp4");
+    let (_, ev) = flow_in("organize my movies", &f, d.path(), Some(true)).await;
+    assert!(d.path().join("Videos/Video/clip.mp4").exists(), "{ev:?}");
+}
+
+#[tokio::test]
+async fn photo_conversion_and_the_explorer_selection_are_said_not_pretended() {
+    let d = tempfile::tempdir().unwrap();
+    for q in ["convert the selected photos to jpg", "summarize the files I selected in File Explorer"] {
+        let f = PcFiles::default();
+        let (out, ev) = flow_in(q, &f, d.path(), None).await;
+        assert!(f.ran.lock().unwrap().is_empty() && !ev.iter().any(|e| matches!(e, ChatEvent::Approval(_))), "{q}");
+        assert!(out.unwrap().1.contains("can't yet"), "{q}");
+    }
+}
+
+/// "Find …" on the real PC, through the whole flow with the real Windows Search. Prints what it found; changes nothing.
+#[cfg(windows)]
+#[tokio::test]
+#[ignore = "asks the real Windows Search; run with --ignored --nocapture"]
+async fn live_pc_find_a_file_of_this_pc() {
+    for q in ["find my readme file on my pc", "find the notes document on my pc"] {
+        let started = std::time::Instant::now();
+        let (out, ev) = flow_in(q, &crate::pcctl::WinRunner, &home(), None).await;
+        println!("--- {q} ({:.1} s)\n{}", started.elapsed().as_secs_f32(), out.unwrap().1);
+        assert!(ev.iter().any(|e| matches!(e, ChatEvent::ToolResult { ok: true, .. })), "{q}");
     }
 }

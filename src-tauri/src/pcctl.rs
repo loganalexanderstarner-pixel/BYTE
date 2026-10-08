@@ -67,6 +67,29 @@ pub enum WinOp {
     /// Runs one listed program's own uninstaller, found again by its `id` (never a command from anywhere else). A Microsoft Store
     /// app is removed for this user. Prints `removed` when the program is gone, `started` when its uninstaller is still working.
     Uninstall { id: String },
+    /// Asks Windows Search (its index, so names and the text inside documents) for files under `root` that match every word;
+    /// prints `name<TAB>path` for matches in the file name and `text<TAB>path` for matches inside documents, newest first. The
+    /// words are letters, digits and a few joiners only (`find_word_ok`); they reach the query through a file.
+    FindFiles { words: Vec<String>, root: std::path::PathBuf },
+}
+
+/// Whether a search word is safe to put in a Windows Search query: letters, digits, `-`, `_` and `.`, up to 40 of them.
+pub fn find_word_ok(w: &str) -> bool {
+    !w.is_empty() && w.chars().count() <= 40 && w.chars().all(|c| c.is_alphanumeric() || matches!(c, '-' | '_' | '.'))
+}
+
+/// Where Windows keeps one of the person's folders, which may be inside OneDrive: `Downloads`, `Desktop`, `Documents`, `Pictures`,
+/// `Videos` or `Music`. `None` when it isn't a PC or the name isn't one of those.
+pub fn known_folder(name: &str) -> Option<std::path::PathBuf> {
+    #[cfg(windows)]
+    {
+        win::known_folder(name)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = name;
+        None
+    }
 }
 
 /// Whether `id` is one that `WinOp::Programs` prints: a registry entry (`reg|HKCU|<key name>`, also `HKLM` and `HKLM32` for the
@@ -454,6 +477,7 @@ mod win {
             WinOp::StartupSet { kind, name, on } => startup_set(kind, name, *on),
             WinOp::Programs => programs(),
             WinOp::Uninstall { id } => uninstall(id),
+            WinOp::FindFiles { words, root } => find_files(words, root),
         }
     }
 
@@ -646,6 +670,64 @@ Write-Output ($l[2])
         let wish = dir.join(format!("startup-{}.txt", uuid::Uuid::new_v4().simple()));
         std::fs::write(&wish, format!("{kind}\n{name}\n{}", u8::from(on))).map_err(|e| RunError::Failed(e.to_string()))?;
         let out = run_script("startup-set.ps1", SCRIPT, &[&wish]);
+        let _ = std::fs::remove_file(&wish);
+        out
+    }
+
+    pub(super) fn known_folder(name: &str) -> Option<std::path::PathBuf> {
+        use windows::Win32::System::Com::CoTaskMemFree;
+        use windows::Win32::UI::Shell::{FOLDERID_Desktop, FOLDERID_Documents, FOLDERID_Downloads, FOLDERID_Music, FOLDERID_Pictures, FOLDERID_Videos, SHGetKnownFolderPath, KF_FLAG_DEFAULT};
+        let id = match name {
+            "Downloads" => &FOLDERID_Downloads,
+            "Desktop" => &FOLDERID_Desktop,
+            "Documents" => &FOLDERID_Documents,
+            "Pictures" => &FOLDERID_Pictures,
+            "Videos" => &FOLDERID_Videos,
+            "Music" => &FOLDERID_Music,
+            _ => return None,
+        };
+        // SAFETY: the returned string is copied and then freed exactly once, as the API requires.
+        unsafe {
+            let p = SHGetKnownFolderPath(id, KF_FLAG_DEFAULT, None).ok()?;
+            let s = p.to_string().ok();
+            CoTaskMemFree(Some(p.as_ptr() as *const std::ffi::c_void));
+            s.filter(|s| !s.is_empty()).map(std::path::PathBuf::from)
+        }
+    }
+
+    fn find_files(words: &[String], root: &std::path::Path) -> Result<String, RunError> {
+        const SCRIPT: &str = r#"param([string]$Wish)
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+$l = @(Get-Content -LiteralPath $Wish -Encoding UTF8 | Where-Object { $_ })
+if ($l.Count -lt 2) { exit 0 }
+$scope = 'file:' + $l[0].Replace("'", "''")
+$words = @($l[1..($l.Count - 1)])
+$names = ($words | ForEach-Object { "System.FileName LIKE '%$_%'" }) -join ' AND '
+$texts = ($words | ForEach-Object { "CONTAINS('""$_*""')" }) -join ' AND '
+$exts = (@('.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.txt','.rtf','.md','.odt','.ods','.odp','.csv','.epub') | ForEach-Object { "System.FileExtension = '$_'" }) -join ' OR '
+$conn = New-Object -ComObject ADODB.Connection
+$conn.Open("Provider=Search.CollatorDSO;Extended Properties='Application=Windows';")
+function Ask($kind, $where, $top) {
+  $rs = $conn.Execute("SELECT TOP $top System.ItemPathDisplay FROM SystemIndex WHERE SCOPE='$scope' AND $where ORDER BY System.DateModified DESC")
+  while (-not $rs.EOF) { "$kind`t$($rs.Fields.Item(0).Value)"; $rs.MoveNext() }
+}
+Ask 'name' "($names) AND System.ItemType <> 'Directory'" 300
+Ask 'text' "($exts) AND ($texts)" 100
+$conn.Close()
+"#;
+        if words.is_empty() || words.len() > 6 || !words.iter().all(|w| find_word_ok(w)) {
+            return Err(RunError::Failed("Those search words can't be used.".into()));
+        }
+        let root = root.display().to_string();
+        if root.contains(['\n', '\r']) {
+            return Err(RunError::Failed("That folder can't be searched.".into()));
+        }
+        let dir = std::env::temp_dir().join("BYTE-upkeep");
+        std::fs::create_dir_all(&dir).map_err(|e| RunError::Failed(e.to_string()))?;
+        let wish = dir.join(format!("find-{}.txt", uuid::Uuid::new_v4().simple()));
+        std::fs::write(&wish, format!("{root}\n{}", words.join("\n"))).map_err(|e| RunError::Failed(e.to_string()))?;
+        let out = run_script("find-files.ps1", SCRIPT, &[&wish]);
         let _ = std::fs::remove_file(&wish);
         out
     }
@@ -1195,6 +1277,29 @@ mod live {
         assert!(run_op(&WinOp::StartupSet { kind: "task".into(), name: "x".into(), on: false }).is_err());
         assert!(run_op(&WinOp::StartupSet { kind: "run".into(), name: "".into(), on: false }).is_err());
         assert!(run_op(&WinOp::StartupSet { kind: "run".into(), name: "a\nb".into(), on: false }).is_err());
+    }
+
+    #[test]
+    #[ignore = "asks Windows Search and the shell for the real folders"]
+    fn live_pc_search_and_known_folders() {
+        for name in ["Downloads", "Desktop", "Documents", "Pictures", "Videos", "Music"] {
+            let p = known_folder(name).unwrap_or_else(|| panic!("{name}"));
+            println!("{name}: {} (exists: {})", p.display(), p.is_dir());
+            assert!(p.is_dir(), "{name}");
+        }
+        assert_eq!(known_folder("Windows"), None);
+        let root = known_folder("Desktop").unwrap().parent().unwrap().to_path_buf();
+        // The test folder on the owner's desktop is a file that is always there; a name nobody has finds nothing.
+        let hits = run_op(&WinOp::FindFiles { words: vec!["zzqxj-nothing-like-this".into()], root: root.clone() }).expect("search");
+        assert_eq!(hits, "", "{hits:?}");
+        let hits = run_op(&WinOp::FindFiles { words: vec!["readme".into()], root }).expect("search");
+        println!("{} lines for readme; first: {:?}", hits.lines().count(), hits.lines().next());
+        for l in hits.lines() {
+            let (kind, path) = l.split_once('\t').expect("kind and path");
+            assert!(matches!(kind, "name" | "text") && !path.is_empty(), "{l:?}");
+        }
+        assert!(run_op(&WinOp::FindFiles { words: vec!["a'b".into()], root: std::env::temp_dir() }).is_err());
+        assert!(run_op(&WinOp::FindFiles { words: vec![], root: std::env::temp_dir() }).is_err());
     }
 
     #[test]

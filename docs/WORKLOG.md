@@ -287,6 +287,29 @@ how every item below was found; none of them showed in a test.
 - **Trap:** on the PC, `cargo test` rebuilds OpenSSL when RUSTFLAGS differ, which
   needs Strawberry Perl on PATH. Use `scripts/windows-dev.bat`'s PATH.
 
+### 2026-10-08: Files on Windows, first part: "find my tax return" and "organize my Downloads"
+- **Why:** `filectl` (find files, tidy a folder, convert the selected photos, ask about the selected files) was macOS-only.
+  Finding used Spotlight, tidying was already plain Rust (plan, move, Undo), the other two need Finder and `sips`.
+- **What:** Find: `WinOp::FindFiles` asks Windows Search (names, and the text inside documents of the usual kinds), scoped to the
+  home folder, folders excluded; the words are letters, digits and `-_.` only (`find_word_ok`) and reach the query through a file.
+  `rank_found` puts names with every word at the start of a word first ("2025 Tax Return.pdf"), then names with some, then other
+  name matches ("syntax.html" for "tax"), then text matches, newest first inside each, and drops app data, hidden folders
+  (`.rustup`), dependency folders, the Recycle Bin and Windows' folders (judged below the home folder). If the search service is
+  off, `walk_find` looks through the folders by file name for up to 8 s and says so. Tidy: the folders come from Windows
+  (`known_folder`, so a Desktop inside OneDrive is found), Movies is Videos, programs and disk images are Installers, and
+  shortcuts, `desktop.ini`, `Thumbs.db`, `~$` Office lock files, hidden/system files and other browsers' partial downloads stay;
+  a file open in another program (Windows errors 5, 32, 33) stays where it is and the rest still move, and the card says how
+  many were left. The cards say File Explorer, and a folder that can't be read points at Controlled folder access. Asking
+  about the File Explorer selection or to convert photos says plainly that BYTE can't yet (next part).
+- **Verify:** Linux: 622 tests (new: PC phrases, groups and skipped files, in-use handling with an injected move, parsing and
+  ranking of results with 20 kinds of path, the walk, the whole find and tidy flows with Undo). On the real PC (Windows Search is
+  running): `live_pc_search_and_known_folders` (all six known folders exist, a made-up word finds nothing, "readme" finds 300
+  lines, bad words are refused) and `live_pc_find_a_file_of_this_pc` (0.3-0.6 s, no `.rustup` or AppData noise; it first listed
+  folders named Notes for "find the notes document", so folders are now excluded). Not run on real folders: the tidy itself
+  (tests do it on temporary folders; it is what the Mac code does).
+- **Not done:** the File Explorer selection, converting and shrinking photos (part two).
+- **Undo:** `git revert`; the Mac path is unchanged (its tests pass untouched).
+
 ### 2026-10-08: PC upkeep, fourth slice: "uninstall X" on Windows
 - **Why:** the last of the Mac's upkeep questions that answered "can't yet" on a PC.
 - **What:** `WinOp::Programs` lists what is installed (the Uninstall keys of this user, the PC and the 32-bit view, without
