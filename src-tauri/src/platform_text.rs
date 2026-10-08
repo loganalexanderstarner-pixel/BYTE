@@ -123,7 +123,14 @@ pub fn os_text_for(text: &str, os: Os) -> String {
     s = s.replace("System Settings", "Settings").replace("Privacy & Security", if linux { "Privacy" } else { "Privacy & security" });
     s = replace_word(&s, "macOS", if linux { "Linux" } else { "Windows" });
     s = replace_word(&s, "Macs", "PCs");
-    replace_word(&s, "Mac", "PC")
+    s = replace_word(&s, "Mac", "PC");
+    if !linux {
+        // Windows' Trash is the Recycle Bin, and what it offers is Restore.
+        s = s.replace("the Trash", "the Recycle Bin");
+        s = replace_word(&s, "Trash", "Recycle Bin");
+        s = s.replace("put them back", "restore them").replace("Put back", "Restore").replace("Put it back where it was", "Restore it where it was");
+    }
+    s
 }
 
 /// Text the app wrote for a Mac, worded for the machine it is on: the identity on a Mac,
@@ -187,6 +194,15 @@ mod tests {
         assert_eq!(os_text_for("Lock in the menu bar", Os::Linux), "Lock in the system tray");
         // A Mac is never reworded.
         assert_eq!(os_text_for("Show in Finder on your Mac", Os::Mac), "Show in Finder on your Mac");
+    }
+
+    #[test]
+    fn the_trash_is_the_recycle_bin_on_windows_only() {
+        let t = "Things go to the Trash, so you can put them back until you empty it. Move to Trash. Put back.";
+        assert_eq!(os_text_for(t, Os::Windows), "Things go to the Recycle Bin, so you can restore them until you empty it. Move to Recycle Bin. Restore.");
+        assert_eq!(os_text_for(t, Os::Linux), t);
+        assert_eq!(os_text_for(t, Os::Mac), t);
+        assert_eq!(os_text_for("Trashcan and Trashed", Os::Windows), "Trashcan and Trashed", "only the whole word");
     }
 
     #[test]

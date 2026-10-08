@@ -982,11 +982,11 @@ function AboutTab() {
           </span>
           <input type="checkbox" checked={settings?.trackersEnabled ?? true} onChange={(e) => void update({ trackersEnabled: e.target.checked })} />
         </label>
-        {!pcHost && (
+        {(!pcHost || isWindows()) && (
         <label className="field">
           <span>
-            {osText("Mac upkeep")}
-            <small>{osText("“What's taking up space?”, “find duplicate files”, “why is my Mac slow?”, “what's draining my battery?”, “check my Mac”, “uninstall Zoom”, “what opens at login?”. Anything removed goes to the Trash (Undo puts it back); BYTE never empties the Trash or touches macOS itself.")}</small>
+            {isWindows() ? "PC upkeep" : osText("Mac upkeep")}
+            <small>{isWindows() ? "“What's taking up space?”, “find duplicate files”, “free up space”. BYTE looks, then moves what you choose to the Recycle Bin, and Undo puts it back. More checks (what slows the PC, startup apps, uninstalling) are coming." : osText("“What's taking up space?”, “find duplicate files”, “why is my Mac slow?”, “what's draining my battery?”, “check my Mac”, “uninstall Zoom”, “what opens at login?”. Anything removed goes to the Trash (Undo puts it back); BYTE never empties the Trash or touches macOS itself.")}</small>
           </span>
           <input type="checkbox" disabled={settings?.macControl === false} checked={settings?.macUpkeep ?? true} onChange={(e) => void update({ macUpkeep: e.target.checked })} />
         </label>

@@ -41,7 +41,7 @@ fn upkeep_requests_are_recognized_and_others_are_not() {
 #[test]
 fn only_macs_with_it_switched_on() {
     assert!(!applies(false, "free up space"));
-    assert_eq!(applies(true, "free up space"), cfg!(target_os = "macos"));
+    assert_eq!(applies(true, "free up space"), cfg!(any(target_os = "macos", windows)));
 }
 
 fn write(p: &Path, bytes: usize) -> PathBuf {
@@ -351,7 +351,7 @@ async fn the_checkup_covers_backups_encryption_and_firewall() {
     assert!(empty.checks.iter().all(|c| c.label == "Time Machine"));
 }
 
-async fn flow(q: &str, fake: &Keyed, home: &Path, approve: Option<bool>) -> (Option<(SourceBook, String)>, Vec<ChatEvent>) {
+async fn flow(q: &str, fake: &dyn Runner, home: &Path, approve: Option<bool>) -> (Option<(SourceBook, String)>, Vec<ChatEvent>) {
     let dir = tempfile::tempdir().unwrap();
     let log = crate::tools::ActionLog::new(dir.path().join("a.jsonl"));
     let http = crate::chat::local_client();
@@ -497,3 +497,233 @@ fn windows_settings_links_cannot_smuggle_a_command() {
         assert!(!windows_settings_link_ok(bad), "{bad:?} must be refused");
     }
 }
+
+// ------------------------------------------------------------------ the same on a PC
+
+/// A fake PC: answers the Recycle Bin operations and records every command.
+#[derive(Default)]
+struct PcFake {
+    ran: StdMutex<Vec<Command>>,
+    /// What the Recycle operation prints (one line per file); `ok` for each when unset.
+    recycle: StdMutex<Option<String>>,
+}
+
+impl Runner for PcFake {
+    fn pc(&self) -> bool {
+        true
+    }
+    fn run<'a>(&'a self, cmd: &'a Command) -> futures_util::future::BoxFuture<'a, Result<String, RunError>> {
+        self.ran.lock().unwrap().push(cmd.clone());
+        let r = match cmd {
+            Command::Win(WinOp::Recycle(p)) => Ok(self.recycle.lock().unwrap().clone().unwrap_or_else(|| vec!["ok"; p.len()].join("\n"))),
+            Command::Win(WinOp::Restore(p)) => Ok(p.len().to_string()),
+            _ => Err(RunError::Missing),
+        };
+        Box::pin(async move { r })
+    }
+}
+
+#[test]
+fn a_pc_reader_asks_the_same_questions_in_pc_words() {
+    for q in ["what's taking up space on my PC?", "clean up my pc", "my disk is almost full", "find duplicate files", "clean up my computer"] {
+        assert_eq!(ask(q), Some(Ask::Storage), "{q}");
+    }
+    for q in ["why is my PC so slow?", "my pc is running hot", "what's draining my battery"] {
+        assert_eq!(ask(q), Some(Ask::Coach), "{q}");
+    }
+    for q in ["check my PC", "is my pc ok?", "run a health check"] {
+        assert_eq!(ask(q), Some(Ask::Checkup), "{q}");
+    }
+    assert_eq!(ask("uninstall Zoom from my PC"), Some(Ask::Uninstall { app: "zoom".into() }));
+    assert_eq!(ask("what opens at startup?"), Some(Ask::LoginItems));
+    assert_eq!(ask("stop Spotify from opening at startup"), Some(Ask::LoginRemove { name: "spotify".into() }));
+    // "pc" is a word, not a few letters inside another one.
+    for q in ["what are the specs of this laptop", "explain how a pcb works", "the epcot park is slow in august"] {
+        assert_eq!(ask(q), None, "{q}");
+    }
+}
+
+#[test]
+fn a_pcs_files_are_offered_and_protected_by_windows_rules() {
+    let home = Path::new("C:\\Users\\ada");
+    let ok = |p: &str| offerable_for(true, home, Path::new(p));
+    assert!(ok("C:\\Users\\ada\\Videos\\film.mp4"));
+    assert!(ok("c:/users/ADA/Downloads/report.pdf"), "case and slashes don't matter");
+    assert!(!ok("C:\\Users\\ada\\AppData\\Local\\Mail\\x"), "AppData is the programs' own");
+    assert!(!ok("C:\\Users\\ada\\.docker\\disk.raw"), "hidden folders");
+    assert!(!ok("C:\\Users\\bob\\Downloads\\x.pdf"), "someone else's folder");
+    assert!(!ok("D:\\Games\\x.bin"), "outside the user's folder");
+    for p in [
+        "C:\\Windows\\System32\\cmd.exe", "c:\\windows", "C:\\Program Files\\App\\app.exe", "C:\\Program Files (x86)\\Old", "C:\\ProgramData\\x",
+        "C:\\$Recycle.Bin\\S-1\\x", "C:\\", "C:", "D:\\", "C:\\Users\\ada", "C:\\Users\\ada\\Documents", "c:/users/ada/downloads/", "C:\\Users\\ada\\AppData",
+        "C:\\Users\\ada\\OneDrive", "C:\\Users\\ada\\Downloads\\..\\..\\..\\Windows", "relative\\path.txt", "Documents",
+    ] {
+        assert!(protected_pc(home, Path::new(p)), "{p}");
+    }
+    for p in ["C:\\Users\\ada\\Downloads\\old.msi", "C:\\Users\\ada\\Documents\\big.iso", "D:\\Games\\save.dat", "C:\\Users\\ada\\AppData\\Local\\pip\\Cache\\x"] {
+        assert!(!protected_pc(home, Path::new(p)), "{p}");
+    }
+    // The Mac rules are untouched (Unix-style paths mean something only on a system that has them).
+    if cfg!(unix) {
+        assert!(protected_for(false, Path::new("/Users/ada"), Path::new("/System/Library")));
+        assert!(!protected_for(false, Path::new("/Users/ada"), Path::new("/Users/ada/Downloads/a.dmg")));
+    }
+}
+
+#[test]
+fn a_pcs_installers_are_msi_and_iso_files_and_exes_named_setup() {
+    for f in ["a.msi", "b.MSIX", "c.iso", "Zoom-Installer.exe", "vc_setup.exe", "setup.exe", "install_app.EXE"] {
+        assert!(installer_like(true, Path::new(f)), "{f}");
+    }
+    for f in ["notepad++.exe", "game.exe", "a.zip", "readme.txt", "noext"] {
+        assert!(!installer_like(true, Path::new(f)), "{f}");
+    }
+    assert!(installer_like(false, Path::new("a.dmg")) && !installer_like(false, Path::new("setup.exe")), "a Mac's are disk images");
+}
+
+#[test]
+fn the_pc_scan_leaves_appdata_alone_and_finds_its_caches() {
+    let d = tempfile::tempdir().unwrap();
+    let home = d.path();
+    write(&home.join("Videos/film.mp4"), 60_000);
+    write(&home.join("Documents/report.pdf"), 20_000);
+    let setup = write(&home.join("Downloads/Zoom-setup.exe"), 5_000);
+    age(&setup, 90);
+    write(&home.join("AppData/Roaming/Thing/huge.db"), 90_000);
+    write(&home.join("AppData/Local/pip/Cache/wheel.whl"), 30_000);
+    write(&home.join("AppData/Local/Temp/leftover.tmp"), 20_000);
+    write(&home.join(".cargo/registry/cache/crate.crate"), 30_000);
+    write(&home.join(".config/thing"), 4_000);
+    let s = scan_for(true, home, SMALL.dup_min, Duration::from_secs(10), 100_000);
+    let names: Vec<&str> = s.folders.iter().map(|f| f.0.as_str()).collect();
+    assert!(names.contains(&"Videos") && names.contains(&"Documents") && names.contains(&"Downloads"), "{names:?}");
+    assert!(!names.contains(&"AppData"), "AppData is not walked: {names:?}");
+    // (Relative to the profile: on Windows the temporary folder this test runs in is itself inside AppData.)
+    assert!(s.files.iter().all(|f| !f.path.strip_prefix(home).unwrap().to_string_lossy().contains("AppData")), "nothing inside AppData is offered");
+    assert!(s.files.iter().any(|f| f.path.ends_with("film.mp4")));
+    let labels: Vec<&str> = s.caches.iter().map(|c| c.0.as_str()).collect();
+    assert!(labels.contains(&"Python package downloads") && labels.contains(&"Rust package downloads"), "{labels:?}");
+    assert!(s.app_caches >= 20_000, "Temp is measured: {}", s.app_caches);
+    // The same folder read the Mac way finds none of that.
+    assert!(scan_for(false, home, SMALL.dup_min, Duration::from_secs(10), 100_000).caches.is_empty());
+}
+
+#[test]
+fn the_pc_card_speaks_of_installers_temporary_files_and_the_recycle_bin() {
+    let d = tempfile::tempdir().unwrap();
+    let home = d.path();
+    let old = write(&home.join("Downloads/App-setup.exe"), 5_000);
+    age(&old, 90);
+    let msi = write(&home.join("Downloads/tool.msi"), 5_000);
+    age(&msi, 90);
+    write(&home.join("Downloads/notepad++.exe"), 5_000);
+    age(&home.join("Downloads/notepad++.exe"), 90);
+    let cache = home.join("AppData/Local/npm-cache");
+    write(&cache.join("a.tgz"), 60_000);
+    let scan = Scan { folders: vec![("Downloads".into(), home.join("Downloads"), 15_000)], files: vec![], caches: vec![("npm package cache".into(), cache.clone(), 60 << 20)], app_caches: 250 << 20, partial: false };
+    let (card, allowed) = storage_card_for(true, home, &scan, &[], 1_000, 500, LIMITS, SystemTime::now());
+    let get = |id: &str| card.suggestions.iter().find(|s| s.id == id).unwrap_or_else(|| panic!("no {id}: {:?}", card.suggestions.iter().map(|s| &s.id).collect::<Vec<_>>()));
+    let inst = get("installers");
+    assert_eq!(inst.count, 2, "the setup .exe and the .msi, not the program the person uses");
+    assert!(inst.why.starts_with("Installers more than") && !inst.why.contains("Disk images"), "{}", inst.why);
+    assert!(inst.items.iter().all(|i| i.starts_with("~\\")), "paths are written the PC's way: {:?}", inst.items);
+    let temp = get("app-caches");
+    assert_eq!((temp.title.as_str(), temp.can_trash, temp.items.clone()), ("Temporary files", false, vec!["%TEMP%".to_string()]));
+    assert!(temp.why.contains("Storage Sense") && !temp.why.contains("macOS"));
+    assert!(get("cache-0").why.starts_with("The tool rebuilds"));
+    assert!(card.folders.iter().any(|f| f.name == "Temporary files" && f.path == "%TEMP%"));
+    assert_eq!(allowed.get("installers").map(|p| p.len()), Some(2));
+}
+
+#[tokio::test]
+async fn moving_to_the_recycle_bin_reports_what_moved_and_can_be_undone() {
+    let d = tempfile::tempdir().unwrap();
+    let a = write(&d.path().join("Downloads/a.msi"), 5_000);
+    let b = write(&d.path().join("Downloads/b.msi"), 7_000);
+    let fake = PcFake::default();
+    *fake.recycle.lock().unwrap() = Some("ok\n!The file is in use by another program".into());
+    let t = trash(&fake, d.path(), &[a.clone(), b.clone()]).await;
+    // The bytes freed are what the file took on disk (a whole number of blocks), the same measure the scan used.
+    assert_eq!((t.moved, t.bytes), (1, on_disk(&std::fs::metadata(&a).unwrap())));
+    assert!(t.error.as_deref().unwrap().contains("b.msi") && t.error.as_deref().unwrap().contains("in use"), "{:?}", t.error);
+    // Both went to the Recycle Bin operation in one call, and nothing else ran.
+    assert_eq!(fake.ran.lock().unwrap().clone(), vec![Command::Win(WinOp::Recycle(vec![a.clone(), b.clone()]))]);
+    // Undo restores exactly what moved.
+    let step = macctl::undo_step(&t.undo.expect("an undo token"));
+    assert_eq!(step, Some(Undo::Cmd(Command::Win(WinOp::Restore(vec![a])))));
+}
+
+#[tokio::test]
+async fn nothing_protected_ever_reaches_the_recycle_bin() {
+    let d = tempfile::tempdir().unwrap();
+    let fake = PcFake::default();
+    // The user's own top folder, a system path and a path that is not there.
+    let t = trash(&fake, d.path(), &[d.path().to_path_buf(), PathBuf::from("C:\\Windows\\System32"), d.path().join("Downloads/gone.msi")]).await;
+    assert_eq!(t.moved, 0);
+    assert!(fake.ran.lock().unwrap().is_empty(), "no command was sent: {:?}", fake.ran.lock().unwrap());
+    assert!(t.error.as_deref().unwrap().contains("aren't there"));
+}
+
+#[tokio::test]
+async fn a_pc_storage_question_shows_the_card_and_remembers_what_may_go() {
+    let d = tempfile::tempdir().unwrap();
+    let old = write(&d.path().join("Downloads/Old-setup.exe"), 5_000);
+    age(&old, 400);
+    write(&d.path().join("Videos/film.mp4"), 60_000);
+    let fake = PcFake::default();
+    let (out, ev) = flow("what's taking up space on my PC", &fake, d.path(), None).await;
+    let card = ev.iter().find_map(|e| if let ChatEvent::Storage(s) = e { Some(s.clone()) } else { None }).expect("a storage card");
+    assert!(card.suggestions.iter().any(|s| s.id == "installers" && s.can_trash));
+    assert!(card.folders.iter().any(|f| f.name == "Videos"));
+    let notes = out.unwrap().1;
+    assert!(notes.contains("this PC's storage") && notes.contains("Recycle Bin") && notes.contains("AppData"), "{notes}");
+    assert!(!notes.contains("Mac") && !notes.contains("Trash") && !notes.contains("Finder"), "{notes}");
+    assert_eq!(take_allowed(&card.scan_id, "installers"), Some(vec![old]));
+    assert!(fake.ran.lock().unwrap().is_empty(), "looking changes nothing and asks the system for nothing");
+}
+
+#[tokio::test]
+async fn the_rest_of_pc_upkeep_is_said_not_pretended() {
+    let d = tempfile::tempdir().unwrap();
+    for q in ["why is my PC so slow", "check my PC", "uninstall Zoom", "what opens at startup?"] {
+        let fake = PcFake::default();
+        let (out, ev) = flow(q, &fake, d.path(), None).await;
+        assert!(fake.ran.lock().unwrap().is_empty(), "{q}: nothing ran");
+        assert!(!ev.iter().any(|e| matches!(e, ChatEvent::Health(_) | ChatEvent::Storage(_))), "{q}: no card");
+        assert!(out.unwrap().1.contains("can't yet"), "{q}");
+    }
+}
+
+/// What the storage scan makes of the real profile of whoever runs it. Prints the card; checks only what must hold anywhere.
+#[cfg(windows)]
+#[test]
+#[ignore = "walks the real user profile (up to 20 s); run with --ignored --nocapture"]
+fn live_pc_the_storage_scan_of_this_profile() {
+    let home = home();
+    let started = Instant::now();
+    let s = scan_for(true, &home, LIMITS.dup_min, SCAN_TIME, SCAN_ENTRIES);
+    let dups = duplicates(&s.files, LIMITS.dup_min, Instant::now() + Duration::from_secs(15));
+    let (total, free) = crate::system::disk_space_for(&home);
+    let (card, allowed) = storage_card_for(true, &home, &s, &dups, total, free, LIMITS, SystemTime::now());
+    println!("scan took {:.1}s; disk {} free of {}; partial={}", started.elapsed().as_secs_f32(), size_text(free), size_text(total), card.partial);
+    for f in card.folders.iter().take(8) {
+        println!("  folder {:<22} {:>10}  {}", f.name, size_text(f.bytes), f.path);
+    }
+    for sg in &card.suggestions {
+        println!("  suggestion {:<28} {:>10} {} items, trash={}  {:?}", sg.title, size_text(sg.bytes), sg.count, sg.can_trash, sg.items.iter().take(2).collect::<Vec<_>>());
+    }
+    for b in card.big.iter().take(5) {
+        println!("  big {} {} ({:?} days old)", b.path, size_text(b.bytes), b.days_old);
+    }
+    assert!(started.elapsed() < Duration::from_secs(60));
+    assert!(total > 0 && free <= total);
+    assert!(!card.folders.is_empty());
+    // Nothing the card could offer to remove is protected, and nothing is inside AppData but the caches BYTE knows.
+    for paths in allowed.values() {
+        for p in paths {
+            assert!(!protected_pc(&home, p), "{} is protected but offered", p.display());
+        }
+    }
+    assert!(card.folders.iter().all(|f| f.name != "AppData"));
+}
+

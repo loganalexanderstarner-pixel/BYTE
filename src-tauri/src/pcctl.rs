@@ -40,6 +40,12 @@ pub enum WinOp {
     MediaNext,
     MediaPrevious,
     NowPlaying,
+    /// Moves files to the Recycle Bin (never deletes). Prints one line per file: `ok`, or `!` and why not.
+    Recycle(Vec<std::path::PathBuf>),
+    /// Puts files back from the Recycle Bin where they came from. Prints how many went back.
+    Restore(Vec<std::path::PathBuf>),
+    /// Shows a file in File Explorer, selected.
+    Reveal(std::path::PathBuf),
 }
 
 /// The operation that does `action` on a PC, when Windows can do it from here.
@@ -390,7 +396,73 @@ mod win {
             WinOp::MediaNext => control(|s| s.TrySkipNextAsync().and_then(|o| o.join())),
             WinOp::MediaPrevious => control(|s| s.TrySkipPreviousAsync().and_then(|o| o.join())),
             WinOp::NowPlaying => now_playing(),
+            WinOp::Recycle(paths) => Ok(paths
+                .iter()
+                .map(|p| match crate::recycle::move_to_recycle_bin(p) {
+                    Ok(()) => "ok".to_string(),
+                    Err(e) => format!("!{e}"),
+                })
+                .collect::<Vec<_>>()
+                .join("\n")),
+            WinOp::Restore(paths) => restore(paths),
+            WinOp::Reveal(path) => reveal(path),
         }
+    }
+
+    /// Puts files back from the Recycle Bin with a fixed script: the paths go in a file, one per line, and the script
+    /// is handed that file's name, so no path is ever part of a command line. The Recycle Bin has no way to be asked
+    /// "restore this" from Rust, but the shell can: each item knows where it was deleted from, and "undelete" is the verb of
+    /// its Restore command.
+    fn restore(paths: &[std::path::PathBuf]) -> Result<String, RunError> {
+        const SCRIPT: &str = r#"param([string]$List)
+$wanted = @(Get-Content -LiteralPath $List -Encoding UTF8 | Where-Object { $_ })
+$shell = New-Object -ComObject Shell.Application
+$bin = $shell.NameSpace(10)
+$items = @($bin.Items())
+$done = 0
+foreach ($w in $wanted) {
+  $dir = Split-Path -Parent $w
+  $leaf = Split-Path -Leaf $w
+  $stem = [System.IO.Path]::GetFileNameWithoutExtension($leaf)
+  $hit = $null
+  foreach ($i in $items) {
+    if (($bin.GetDetailsOf($i, 1) -ieq $dir) -and (($i.Name -ieq $leaf) -or ($i.Name -ieq $stem))) { $hit = $i }
+  }
+  if ($hit) { $hit.InvokeVerb('undelete'); $done++ }
+}
+Write-Output $done
+"#;
+        use std::os::windows::process::CommandExt;
+        let dir = std::env::temp_dir().join("BYTE-upkeep");
+        std::fs::create_dir_all(&dir).map_err(|e| RunError::Failed(e.to_string()))?;
+        let script = dir.join("restore.ps1");
+        let list = dir.join(format!("restore-{}.txt", uuid::Uuid::new_v4().simple()));
+        std::fs::write(&script, SCRIPT).map_err(|e| RunError::Failed(e.to_string()))?;
+        std::fs::write(&list, paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join("\n")).map_err(|e| RunError::Failed(e.to_string()))?;
+        let out = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File"])
+            .arg(&script)
+            .arg(&list)
+            .creation_flags(0x0800_0000)
+            .output();
+        let _ = std::fs::remove_file(&list);
+        let out = out.map_err(|e| if e.kind() == std::io::ErrorKind::NotFound { RunError::Missing } else { RunError::Failed(e.to_string()) })?;
+        if !out.status.success() {
+            return Err(RunError::Failed(String::from_utf8_lossy(&out.stderr).lines().next().unwrap_or("PowerShell failed").to_string()));
+        }
+        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    }
+
+    /// File Explorer with the file selected. `/select,` takes the path after a comma and wants it quoted as one piece, which
+    /// the usual argument quoting would turn into something else, so the argument is written out exactly.
+    fn reveal(path: &std::path::Path) -> Result<String, RunError> {
+        use std::os::windows::process::CommandExt;
+        let text = path.display().to_string();
+        if text.contains('"') {
+            return Err(RunError::Failed("That path can't be shown.".into()));
+        }
+        std::process::Command::new("explorer.exe").raw_arg(format!("/select,\"{text}\"")).spawn().map_err(|e| RunError::Failed(e.to_string()))?;
+        Ok(String::new())
     }
 
     // ---- sound
@@ -825,6 +897,27 @@ mod live {
         assert!(paused.contains(crate::macctl::US), "pause answers with the song: {paused:?}");
         assert_eq!(after_pause, "stopped", "paused means not playing");
         assert!(after_play.contains(crate::macctl::US), "playing again: {after_play:?}");
+    }
+
+    #[test]
+    #[ignore = "puts a throwaway file in the real Recycle Bin and takes it back out"]
+    fn live_pc_a_file_goes_to_the_recycle_bin_and_comes_back() {
+        let dir = std::env::temp_dir().join("byte-live-recycle");
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join(format!("byte-live-{}.msi", uuid::Uuid::new_v4().simple()));
+        std::fs::write(&file, "throwaway contents").unwrap();
+        let out = run_op(&WinOp::Recycle(vec![file.clone(), dir.join("not-there.msi")])).expect("the Recycle Bin answers");
+        let lines: Vec<&str> = out.lines().collect();
+        println!("recycle said {lines:?}");
+        assert_eq!(lines[0], "ok");
+        assert!(lines[1].starts_with('!'), "a file that is not there is reported, not hidden: {lines:?}");
+        assert!(!file.exists(), "the file left its folder");
+        let back = run_op(&WinOp::Restore(vec![file.clone()])).expect("restore runs");
+        println!("restore said {back:?}");
+        assert_eq!(back, "1");
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "throwaway contents", "it is back, unchanged");
+        // Put it in the bin for good housekeeping and leave nothing in the temp folder.
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

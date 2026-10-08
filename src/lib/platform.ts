@@ -99,7 +99,7 @@ export function osText(text: string, os: Os | boolean = currentOs()): string {
   if (target === "mac") return text;
   const linux = target === "linux";
   const keyring = linux ? "your system keyring" : "Windows Credential Manager";
-  return text
+  const swapped = text
     .replace(/\b(?:[Yy]our|[Tt]he|[Tt]his) (?:Mac|macOS)'s Keychain\b/g, keyring)
     .replace(/\bthe macOS Keychain\b/g, keyring)
     .replace(/\b[Yy]our Keychain\b/g, keyring)
@@ -117,4 +117,13 @@ export function osText(text: string, os: Os | boolean = currentOs()): string {
     .replace(/\bMacs\b/g, "PCs")
     .replace(/\bMac(?='s\b)/g, "PC")
     .replace(/\bMac\b/g, "PC");
+  // Windows' Trash is the Recycle Bin, and what it offers is Restore. A Linux desktop has a Trash, as a Mac does.
+  return linux
+    ? swapped
+    : swapped
+        .replace(/\bthe Trash\b/g, "the Recycle Bin")
+        .replace(/\bTrash\b/g, "Recycle Bin")
+        .replace(/\bput them back\b/g, "restore them")
+        .replace(/\bPut back\b/g, "Restore")
+        .replace(/\bPut it back where it was\b/g, "Restore it where it was");
 }

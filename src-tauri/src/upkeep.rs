@@ -26,6 +26,7 @@ use crate::agent::{Emit, Turn};
 use crate::chat::ChatEvent;
 use crate::error::{AppError, AppResult};
 use crate::macctl::{self, Command, MacDone, MacRunner, Runner, Undo};
+use crate::pcctl::WinOp;
 use crate::tools::SourceBook;
 
 /// Longest a storage scan walks before showing what it has.
@@ -168,10 +169,15 @@ fn has_any(l: &str, words: &[&str]) -> bool {
     words.iter().any(|w| l.contains(w))
 }
 
+/// `w` as a whole word ("pc" in "my pc is slow", not in "specs").
+fn has_word(l: &str, w: &str) -> bool {
+    l.split(|c: char| !c.is_alphanumeric()).any(|x| x == w)
+}
+
 /// Strips filler around an app name ("the Zoom app from my Mac" → "zoom").
 fn app_name(s: &str) -> String {
     let mut s = s.trim().to_string();
-    for suffix in [" completely", " from my mac", " from this mac", " from the mac", " for me", " app", " application"] {
+    for suffix in [" completely", " from my mac", " from this mac", " from the mac", " from my pc", " from this pc", " from the pc", " from my computer", " for me", " app", " application"] {
         if let Some(r) = s.strip_suffix(suffix) {
             s = r.trim().to_string();
         }
@@ -217,6 +223,13 @@ pub fn ask(q: &str) -> Option<Ask> {
             return Some(Ask::LoginItems);
         }
     }
+    // A PC reader's wording of the same questions.
+    if has_any(&l, &["clean up my pc", "clean my pc", "cleanup my pc", "clean up my computer", "clean up my laptop"]) {
+        return Some(Ask::Storage);
+    }
+    if has_any(&l, &["check my pc", "check up on my pc", "is my pc ok", "is my pc okay", "is my pc healthy", "diagnose my pc", "pc health check", "pc's health"]) {
+        return Some(Ask::Checkup);
+    }
     // Storage.
     let space = has_any(&l, &["space", "storage", "disk", "hard drive", "ssd"]);
     if (space && has_any(&l, &["taking up", "using up", "free up", "running out", "running low", "low on", "is full", "almost full", "where did", "clean up", "cleanup", "analy", "what's using", "what is using", "eating", "hogging", "full"]))
@@ -225,7 +238,7 @@ pub fn ask(q: &str) -> Option<Ask> {
         return Some(Ask::Storage);
     }
     // Slow / battery.
-    let mac = has_any(&l, &["mac", "computer", "laptop", "macbook", "my system"]);
+    let mac = has_any(&l, &["mac", "computer", "laptop", "macbook", "my system"]) || has_word(&l, "pc");
     if (mac && has_any(&l, &["slow", "sluggish", "laggy", "lagging", "freezing", "beach ball", "running hot", "so hot", "overheating", "fan is loud", "fans are loud", "speed up", "faster"]))
         || has_any(&l, &["draining my battery", "drains my battery", "battery drain", "battery is draining", "battery dies", "battery life is", "battery health", "battery condition", "what's using my cpu", "what is using my cpu", "what's using my memory", "what's using my ram", "what is using my memory", "why is the fan", "keeps my mac awake", "won't sleep", "wont sleep"])
     {
@@ -238,7 +251,7 @@ pub fn ask(q: &str) -> Option<Ask> {
 }
 
 pub fn applies(enabled: bool, q: &str) -> bool {
-    cfg!(target_os = "macos") && enabled && ask(q).is_some()
+    (cfg!(target_os = "macos") || cfg!(windows)) && enabled && ask(q).is_some()
 }
 
 // ------------------------------------------------------------------ storage
@@ -250,7 +263,19 @@ fn on_disk(m: &std::fs::Metadata) -> u64 {
         use std::os::unix::fs::MetadataExt;
         m.blocks() * 512
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        // OFFLINE, RECALL_ON_OPEN, RECALL_ON_DATA_ACCESS: a OneDrive file that is only in the cloud. It has a size
+        // but takes no room here, and counting it would blame the disk for space that is free.
+        const NOT_HERE: u32 = 0x1000 | 0x0004_0000 | 0x0040_0000;
+        if m.file_attributes() & NOT_HERE != 0 {
+            0
+        } else {
+            m.len()
+        }
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         m.len()
     }
@@ -264,7 +289,29 @@ fn is_package(name: &str) -> bool {
 }
 
 /// A file that's fine to offer: not hidden, not inside a package or library.
+#[cfg_attr(not(test), allow(dead_code))]
 fn offerable(home: &Path, p: &Path) -> bool {
+    offerable_for(false, home, p)
+}
+
+/// A path with `/` between its parts, whichever system wrote it, and lower-case: how a PC's paths are compared
+/// (Windows ignores case and accepts either slash).
+fn norm(p: &Path) -> String {
+    p.to_string_lossy().replace('\\', "/").to_lowercase()
+}
+
+/// `offerable` for a Mac (`pc` false) or a PC, where AppData takes the place of Library.
+fn offerable_for(pc: bool, home: &Path, p: &Path) -> bool {
+    if pc {
+        let (h, f) = (norm(home), norm(p));
+        let Some(rest) = f.strip_prefix(&format!("{}/", h.trim_end_matches('/'))) else { return false };
+        let parts: Vec<&str> = rest.split('/').filter(|c| !c.is_empty()).collect();
+        if parts.first() == Some(&"appdata") {
+            return false;
+        }
+        let n = parts.len();
+        return parts.iter().enumerate().all(|(i, c)| !c.starts_with('.') && (i + 1 == n || !is_package(c)));
+    }
     let Ok(rest) = p.strip_prefix(home) else { return false };
     let parts: Vec<&str> = rest.iter().filter_map(|c| c.to_str()).collect();
     if parts.first() == Some(&"Library") {
@@ -272,6 +319,11 @@ fn offerable(home: &Path, p: &Path) -> bool {
     }
     let n = parts.len();
     parts.iter().enumerate().all(|(i, c)| !c.starts_with('.') && (i + 1 == n || !is_package(c)))
+}
+
+/// `home/a/b` from `"a/b"`, joined part by part so a PC gets backslashes and compares equal to what the disk lists.
+fn under(home: &Path, rel: &str) -> PathBuf {
+    rel.split('/').fold(home.to_path_buf(), |acc, part| acc.join(part))
 }
 
 #[derive(Debug, Clone)]
@@ -336,6 +388,18 @@ pub const DEV_CACHES: &[(&str, &str)] = &[
     (".cache/pip", "Python package downloads"),
 ];
 
+/// The same for a PC (relative to the user's folder; their contents go, the folders stay).
+pub const PC_DEV_CACHES: &[(&str, &str)] = &[
+    ("AppData/Local/pip/Cache", "Python package downloads"),
+    (".cache/pip", "Python package downloads"),
+    ("AppData/Local/npm-cache", "npm package cache"),
+    (".npm/_cacache", "npm package cache"),
+    ("AppData/Local/Yarn/Cache", "Yarn package cache"),
+    ("AppData/Local/NuGet/v3-cache", "NuGet package downloads"),
+    (".gradle/caches", "Gradle build caches"),
+    (".cargo/registry/cache", "Rust package downloads"),
+];
+
 /// A folder and its size, for the chart.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -398,14 +462,22 @@ pub struct Scan {
 
 /// Walks the home folder: the size of each top folder, big files, and the
 /// developer caches. Doesn't look inside ~/Library (apart from caches) or the Trash.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn scan(home: &Path, keep_min: u64, time: Duration, entries: u64) -> Scan {
+    scan_for(false, home, keep_min, time, entries)
+}
+
+/// `scan` for a Mac (`pc` false) or a PC. On a PC the folder that holds the programs' own data (AppData) is left
+/// alone like Library, the developer caches are the Windows ones, and Temp is measured as "app caches".
+pub fn scan_for(pc: bool, home: &Path, keep_min: u64, time: Duration, entries: u64) -> Scan {
     let deadline = Instant::now() + time;
     let mut budget = entries;
     let mut s = Scan::default();
-    let lib = home.join("Library");
-    let trash = home.join(".Trash");
-    let cache_dirs: Vec<PathBuf> = DEV_CACHES.iter().map(|(p, _)| home.join(p)).collect();
-    let skip = |p: &Path| p == lib || p == trash || cache_dirs.iter().any(|c| c == p);
+    let lib = if pc { home.join("AppData") } else { home.join("Library") };
+    let trash = (!pc).then(|| home.join(".Trash"));
+    let table = if pc { PC_DEV_CACHES } else { DEV_CACHES };
+    let cache_dirs: Vec<PathBuf> = table.iter().map(|(p, _)| under(home, p)).collect();
+    let skip = |p: &Path| p == lib || trash.as_deref() == Some(p) || cache_dirs.iter().any(|c| c == p);
     let mut hidden = 0u64;
     let mut tops: Vec<PathBuf> = std::fs::read_dir(home).map(|r| r.flatten().map(|e| e.path()).collect()).unwrap_or_default();
     tops.sort();
@@ -424,7 +496,7 @@ pub fn scan(home: &Path, keep_min: u64, time: Duration, entries: u64) -> Scan {
         }
     }
     // Only files BYTE may offer (not hidden, not inside a library or app) are kept.
-    s.files.retain(|f| offerable(home, &f.path));
+    s.files.retain(|f| offerable_for(pc, home, &f.path));
     if hidden > 0 {
         s.folders.push(("Hidden folders".into(), home.to_path_buf(), hidden));
     }
@@ -432,17 +504,28 @@ pub fn scan(home: &Path, keep_min: u64, time: Duration, entries: u64) -> Scan {
     let deadline = Instant::now() + Duration::from_secs(8);
     let mut budget = entries;
     let mut none = Vec::new();
-    for (i, (_, label)) in DEV_CACHES.iter().enumerate() {
+    for (i, (_, label)) in table.iter().enumerate() {
         let w = size_dir(&cache_dirs[i], &|_| false, u64::MAX, &mut none, deadline, &mut budget);
         if w.bytes > 0 {
             s.caches.push((label.to_string(), cache_dirs[i].clone(), w.bytes));
         }
     }
-    let caches = lib.join("Caches");
+    let caches = if pc { temp_dir_of(home) } else { lib.join("Caches") };
     let skip_dev = |p: &Path| cache_dirs.iter().any(|c| c == p);
     s.app_caches = size_dir(&caches, &skip_dev, u64::MAX, &mut none, deadline, &mut budget).bytes;
     s.folders.sort_by(|a, b| b.2.cmp(&a.2));
     s
+}
+
+/// The folder a PC's programs keep temporary files in: the system's own when it is in this user's folder (it is, unless
+/// someone moved it), else the usual place.
+fn temp_dir_of(home: &Path) -> PathBuf {
+    let t = std::env::temp_dir();
+    if norm(&t).starts_with(&format!("{}/", norm(home).trim_end_matches('/'))) {
+        t
+    } else {
+        under(home, "AppData/Local/Temp")
+    }
 }
 
 fn days_since(t: Option<SystemTime>, now: SystemTime) -> Option<u64> {
@@ -506,6 +589,20 @@ pub fn duplicates(files: &[FileRec], min: u64, deadline: Instant) -> Vec<Vec<Fil
 }
 
 const INSTALLERS: &[&str] = &["dmg", "pkg", "mpkg"];
+/// A PC's installers. An .exe is only one when its name says so: most .exe files in Downloads are programs people use.
+const PC_INSTALLERS: &[&str] = &["msi", "msix", "msixbundle", "appx", "appxbundle", "iso"];
+
+fn installer_like(pc: bool, path: &Path) -> bool {
+    let Some(ext) = path.extension().and_then(|e| e.to_str()).map(str::to_lowercase) else { return false };
+    if !pc {
+        return INSTALLERS.contains(&ext.as_str());
+    }
+    if PC_INSTALLERS.contains(&ext.as_str()) {
+        return true;
+    }
+    let name = path.file_stem().and_then(|n| n.to_str()).unwrap_or("").to_lowercase();
+    ext == "exe" && ["setup", "install", "installer"].iter().any(|w| name.contains(w))
+}
 
 fn tilde(home: &Path, p: &Path) -> String {
     match p.strip_prefix(home) {
@@ -515,13 +612,30 @@ fn tilde(home: &Path, p: &Path) -> String {
     }
 }
 
+/// `tilde` for a Mac or a PC; a PC writes its paths with backslashes.
+fn tilde_for(pc: bool, home: &Path, p: &Path) -> String {
+    let t = tilde(home, p);
+    if pc {
+        t.replace('/', "\\")
+    } else {
+        t
+    }
+}
+
 /// What the scan found, as a card plus the paths behind each id (what the
 /// Trash buttons may remove).
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn storage_card(home: &Path, scan: &Scan, dups: &[Vec<FileRec>], total: u64, free: u64, lim: Limits, now: SystemTime) -> (Storage, HashMap<String, Vec<PathBuf>>) {
+    storage_card_for(false, home, scan, dups, total, free, lim, now)
+}
+
+/// `storage_card` for a Mac (`pc` false) or a PC.
+#[allow(clippy::too_many_arguments)]
+pub fn storage_card_for(pc: bool, home: &Path, scan: &Scan, dups: &[Vec<FileRec>], total: u64, free: u64, lim: Limits, now: SystemTime) -> (Storage, HashMap<String, Vec<PathBuf>>) {
     let scan_id = uuid::Uuid::new_v4().simple().to_string();
     let mut allowed: HashMap<String, Vec<PathBuf>> = HashMap::new();
     let mut suggestions = Vec::new();
-    let show = |paths: &[PathBuf]| paths.iter().take(8).map(|p| tilde(home, p)).collect::<Vec<_>>();
+    let show = |paths: &[PathBuf]| paths.iter().take(8).map(|p| tilde_for(pc, home, p)).collect::<Vec<_>>();
 
     // Old installers in Downloads (top level only).
     let downloads = home.join("Downloads");
@@ -532,8 +646,7 @@ pub fn storage_card(home: &Path, scan: &Scan, dups: &[Vec<FileRec>], total: u64,
                 .filter_map(|e| {
                     let p = e.path();
                     let m = std::fs::symlink_metadata(&p).ok()?;
-                    let ext = p.extension()?.to_str()?.to_lowercase();
-                    (m.is_file() && INSTALLERS.contains(&ext.as_str())).then(|| FileRec { bytes: on_disk(&m), len: m.len(), modified: m.modified().ok(), path: p })
+                    (m.is_file() && installer_like(pc, &p)).then(|| FileRec { bytes: on_disk(&m), len: m.len(), modified: m.modified().ok(), path: p })
                 })
                 .collect()
         })
@@ -548,7 +661,11 @@ pub fn storage_card(home: &Path, scan: &Scan, dups: &[Vec<FileRec>], total: u64,
         suggestions.push(Suggestion {
             id: "installers".into(),
             title: "Old installers in Downloads".into(),
-            why: format!("Disk images and installers more than {} days old. The apps they installed stay installed.", lim.installer_days),
+            why: if pc {
+                format!("Installers more than {} days old. The programs they installed stay installed.", lim.installer_days)
+            } else {
+                format!("Disk images and installers more than {} days old. The apps they installed stay installed.", lim.installer_days)
+            },
             bytes: installers.iter().map(|f| f.bytes).sum(),
             items: show(&paths),
             count: paths.len(),
@@ -558,14 +675,14 @@ pub fn storage_card(home: &Path, scan: &Scan, dups: &[Vec<FileRec>], total: u64,
     }
 
     // Copies: every file but the kept one.
-    let extra: Vec<&FileRec> = dups.iter().flat_map(|g| g.iter().skip(1)).filter(|f| offerable(home, &f.path)).collect();
+    let extra: Vec<&FileRec> = dups.iter().flat_map(|g| g.iter().skip(1)).filter(|f| offerable_for(pc, home, &f.path)).collect();
     if !extra.is_empty() {
         let paths: Vec<PathBuf> = extra.iter().map(|f| f.path.clone()).collect();
         let items = dups
             .iter()
-            .filter(|g| g.iter().skip(1).any(|f| offerable(home, &f.path)))
+            .filter(|g| g.iter().skip(1).any(|f| offerable_for(pc, home, &f.path)))
             .take(8)
-            .map(|g| format!("{} (keeps {})", g.iter().skip(1).map(|f| tilde(home, &f.path)).collect::<Vec<_>>().join(", "), tilde(home, &g[0].path)))
+            .map(|g| format!("{} (keeps {})", g.iter().skip(1).map(|f| tilde_for(pc, home, &f.path)).collect::<Vec<_>>().join(", "), tilde_for(pc, home, &g[0].path)))
             .collect();
         suggestions.push(Suggestion {
             id: "duplicates".into(),
@@ -592,9 +709,9 @@ pub fn storage_card(home: &Path, scan: &Scan, dups: &[Vec<FileRec>], total: u64,
         suggestions.push(Suggestion {
             id: id.clone(),
             title: label.clone(),
-            why: format!("{} rebuilds or downloads these again when needed (the first build or install after may be slower).", if label.starts_with("Xcode") || label.starts_with("Simulator") { "Xcode" } else { "The tool" }),
+            why: format!("{} rebuilds or downloads these again when needed (the first build or install after may be slower).", if !pc && (label.starts_with("Xcode") || label.starts_with("Simulator")) { "Xcode" } else { "The tool" }),
             bytes: *bytes,
-            items: vec![tilde(home, dir)],
+            items: vec![tilde_for(pc, home, dir)],
             count: paths.len(),
             can_trash: true,
         });
@@ -604,10 +721,14 @@ pub fn storage_card(home: &Path, scan: &Scan, dups: &[Vec<FileRec>], total: u64,
     if scan.app_caches >= 200 << 20 {
         suggestions.push(Suggestion {
             id: "app-caches".into(),
-            title: "App caches".into(),
-            why: "Apps keep these to load faster and refill them right away; macOS clears them itself when space runs low, so removing them by hand rarely helps.".into(),
+            title: if pc { "Temporary files".into() } else { "App caches".into() },
+            why: if pc {
+                "Windows and programs leave these here and clear most of them on their own. Settings → System → Storage → Temporary files (Storage Sense) is the safe way to clear the rest.".into()
+            } else {
+                "Apps keep these to load faster and refill them right away; macOS clears them itself when space runs low, so removing them by hand rarely helps.".into()
+            },
             bytes: scan.app_caches,
-            items: vec!["~/Library/Caches".into()],
+            items: vec![if pc { "%TEMP%".into() } else { "~/Library/Caches".into() }],
             count: 1,
             can_trash: false,
         });
@@ -615,7 +736,7 @@ pub fn storage_card(home: &Path, scan: &Scan, dups: &[Vec<FileRec>], total: u64,
 
     // Big files, biggest first; old ones get their own line too.
     let dup_extra: HashSet<&Path> = extra.iter().map(|f| f.path.as_path()).collect();
-    let mut bigs: Vec<&FileRec> = scan.files.iter().filter(|f| f.bytes >= lim.big && offerable(home, &f.path)).collect();
+    let mut bigs: Vec<&FileRec> = scan.files.iter().filter(|f| f.bytes >= lim.big && offerable_for(pc, home, &f.path)).collect();
     bigs.sort_by(|a, b| b.bytes.cmp(&a.bytes).then(a.path.cmp(&b.path)));
     let big: Vec<BigFile> = bigs
         .iter()
@@ -624,7 +745,7 @@ pub fn storage_card(home: &Path, scan: &Scan, dups: &[Vec<FileRec>], total: u64,
         .map(|(i, f)| {
             let id = format!("file-{i}");
             allowed.insert(id.clone(), vec![f.path.clone()]);
-            BigFile { id, name: f.path.file_name().and_then(|n| n.to_str()).unwrap_or("").into(), path: tilde(home, &f.path), bytes: f.bytes, days_old: days_since(f.modified, now) }
+            BigFile { id, name: f.path.file_name().and_then(|n| n.to_str()).unwrap_or("").into(), path: tilde_for(pc, home, &f.path), bytes: f.bytes, days_old: days_since(f.modified, now) }
         })
         .collect();
     let old: Vec<&&FileRec> = bigs.iter().filter(|f| days_since(f.modified, now).is_some_and(|d| d >= lim.old_days) && !dup_extra.contains(f.path.as_path())).collect();
@@ -641,12 +762,12 @@ pub fn storage_card(home: &Path, scan: &Scan, dups: &[Vec<FileRec>], total: u64,
         });
     }
 
-    let mut folders: Vec<Sized> = scan.folders.iter().filter(|f| f.2 > 0).map(|(n, p, b)| Sized { name: n.clone(), path: tilde(home, p), bytes: *b }).collect();
+    let mut folders: Vec<Sized> = scan.folders.iter().filter(|f| f.2 > 0).map(|(n, p, b)| Sized { name: n.clone(), path: tilde_for(pc, home, p), bytes: *b }).collect();
     if scan.app_caches > 0 {
-        folders.push(Sized { name: "App caches".into(), path: "~/Library/Caches".into(), bytes: scan.app_caches });
+        folders.push(Sized { name: if pc { "Temporary files".into() } else { "App caches".into() }, path: if pc { "%TEMP%".into() } else { "~/Library/Caches".into() }, bytes: scan.app_caches });
     }
     for (label, dir, bytes) in &scan.caches {
-        folders.push(Sized { name: label.clone(), path: tilde(home, dir), bytes: *bytes });
+        folders.push(Sized { name: label.clone(), path: tilde_for(pc, home, dir), bytes: *bytes });
     }
     folders.sort_by(|a, b| b.bytes.cmp(&a.bytes));
     folders.truncate(14);
@@ -700,6 +821,41 @@ fn take_allowed(scan_id: &str, id: &str) -> Option<Vec<PathBuf>> {
 
 /// Paths never moved to the Trash, whatever asked for it.
 pub fn protected(home: &Path, p: &Path) -> bool {
+    protected_for(false, home, p)
+}
+
+/// Paths a PC never moves to the Recycle Bin: Windows and its programs, other users' places, the user's own top folders.
+/// Compared as lower-case text with `/` between the parts, because Windows ignores case and accepts both slashes.
+pub fn protected_pc(home: &Path, p: &Path) -> bool {
+    let f = norm(p);
+    let absolute = f.starts_with('/') || (f.len() >= 3 && f.as_bytes()[1] == b':' && f.as_bytes()[2] == b'/');
+    if !absolute || f.split('/').any(|c| c == "..") {
+        return true;
+    }
+    let f = f.trim_end_matches('/').to_string();
+    // A drive's root.
+    if f.len() == 2 && f.as_bytes()[1] == b':' || f.is_empty() {
+        return true;
+    }
+    let drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".into()).to_lowercase();
+    for root in ["windows", "program files", "program files (x86)", "programdata", "$recycle.bin", "system volume information", "recovery"] {
+        let r = format!("{drive}/{root}");
+        if f == r || f.starts_with(&format!("{r}/")) {
+            return true;
+        }
+    }
+    let h = norm(home);
+    let h = h.trim_end_matches('/');
+    ["", "desktop", "documents", "downloads", "pictures", "videos", "music", "appdata", "onedrive", "appdata/local", "appdata/roaming"]
+        .iter()
+        .any(|n| f == if n.is_empty() { h.to_string() } else { format!("{h}/{n}") })
+}
+
+/// `protected` for a Mac (`pc` false) or a PC.
+pub fn protected_for(pc: bool, home: &Path, p: &Path) -> bool {
+    if pc {
+        return protected_pc(home, p);
+    }
     let s = p.to_string_lossy();
     if !p.is_absolute() || s.contains("/../") || s.ends_with("/..") {
         return true;
@@ -725,11 +881,15 @@ pub struct Trashed {
 
 /// Moves files to the Trash through Finder; returns the undo step (Put Back).
 pub async fn trash(runner: &dyn Runner, home: &Path, paths: &[PathBuf]) -> Trashed {
-    let paths: Vec<PathBuf> = paths.iter().filter(|p| !protected(home, p) && std::fs::symlink_metadata(p).is_ok()).cloned().collect();
+    let pc = runner.pc();
+    let paths: Vec<PathBuf> = paths.iter().filter(|p| !protected_for(pc, home, p) && std::fs::symlink_metadata(p).is_ok()).cloned().collect();
     if paths.is_empty() {
         return Trashed { moved: 0, bytes: 0, undo: None, error: Some("Those files aren't there any more.".into()) };
     }
     let sizes: Vec<u64> = paths.iter().map(|p| std::fs::symlink_metadata(p).map(|m| if m.is_dir() { size_dir(p, &|_| false, u64::MAX, &mut Vec::new(), Instant::now() + Duration::from_secs(5), &mut 200_000).bytes } else { on_disk(&m) }).unwrap_or(0)).collect();
+    if pc {
+        return recycle(runner, &paths, &sizes).await;
+    }
     let out = match runner.run(&Command::Osa { script: TRASH, args: paths.iter().map(|p| p.display().to_string()).collect() }).await {
         Ok(o) => o,
         Err(e) => return Trashed { moved: 0, bytes: 0, undo: None, error: Some(e.text("Finder")) },
@@ -738,6 +898,29 @@ pub async fn trash(runner: &dyn Runner, home: &Path, paths: &[PathBuf]) -> Trash
     let moved = back.len() / 3;
     let undo = (moved > 0).then(|| macctl::keep_undo(Undo::Cmd(Command::Osa { script: PUT_BACK, args: back })));
     Trashed { moved, bytes, undo, error: failed.first().cloned() }
+}
+
+/// A PC's way: the Recycle Bin, one line back per file (`ok` or `!` and why), and an Undo that restores what went.
+async fn recycle(runner: &dyn Runner, paths: &[PathBuf], sizes: &[u64]) -> Trashed {
+    let out = match runner.run(&Command::Win(WinOp::Recycle(paths.to_vec()))).await {
+        Ok(o) => o,
+        Err(e) => return Trashed { moved: 0, bytes: 0, undo: None, error: Some(e.text_for("The Recycle Bin", true)) },
+    };
+    let mut moved: Vec<PathBuf> = Vec::new();
+    let mut bytes = 0;
+    let mut failed = Vec::new();
+    for (i, line) in out.lines().map(str::trim).filter(|l| !l.is_empty()).enumerate() {
+        let Some(p) = paths.get(i) else { break };
+        match line.strip_prefix('!') {
+            Some(e) => failed.push(format!("{}: {}", p.file_name().and_then(|n| n.to_str()).unwrap_or("?"), e.trim())),
+            None => {
+                moved.push(p.clone());
+                bytes += sizes.get(i).copied().unwrap_or(0);
+            }
+        }
+    }
+    let undo = (!moved.is_empty()).then(|| macctl::keep_undo(Undo::Cmd(Command::Win(WinOp::Restore(moved.clone())))));
+    Trashed { moved: moved.len(), bytes, undo, error: failed.first().cloned() }
 }
 
 /// From the Trash script's lines: the Put Back arguments, bytes freed, and errors.
@@ -761,6 +944,9 @@ pub fn put_back_args(paths: &[PathBuf], sizes: &[u64], out: &str) -> (Vec<String
 }
 
 fn home() -> PathBuf {
+    if cfg!(windows) {
+        return std::env::var_os("USERPROFILE").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("C:\\"));
+    }
     std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/"))
 }
 
@@ -768,6 +954,9 @@ fn home() -> PathBuf {
 #[tauri::command]
 pub async fn upkeep_trash(scan_id: String, id: String) -> AppResult<Trashed> {
     let paths = take_allowed(&scan_id, &id).ok_or_else(|| AppError::msg("That list is out of date; ask BYTE to check the storage again."))?;
+    if cfg!(windows) {
+        return Ok(trash(&crate::pcctl::WinRunner, &home(), &paths).await);
+    }
     Ok(trash(&MacRunner, &home(), &paths).await)
 }
 
@@ -776,6 +965,9 @@ pub async fn upkeep_trash(scan_id: String, id: String) -> AppResult<Trashed> {
 pub async fn upkeep_reveal(scan_id: String, id: String) -> AppResult<()> {
     let path = SCANS.lock().ok().and_then(|s| s.iter().find(|(sid, _)| *sid == scan_id).and_then(|(_, m)| m.get(&id).and_then(|p| p.first().cloned())));
     let path = path.ok_or_else(|| AppError::msg("That list is out of date."))?;
+    if cfg!(windows) {
+        return crate::pcctl::WinRunner.run(&Command::Win(WinOp::Reveal(path))).await.map(|_| ()).map_err(|e| AppError::msg(e.text_for("File Explorer", true)));
+    }
     MacRunner.run(&Command::Exec { program: "open", args: vec!["-R".into(), path.display().to_string()] }).await.map(|_| ()).map_err(|e| AppError::msg(e.text("Finder")))
 }
 
@@ -1226,7 +1418,11 @@ fn done_card(send: Emit<'_>, app: &str, title: &str, detail: &str, ok: bool, und
 
 /// Does what the message asks. Returns notes for the answer.
 pub async fn run(turn: &Turn<'_>, question: &str, cancel: &CancellationToken, send: Emit<'_>) -> AppResult<Option<(SourceBook, String)>> {
-    run_with(turn, question, &MacRunner, &home(), SystemTime::now(), cancel, send).await
+    if cfg!(windows) {
+        run_with(turn, question, &crate::pcctl::WinRunner, &home(), SystemTime::now(), cancel, send).await
+    } else {
+        run_with(turn, question, &MacRunner, &home(), SystemTime::now(), cancel, send).await
+    }
 }
 
 fn health_notes(h: &Health) -> String {
@@ -1241,13 +1437,18 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, runner: &dyn Runne
     let Some(a) = ask(question) else { return Ok(None) };
     let id = format!("byte_upkeep_{}", uuid::Uuid::new_v4().simple());
     let none = SourceBook::default;
+    let pc = runner.pc();
+    // The rest of a PC's upkeep (what slows it, the check-up, startup apps, uninstalling) arrives one piece at a time.
+    if pc && !matches!(a, Ask::Storage) {
+        return Ok(Some((none(), "BYTE can look at what is using disk space on a PC, but it can't yet check what slows the PC, run a check-up, list or change what starts with Windows, or uninstall programs. Say so plainly, and offer the storage check instead.".into())));
+    }
     match a {
         Ask::Storage => {
-            send(ChatEvent::ToolCall { id: id.clone(), name: "mac_storage".into(), args: json!({ "app": "Finder", "what": "Look at what's using space on this Mac" }) })?;
-            let (total, free) = out_of(runner, "df", &["-k", &home.display().to_string()]).await.as_deref().and_then(parse_df).unwrap_or((0, 0));
+            send(ChatEvent::ToolCall { id: id.clone(), name: "mac_storage".into(), args: json!({ "app": if pc { "File Explorer" } else { "Finder" }, "what": if pc { "Look at what's using space on this PC" } else { "Look at what's using space on this Mac" } }) })?;
+            let (total, free) = if pc { crate::system::disk_space_for(home) } else { out_of(runner, "df", &["-k", &home.display().to_string()]).await.as_deref().and_then(parse_df).unwrap_or((0, 0)) };
             let h = home.to_path_buf();
             let (scan, dups) = tokio::task::spawn_blocking(move || {
-                let s = scan(&h, LIMITS.dup_min, SCAN_TIME, SCAN_ENTRIES);
+                let s = scan_for(pc, &h, LIMITS.dup_min, SCAN_TIME, SCAN_ENTRIES);
                 let d = duplicates(&s.files, LIMITS.dup_min, Instant::now() + Duration::from_secs(15));
                 (s, d)
             })
@@ -1256,13 +1457,17 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, runner: &dyn Runne
             if cancel.is_cancelled() {
                 return Err(AppError::Cancelled);
             }
-            let (card, allowed) = storage_card(home, &scan, &dups, total, free, LIMITS, now);
+            let (card, allowed) = storage_card_for(pc, home, &scan, &dups, total, free, LIMITS, now);
             remember_scan(&card.scan_id, allowed);
             let could: u64 = card.suggestions.iter().filter(|s| s.can_trash).map(|s| s.bytes).sum();
             let summary = format!("{} folders sized · {} could be freed", card.folders.len(), size_text(could));
             send(ChatEvent::ToolResult { id, ok: true, summary: summary.clone() })?;
             turn.log.record("mac_storage", &json!({}), true, &summary);
-            let mut notes = String::from("BYTE looked at this Mac's storage (the card above shows it; the user can move suggested items to the Trash from the card, and Undo puts them back).\n");
+            let mut notes = String::from(if pc {
+                "BYTE looked at this PC's storage (the card above shows it; the user can move suggested items to the Recycle Bin from the card, and Undo puts them back).\n"
+            } else {
+                "BYTE looked at this Mac's storage (the card above shows it; the user can move suggested items to the Trash from the card, and Undo puts them back).\n"
+            });
             if total > 0 {
                 notes.push_str(&format!("Disk: {} free of {}.\n", size_text(free), size_text(total)));
             }
@@ -1284,7 +1489,11 @@ pub(crate) async fn run_with(turn: &Turn<'_>, question: &str, runner: &dyn Runne
             if card.partial {
                 notes.push_str("The home folder is very large, so the scan stopped early; real sizes are at least these.\n");
             }
-            notes.push_str("BYTE doesn't look inside ~/Library (apart from caches) or at macOS itself, so System Settings → General → Storage can show more (System Data, iCloud, Photos).\n\nSummarize in a few bullets: where the space goes, and the safest things to clear first. Point to the card's buttons; don't tell the user to use Terminal commands.");
+            notes.push_str(if pc {
+                "BYTE doesn't look inside AppData (apart from caches) or at Windows itself, so Settings → System → Storage can show more (Apps, Temporary files, OneDrive).\n\nSummarize in a few bullets: where the space goes, and the safest things to clear first. Point to the card's buttons; don't tell the user to use command-line tools."
+            } else {
+                "BYTE doesn't look inside ~/Library (apart from caches) or at macOS itself, so System Settings → General → Storage can show more (System Data, iCloud, Photos).\n\nSummarize in a few bullets: where the space goes, and the safest things to clear first. Point to the card's buttons; don't tell the user to use Terminal commands."
+            });
             send(ChatEvent::Storage(card))?;
             Ok(Some((none(), notes)))
         }

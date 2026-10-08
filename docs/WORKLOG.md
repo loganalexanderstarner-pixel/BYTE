@@ -287,6 +287,31 @@ how every item below was found; none of them showed in a test.
 - **Trap:** on the PC, `cargo test` rebuilds OpenSSL when RUSTFLAGS differ, which
   needs Strawberry Perl on PATH. Use `scripts/windows-dev.bat`'s PATH.
 
+### 2026-10-08: PC upkeep, first slice: "what's taking up space?" on Windows
+- **Why:** upkeep (storage, what slows the Mac, the check-up, uninstalling, login items) and file tidying were macOS-only
+  (`applies` was gated to macOS), so on Windows "what's taking up space?" or "find duplicate files" did nothing.
+- **What (storage only):** `upkeep.rs` takes the platform from the runner (`runner.pc()`), like `macctl`. For a PC: the scan
+  leaves AppData alone (as Library on a Mac) and finds a PC's developer caches (pip, npm, Yarn, NuGet, Gradle, Cargo);
+  Temp is measured and explained, never offered (files in use, and Windows clears them); installers are `.msi/.msix/.appx/.iso`
+  and `.exe` files named setup/install; a OneDrive file that is only in the cloud counts as zero (it has a size but takes no
+  room here); path rules are string-based (case-insensitive, either slash) so they test anywhere: Windows, Program Files,
+  ProgramData, the Recycle Bin, other users and the user's own top folders are never offered or touched, and `..` is refused.
+  Removal is the Recycle Bin (`WinOp::Recycle`, never a delete) and Undo is `WinOp::Restore`, which asks the shell's
+  "undelete" verb through a fixed script (the paths go in a file, never on a command line). "Show in File Explorer" is
+  `WinOp::Reveal`. The cards say Recycle Bin / Restore on Windows (word swaps in TS `osText` and Rust `os_text_for`; Linux
+  keeps Trash). The other questions (slow, check-up, startup apps, uninstall) answer that they can't yet on a PC.
+  A "PC upkeep" switch appears in Settings on Windows.
+- **Verify:** 600 Rust tests (new: sentences in PC words and `pc` as a whole word, offerable/protected paths, installers, the
+  scan on a fixture profile, the card, the Recycle Bin step with partial failure and its Undo step, protected paths never
+  reaching the runner, the whole flow with a fake PC runner). On the real PC, in the desktop session: a throwaway .msi went
+  into the actual Recycle Bin and came back unchanged through Restore (a missing file was reported, not hidden), and the scan
+  of the real profile took 28 s (20 s walk + 15 s copies, within limits) and found: 22.8 GB free of 2 TB, Downloads 5.7 GB,
+  the NVIDIA app installer saved three times (476 MB), 15 old installers (249 MB), the Cargo and npm caches, 838 MB of temp.
+  Two of my tests failed on Windows at first for reasons only a Windows run shows (a Unix path used for a Mac rule; the temp
+  folder the test runs in is itself inside AppData): fixed in the tests.
+- **Not done:** the coach, the check-up, startup apps, uninstalling (next slices) and file tidying (filectl).
+- **Undo:** `git revert`; the Mac path is unchanged (its tests pass untouched).
+
 ### 2026-10-08: Linux, first slice: the app runs, sees the GPU, downloads a model and chats
 - **Why:** Linux is the next target after Windows and Android (`docs/PORTING-WINDOWS-LINUX.md`, L1). Until now it compiled
   (CI runs the Rust tests on Linux) but every Linux machine looked like it had no graphics card, the engine script built a

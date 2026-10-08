@@ -122,3 +122,14 @@ describe("osText for a Linux reader", () => {
     expect(currentOs()).toBe("mac");
   });
 });
+
+describe("osText for the Trash", () => {
+  it("is the Recycle Bin on Windows, and still the Trash on a Mac and on Linux", () => {
+    const t = "Things go to the Trash, so you can put them back until you empty it. Move to Trash. Put back.";
+    expect(osText(t, "windows")).toBe("Things go to the Recycle Bin, so you can restore them until you empty it. Move to Recycle Bin. Restore.");
+    expect(osText(t, "linux")).toBe(t);
+    expect(osText(t, "mac")).toBe(t);
+    expect(osText("Put it back where it was", "windows")).toBe("Restore it where it was");
+  });
+});
+

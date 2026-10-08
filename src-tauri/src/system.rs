@@ -267,6 +267,18 @@ fn wired_limit_override() -> Option<u64> {
     None
 }
 
+/// (total, free) bytes of the disk `path` is on; (0, 0) when it cannot be found.
+pub fn disk_space_for(path: &std::path::Path) -> (u64, u64) {
+    let disks = Disks::new_with_refreshed_list();
+    disks
+        .list()
+        .iter()
+        .filter(|d| path.starts_with(d.mount_point()))
+        .max_by_key(|d| d.mount_point().as_os_str().len())
+        .map(|d| (d.total_space(), d.available_space()))
+        .unwrap_or((0, 0))
+}
+
 pub fn free_disk_for(path: &std::path::Path) -> u64 {
     let disks = Disks::new_with_refreshed_list();
     disks

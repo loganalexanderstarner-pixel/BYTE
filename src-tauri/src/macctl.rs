@@ -1757,6 +1757,12 @@ pub enum Undo {
 /// Undo steps for what BYTE did, by token (this session only).
 static UNDO: Lazy<Mutex<HashMap<String, Undo>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
+/// The step behind a card's Undo token, without running it (tests).
+#[cfg(test)]
+pub(crate) fn undo_step(token: &str) -> Option<Undo> {
+    UNDO.lock().ok().and_then(|m| m.get(token).cloned())
+}
+
 /// Keeps an undo step; returns the token for the card's Undo button.
 pub(crate) fn keep_undo(u: Undo) -> String {
     let token = uuid::Uuid::new_v4().simple().to_string();
@@ -1802,7 +1808,12 @@ pub async fn undo(token: &str) -> AppResult<bool> {
     let step = UNDO.lock().ok().and_then(|mut m| m.remove(token));
     match step {
         None => Ok(false),
-        Some(Undo::Cmd(cmd)) => MacRunner.run(&cmd).await.map(|_| true).map_err(|e| AppError::msg(e.text("the app"))),
+        Some(Undo::Cmd(cmd)) => {
+            // The same step a PC took (Restore from the Recycle Bin) or a Mac took (Put Back).
+            let pc = matches!(cmd, Command::Win(_));
+            let runner: &dyn Runner = if pc { &crate::pcctl::WinRunner } else { &MacRunner };
+            runner.run(&cmd).await.map(|_| true).map_err(|e| AppError::msg(e.text_for("the app", pc)))
+        }
         Some(Undo::Moves(moves)) => {
             let back = move_back(&moves);
             if back < moves.len() {

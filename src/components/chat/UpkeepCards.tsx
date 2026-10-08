@@ -31,7 +31,7 @@ function TrashButton({ scanId, id, what }: { scanId: string; id: string; what: s
   if (s.phase === "confirm")
     return (
       <span className="trash-confirm">
-        Move {what} to the Trash?
+        {osText("Move ")}{what}{osText(" to the Trash?")}
         <button className="btn sm danger" onClick={() => void go()}>
           <Trash2 size={13} /> Move
         </button>
@@ -42,15 +42,15 @@ function TrashButton({ scanId, id, what }: { scanId: string; id: string; what: s
     );
   if (s.phase === "done")
     return s.undone ? (
-      <span className="muted small">Put back</span>
+      <span className="muted small">{osText("Put back")}</span>
     ) : (
       <span className="trash-done">
         <span className="small">
-          Moved to the Trash{s.result.moved > 1 ? ` (${s.result.moved})` : ""}
+          {osText("Moved to the Trash")}{s.result.moved > 1 ? ` (${s.result.moved})` : ""}
           {s.result.error && <span className="hint danger"> · {s.result.error}</span>}
         </span>
         {s.result.undo && (
-          <button className="btn sm ghost" onClick={() => void undo(s.result)} title="Put it back where it was">
+          <button className="btn sm ghost" onClick={() => void undo(s.result)} title={osText("Put it back where it was")}>
             <Undo2 size={13} /> Undo
           </button>
         )}
@@ -58,8 +58,8 @@ function TrashButton({ scanId, id, what }: { scanId: string; id: string; what: s
     );
   return (
     <span className="trash-idle">
-      <button className="btn sm ghost" disabled={s.phase === "busy"} onClick={() => setS({ phase: "confirm" })} title="Moves to the Trash; nothing is deleted until you empty it">
-        <Trash2 size={13} /> Move to Trash
+      <button className="btn sm ghost" disabled={s.phase === "busy"} onClick={() => setS({ phase: "confirm" })} title={osText("Moves to the Trash; nothing is deleted until you empty it")}>
+        <Trash2 size={13} /> {osText("Move to Trash")}
       </button>
       {s.phase === "error" && <span className="hint danger">{s.message}</span>}
     </span>
@@ -169,7 +169,7 @@ export function StorageCard({ storage }: { storage: Storage }) {
       )}
       <p className="muted small">
         {storage.partial && "Your home folder is very large, so BYTE stopped early; real sizes are at least these. "}
-        Things go to the Trash, so you can put them back until you empty it.
+        {osText("Things go to the Trash, so you can put them back until you empty it.")}
       </p>
       {error && <span className="hint danger">{error}</span>}
     </div>
