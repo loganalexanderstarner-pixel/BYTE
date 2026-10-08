@@ -794,15 +794,20 @@ fn a_pcs_snapshot_and_security_readings_are_parsed() {
 
 #[test]
 fn only_windowed_ordinary_programs_can_be_quit_from_the_card() {
-    let (procs, quit) = pc_procs("chrome.exe|97.3|2200000000|1\nsvchost.exe|12.0|90000000|0\nexplorer.exe|3.0|150000000|1\nbyte.exe|2.0|400000000|1\nllama-server.exe|40|9000000000|0\nbad line\nx|y|z|1\n");
+    let (procs, quit) = pc_procs("chrome.exe|97.3|2200000000|1\nsvchost.exe|12.0|90000000|0\nexplorer.exe|3.0|150000000|1\nbyte.exe|2.0|400000000|1\nllama-server.exe|40|9000000000|0\nbad line\nx|y|z|1\n", false);
     let names: Vec<&str> = procs.iter().map(|p| p.name.as_str()).collect();
-    assert_eq!(names, ["Google Chrome", "Svchost", "Explorer", "BYTE", "BYTE's AI engine"], "unreadable lines are skipped");
+    assert_eq!(names, ["Google Chrome", "BYTE's AI engine", "Svchost", "Explorer", "BYTE"], "busiest first; unreadable lines are skipped");
     assert_eq!(procs[0].app.as_deref(), Some("Google Chrome"));
     assert_eq!(procs[0].mem, size_text(2_200_000_000));
     for p in &procs[1..] {
         assert_eq!(p.app, None, "{} must not get a Quit button", p.name);
     }
     assert_eq!(quit, vec![("Google Chrome".to_string(), "chrome.exe".to_string())]);
+    // When memory is what is short, the biggest come first; otherwise the busiest.
+    let mix = "a.exe|90|1000|1\nb.exe|1|9000|1\nc.exe|50|5000|1\n";
+    let order = |by_memory| pc_procs(mix, by_memory).0.into_iter().map(|p| p.name).collect::<Vec<_>>();
+    assert_eq!(order(false), ["A", "C", "B"]);
+    assert_eq!(order(true), ["B", "C", "A"]);
     for never in ["explorer.exe", "EXPLORER", "svchost.exe", "winlogon.exe", "byte.exe", "powershell.exe", "msedgewebview2.exe", "System"] {
         assert!(!quittable_pc(never), "{never}");
     }

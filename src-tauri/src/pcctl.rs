@@ -517,9 +517,17 @@ mod win {
             e.1 += p.memory();
             e.2 |= windows.contains(&pid.as_u32());
         }
+        // The busiest by processor, and the biggest by memory: which of them matters depends on what is short.
         let mut rows: Vec<(String, (f32, u64, bool))> = by.into_iter().collect();
         rows.sort_by(|a, b| b.1 .0.total_cmp(&a.1 .0).then(b.1 .1.cmp(&a.1 .1)));
-        Ok(rows.into_iter().take(14).map(|(n, (cpu, mem, w))| format!("{n}|{cpu:.1}|{mem}|{}", u8::from(w))).collect::<Vec<_>>().join("\n"))
+        let mut keep: Vec<(String, (f32, u64, bool))> = rows.iter().take(14).cloned().collect();
+        rows.sort_by(|a, b| b.1 .1.cmp(&a.1 .1));
+        for r in rows.into_iter().take(10) {
+            if !keep.iter().any(|k| k.0 == r.0) {
+                keep.push(r);
+            }
+        }
+        Ok(keep.into_iter().map(|(n, (cpu, mem, w))| format!("{n}|{cpu:.1}|{mem}|{}", u8::from(w))).collect::<Vec<_>>().join("\n"))
     }
 
     fn quit(name: &str) -> Result<String, RunError> {
@@ -977,6 +985,39 @@ mod live {
         assert_eq!(run_op(&WinOp::DarkMode(Switch::Toggle)).unwrap(), "false");
         run_op(&WinOp::DarkMode(if was_light { Switch::Off } else { Switch::On })).unwrap();
         assert_eq!(win::apps_use_light(), Some(was_light));
+    }
+
+    #[test]
+    #[ignore = "opens Notepad on the real PC for a moment and asks it to close"]
+    fn live_pc_quit_asks_a_programs_windows_to_close() {
+        let dir = std::env::temp_dir().join(format!("byte-quit-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("quit-me.txt");
+        std::fs::write(&file, "BYTE live test").unwrap();
+        let _ = std::process::Command::new("notepad.exe").arg(&file).spawn().expect("notepad starts");
+        let listed = |name: &str| -> Option<bool> {
+            let out = run_op(&WinOp::Processes).ok()?;
+            out.lines().find_map(|l| {
+                let f: Vec<&str> = l.split('|').collect();
+                (f.len() == 4 && f[0].to_lowercase().trim_end_matches(".exe") == name).then(|| f[3] == "1")
+            })
+        };
+        let up = (0..40).any(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            listed("notepad") == Some(true)
+        });
+        assert!(up, "Notepad should show up in the list with a window");
+        let asked: u32 = run_op(&WinOp::Quit("Notepad.exe".into())).expect("quit").trim().parse().unwrap();
+        println!("asked {asked} window(s) to close");
+        assert!(asked >= 1);
+        let gone = (0..40).any(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            listed("notepad").is_none()
+        });
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(gone, "Notepad should have closed itself when asked");
+        // Nothing running by that name is not an error, just nothing to close.
+        assert_eq!(run_op(&WinOp::Quit("no-such-program-byte".into())).unwrap(), "0");
     }
 
     #[test]

@@ -1397,15 +1397,26 @@ pub fn quittable_pc(exe: &str) -> bool {
     !NEVER.contains(&stem)
 }
 
-/// A PC's `Processes` lines (`name|cpu|bytes|has a window`) as the card's list: friendly names, and `app` only for a program
-/// with a window that is safe to ask to close. The second part pairs each such friendly name with its real program name.
-pub fn pc_procs(out: &str) -> (Vec<Proc>, Vec<(String, String)>) {
+/// A PC's `Processes` lines (`name|cpu|bytes|has a window`) as the card's list, busiest first (or biggest, when memory is what
+/// is short): friendly names, and `app` only for a program with a window that is safe to ask to close. The second part pairs
+/// each such friendly name with its real program name.
+pub fn pc_procs(out: &str, by_memory: bool) -> (Vec<Proc>, Vec<(String, String)>) {
+    let mut rows: Vec<(&str, f32, u64, &str)> = out
+        .lines()
+        .filter_map(|line| {
+            let mut f = line.trim().split('|');
+            let (exe, cpu, mem, win) = (f.next()?, f.next()?, f.next()?, f.next()?);
+            Some((exe, cpu.parse().ok()?, mem.parse().ok()?, win))
+        })
+        .collect();
+    if by_memory {
+        rows.sort_by(|a, b| b.2.cmp(&a.2));
+    } else {
+        rows.sort_by(|a, b| b.1.total_cmp(&a.1).then(b.2.cmp(&a.2)));
+    }
     let mut procs = Vec::new();
     let mut quit = Vec::new();
-    for line in out.lines() {
-        let mut f = line.trim().split('|');
-        let (Some(exe), Some(cpu), Some(mem), Some(win)) = (f.next(), f.next(), f.next(), f.next()) else { continue };
-        let (Ok(cpu), Ok(mem)) = (cpu.parse::<f32>(), mem.parse::<u64>()) else { continue };
+    for (exe, cpu, mem, win) in rows {
         let name = pretty_proc(exe);
         let app = (win == "1" && quittable_pc(exe)).then(|| name.clone());
         if let Some(a) = &app {
@@ -1471,9 +1482,10 @@ async fn health_pc(runner: &dyn Runner, coach: bool, now: SystemTime) -> Health 
     let mut quit = Vec::new();
     if coach {
         if let Ok(out) = runner.run(&Command::Win(WinOp::Processes)).await {
-            let (all, q) = pc_procs(&out);
+            let tight = snap.mem_total > 0 && snap.mem_free * 100 / snap.mem_total < 25;
+            let (all, q) = pc_procs(&out, tight);
             procs = all.into_iter().take(8).collect();
-            quit = q;
+            quit = q.into_iter().filter(|(d, _)| procs.iter().any(|p| p.app.as_deref() == Some(d.as_str()))).collect();
         }
         let hot: Vec<&Proc> = procs.iter().filter(|p| p.cpu >= 50.0).collect();
         if hot.is_empty() {
