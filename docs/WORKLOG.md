@@ -328,7 +328,10 @@ how every item below was found; none of them showed in a test.
   running): `live_pc_search_and_known_folders` (all six known folders exist, a made-up word finds nothing, "readme" finds 300
   lines, bad words are refused) and `live_pc_find_a_file_of_this_pc` (0.3-0.6 s, no `.rustup` or AppData noise; it first listed
   folders named Notes for "find the notes document", so folders are now excluded). Not run on real folders: the tidy itself
-  (tests do it on temporary folders; it is what the Mac code does).
+  (tests do it on temporary folders; it is what the Mac code does). CI's Windows job caught what the live tests could not: on
+  Windows the tidy asked the OS for the real Downloads folder instead of the temporary home the test passed in, so that test
+  would have tidied whoever ran it. `folder_dir` now asks Windows only when the home it is given is the real home. All 625
+  unit tests were then run on the real PC as well (do that, not only the live tests, before pushing).
 - **Not done:** the File Explorer selection, converting and shrinking photos (part two).
 - **Undo:** `git revert`; the Mac path is unchanged (its tests pass untouched).
 

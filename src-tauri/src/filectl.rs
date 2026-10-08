@@ -515,10 +515,11 @@ fn folder_name(pc: bool, folder: &str) -> &str {
     }
 }
 
-/// Where that folder is: on a PC where Windows says (it can be inside OneDrive), else under the home folder.
+/// Where that folder is: on a PC where Windows says (it can be inside OneDrive), else under the home folder. Windows is only asked
+/// when `home` is the person's real home folder, so a test that passes its own never reaches anyone's real folders.
 fn folder_dir(pc: bool, home: &Path, folder: &str) -> PathBuf {
     let name = folder_name(pc, folder);
-    if pc {
+    if pc && home == self::home() {
         if let Some(p) = crate::pcctl::known_folder(name) {
             return p;
         }
