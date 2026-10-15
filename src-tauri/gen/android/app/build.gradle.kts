@@ -25,8 +25,22 @@ android {
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
+    // BYTE's permanent signing key (set by the build workflow from the repository secrets). Android installs an update only when it
+    // is signed with the same key as the installed app. Without the key (a local build) the debug key is used.
+    val keystorePath = System.getenv("ANDROID_KEYSTORE_FILE")
+    signingConfigs {
+        if (keystorePath != null && file(keystorePath).exists()) {
+            create("byte") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: "byte"
+                keyPassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         getByName("debug") {
+            signingConfigs.findByName("byte")?.let { signingConfig = it }
             manifestPlaceholders["usesCleartextTraffic"] = "true"
             isDebuggable = true
             isJniDebuggable = true
@@ -35,6 +49,7 @@ android {
             // big to download to a phone comfortably. `adb logcat` still shows panics.
         }
         getByName("release") {
+            signingConfigs.findByName("byte")?.let { signingConfig = it }
             optimization {
                enable = true
             }

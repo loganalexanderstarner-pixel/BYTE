@@ -61,7 +61,19 @@ jobs:
         run: |
           mkdir -p src-tauri/binaries
           for b in llama-server whisper-cli sherpa-diarize sherpa-tts; do touch src-tauri/binaries/$b-aarch64-linux-android; done
+      - name: Use BYTE's permanent Android signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/byte-android.jks"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/byte-android.jks" >> "$GITHUB_ENV"
+          else
+            echo "No signing key in this repository's secrets: the build uses a throwaway debug key."
+          fi
       - name: Build engines and APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: scripts/build-android.sh
       - name: Keep the build logs when it fails
         if: failure()
@@ -86,7 +98,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           {
-            echo "A test build of BYTE for Android (docs/ANDROID.md), from \`${{ github.sha }}\`. Open this page on the phone, tap the .apk, then Install (allow installing from your browser when Android asks). Each test build is signed with a new test key, so uninstall the previous one first. Not for daily use yet."
+            echo "A test build of BYTE for Android (docs/ANDROID.md), from \`${{ github.sha }}\`. Open this page on the phone, tap the .apk, then Install (allow installing from your browser when Android asks). Test builds are signed with BYTE's own key, so they install over the previous one (the first one after an older build needs that older build uninstalled). Not for daily use yet."
             echo
             cat docs/ANDROID-TEST-CHECKLIST.md
           } > release-notes.md

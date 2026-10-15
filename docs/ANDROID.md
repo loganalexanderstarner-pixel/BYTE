@@ -4,8 +4,8 @@ The Android app is BYTE on a phone: the same chat, notes, documents and models, 
 as an optional bigger brain. It is its own app, separate from the Mac and Windows apps (no syncing between them). It targets phones
 with up to 16 GB of RAM, and the first phone it is tuned on is a Galaxy Z Fold.
 
-**Status:** test builds (`.apk` on the [releases page](../../releases)). Not for daily use yet. Each test build is signed with a new test
-key, so uninstall the previous one first.
+**Status:** test builds (`.apk` on the [releases page](../../releases)). Not for daily use yet. Test builds are signed with BYTE's own key, so they
+install over the previous one (the first one after an older build needs that older build uninstalled).
 
 **Building:** `scripts/build-android.sh` builds the engines with the NDK and then the app; the `Android` workflow does the same on
 every push to the `android` branch. The Rust core must keep compiling for `aarch64-linux-android`, so desktop-only code stays behind

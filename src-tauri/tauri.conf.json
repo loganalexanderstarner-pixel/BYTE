@@ -83,7 +83,7 @@
       }
     },
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM2MEEyNDczOEI5QkM4N0IKUldSN3lKdUxjeVFLTmo3SWg2S0pLTG1PdW84Tmtvc0w3VzZqQk1OQlZjaVBTMUtCa3FQZ2ZVd1MK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg4REY3QTA2NDdFNkNGNTYKUldSV3orWkhCbnJmaUg3eG50MDkwRnAxeWI0eGxwVFV0QlRnMWFXS1dGTjFVV0pOVVd2dFEvUXQK",
       "endpoints": [
         "https://github.com/loganalexanderstarner-pixel/BYTE/releases/latest/download/latest.json"
       ]
