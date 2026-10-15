@@ -57,6 +57,7 @@ All of this is off until you switch it on in Settings, and you can do it by voic
 - **Browser control:** research and fill in pages in a visible window or your own browser, with site rules you set.
 - **Screen questions and a rolling replay:** ask about what is on screen or what just happened in a game. Nothing is sent without your say-so, and a badge shows when it is recording.
 - **Guided help:** "Show me as I go" highlights where to click; "Do it for me" does it with your approval.
+- **Chat apps, email and jobs:** connect your own Discord, Telegram or Slack bot or your mail (each off until you set it up), get drafted replies you approve, ask your computer from your phone, and save jobs that run on a schedule or when a download finishes, a file appears or a message arrives, including a spoken morning digest.
 - **Routines, system status and backup:** voice routines you add or remove, "how's my PC", and saving and restoring your settings and chats.
 
 ## Install

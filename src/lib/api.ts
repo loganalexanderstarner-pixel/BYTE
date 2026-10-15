@@ -106,7 +106,36 @@ export interface DiskItems { free: number; freeWords: string; items: DiskItem[];
 export interface GamePolicy { engine: "local" | "cloud"; quiet: boolean; heavyOk: boolean }
 // --- track:house end ---
 
+// --- track:connect begin ---
+import type { ActivityEntry, AutoJob, ChannelInfo, ConnectorKind, ConnectorPatch, ConnectStatus, JobRun } from "./connect";
+// --- track:connect end ---
+
 export const api = {
+  // --- track:connect begin ---
+  connectStatus: () => invoke<ConnectStatus>("connect_status"),
+  /** Checks the token with the service; kept in the credential store only if it works. Returns who the bot is. */
+  connectTokenSet: (kind: ConnectorKind, token: string) => invoke<string>("connect_token_set", { kind, token }),
+  connectEmailSet: (host: string, user: string, password: string, folder: string, drafts: string) => invoke<string>("connect_email_set", { host, user, password, folder, drafts }),
+  connectChannels: (kind: ConnectorKind) => invoke<ChannelInfo[]>("connect_channels", { kind }),
+  connectSet: (kind: ConnectorKind, patch: ConnectorPatch) => invoke<ConnectStatus>("connect_set", { kind, patch }),
+  connectForget: (kind: ConnectorKind) => invoke<ConnectStatus>("connect_forget", { kind }),
+  connectLog: (limit: number) => invoke<ActivityEntry[]>("connect_log", { limit }),
+  connectLogClear: () => invoke<void>("connect_log_clear"),
+  connectPostTest: (kind: ConnectorKind, channel: string) => invoke<void>("connect_post_test", { kind, channel }),
+  connectPendingYes: (id: string, text: string | null) => invoke<string>("connect_pending_yes", { id, text }),
+  connectPendingNo: (id: string) => invoke<void>("connect_pending_no", { id }),
+  connectMailto: (id: string, text: string | null) => invoke<string>("connect_mailto", { id, text }),
+  onConnectPending: (cb: () => void): Promise<UnlistenFn> => listen("connect://pending", () => cb()),
+  jobsPause: (paused: boolean) => invoke<ConnectStatus>("jobs_pause", { paused }),
+  autojobsList: () => invoke<AutoJob[]>("autojobs_list"),
+  autojobSave: (job: AutoJob) => invoke<AutoJob>("autojob_save", { job }),
+  autojobDelete: (id: number) => invoke<void>("autojob_delete", { id }),
+  autojobToggle: (id: number, on: boolean) => invoke<AutoJob>("autojob_toggle", { id, on }),
+  autojobRun: (id: number) => invoke<void>("autojob_run", { id }),
+  autojobRuns: (job: number | null, limit: number) => invoke<JobRun[]>("autojob_runs", { job, limit }),
+  autojobDigestTemplate: (time: string, speak: boolean) => invoke<AutoJob>("autojob_digest_template", { time, speak }),
+  onJobRan: (cb: () => void): Promise<UnlistenFn> => listen("jobs://ran", () => cb()),
+  // --- track:connect end ---
   systemInfo: () => invoke<SystemInfo>("system_info"),
   memoryReport: () => invoke<MemoryReport>("memory_report"),
   appQuit: (name: string) => invoke<void>("app_quit", { name }),

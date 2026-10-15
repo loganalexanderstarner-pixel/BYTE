@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { CONNECT_TUTORIALS } from "./tutorial-connect";
 import { TABS } from "../components/settings/tabs";
 import { ARTICLES } from "./help";
 import {
@@ -91,7 +92,7 @@ describe("systems", () => {
   });
 
   it("the order is stable", () => {
-    expect(TUTORIALS.map((t) => t.id)).toEqual([
+    expect(TUTORIALS.map((t) => t.id).filter((id) => !CONNECT_TUTORIALS.some((c) => c.id === id))).toEqual([
       "getting-started", "chatting", "files", "web", "voice", "hey-byte", "barge-in", "quick-ask", "helpers",
       "pc-control", "find-files", "screen", "guided", "gaming", "backup", "privacy", "troubleshooting",
     ]);

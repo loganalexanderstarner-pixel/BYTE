@@ -57,6 +57,9 @@ export const HELP_SECTIONS: { title: string; ids: string[] }[] = [
   { title: "Controlling your PC", ids: ["mac-control", "pc-control", "browser", "screen", "commands-or-conversation"] },
   { title: "Models and speed", ids: ["models", "gaming-and-model-memory"] },
   { title: "Account, privacy and style", ids: ["cloud", "privacy", "personality"] },
+  // --- track:connect begin ---
+  { title: "Chat apps, email and jobs", ids: ["chat-apps-and-email", "discord", "telegram", "slack-and-email", "jobs-and-triggers", "morning-digest"] },
+  // --- track:connect end ---
   { title: "Fixing problems", ids: ["troubleshooting"] },
 ];
 
