@@ -4,12 +4,16 @@
 
 pub mod audit;
 pub mod contract;
+pub mod filew;
 pub mod job;
 pub mod level;
+pub mod live;
 pub mod limit;
 pub mod policy;
 pub mod power;
+pub mod report;
 pub mod rules;
+pub mod runner;
 pub mod tool;
 pub mod watch;
 pub mod cmd;

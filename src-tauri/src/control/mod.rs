@@ -336,10 +336,16 @@ pub async fn run_plan(app: &AppHandle, plan_json: &str, ctx: &PlanCtx<'_>) -> Re
 }
 
 async fn run_steps(app: &AppHandle, settings: &crate::settings::Settings, steps: Vec<Step>, ctx: &PlanCtx<'_>) -> Report {
+    let approver = CardApprover { cancel: ctx.cancel, send: ctx.send, rules: Some((auto::rules::RuleStore::new(auto::rules_file(app)), auto::user_id(app))) }; // track:autonomy
+    run_steps_with(app, settings, steps, &ctx.goal, ctx.cancel, &approver, None).await
+}
+
+/// The run itself. `job`: the policy of an autonomous job (contract, level, hooks); `None` for a run started from chat.
+async fn run_steps_with(app: &AppHandle, settings: &crate::settings::Settings, steps: Vec<Step>, goal: &str, cancel: &CancellationToken, approver: &dyn Approver, job: Option<auto::policy::Policy>) -> Report {
     STOP.store(false, Ordering::SeqCst);
-    set_active(app, true, &ctx.goal);
+    set_active(app, true, goal);
     let watcher = {
-        let cancel = ctx.cancel.clone();
+        let cancel = cancel.clone();
         tokio::spawn(async move {
             cancel.cancelled().await;
             request_stop();
@@ -348,12 +354,24 @@ async fn run_steps(app: &AppHandle, settings: &crate::settings::Settings, steps:
     let screen: std::sync::Arc<dyn uia::Screen> = real_screen().into();
     let input: std::sync::Arc<dyn input::Input> = real_input().into();
     let launcher: std::sync::Arc<dyn Launcher> = std::sync::Arc::new(PcLauncher);
-    let approver = CardApprover { cancel: ctx.cancel, send: ctx.send, rules: Some((auto::rules::RuleStore::new(auto::rules_file(app)), auto::user_id(app))) }; // track:autonomy
     let replanner = ModelReplanner { app };
     let clock = executor::RealClock(std::time::Instant::now());
-    let env = executor::Env { screen, input, launcher, approver: &approver, replanner: &replanner, log: activity_log(app), clock: &clock, stop: &STOP };
-    let level = auto::level::Level::from_settings(&settings.control_autonomy, settings.control_never_ask); // track:autonomy
-    let cfg = executor::Config { goal: ctx.goal.clone(), allowed_apps: settings.control_allowed_apps.clone(), confirm_risky: settings.control_confirm_risky, max_run_ms: Some(executor::run_limit_ms(&settings.control_run_limit)), max_replans: Some(executor::replan_limit(&settings.control_max_replans)), never_ask: settings.control_never_ask || level == auto::level::Level::Never, policy: auto::chat_policy(settings, level) }; // track:autonomy
+    let env = executor::Env { screen, input, launcher, approver, replanner: &replanner, log: activity_log(app), clock: &clock, stop: &STOP };
+    // --- track:autonomy begin ---
+    let level = auto::level::Level::from_settings(&settings.control_autonomy, settings.control_never_ask);
+    let is_job = job.is_some();
+    let policy = job.or_else(|| auto::chat_policy(settings, level));
+    let cfg = executor::Config {
+        goal: goal.to_string(),
+        allowed_apps: if is_job { Vec::new() } else { settings.control_allowed_apps.clone() },
+        confirm_risky: settings.control_confirm_risky,
+        // A job's time is governed by its contract.
+        max_run_ms: Some(if is_job { u64::MAX } else { executor::run_limit_ms(&settings.control_run_limit) }),
+        max_replans: Some(executor::replan_limit(&settings.control_max_replans)),
+        never_ask: level == auto::level::Level::Never,
+        policy,
+    };
+    // --- track:autonomy end ---
     let report = executor::run(&env, &cfg, steps).await;
     watcher.abort();
     set_active(app, false, "");
