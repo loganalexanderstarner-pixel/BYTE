@@ -348,6 +348,9 @@ pub async fn settings_update(app: AppHandle, state: State<'_, AppState>, patch: 
     // --- track:voice begin ---
     crate::voicectl::apply(&app, &next);
     // --- track:voice end ---
+    // --- track:helpers begin ---
+    crate::helpers::apply(&app, &next);
+    // --- track:helpers end ---
     Ok(next)
 }
 

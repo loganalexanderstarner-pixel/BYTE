@@ -66,6 +66,16 @@ export interface Settings {
   /** "Read this page" / "read the selected text" aloud. Off by default. */
   readIt?: boolean;
   /* --- track:screen end --- */
+  /* --- track:helpers begin --- everyday helpers: each off by default, kept on this device */
+  /** Where the helpers' questions go: "local" (default), "cloud" or "auto". */
+  helperAskWhere?: "local" | "cloud" | "auto";
+  helperRegion?: boolean;
+  helperRegionKeys?: string;
+  helperExplain?: boolean;
+  helperExplainKeys?: string;
+  helperDialogs?: boolean;
+  helperSmartPaste?: boolean;
+  /* --- track:helpers end --- */
   /** The writing studio (✍️). */
   writingEnabled?: boolean;
   /** The user's writing style for "Write like me". */

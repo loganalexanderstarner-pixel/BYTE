@@ -183,6 +183,28 @@ pub struct Settings {
     #[serde(default)]
     pub read_it: bool,
     // --- track:screen end ---
+    // --- track:helpers begin --- (helpers/): everyday helpers. Each has its own switch, off until switched on, and is device-local.
+    /// Where the helpers' questions go: "local" (this computer, the default), "cloud" or "auto". Text from the screen is
+    /// never sent to the cloud unless this says "cloud".
+    #[serde(default = "crate::helpers::default_ask_where")]
+    pub helper_ask_where: String,
+    /// Region screenshot: a hotkey draws a box; only that box is read, in memory.
+    #[serde(default)]
+    pub helper_region: bool,
+    #[serde(default = "crate::helpers::default_region_keys")]
+    pub helper_region_keys: String,
+    /// "Explain this": a hotkey over selected text shows a short explanation at the pointer.
+    #[serde(default)]
+    pub helper_explain: bool,
+    #[serde(default = "crate::helpers::default_explain_keys")]
+    pub helper_explain_keys: String,
+    /// A new error or installer window shows "BYTE can explain this" on the tray icon (Windows).
+    #[serde(default)]
+    pub helper_dialogs: bool,
+    /// A toast offers the useful action when a tracking number, address, link or code is copied.
+    #[serde(default)]
+    pub helper_smart_paste: bool,
+    // --- track:helpers end ---
     /// The writing studio (✍️): rewrite, expand, shorten, tone, grammar.
     #[serde(default = "yes")]
     pub writing_enabled: bool,
@@ -547,6 +569,15 @@ impl Default for Settings {
             game_advisor: false,
             read_it: false,
             // --- track:screen end ---
+            // --- track:helpers begin ---
+            helper_ask_where: crate::helpers::default_ask_where(),
+            helper_region: false,
+            helper_region_keys: crate::helpers::default_region_keys(),
+            helper_explain: false,
+            helper_explain_keys: crate::helpers::default_explain_keys(),
+            helper_dialogs: false,
+            helper_smart_paste: false,
+            // --- track:helpers end ---
             writing_enabled: true,
             writing_style: String::new(),
             model_overrides: Default::default(),
@@ -701,6 +732,11 @@ impl Settings {
             next.voice_focus = default_voice_focus();
         }
         // --- track:voice end ---
+        // --- track:helpers begin ---
+        if !matches!(next.helper_ask_where.as_str(), "local" | "cloud" | "auto") {
+            next.helper_ask_where = crate::helpers::default_ask_where();
+        }
+        // --- track:helpers end ---
         if !matches!(next.voice_lock.as_str(), "off" | "actions" | "all") {
             next.voice_lock = default_voice_lock();
         }

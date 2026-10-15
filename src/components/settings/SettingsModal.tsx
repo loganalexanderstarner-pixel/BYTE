@@ -41,6 +41,7 @@ import { ModelLab } from "./ModelLab";
 import { TuningPanel } from "./TuningPanel";
 import { engineWith, osText } from "../../lib/platform";
 /* track:screen */ import { ScreenSettings } from "./ScreenSettings";
+/* track:helpers */ import { HelperSettings } from "./HelperSettings";
 
 
 
@@ -114,6 +115,7 @@ function GroupBody({ group, about = true }: { group: SettingsGroup; about?: bool
           <ActionModeRow />
           <ControlSettings settings={settings} />
           <ScreenSettings />
+          <HelperSettings /> {/* track:helpers */}
           <BrowserSettings />
           <ConnectorsTab />
         </>

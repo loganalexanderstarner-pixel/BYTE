@@ -32,6 +32,9 @@ mod timers;
 // --- track:screen begin ---
 mod screen;
 // --- track:screen end ---
+// --- track:helpers begin ---
+mod helpers;
+// --- track:helpers end ---
 mod voiceprints;
 mod toast;
 #[cfg(test)]
@@ -246,6 +249,9 @@ pub fn run() {
             // --- track:screen begin ---
             screen::apply(app.handle(), &settings_now);
             // --- track:screen end ---
+            // --- track:helpers begin ---
+            helpers::apply(app.handle(), &settings_now);
+            // --- track:helpers end ---
             // Bring this device up to date with the person's account a little after launch (when BYTE Cloud is connected).
             {
                 let app = app.handle().clone();
@@ -471,6 +477,14 @@ pub fn run() {
             screen::screen_private,
             screen::screen_default_excludes,
             // --- track:screen end ---
+            // --- track:helpers begin ---
+            helpers::popup::helper_popup_state,
+            helpers::popup::helper_popup_click,
+            helpers::popup::helper_popup_close,
+            helpers::popup::helper_popup_resize,
+            helpers::region::helper_region_done,
+            helpers::region::helper_region_cancel,
+            // --- track:helpers end ---
             tts::cloud_voices,
             tts::voices_status,
             tts::tts_voice_download,

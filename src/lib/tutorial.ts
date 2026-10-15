@@ -1,6 +1,9 @@
 // The tutorial: one short walkthrough per feature, a "do them all" run, and what the person has finished.
 // Pure data and helpers (no React): the screen is components/help/Tutorial.tsx.
 import type { Os } from "./platform";
+// --- track:helpers begin ---
+import { HELPER_TUTORIALS } from "./tutorial-helpers";
+// --- track:helpers end ---
 
 export type LinkKind =
   | { kind: "setting"; tab: string; label: string }
@@ -278,6 +281,7 @@ export const TUTORIALS: Tutorial[] = [
     ],
   },
 ];
+TUTORIALS.push(...HELPER_TUTORIALS); // track:helpers
 
 // ---------------------------------------------------------------- filtering
 
