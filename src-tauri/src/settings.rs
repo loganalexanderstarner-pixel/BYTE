@@ -204,6 +204,11 @@ pub struct Settings {
     /// A toast offers the useful action when a tracking number, address, link or code is copied.
     #[serde(default)]
     pub helper_smart_paste: bool,
+    /// Dictate anywhere: hold a key, speak, the words are typed into the focused app (Windows).
+    #[serde(default)]
+    pub helper_dictate: bool,
+    #[serde(default = "crate::helpers::dictate::default_keys")]
+    pub helper_dictate_keys: String,
     // --- track:helpers end ---
     /// The writing studio (✍️): rewrite, expand, shorten, tone, grammar.
     #[serde(default = "yes")]
@@ -577,6 +582,8 @@ impl Default for Settings {
             helper_explain_keys: crate::helpers::default_explain_keys(),
             helper_dialogs: false,
             helper_smart_paste: false,
+            helper_dictate: false,
+            helper_dictate_keys: crate::helpers::dictate::default_keys(),
             // --- track:helpers end ---
             writing_enabled: true,
             writing_style: String::new(),
@@ -735,6 +742,9 @@ impl Settings {
         // --- track:helpers begin ---
         if !matches!(next.helper_ask_where.as_str(), "local" | "cloud" | "auto") {
             next.helper_ask_where = crate::helpers::default_ask_where();
+        }
+        if !crate::helpers::dictate::valid_keys(&next.helper_dictate_keys) {
+            next.helper_dictate_keys = crate::helpers::dictate::default_keys();
         }
         // --- track:helpers end ---
         if !matches!(next.voice_lock.as_str(), "off" | "actions" | "all") {

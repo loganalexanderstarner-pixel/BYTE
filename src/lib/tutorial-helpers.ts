@@ -47,6 +47,13 @@ export const HELPER_TUTORIALS: Tutorial[] = [
         body: ["Turn on **Smart copy toast**. Copy a parcel tracking number, an address, a link or a one-time code and a small toast offers the useful thing: track it, show it on a map, open the link or copy it without tracking bits, or clear the code.", "It never appears for anything that looks like a password or a key, and nothing is looked up on its own."],
         example: "Copy: 1Z999AA10123456784",
       },
+      {
+        id: "dictate",
+        title: "Type by speaking",
+        os: "windows",
+        body: ["Turn on **Dictate anywhere**. Click in any text box, hold the shortcut, say what you want typed, and let go. It needs a speech model (Settings → Models → Voice).", "The microphone is open only while you hold the key. BYTE never types into a password box."],
+        ifStuck: "If nothing is typed, the app may run as administrator (Windows blocks typing into it), or no speech model is installed.",
+      },
     ],
   },
 ];

@@ -4,7 +4,7 @@ import { ASK_WHERE, defaultHelperKeys, helperKeys, helperRows } from "./helpers"
 
 describe("helper settings rows", () => {
   it("has a row for each helper with its own switch, and Windows-only ones hide elsewhere", () => {
-    expect(helperRows(true).map((r) => r.key)).toEqual(["helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste"]);
+    expect(helperRows(true).map((r) => r.key)).toEqual(["helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperDictate"]);
     expect(helperRows(false).map((r) => r.key)).toEqual(["helperExplain", "helperSmartPaste"]);
   });
 

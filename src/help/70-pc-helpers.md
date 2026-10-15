@@ -27,6 +27,9 @@ When a new error or installer window appears, the tray icon gets a red dot and i
 ## Smart copy toast
 When you copy a parcel tracking number, a street address, a link or a one-time code, a small toast offers the useful thing: track the parcel, show the address on a map, open the link or copy it without tracking parameters, or clear the code from the clipboard. It works on this computer only and never appears for text that looks like a password or a key.
 
+## Dictate anywhere
+Hold the shortcut (Ctrl+Alt+D), speak, and let go: the words are typed into the app you are in. The microphone is open only while you hold the key, and a speech model on this computer turns it into text (install one in Settings → Models → Voice). BYTE never types into a password box, a full-screen game, a window on your never-look-at list or a private chat, and it never types a new line, so it cannot press Enter for you. Pick a letter, number or F key for the shortcut.
+
 ## If it does not work
 - No answer: load a model in Settings → Models, or choose Auto or Cloud.
 - The shortcut does nothing: another program may use it. Pick other keys next to the switch.

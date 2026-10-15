@@ -13,6 +13,7 @@
 
 pub mod ask;
 pub mod dialogs;
+pub mod dictate;
 pub mod explain;
 pub mod popup;
 pub mod region;
@@ -52,6 +53,7 @@ pub fn blocked_now() -> Option<&'static str> {
 pub enum Hot {
     Region,
     Explain,
+    Dictate,
 }
 
 /// The keys each hotkey needs, from the settings (a switched-off helper has none).
@@ -62,6 +64,9 @@ pub fn wanted(s: &Settings) -> Vec<(Hot, String)> {
     }
     if s.helper_explain && explain::supported() {
         v.push((Hot::Explain, s.helper_explain_keys.clone()));
+    }
+    if s.helper_dictate && dictate::supported() {
+        v.push((Hot::Dictate, s.helper_dictate_keys.clone()));
     }
     v
 }
@@ -102,6 +107,7 @@ pub fn pressed(app: &AppHandle, hot: Hot) {
     match hot {
         Hot::Region => region::start(app),
         Hot::Explain => explain::start(app),
+        Hot::Dictate => dictate::start(app),
     }
 }
 
@@ -154,7 +160,7 @@ mod tests {
     #[test]
     fn every_helper_is_off_by_default_and_the_default_choice_is_local() {
         let s = Settings::default();
-        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste);
+        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate);
         assert_eq!(s.helper_ask_where, "local");
         assert!(wanted(&s).is_empty());
     }
@@ -173,10 +179,12 @@ mod tests {
     #[test]
     fn the_default_keys_are_real_shortcuts_and_differ_from_the_others() {
         let s = Settings::default();
-        for k in [&s.helper_region_keys, &s.helper_explain_keys] {
+        for k in [&s.helper_region_keys, &s.helper_explain_keys, &s.helper_dictate_keys] {
             assert!(crate::quick::parse_keys(k).is_ok(), "{k}");
         }
         assert_ne!(s.helper_region_keys, s.helper_explain_keys);
+        assert_ne!(s.helper_dictate_keys, s.helper_explain_keys);
+        assert_ne!(s.helper_dictate_keys, s.helper_region_keys);
         for other in [&s.selection_keys, &s.quick_ask_keys] {
             assert_ne!(&s.helper_region_keys, other);
             assert_ne!(&s.helper_explain_keys, other);
@@ -185,7 +193,7 @@ mod tests {
 
     #[test]
     fn settings_are_not_in_the_profile_sync_list() {
-        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys"] {
+        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys"] {
             assert!(!crate::profile_sync::KEYS.iter().any(|(_, setting)| *setting == k), "{k}");
         }
     }

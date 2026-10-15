@@ -75,6 +75,8 @@ export interface Settings {
   helperExplainKeys?: string;
   helperDialogs?: boolean;
   helperSmartPaste?: boolean;
+  helperDictate?: boolean;
+  helperDictateKeys?: string;
   /* --- track:helpers end --- */
   /** The writing studio (✍️). */
   writingEnabled?: boolean;

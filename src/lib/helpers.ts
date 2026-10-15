@@ -7,8 +7,8 @@ export const ASK_WHERE: { id: "local" | "cloud" | "auto"; label: string }[] = [
   { id: "cloud", label: "Cloud" },
 ];
 
-type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste";
-type KeyName = "helperRegionKeys" | "helperExplainKeys";
+type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate";
+type KeyName = "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys";
 
 export interface HelperRow {
   key: Flag;
@@ -51,12 +51,12 @@ export function helperRows(windows: boolean): HelperRow[] {
   return ROWS.filter((r) => windows || !r.windowsOnly);
 }
 
-export function defaultHelperKeys(windows: boolean): { helperRegionKeys: string; helperExplainKeys: string } {
-  return windows ? { helperRegionKeys: "Control+Alt+KeyR", helperExplainKeys: "Control+Alt+KeyE" } : { helperRegionKeys: "Alt+Super+KeyR", helperExplainKeys: "Alt+Super+KeyE" };
+export function defaultHelperKeys(windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string } {
+  return windows ? { helperRegionKeys: "Control+Alt+KeyR", helperExplainKeys: "Control+Alt+KeyE", helperDictateKeys: "Control+Alt+KeyD" } : { helperRegionKeys: "Alt+Super+KeyR", helperExplainKeys: "Alt+Super+KeyE", helperDictateKeys: "Alt+Super+KeyD" };
 }
 
 /** The keys in use: the saved ones, else the defaults. */
-export function helperKeys(s: Pick<Partial<Settings>, "helperRegionKeys" | "helperExplainKeys">, windows: boolean): { helperRegionKeys: string; helperExplainKeys: string } {
+export function helperKeys(s: Pick<Partial<Settings>, "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys">, windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string } {
   const d = defaultHelperKeys(windows);
-  return { helperRegionKeys: s.helperRegionKeys || d.helperRegionKeys, helperExplainKeys: s.helperExplainKeys || d.helperExplainKeys };
+  return { helperRegionKeys: s.helperRegionKeys || d.helperRegionKeys, helperExplainKeys: s.helperExplainKeys || d.helperExplainKeys, helperDictateKeys: s.helperDictateKeys || d.helperDictateKeys };
 }
