@@ -622,6 +622,12 @@ impl Session {
         self.max_steps
     }
 
+    // --- track:found begin --- "keep researching until I'm back" gives each extra round its own steps
+    pub fn extend_steps(&mut self, n: usize) {
+        self.max_steps = self.max_steps.saturating_add(n);
+    }
+    // --- track:found end ---
+
     /// The page as last read: (title, address, text).
     pub fn last_page(&self) -> Option<(String, String, String)> {
         self.last.as_ref().map(|s| (s.title.clone(), s.url.clone(), s.text.clone()))

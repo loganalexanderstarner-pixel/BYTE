@@ -485,6 +485,13 @@ pub struct Settings {
     pub approval_popup: bool,
     /// Also speak the approval question and accept a spoken yes or no (needs Hey BYTE on). Off by default.
     pub approval_voice: bool,
+    /// Keep the visible BYTE browsing window open after a task and list the pages in the chat as links (found/research.rs).
+    pub browser_keep_pages: bool,
+    /// "Keep researching until I'm back": "off" (default), "15m", "1h", "3h", "8h" or "unlimited".
+    #[serde(default = "default_until_back")]
+    pub browser_research_until_back: String,
+    /// Drive the person's own Edge profile instead of BYTE's separate one (strong warning, off by default).
+    pub browser_own_edge: bool,
     // --- track:found end ---
 }
 
@@ -498,6 +505,12 @@ fn valid_theme(t: &serde_json::Value) -> bool {
     let name_ok = t["name"].as_str().is_some_and(|n| !n.trim().is_empty() && n.chars().count() <= 40);
     name_ok && ["bg", "panel", "border", "text", "accent"].iter().all(|k| hex(&t["colors"][*k]))
 }
+
+// --- track:found begin ---
+fn default_until_back() -> String {
+    "off".into()
+}
+// --- track:found end ---
 
 fn default_motion() -> String {
     "auto".into()
@@ -669,6 +682,9 @@ impl Default for Settings {
             laptop_mode: false,
             approval_popup: true,
             approval_voice: false,
+            browser_keep_pages: false,
+            browser_research_until_back: default_until_back(),
+            browser_own_edge: false,
             // --- track:found end ---
         }
     }

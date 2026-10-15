@@ -28,6 +28,12 @@
     bar.appendChild(stop);
     root.appendChild(style);
     root.appendChild(bar);
+    // BYTE is done and left the pages open (Settings, Browser, keep the pages): the bar says so and Stop goes away.
+    window.__byteStripDone = function () {
+      bar.querySelector(".msg").textContent = "BYTE is done. These pages are yours to read; close this window when you are finished.";
+      bar.querySelector(".dot").style.background = "#8a93a6";
+      stop.style.display = "none";
+    };
     document.documentElement.appendChild(host);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", build);

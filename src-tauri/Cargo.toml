@@ -130,6 +130,9 @@ windows = { version = "0.62", features = [
   "Win32_System_Variant", "Win32_System_Registry", "Media_Control", "Devices_Radios", "Win32_System_Power",
   # toast.rs: notifications with buttons.
   "UI_Notifications", "Data_Xml_Dom",
+  # --- track:found begin --- found/research.rs: how long since the last key or mouse movement
+  "Win32_System_SystemInformation",
+  # --- track:found end ---
   # --- track:control begin ---
   # control/: UI Automation (read the front window), lock and sleep.
   "Win32_UI_Accessibility", "Win32_System_Shutdown", "Win32_Graphics_Dwm",

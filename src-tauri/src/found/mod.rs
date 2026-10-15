@@ -5,5 +5,6 @@ pub mod approval;
 pub mod crash;
 pub mod power;
 pub mod remove;
+pub mod research;
 pub mod safe;
 pub mod whatsnew;
