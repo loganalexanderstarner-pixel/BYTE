@@ -227,7 +227,8 @@ mod tests {
     fn typed_text_is_never_kept_and_its_words_are_taken_out_of_the_goal() {
         let steps = vec![st(Action::Open { target: "Notepad".into() }), st(Action::Type { text: "dear Alice, the invoice is late".into() })];
         let n = from_run(&steps, &pad(), "write \"dear Alice\" and the invoice is late in notepad 42").unwrap();
-        let json = serde_json::to_string(&n).unwrap();
+        // The note's id is random hex and may hold digits; only what the person typed matters.
+        let json = serde_json::to_string(&(&n.goal, &n.steps)).unwrap();
         assert!(!json.to_lowercase().contains("alice") && !json.contains("invoice") && !json.contains("42"), "{json}");
         assert_eq!(n.steps[1], NoteStep { kind: "type".into(), name: String::new() });
         assert_eq!(n.app, "notepad");
