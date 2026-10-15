@@ -15,6 +15,7 @@ pub mod ask;
 pub mod dialogs;
 pub mod dictate;
 pub mod explain;
+pub mod page;
 pub mod popup;
 pub mod region;
 pub mod smartpaste;
@@ -54,6 +55,7 @@ pub enum Hot {
     Region,
     Explain,
     Dictate,
+    Page,
 }
 
 /// The keys each hotkey needs, from the settings (a switched-off helper has none).
@@ -67,6 +69,9 @@ pub fn wanted(s: &Settings) -> Vec<(Hot, String)> {
     }
     if s.helper_dictate && dictate::supported() {
         v.push((Hot::Dictate, s.helper_dictate_keys.clone()));
+    }
+    if s.helper_page && region::supported() {
+        v.push((Hot::Page, s.helper_page_keys.clone()));
     }
     v
 }
@@ -108,6 +113,7 @@ pub fn pressed(app: &AppHandle, hot: Hot) {
         Hot::Region => region::start(app),
         Hot::Explain => explain::start(app),
         Hot::Dictate => dictate::start(app),
+        Hot::Page => page::read_url(app),
     }
 }
 
@@ -116,7 +122,15 @@ pub fn pressed(app: &AppHandle, hot: Hot) {
 pub fn apply(app: &AppHandle, s: &Settings) {
     dialogs::apply(app, s.helper_dialogs);
     smartpaste::apply(app, s.helper_smart_paste);
+    let page = s.helper_page && region::supported() && !s.kids_mode;
+    if PAGE_ON.swap(page, std::sync::atomic::Ordering::SeqCst) != page {
+        refresh_menu(app);
+    }
 }
+
+/// The tray menu offers "Look at this page and help".
+#[cfg(desktop)]
+static PAGE_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 #[cfg(not(desktop))]
 pub fn apply(_app: &tauri::AppHandle, _s: &Settings) {}
@@ -131,6 +145,9 @@ pub fn tray_items(app: &AppHandle) -> tauri::Result<Vec<tauri::menu::MenuItem<ta
     if dialogs::has_pending() {
         v.push(MenuItem::with_id(app, "helper_dialog", "BYTE can explain this", true, None::<&str>)?);
     }
+    if PAGE_ON.load(std::sync::atomic::Ordering::SeqCst) {
+        v.push(MenuItem::with_id(app, "helper_page", "Look at this page and help", true, None::<&str>)?);
+    }
     Ok(v)
 }
 
@@ -141,6 +158,10 @@ pub fn tray_event(app: &AppHandle, id: &str) -> bool {
         "helper_dialog" => {
             let app = app.clone();
             tauri::async_runtime::spawn(async move { dialogs::explain_pending(&app).await });
+            true
+        }
+        "helper_page" => {
+            region::start_page(app);
             true
         }
         _ => false,
@@ -160,7 +181,7 @@ mod tests {
     #[test]
     fn every_helper_is_off_by_default_and_the_default_choice_is_local() {
         let s = Settings::default();
-        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate);
+        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate && !s.helper_page);
         assert_eq!(s.helper_ask_where, "local");
         assert!(wanted(&s).is_empty());
     }
@@ -179,7 +200,7 @@ mod tests {
     #[test]
     fn the_default_keys_are_real_shortcuts_and_differ_from_the_others() {
         let s = Settings::default();
-        for k in [&s.helper_region_keys, &s.helper_explain_keys, &s.helper_dictate_keys] {
+        for k in [&s.helper_region_keys, &s.helper_explain_keys, &s.helper_dictate_keys, &s.helper_page_keys] {
             assert!(crate::quick::parse_keys(k).is_ok(), "{k}");
         }
         assert_ne!(s.helper_region_keys, s.helper_explain_keys);
@@ -193,7 +214,7 @@ mod tests {
 
     #[test]
     fn settings_are_not_in_the_profile_sync_list() {
-        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys"] {
+        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys", "helperPage", "helperPageKeys"] {
             assert!(!crate::profile_sync::KEYS.iter().any(|(_, setting)| *setting == k), "{k}");
         }
     }

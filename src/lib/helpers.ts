@@ -7,8 +7,8 @@ export const ASK_WHERE: { id: "local" | "cloud" | "auto"; label: string }[] = [
   { id: "cloud", label: "Cloud" },
 ];
 
-type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate";
-type KeyName = "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys";
+type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate" | "helperPage";
+type KeyName = "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys";
 
 export interface HelperRow {
   key: Flag;
@@ -51,6 +51,13 @@ const ROWS: HelperRow[] = [
     keys: "helperDictateKeys",
     windowsOnly: true,
   },
+  {
+    key: "helperPage",
+    title: "Look at this page and help",
+    text: "Right-click BYTE's tray icon and choose \"Look at this page and help\": drag a box and BYTE reads only that box and recommends what to do (with guided help on, it can show you or do it for you). Also: select a web address in a browser's address bar and press the shortcut, and BYTE reads that page and tells you more about it. BYTE Cloud sees the page only if you chose Cloud.",
+    keys: "helperPageKeys",
+    windowsOnly: true,
+  },
 ];
 
 /** The rows to show on this system. */
@@ -58,12 +65,12 @@ export function helperRows(windows: boolean): HelperRow[] {
   return ROWS.filter((r) => windows || !r.windowsOnly);
 }
 
-export function defaultHelperKeys(windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string } {
-  return windows ? { helperRegionKeys: "Control+Alt+KeyR", helperExplainKeys: "Control+Alt+KeyE", helperDictateKeys: "Control+Alt+KeyD" } : { helperRegionKeys: "Alt+Super+KeyR", helperExplainKeys: "Alt+Super+KeyE", helperDictateKeys: "Alt+Super+KeyD" };
+export function defaultHelperKeys(windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string; helperPageKeys: string } {
+  return windows ? { helperRegionKeys: "Control+Alt+KeyR", helperExplainKeys: "Control+Alt+KeyE", helperDictateKeys: "Control+Alt+KeyD", helperPageKeys: "Control+Alt+KeyU" } : { helperRegionKeys: "Alt+Super+KeyR", helperExplainKeys: "Alt+Super+KeyE", helperDictateKeys: "Alt+Super+KeyD", helperPageKeys: "Alt+Super+KeyU" };
 }
 
 /** The keys in use: the saved ones, else the defaults. */
-export function helperKeys(s: Pick<Partial<Settings>, "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys">, windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string } {
+export function helperKeys(s: Pick<Partial<Settings>, "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys">, windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string; helperPageKeys: string } {
   const d = defaultHelperKeys(windows);
-  return { helperRegionKeys: s.helperRegionKeys || d.helperRegionKeys, helperExplainKeys: s.helperExplainKeys || d.helperExplainKeys, helperDictateKeys: s.helperDictateKeys || d.helperDictateKeys };
+  return { helperRegionKeys: s.helperRegionKeys || d.helperRegionKeys, helperExplainKeys: s.helperExplainKeys || d.helperExplainKeys, helperDictateKeys: s.helperDictateKeys || d.helperDictateKeys, helperPageKeys: s.helperPageKeys || d.helperPageKeys };
 }

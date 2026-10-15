@@ -48,6 +48,13 @@ export const HELPER_TUTORIALS: Tutorial[] = [
         example: "Copy: 1Z999AA10123456784",
       },
       {
+        id: "page",
+        title: "Look at this page and help",
+        os: "windows",
+        body: ["Turn on **Look at this page and help**. Right-click BYTE's tray icon, choose **Look at this page and help** and drag a box. BYTE reads only that box and recommends what to do. With guided help on it can show you where to click, and with PC control on it can do it for you.", "To learn more about a web page, select its address in the address bar and press the shortcut."],
+        links: [S("control", "Open Control and screen")],
+      },
+      {
         id: "dictate",
         title: "Type by speaking",
         os: "windows",

@@ -209,6 +209,11 @@ pub struct Settings {
     pub helper_dictate: bool,
     #[serde(default = "crate::helpers::dictate::default_keys")]
     pub helper_dictate_keys: String,
+    /// "Look at this page and help" in the tray menu, and the address-bar reader.
+    #[serde(default)]
+    pub helper_page: bool,
+    #[serde(default = "crate::helpers::page::default_keys")]
+    pub helper_page_keys: String,
     // --- track:helpers end ---
     /// The writing studio (✍️): rewrite, expand, shorten, tone, grammar.
     #[serde(default = "yes")]
@@ -584,6 +589,8 @@ impl Default for Settings {
             helper_smart_paste: false,
             helper_dictate: false,
             helper_dictate_keys: crate::helpers::dictate::default_keys(),
+            helper_page: false,
+            helper_page_keys: crate::helpers::page::default_keys(),
             // --- track:helpers end ---
             writing_enabled: true,
             writing_style: String::new(),

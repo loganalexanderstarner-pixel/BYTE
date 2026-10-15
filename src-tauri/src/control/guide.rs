@@ -448,7 +448,7 @@ pub fn plan_prompt(goal: &str, screen: &str) -> String {
 }
 
 /// Builds the plan for a how-to question from the window in front.
-async fn make_plan(app: &AppHandle, goal: &str, snap: &Snapshot) -> Result<GuidePlan, String> {
+pub(crate) async fn make_plan(app: &AppHandle, goal: &str, snap: &Snapshot) -> Result<GuidePlan, String> {
     let limit = super::settings_now(app).map(|s| super::executor::step_limit(&s.control_max_steps)).unwrap_or(actions::MAX_STEPS);
     let mut messages = vec![json!({"role":"system","content":format!("{}{}", super::brain::SYSTEM, RULES)}), json!({"role":"user","content":plan_prompt(goal, &super::uia::render(snap))})];
     let mut last = String::new();

@@ -66,7 +66,18 @@ pub struct Grabbed {
     pub text: String,
     /// The program of the window the box mostly covers.
     pub app: String,
+    /// That window (0 when unknown), for guided help.
+    pub hwnd: isize,
 }
+
+/// What the box is for: the usual choices, or "look at this page and help" (from the tray menu).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    Menu,
+    Page,
+}
+
+static MODE: Mutex<Mode> = Mutex::new(Mode::Menu);
 
 static HELD: Mutex<Option<Grabbed>> = Mutex::new(None);
 
@@ -129,12 +140,19 @@ mod flow {
         popup::show(app, Kind::Region, Payload { title: "Region screenshot".into(), body, buttons: vec![popup::button("close", "Close")], auto_hide: 10_000, ..Default::default() }, None);
     }
 
-    pub fn start(app: &AppHandle) {
+    pub fn start(app: &AppHandle, mode: Mode) {
         let app = app.clone();
         tauri::async_runtime::spawn(async move {
             let state = app.state::<crate::state::AppState>();
-            if !state.settings.lock().await.helper_region {
-                return;
+            {
+                let s = state.settings.lock().await;
+                let allowed = if mode == Mode::Page { s.helper_page } else { s.helper_region };
+                if !allowed {
+                    return;
+                }
+            }
+            if let Ok(mut m) = MODE.lock() {
+                *m = mode;
             }
             if let Some(why) = crate::helpers::blocked_now() {
                 return say(&app, why.into());
@@ -198,6 +216,13 @@ mod flow {
         let excludes = state.settings.lock().await.screen_exclude_apps.clone();
         let result = tokio::task::spawn_blocking(move || read(&region, &excludes)).await.unwrap_or_else(|_| Err("BYTE couldn't read that box.".into()));
         let at = (region.x + region.w, region.y + region.h);
+        let mode = MODE.lock().map(|m| *m).unwrap_or(Mode::Menu);
+        if mode == Mode::Page {
+            return match result {
+                Ok(g) => crate::helpers::page::after_region(&app, g.text, g.hwnd, at).await,
+                Err(why) => popup::show(&app, Kind::Page, Payload { title: "Look at this page".into(), body: why, buttons: vec![popup::button("close", "Close")], auto_hide: 10_000, ..Default::default() }, Some(at)),
+            };
+        }
         match result {
             Ok(g) => {
                 let none = g.text.trim().is_empty();
@@ -233,7 +258,8 @@ mod flow {
         drop(frame);
         let text = crate::ocr::image_text(&jpeg).map_err(|e| e.to_string())?;
         let app = windows.iter().flatten().next().map(|w| w.program.clone()).unwrap_or_default();
-        Ok(Grabbed { text: text.trim().to_string(), app })
+        let hwnd = super::win::root_at(((region.x + region.w / 2), (region.y + region.h / 2)));
+        Ok(Grabbed { text: text.trim().to_string(), app, hwnd })
     }
 
     #[cfg(not(windows))]
@@ -311,7 +337,12 @@ mod flow {
 
 #[cfg(desktop)]
 pub fn start(app: &tauri::AppHandle) {
-    flow::start(app);
+    flow::start(app, Mode::Menu);
+}
+/// "Look at this page and help" from the tray menu.
+#[cfg(desktop)]
+pub fn start_page(app: &tauri::AppHandle) {
+    flow::start(app, Mode::Page);
 }
 #[cfg(desktop)]
 pub async fn clicked(app: &tauri::AppHandle, id: &str, typed: String) {
@@ -382,6 +413,16 @@ mod win {
                 Some(info(if root.0.is_null() { w } else { root }))
             })
             .collect()
+    }
+
+    /// The top-level window at a point (0 when none).
+    pub fn root_at(p: (i32, i32)) -> isize {
+        let w = unsafe { WindowFromPoint(POINT { x: p.0, y: p.1 }) };
+        if w.0.is_null() {
+            return 0;
+        }
+        let root = unsafe { GetAncestor(w, GA_ROOT) };
+        (if root.0.is_null() { w } else { root }).0 as isize
     }
 
     /// Copies the box from the screen into memory.
@@ -503,7 +544,7 @@ mod tests {
 
     #[test]
     fn the_text_is_forgotten_on_request() {
-        *HELD.lock().unwrap() = Some(Grabbed { text: "x".into(), app: "y".into() });
+        *HELD.lock().unwrap() = Some(Grabbed { text: "x".into(), app: "y".into(), hwnd: 0 });
         assert!(held().is_some());
         forget();
         assert!(held().is_none());
