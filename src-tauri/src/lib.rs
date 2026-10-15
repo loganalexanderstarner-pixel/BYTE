@@ -252,6 +252,9 @@ pub fn run() {
             // --- track:voice begin ---
             voicectl::apply(app.handle(), &settings_now);
             // --- track:voice end ---
+            // --- track:found begin ---
+            found::power::start(app.handle());
+            // --- track:found end ---
             lock::start(app.handle().clone(), settings_now.lock_enabled);
             clipboard::watch(app.handle().clone());
             // Reminders, the daily briefing and scheduled questions.
@@ -510,6 +513,7 @@ pub fn run() {
             found::crash::crash_report_build,
             found::whatsnew::whatsnew_status,
             found::whatsnew::whatsnew_seen,
+            found::power::power_status,
             found::remove::data_remove_plan,
             found::remove::data_remove,
             // --- track:found end ---

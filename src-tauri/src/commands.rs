@@ -351,6 +351,11 @@ pub async fn settings_update(app: AppHandle, state: State<'_, AppState>, patch: 
     // --- track:voice begin ---
     crate::voicectl::apply(&app, &next);
     // --- track:voice end ---
+    // --- track:found begin --- laptop mode holds listening and the replay off while on battery
+    if next.laptop_mode {
+        crate::found::power::reapply(&app, &next);
+    }
+    // --- track:found end ---
     Ok(next)
 }
 

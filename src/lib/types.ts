@@ -249,6 +249,10 @@ export interface Settings {
   /** Guided help: a how-to question about the window in front gets an offer to guide or do it. Looks at the screen; off by default. */
   guidedHelp?: boolean;
   /* --- track:control end --- */
+  /* --- track:found begin --- */
+  /** Laptop mode: on battery, pause Hey BYTE listening and the screen replay and suggest a smaller model. Off by default. */
+  laptopMode?: boolean;
+  /* --- track:found end --- */
 }
 
 export type Workspace = "local" | "cloud" | "both";

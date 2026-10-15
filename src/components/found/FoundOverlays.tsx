@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 
 import { errorText, inTauri } from "../../lib/api";
+import { listen } from "@tauri-apps/api/event";
+import { useStore } from "../../state/store";
 import { renderMarkdown } from "../../lib/markdown";
-import { crashApi, crashCardText, foundApi, safeBannerText, whatsNewApi, whatsNewParts, type CrashFound, type SafeStatus, type WhatsNew } from "../../lib/found";
+import { batteryBadgeText, crashApi, crashCardText, foundApi, powerApi, smallerModel, type PowerStatus, safeBannerText, whatsNewApi, whatsNewParts, type CrashFound, type SafeStatus, type WhatsNew } from "../../lib/found";
 
 /** Safe mode banner: shown at the top for the whole run, with the way back to normal. */
 function SafeModeBanner() {
@@ -135,6 +137,37 @@ function WhatsNewCard() {
   );
 }
 
+/** Laptop mode: a small badge while on battery, with a one-click smaller model when one is downloaded. */
+function BatteryBadge() {
+  const [p, setP] = useState<PowerStatus | null>(null);
+  const models = useStore((s) => s.models);
+  const active = useStore((s) => s.settings?.activeModel);
+  const update = useStore((s) => s.updateSettings);
+  const laptop = useStore((s) => s.settings?.laptopMode);
+  useEffect(() => {
+    if (!inTauri) return;
+    void powerApi.status().then(setP, () => undefined);
+    const off = listen<PowerStatus>("power://state", (e) => setP(e.payload));
+    return () => void off.then((f) => f());
+  }, [laptop]);
+  if (!p || !laptop || !p.onBattery) return null;
+  const smaller = smallerModel(models, active);
+  return (
+    <div className="banner battery-badge" role="status" aria-live="polite">
+      <span className="grow">{batteryBadgeText({ ...p, laptopMode: true })}</span>
+      {smaller && (
+        <button
+          className="btn sm"
+          onClick={() => void update({ activeModel: smaller.key }).then(() => import("../../lib/api").then((m) => m.api.modelActivate(smaller.key)))}
+          title="Uses less power than the model in use"
+        >
+          Use {smaller.name}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Everything the foundations track shows over the app: one mount point in the shell. */
 export function FoundOverlays() {
   return (
@@ -142,6 +175,7 @@ export function FoundOverlays() {
       <SafeModeBanner />
       <CrashRecoveryCard />
       <WhatsNewCard />
+      <BatteryBadge />
     </>
   );
 }

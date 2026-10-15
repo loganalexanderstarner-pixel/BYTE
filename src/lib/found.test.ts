@@ -30,3 +30,28 @@ describe("what's new card", () => {
     expect(whatsNewParts("").title).toBe("What's new");
   });
 });
+
+import { batteryBadgeText, smallerModel } from "./found";
+import type { ModelStatus } from "./types";
+
+const mdl = (name: string, key: string, size: number, installed: boolean, role = "chat") =>
+  ({ name, role, variants: [{ key, sizeBytes: size, installed }] }) as unknown as ModelStatus;
+
+describe("laptop mode", () => {
+  const list = [mdl("Big", "big:q", 10e9, true), mdl("Mid", "mid:q", 6e9, true), mdl("Small", "small:q", 2e9, true), mdl("Away", "away:q", 1e9, false), mdl("Voice", "v:q", 1.5e9, true, "voice")];
+  it("suggests the largest downloaded chat model that is clearly smaller", () => {
+    expect(smallerModel(list, "big:q")).toEqual({ key: "mid:q", name: "Mid" });
+    expect(smallerModel(list, "mid:q")).toEqual({ key: "small:q", name: "Small" });
+  });
+  it("suggests nothing when there is nothing smaller downloaded or the active model is unknown", () => {
+    expect(smallerModel(list, "small:q")).toBeNull();
+    expect(smallerModel(list, null)).toBeNull();
+    expect(smallerModel(list, "gone:q")).toBeNull();
+  });
+  it("shows a badge only on battery with the mode on", () => {
+    expect(batteryBadgeText({ onBattery: true, laptopMode: true, paused: ["Hey BYTE listening", "the screen replay"] })).toBe("On battery: Hey BYTE listening and the screen replay paused");
+    expect(batteryBadgeText({ onBattery: true, laptopMode: true, paused: [] })).toBe("On battery");
+    expect(batteryBadgeText({ onBattery: false, laptopMode: true, paused: [] })).toBe("");
+    expect(batteryBadgeText({ onBattery: true, laptopMode: false, paused: [] })).toBe("");
+  });
+});

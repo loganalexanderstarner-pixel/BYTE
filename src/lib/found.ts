@@ -2,6 +2,8 @@
 // Kept apart from api.ts so the shared files stay small.
 import { invoke } from "@tauri-apps/api/core";
 
+import type { ModelStatus } from "./types";
+
 export interface SafeStatus {
   active: boolean;
   /** Settings that were on and are held off for this run. */
@@ -81,4 +83,35 @@ export const removeApi = {
 /** The file name at the end of a path, for the list the person confirms. */
 export function leafName(p: string): string {
   return p.split(/[\\/]/).filter(Boolean).pop() ?? p;
+}
+
+export interface PowerStatus {
+  onBattery: boolean;
+  laptopMode: boolean;
+  paused: string[];
+}
+
+export const powerApi = { status: () => invoke<PowerStatus>("power_status") };
+
+/** A downloaded chat model clearly smaller than the one in use (at most 70% of its size), the largest such, or null. */
+export function smallerModel(models: ModelStatus[], activeKey: string | null | undefined): { key: string; name: string } | null {
+  if (!activeKey) return null;
+  let activeSize = 0;
+  for (const m of models) for (const v of m.variants) if (v.key === activeKey) activeSize = v.sizeBytes;
+  if (!activeSize) return null;
+  let best: { key: string; name: string; size: number } | null = null;
+  for (const m of models) {
+    if (m.role !== "chat") continue;
+    for (const v of m.variants) {
+      if (!v.installed || v.key === activeKey || v.sizeBytes > activeSize * 0.7) continue;
+      if (!best || v.sizeBytes > best.size) best = { key: v.key, name: m.name, size: v.sizeBytes };
+    }
+  }
+  return best && { key: best.key, name: best.name };
+}
+
+/** The badge's words. */
+export function batteryBadgeText(p: PowerStatus): string {
+  if (!p.laptopMode || !p.onBattery) return "";
+  return p.paused.length ? `On battery: ${p.paused.join(" and ")} paused` : "On battery";
 }

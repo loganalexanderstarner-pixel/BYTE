@@ -48,4 +48,17 @@ export const FOUND_TUTORIALS: Tutorial[] = [
       { id: "uninstall-mac", title: "Uninstalling", os: "mac", body: ["Drag BYTE to the Bin. To remove your chats and models too, use Remove BYTE's data first."], links: [H("updates-and-uninstalling", "Read about updates and uninstalling")] },
     ],
   },
+  {
+    id: "laptop-mode",
+    title: "Laptop mode",
+    promise: "Save battery by pausing listening and the screen replay",
+    minutes: 2,
+    icon: "shield",
+    offByDefault: true,
+    steps: [
+      { id: "what", title: "What it saves", body: ["On battery, BYTE pauses listening for Hey BYTE and the screen replay, and shows a small badge."], },
+      { id: "on", title: "Turn it on", body: ["Laptop mode is off until you turn it on in General. Your saved settings are not changed; everything returns on mains power."], links: [S("general", "Open General")] },
+      { id: "model", title: "A smaller model", body: ["The badge can switch to a smaller model you already downloaded, which uses less power. Switch back in Models and speed any time."], links: [S("models", "Open Models and speed")] },
+    ],
+  },
 ];

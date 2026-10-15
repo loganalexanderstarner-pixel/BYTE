@@ -25,6 +25,7 @@ import { TABS } from "./tabs";
 /* --- track:house begin --- */
 // --- track:found begin ---
 import { FoundBackupCards } from "../found/FoundSettings";
+import { FoundToggles } from "../found/FoundToggles";
 // --- track:found end ---
 import { BackupRestoreCard, FreeUpSpace, HouseToggles, ProblemReportCard } from "./HouseSettings";
 /* --- track:house end --- */
@@ -1118,6 +1119,9 @@ function AboutTab() {
       {/* --- track:found begin --- */}
       <G g="backup">
         <FoundBackupCards />
+      </G>
+      <G g="general">
+        <FoundToggles />
       </G>
       {/* --- track:found end --- */}
       <G g="general">

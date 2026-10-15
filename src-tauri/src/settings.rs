@@ -478,6 +478,10 @@ pub struct Settings {
     /// Guided help (control/guide.rs): a how-to question about the window in front gets an offer to ring each button in turn, or do it.
     pub guided_help: bool,
     // --- track:control end ---
+    // --- track:found begin --- all off by default, device-local (not in the profile sync)
+    /// Laptop mode: on battery, pause "Hey BYTE" listening and the screen replay, and suggest a smaller model (found/power.rs).
+    pub laptop_mode: bool,
+    // --- track:found end ---
 }
 
 fn valid_theme(t: &serde_json::Value) -> bool {
@@ -657,6 +661,9 @@ impl Default for Settings {
             pc_status: true,
             guided_help: false,
             // --- track:control end ---
+            // --- track:found begin ---
+            laptop_mode: false,
+            // --- track:found end ---
         }
     }
 }
