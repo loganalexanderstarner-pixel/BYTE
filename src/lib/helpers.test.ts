@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { ASK_WHERE, defaultHelperKeys, helperKeys, helperRows } from "./helpers";
+import { ASK_WHERE, MINUTES, defaultHelperKeys, helperKeys, helperRows, minutesLabel } from "./helpers";
 
 describe("helper settings rows", () => {
   it("has a row for each helper with its own switch, and Windows-only ones hide elsewhere", () => {
-    expect(helperRows(true).map((r) => r.key)).toEqual(["helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperDictate", "helperPage"]);
+    expect(helperRows(true).map((r) => r.key)).toEqual(["helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperDictate", "helperPage", "helperMeeting"]);
     expect(helperRows(false).map((r) => r.key)).toEqual(["helperExplain", "helperSmartPaste"]);
   });
 
@@ -21,5 +21,13 @@ describe("helper settings rows", () => {
 
   it("no row promises to send anything to the cloud on its own", () => {
     for (const r of helperRows(true)) expect(r.text.toLowerCase()).not.toContain("sends");
+  });
+
+  it("every count has a No limit choice", () => {
+    expect(MINUTES).toContain(0);
+    expect(minutesLabel(0)).toBe("No limit");
+    expect(minutesLabel(120)).toBe("2 hours");
+    expect(minutesLabel(60)).toBe("1 hour");
+    expect(minutesLabel(45)).toBe("45 minutes");
   });
 });

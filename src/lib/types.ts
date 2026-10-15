@@ -79,6 +79,8 @@ export interface Settings {
   helperDictateKeys?: string;
   helperPage?: boolean;
   helperPageKeys?: string;
+  helperMeeting?: boolean;
+  helperMeetingMinutes?: number;
   /* --- track:helpers end --- */
   /** The writing studio (✍️). */
   writingEnabled?: boolean;

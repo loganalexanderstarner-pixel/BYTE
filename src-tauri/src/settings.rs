@@ -214,6 +214,12 @@ pub struct Settings {
     pub helper_page: bool,
     #[serde(default = "crate::helpers::page::default_keys")]
     pub helper_page_keys: String,
+    /// Meeting assistant: "Record a meeting" in the tray menu (only when clicked), written up as a note.
+    #[serde(default)]
+    pub helper_meeting: bool,
+    /// Longest meeting recording in minutes; 0 means no limit.
+    #[serde(default = "crate::helpers::meeting::default_minutes")]
+    pub helper_meeting_minutes: u32,
     // --- track:helpers end ---
     /// The writing studio (✍️): rewrite, expand, shorten, tone, grammar.
     #[serde(default = "yes")]
@@ -591,6 +597,8 @@ impl Default for Settings {
             helper_dictate_keys: crate::helpers::dictate::default_keys(),
             helper_page: false,
             helper_page_keys: crate::helpers::page::default_keys(),
+            helper_meeting: false,
+            helper_meeting_minutes: crate::helpers::meeting::default_minutes(),
             // --- track:helpers end ---
             writing_enabled: true,
             writing_style: String::new(),

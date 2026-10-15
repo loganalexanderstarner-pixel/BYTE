@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { errorText, inTauri } from "../../lib/api";
-import { helperKeys, helperRows, ASK_WHERE } from "../../lib/helpers";
+import { helperKeys, helperRows, minutesLabel, ASK_WHERE, MINUTES } from "../../lib/helpers";
 import { isPcOs, prettyKeys } from "../../lib/keys";
 import { useStore } from "../../state/store";
 import { KeyRecorder } from "./KeyboardSection";
@@ -48,6 +48,16 @@ export function HelperSettings() {
             </span>
             <input type="checkbox" aria-label={r.title} checked={!!settings[r.key]} onChange={(e) => void guard(update({ [r.key]: e.target.checked }))} />
           </label>
+          {r.key === "helperMeeting" && settings.helperMeeting && (
+            <div className="field">
+              <span>Longest recording<small>BYTE stops by itself at this length.</small></span>
+              <select aria-label="Longest meeting recording" value={settings.helperMeetingMinutes ?? 120} onChange={(e) => void guard(update({ helperMeetingMinutes: Number(e.target.value) }))}>
+                {[...new Set([...MINUTES, settings.helperMeetingMinutes ?? 120])].map((n) => (
+                  <option key={n} value={n}>{minutesLabel(n)}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {r.keys && settings[r.key] && (
             <div className="field">
               <span>Shortcut<small>Now {prettyKeys(keys[r.keys])}</small></span>

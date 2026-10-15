@@ -47,12 +47,36 @@ export const HELPER_TUTORIALS: Tutorial[] = [
         body: ["Turn on **Smart copy toast**. Copy a parcel tracking number, an address, a link or a one-time code and a small toast offers the useful thing: track it, show it on a map, open the link or copy it without tracking bits, or clear the code.", "It never appears for anything that looks like a password or a key, and nothing is looked up on its own."],
         example: "Copy: 1Z999AA10123456784",
       },
+    ],
+  },
+  {
+    id: "pc-helpers-more",
+    title: "More everyday helpers",
+    promise: "Look at a page and get help, write up a meeting, type by speaking",
+    minutes: 4,
+    icon: "bolt",
+    offByDefault: true,
+    os: "windows",
+    steps: [
+      {
+        id: "where2",
+        title: "Remember where questions go",
+        body: ["These helpers use the same **Ask where** choice as the others: Local (this computer) is the default, and only Cloud lets text from your screen leave this computer."],
+        links: [S("control", "Open Control and screen")],
+      },
       {
         id: "page",
         title: "Look at this page and help",
         os: "windows",
         body: ["Turn on **Look at this page and help**. Right-click BYTE's tray icon, choose **Look at this page and help** and drag a box. BYTE reads only that box and recommends what to do. With guided help on it can show you where to click, and with PC control on it can do it for you.", "To learn more about a web page, select its address in the address bar and press the shortcut."],
         links: [S("control", "Open Control and screen")],
+      },
+      {
+        id: "meeting",
+        title: "Write up a meeting",
+        os: "windows",
+        body: ["Turn on **Meeting assistant**. Right-click BYTE's tray icon, choose **Record a meeting**, and tell the others you are recording. When you stop, BYTE saves a note with a summary, a to-do list and a transcript.", "It records only when you click, and the sound stays in memory."],
+        ifStuck: "No words in the note usually means no speech model: Settings → Models → Voice.",
       },
       {
         id: "dictate",

@@ -7,7 +7,7 @@ export const ASK_WHERE: { id: "local" | "cloud" | "auto"; label: string }[] = [
   { id: "cloud", label: "Cloud" },
 ];
 
-type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate" | "helperPage";
+type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate" | "helperPage" | "helperMeeting";
 type KeyName = "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys";
 
 export interface HelperRow {
@@ -58,7 +58,20 @@ const ROWS: HelperRow[] = [
     keys: "helperPageKeys",
     windowsOnly: true,
   },
+  {
+    key: "helperMeeting",
+    title: "Meeting assistant",
+    text: "Right-click BYTE's tray icon and choose \"Record a meeting\" (it records only when you click, and shows a popup while it does). BYTE keeps the sound in memory, and when you stop it writes a note with a summary, a to-do list and a transcript (with speaker labels if the speaker models are installed). Tell the others you are recording.",
+    windowsOnly: true,
+  },
 ];
+
+/** Lengths offered for a count of minutes; 0 is "No limit". */
+export const MINUTES: number[] = [30, 60, 120, 240, 0];
+
+export function minutesLabel(n: number): string {
+  return n === 0 ? "No limit" : n % 60 === 0 ? `${n / 60} hour${n === 60 ? "" : "s"}` : `${n} minutes`;
+}
 
 /** The rows to show on this system. */
 export function helperRows(windows: boolean): HelperRow[] {

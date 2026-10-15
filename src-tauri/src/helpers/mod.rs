@@ -15,6 +15,7 @@ pub mod ask;
 pub mod dialogs;
 pub mod dictate;
 pub mod explain;
+pub mod meeting;
 pub mod mic;
 pub mod page;
 pub mod popup;
@@ -123,10 +124,27 @@ pub fn pressed(app: &AppHandle, hot: Hot) {
 pub fn apply(app: &AppHandle, s: &Settings) {
     dialogs::apply(app, s.helper_dialogs);
     smartpaste::apply(app, s.helper_smart_paste);
+    let meet = s.helper_meeting && meeting::supported() && !s.kids_mode;
+    if MEETING_ON.swap(meet, std::sync::atomic::Ordering::SeqCst) != meet {
+        refresh_menu(app);
+    }
     let page = s.helper_page && region::supported() && !s.kids_mode;
     if PAGE_ON.swap(page, std::sync::atomic::Ordering::SeqCst) != page {
         refresh_menu(app);
     }
+}
+
+/// The tray menu offers "Record a meeting".
+#[cfg(desktop)]
+static MEETING_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The tray menu's meeting entry changes between "Record" and "Stop".
+#[cfg(desktop)]
+pub fn set_meeting_menu(app: &AppHandle, recording: bool) {
+    if let Some(tray) = app.tray_by_id("byte") {
+        let _ = tray.set_tooltip(Some(if recording { "BYTE: recording a meeting" } else { "BYTE" }));
+    }
+    refresh_menu(app);
 }
 
 /// The tray menu offers "Look at this page and help".
@@ -149,6 +167,13 @@ pub fn tray_items(app: &AppHandle) -> tauri::Result<Vec<tauri::menu::MenuItem<ta
     if PAGE_ON.load(std::sync::atomic::Ordering::SeqCst) {
         v.push(MenuItem::with_id(app, "helper_page", "Look at this page and help", true, None::<&str>)?);
     }
+    if MEETING_ON.load(std::sync::atomic::Ordering::SeqCst) {
+        if meeting::recording() {
+            v.push(MenuItem::with_id(app, "helper_meeting_stop", "Stop the meeting recording", true, None::<&str>)?);
+        } else {
+            v.push(MenuItem::with_id(app, "helper_meeting_start", "Record a meeting", true, None::<&str>)?);
+        }
+    }
     Ok(v)
 }
 
@@ -159,6 +184,14 @@ pub fn tray_event(app: &AppHandle, id: &str) -> bool {
         "helper_dialog" => {
             let app = app.clone();
             tauri::async_runtime::spawn(async move { dialogs::explain_pending(&app).await });
+            true
+        }
+        "helper_meeting_start" => {
+            meeting::start(app);
+            true
+        }
+        "helper_meeting_stop" => {
+            meeting::stop(app);
             true
         }
         "helper_page" => {
@@ -182,7 +215,7 @@ mod tests {
     #[test]
     fn every_helper_is_off_by_default_and_the_default_choice_is_local() {
         let s = Settings::default();
-        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate && !s.helper_page);
+        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate && !s.helper_page && !s.helper_meeting);
         assert_eq!(s.helper_ask_where, "local");
         assert!(wanted(&s).is_empty());
     }
@@ -215,7 +248,7 @@ mod tests {
 
     #[test]
     fn settings_are_not_in_the_profile_sync_list() {
-        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys", "helperPage", "helperPageKeys"] {
+        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys", "helperPage", "helperPageKeys", "helperMeeting", "helperMeetingMinutes"] {
             assert!(!crate::profile_sync::KEYS.iter().any(|(_, setting)| *setting == k), "{k}");
         }
     }

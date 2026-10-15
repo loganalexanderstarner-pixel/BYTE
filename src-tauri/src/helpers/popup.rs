@@ -20,12 +20,13 @@ pub enum Kind {
     Dialog,
     Paste,
     Page,
+    Meeting,
 }
 
 impl Kind {
     pub fn label(self) -> &'static str {
         match self {
-            Kind::Explain | Kind::Dialog | Kind::Paste | Kind::Page => "helperpop-x",
+            Kind::Explain | Kind::Dialog | Kind::Paste | Kind::Page | Kind::Meeting => "helperpop-x",
             Kind::Region => "helperpop-r",
         }
     }
@@ -209,6 +210,7 @@ pub async fn helper_popup_click(app: tauri::AppHandle, id: String, text: Option<
         Kind::Dialog => super::dialogs::clicked(&app, &id).await,
         Kind::Paste => super::smartpaste::clicked(&app, &id).await,
         Kind::Page => super::page::clicked(&app, &id).await,
+        Kind::Meeting => super::meeting::clicked(&app, &id).await,
     }
     Ok(())
 }

@@ -35,6 +35,9 @@ Turn on **Look at this page and help**. Then right-click BYTE's tray icon and ch
 
 **Tell me more about this page:** select the web address in a browser's address bar and press the shortcut (Ctrl+Alt+U). BYTE fetches that public page the way research does and gives a short summary and questions worth asking. The page is treated like screen text: BYTE Cloud sees it only if you chose Cloud.
 
+## Meeting assistant
+Turn on **Meeting assistant**. Then right-click BYTE's tray icon and choose **Record a meeting**. BYTE records **only when you click**, keeps the sound (your microphone and what the computer plays, so the other people on the call) in memory, and shows a popup the whole time. Tell everyone you are recording. Click **Stop the meeting recording** (or **Stop and write it up** in the popup) and BYTE turns it into text on this computer, then saves a note in **Meetings** with a summary, a to-do list and the transcript. If the speaker models are installed (Settings → Models → Voice) the transcript says who is speaking ("Speaker 1", "Speaker 2"); replace those names in the note yourself. **Longest recording** stops it by itself; **No limit** is a choice. The recording is never saved to disk, and the transcript goes to BYTE Cloud only if you chose Cloud.
+
 ## If it does not work
 - No answer: load a model in Settings → Models, or choose Auto or Cloud.
 - The shortcut does nothing: another program may use it. Pick other keys next to the switch.
