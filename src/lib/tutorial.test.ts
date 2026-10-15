@@ -75,7 +75,7 @@ describe("tutorial data", () => {
 describe("systems", () => {
   it("the Mac sees no Windows-only tutorial and no Windows-only words", () => {
     const ids = tutorialsFor("mac").map((t) => t.id);
-    for (const w of ["pc-control", "screen", "find-files", "guided", "barge-in", "gaming"]) expect(ids).not.toContain(w);
+    for (const w of ["pc-control", "screen", "find-files", "guided", "barge-in", "gaming", "planning"]) expect(ids).not.toContain(w);
     expect(textOf("mac")).not.toMatch(/Windows|\bPC\b|File Explorer|Ctrl\+|Credential Manager|Edge or Chrome|SmartScreen/);
   });
 
@@ -93,7 +93,7 @@ describe("systems", () => {
   it("the order is stable", () => {
     expect(TUTORIALS.map((t) => t.id)).toEqual([
       "getting-started", "chatting", "files", "web", "voice", "hey-byte", "barge-in", "quick-ask", "helpers",
-      "pc-control", "find-files", "screen", "guided", "gaming", "backup", "privacy", "troubleshooting",
+      "pc-control", "find-files", "screen", "guided", "gaming", "backup", "privacy", "troubleshooting", "planning",
     ]);
   });
 });

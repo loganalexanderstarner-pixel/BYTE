@@ -447,23 +447,48 @@ pub fn plan_prompt(goal: &str, screen: &str) -> String {
     format!("{}\n\nThe person asked: {}", super::brain::plan_prompt(goal, screen), goal)
 }
 
-/// Builds the plan for a how-to question from the window in front.
+/// Builds the plan for a how-to question from the window in front. The model's plan is checked against the window and corrected with
+/// the exact error (up to three times); notes about this program (when the person turned them on) are given as hints.
 async fn make_plan(app: &AppHandle, goal: &str, snap: &Snapshot) -> Result<GuidePlan, String> {
     let limit = super::settings_now(app).map(|s| super::executor::step_limit(&s.control_max_steps)).unwrap_or(actions::MAX_STEPS);
-    let mut messages = vec![json!({"role":"system","content":format!("{}{}", super::brain::SYSTEM, RULES)}), json!({"role":"user","content":plan_prompt(goal, &super::uia::render(snap))})];
+    let cloud = super::use_cloud(app, Some(snap)).await;
+    if cloud {
+        super::activity(app, "Planning with BYTE Cloud", true, super::planner::cloud_payload_note());
+    }
+    let hint = super::notes_hint_for(app, snap, goal);
+    let user = format!("{}{hint}", plan_prompt(goal, &super::uia::render(snap)));
+    let asker = GuideAsker { app, fmt: super::brain::PlanFormat::Schema { max_steps: limit, reasons: true }, cloud };
+    let (system, mut messages) = (super::brain::system_text(RULES), Vec::new());
+    messages.push(json!({"role":"system","content":system}));
+    messages.push(json!({"role":"user","content":user}));
     let mut last = String::new();
-    for _ in 0..2 {
-        let reply = super::ask_model(app, &messages).await.map_err(|e| e.to_string())?;
+    for _ in 0..super::planner::ATTEMPTS {
+        let reply = super::planner::Asker::ask(&asker, &messages).await?;
+        if let Some(why) = super::plancheck::cannot_reason(&reply) {
+            return Err(format!("{}{why}", super::planner::CANNOT));
+        }
         match plan_from_reply(&reply, goal, snap, limit) {
             Ok(p) => return Ok(p),
             Err(e) => {
                 last = e.to_string();
                 messages.push(json!({"role":"assistant","content":reply}));
-                messages.push(json!({"role":"user","content":super::brain::fix_prompt(&last)}));
+                messages.push(json!({"role":"user","content":super::plancheck::fix_text(&last, limit)}));
             }
         }
     }
     Err(format!("no usable plan ({last})"))
+}
+
+struct GuideAsker<'a> {
+    app: &'a AppHandle,
+    fmt: super::brain::PlanFormat,
+    cloud: bool,
+}
+
+impl super::planner::Asker for GuideAsker<'_> {
+    fn ask<'a>(&'a self, messages: &'a [Value]) -> futures_util::future::BoxFuture<'a, Result<String, String>> {
+        Box::pin(async move { super::ask_model(self.app, messages, self.fmt, self.cloud).await.map_err(|e| e.to_string()) })
+    }
 }
 
 /// May this window be read? The screen track's rule (BYTE's own window, password managers, banking, the person's never-look list).

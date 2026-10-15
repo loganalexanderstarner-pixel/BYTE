@@ -478,6 +478,21 @@ pub struct Settings {
     /// Guided help (control/guide.rs): a how-to question about the window in front gets an offer to ring each button in turn, or do it.
     pub guided_help: bool,
     // --- track:control end ---
+    // --- track:accuracy begin ---
+    /// Where PC-control plans are made: "local" (default), "cloud" or "auto" (this PC's model when it is big enough, else BYTE Cloud if allowed below).
+    #[serde(default = "default_control_plan_where")]
+    pub control_plan_where: String,
+    /// Let planning use BYTE Cloud (sends the goal and the names of the buttons in the window). Off until chosen.
+    pub control_cloud_planning: bool,
+    /// The person confirmed, once, what cloud planning sends.
+    pub control_cloud_confirmed: bool,
+    /// Per-program notes: after a run works, remember which buttons did it and use that as a hint next time. Off until chosen.
+    pub control_app_notes: bool,
+    /// List what BYTE would do instead of doing it.
+    pub control_dry_run: bool,
+    /// After a stopped run, offer to save what the person did instead as a note.
+    pub control_learn: bool,
+    // --- track:accuracy end ---
 }
 
 fn valid_theme(t: &serde_json::Value) -> bool {
@@ -656,6 +671,14 @@ impl Default for Settings {
             find_folders: Vec::new(),
             pc_status: true,
             guided_help: false,
+            // --- track:accuracy begin ---
+            control_plan_where: default_control_plan_where(),
+            control_cloud_planning: false,
+            control_cloud_confirmed: false,
+            control_app_notes: false,
+            control_dry_run: false,
+            control_learn: false,
+            // --- track:accuracy end ---
             // --- track:control end ---
         }
     }
@@ -767,6 +790,10 @@ fn default_voice_where() -> String {
 /// The Mac app always opened Quick Ask for "Hey BYTE" and keeps doing so; the Windows app answers with nothing on screen.
 fn default_wake_show_window() -> bool {
     cfg!(target_os = "macos")
+}
+
+fn default_control_plan_where() -> String {
+    "local".into()
 }
 
 fn default_control_max_steps() -> String {

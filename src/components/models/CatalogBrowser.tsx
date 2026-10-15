@@ -9,6 +9,10 @@ import { COMMUNITY_CAPS, displayName, fitGroup, RAM_TIERS, TAG_LABELS } from "..
 import type { ModelStatus, VariantStatus } from "../../lib/types";
 import { useStore } from "../../state/store";
 import { ModelCard } from "./ModelCard";
+// --- track:accuracy begin ---
+import { isWindows } from "../../lib/keys";
+import { PcControlModels } from "./PcControlModels";
+// --- track:accuracy end ---
 
 const CAPABILITIES = ["reasoning", "coding", "writing", "multilingual", "fast", "small", "moe", "community", "stories", "uncensored"] as const;
 const PAGE = 20;
@@ -43,6 +47,9 @@ export function CatalogBrowser() {
   const [limit, setLimit] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // --- track:accuracy begin ---
+  const [pcView, setPcView] = useState(false);
+  // --- track:accuracy end ---
 
   const run = async (fn: () => Promise<unknown>) => {
     setError(null);
@@ -214,7 +221,14 @@ export function CatalogBrowser() {
           ))}
         </div>
         <div className="chips" role="group" aria-label="Strength">
-          <button className="chip" aria-pressed={cap === null} onClick={() => setCap(null)}>All</button>
+          <button className="chip" aria-pressed={cap === null && !pcView} onClick={() => { setCap(null); setPcView(false); }}>All</button>
+          {/* --- track:accuracy begin --- */}
+          {isWindows() && (
+            <button className="chip" aria-pressed={pcView} onClick={() => setPcView(!pcView)} title="Models that plan PC control well, with their test scores">
+              PC control
+            </button>
+          )}
+          {/* --- track:accuracy end --- */}
           {CAPABILITIES.map((c) => (
             <button key={c} className="chip" aria-pressed={cap === c} onClick={() => setCap(cap === c ? null : c)} title={c === "moe" ? "Mixture-of-experts: big-model knowledge, small-model speed" : c === "community" ? "Fine-tunes and merges made by the community: stories, role-play, uncensored versions" : c === "uncensored" ? "Safety tuning removed: refuses less, can say things other models won't" : undefined}>
               {TAG_LABELS[c]}
@@ -223,6 +237,7 @@ export function CatalogBrowser() {
         </div>
       </div>
 
+      {pcView && isWindows() && <PcControlModels />}
       {notice && <div className="banner">{notice}</div>}
       {error && <div className="banner danger">{error}</div>}
       {chat.length === 0 && <p className="faint" style={{ marginTop: 16 }}>No models match these filters.</p>}

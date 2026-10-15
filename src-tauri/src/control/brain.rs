@@ -48,6 +48,10 @@ pub struct CapableModel {
     pub download_bytes: u64,
     /// This is the control model in Settings.
     pub selected: bool,
+    /// The model BYTE recommends for PC control.
+    pub recommended: bool,
+    /// The last test's score, 0 to 100 (`selftest`), when it was tested on this PC.
+    pub score: Option<u32>,
 }
 
 /// The recommended list with what is downloaded. `selected` is the `controlModel` setting.
@@ -67,6 +71,8 @@ pub fn capable_models(catalog: &Catalog, models_dir: &Path, selected: &str) -> V
                 installed_key,
                 download_key: dl.map(|v| models::key(m, v)),
                 download_bytes: dl.map(|v| v.size_bytes).unwrap_or(0),
+                recommended: *id == RECOMMENDED,
+                score: None,
             })
         })
         .collect()
@@ -157,7 +163,99 @@ pub const SYSTEM: &str = "You operate a Windows PC for the user by planning step
 Any step may add \"expect\":{\"window\":\"text in the window title afterwards\",\"element\":\"name of an item that should appear\"}. \
 Use it after anything that opens a window or dialog. Use numbers only from the current list; after a step opens or changes a window \
 the numbers change, so plan only up to that step, add expect, and you will be shown the new list. \
-Prefer keyboard shortcuts and open/focus over clicking when they are reliable. Do not use any other action names or fields.";
+Prefer keyboard shortcuts and open/focus over clicking when they are reliable. Do not use any other action names or fields. \
+If the goal cannot or should not be done (it needs a password or card number, or is not something a PC can do), reply {\"steps\":[],\"cannot\":\"short reason\"}.";
+
+/// Short worked examples: (goal, what is in front, the reply). Small on purpose; a test reads every reply with the real parser.
+pub const EXAMPLES: &[(&str, &str, &str)] = &[
+    ("open Notepad", "Window \"Desktop\" (explorer)\n", r#"{"steps":[{"action":"open","target":"notepad"}]}"#),
+    (
+        "press the Plus button",
+        "Window \"Calculator\" (calculatorapp)\n3 button \"Seven\"\n4 button \"Plus\"\n5 button \"Equals\"\n",
+        r#"{"steps":[{"action":"click","id":4}]}"#,
+    ),
+    (
+        "write hello in Notepad",
+        "Window \"Desktop\" (explorer)\n",
+        r#"{"steps":[{"action":"open","target":"notepad","expect":{"window":"Notepad"}},{"action":"type","text":"hello"}]}"#,
+    ),
+    (
+        "put the address from Chrome into Notepad",
+        "Window \"Google Chrome\" (chrome)\n1 edit \"Address and search bar\"\n",
+        r#"{"steps":[{"action":"key","combo":"ctrl+l"},{"action":"key","combo":"ctrl+c"},{"action":"open","target":"notepad","expect":{"window":"Notepad"}},{"action":"key","combo":"ctrl+v"}]}"#,
+    ),
+    ("log in to my bank with my password", "Window \"Desktop\" (explorer)\n", r#"{"steps":[],"cannot":"I never type passwords; you can sign in yourself."}"#),
+];
+
+/// The examples as text for the system prompt.
+pub fn examples_text() -> String {
+    let mut out = String::from("\nExamples (goal, then what is in front, then the reply):\n");
+    for (goal, screen, reply) in EXAMPLES {
+        out.push_str(&format!("Goal: {goal}\n{screen}Reply: {reply}\n\n"));
+    }
+    out
+}
+
+/// The whole system prompt for a planner: the rules, the worked examples, then `rules` of the caller (a walk-through's own).
+pub fn system_text(rules: &str) -> String {
+    format!("{SYSTEM}{}{rules}", examples_text())
+}
+
+// ------------------------------------------------------------------ strict output
+
+/// How the reply is constrained.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanFormat {
+    /// A JSON schema (llama-server turns it into a grammar): only valid steps can be written. `reasons` allows a "reason" on each step.
+    Schema { max_steps: usize, reasons: bool },
+    /// Any JSON object (the fallback when the server refuses a schema).
+    JsonObject,
+}
+
+fn step_schema(action: &str, props: Value, required: &[&str], reasons: bool) -> Value {
+    let mut p = serde_json::Map::new();
+    p.insert("action".into(), json!({ "const": action }));
+    if let Value::Object(o) = props {
+        for (k, v) in o {
+            p.insert(k, v);
+        }
+    }
+    p.insert("expect".into(), json!({ "type": "object", "properties": { "window": { "type": "string" }, "element": { "type": "string" } }, "additionalProperties": false }));
+    if reasons {
+        p.insert("reason".into(), json!({ "type": "string" }));
+    }
+    let mut req = vec!["action"];
+    req.extend_from_slice(required);
+    json!({ "type": "object", "properties": p, "required": req, "additionalProperties": false })
+}
+
+/// The JSON schema of a plan: `{"steps":[...]}` (at most `max_steps`, capped at 100 so the grammar stays small), plus the optional `cannot`.
+pub fn plan_schema(max_steps: usize, reasons: bool) -> Value {
+    let s = |a: &str, props: Value, req: &[&str]| step_schema(a, props, req, reasons);
+    let steps: Vec<Value> = vec![
+        s("open", json!({ "target": { "type": "string" } }), &["target"]),
+        s("focus", json!({ "title": { "type": "string" } }), &["title"]),
+        s("click", json!({ "id": { "type": "integer", "minimum": 1 } }), &["id"]),
+        s("type", json!({ "text": { "type": "string" } }), &["text"]),
+        s("key", json!({ "combo": { "type": "string" } }), &["combo"]),
+        s("wait", json!({ "for": { "enum": ["window", "element"] }, "text": { "type": "string" }, "timeout_ms": { "type": "integer" } }), &["for", "text"]),
+        s("scroll", json!({ "direction": { "enum": ["up", "down"] }, "amount": { "type": "integer" } }), &["direction"]),
+        s("close", json!({ "title": { "type": "string" } }), &["title"]),
+        s("power", json!({ "kind": { "enum": ["shutdown", "restart", "sign_out"] } }), &["kind"]),
+    ];
+    let mut list = json!({ "type": "array", "items": { "oneOf": steps } });
+    if max_steps != usize::MAX {
+        list["maxItems"] = json!(max_steps.min(100));
+    }
+    json!({ "type": "object", "properties": { "steps": list, "cannot": { "type": "string" } }, "required": ["steps"], "additionalProperties": false })
+}
+
+pub fn response_format(fmt: PlanFormat) -> Value {
+    match fmt {
+        PlanFormat::JsonObject => json!({ "type": "json_object" }),
+        PlanFormat::Schema { max_steps, reasons } => json!({ "type": "json_schema", "json_schema": { "name": "pc_plan", "strict": true, "schema": plan_schema(max_steps, reasons) } }),
+    }
+}
 
 /// The user message for a first plan.
 pub fn plan_prompt(goal: &str, screen: &str) -> String {
@@ -182,14 +280,23 @@ pub fn fix_prompt(reply_error: &str) -> String {
 }
 
 pub fn request_body(messages: &[Value]) -> Value {
+    request_body_with(messages, PlanFormat::JsonObject)
+}
+
+pub fn request_body_with(messages: &[Value], fmt: PlanFormat) -> Value {
     json!({
         "messages": messages,
         "temperature": 0.0,
-        "max_tokens": 700,
+        "max_tokens": 900,
         "stream": false,
-        "response_format": { "type": "json_object" },
+        "response_format": response_format(fmt),
         "chat_template_kwargs": { "enable_thinking": false },
     })
+}
+
+/// Whether a refused request is worth sending again without the schema (the server did not take the format, as opposed to a real outage).
+pub fn schema_refused(status: u16) -> bool {
+    matches!(status, 400 | 404 | 405 | 415 | 422 | 500 | 501)
 }
 
 /// Text of the first choice, or an error.
@@ -239,17 +346,23 @@ impl ControlBrain {
     }
 
     /// One reply from the model with its own engine on `key`.
-    pub async fn complete(&self, app: &AppHandle, models_dir: &Path, catalog: &Catalog, key: &str, cpu_only: bool, messages: &[Value]) -> AppResult<String> {
+    pub async fn complete(&self, app: &AppHandle, models_dir: &Path, catalog: &Catalog, key: &str, cpu_only: bool, messages: &[Value], fmt: PlanFormat) -> AppResult<String> {
         let ep = self.ensure_running(app, models_dir, catalog, key, cpu_only).await?;
         self.touch();
-        let r = self.complete_at(&ep, messages).await;
+        let r = self.complete_at(&ep, messages, fmt).await;
         self.touch();
         r
     }
 
     /// One reply from any running engine (the chat engine's endpoint, or this one's).
-    pub async fn complete_at(&self, ep: &Endpoint, messages: &[Value]) -> AppResult<String> {
-        let r = self.http.post(format!("{}/v1/chat/completions", ep.base_url)).bearer_auth(&ep.api_key).timeout(Duration::from_secs(120)).json(&request_body(messages)).send().await?;
+    pub async fn complete_at(&self, ep: &Endpoint, messages: &[Value], fmt: PlanFormat) -> AppResult<String> {
+        let send = |f: PlanFormat| self.http.post(format!("{}/v1/chat/completions", ep.base_url)).bearer_auth(&ep.api_key).timeout(Duration::from_secs(120)).json(&request_body_with(messages, f)).send();
+        let mut r = send(fmt).await?;
+        // A server that does not take the schema is asked again for plain JSON.
+        if fmt != PlanFormat::JsonObject && !r.status().is_success() && schema_refused(r.status().as_u16()) {
+            log::info!("the control model refused the plan schema ({}); asking for plain JSON", r.status());
+            r = send(PlanFormat::JsonObject).await?;
+        }
         if !r.status().is_success() {
             return Err(AppError::msg(format!("the control model failed ({})", r.status())));
         }

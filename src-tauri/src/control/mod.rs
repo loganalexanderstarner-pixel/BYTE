@@ -8,16 +8,23 @@
 //! The lead's agent loop calls `run_plan`, `describe_foreground` and `tool_specs` / `run_tool` (all behind the `pcControl`
 //! setting). Everything that touches Windows sits behind a trait, so the logic runs under test on any system.
 
+pub mod accuracy;
 pub mod actions;
 pub mod brain;
 pub mod com;
+pub mod dryrun;
 pub mod executor;
 pub mod find;
 pub mod guide;
 pub mod input;
+pub mod learn;
 pub mod log;
+pub mod notes;
 pub mod phrases;
+pub mod plancheck;
+pub mod planner;
 pub mod routines;
+pub mod selftest;
 pub mod status;
 pub mod sysctl;
 pub mod uia;
@@ -61,6 +68,11 @@ pub fn is_active() -> bool {
 
 fn brain(app: &AppHandle) -> &'static brain::ControlBrain {
     BRAIN.get_or_init(|| brain::ControlBrain::new(app.state::<AppState>().paths.root.join("control.pid")))
+}
+
+/// The control model's engine (for the test, which asks a chosen model directly).
+pub(crate) fn brain_for(app: &AppHandle) -> &'static brain::ControlBrain {
+    brain(app)
 }
 
 fn activity_log(app: &AppHandle) -> &'static log::FileLog {
@@ -173,13 +185,16 @@ pub fn describe_foreground() -> String {
     }
 }
 
-async fn describe_foreground_async() -> String {
-    tokio::task::spawn_blocking(describe_foreground).await.unwrap_or_default()
-}
-
-/// One reply from the control model: its own engine when one is chosen and downloaded, else the chat model. While a game runs
-/// and `controlGameRam` is on, its own engine runs on the processor only.
-pub async fn ask_model(app: &AppHandle, messages: &[Value]) -> AppResult<String> {
+/// One reply from the planner. With `cloud` the question goes to BYTE Cloud (only when the person allowed it; see `use_cloud`), and
+/// falls back to this PC's model when the cloud cannot answer. Otherwise the control model with its own engine when one is chosen
+/// and downloaded, else the chat model; while a game runs and `controlGameRam` is on, its own engine runs on the processor only.
+pub async fn ask_model(app: &AppHandle, messages: &[Value], fmt: brain::PlanFormat, cloud: bool) -> AppResult<String> {
+    if cloud {
+        match ask_cloud(app, messages, fmt).await {
+            Ok(r) => return Ok(r),
+            Err(e) => activity_log(app).record("Planning with BYTE Cloud", false, &format!("{e}; the plan was made on this PC")),
+        }
+    }
     let state = app.state::<AppState>();
     let (setting, game_ram) = {
         let s = state.settings.lock().await;
@@ -195,17 +210,30 @@ pub async fn ask_model(app: &AppHandle, messages: &[Value]) -> AppResult<String>
         brain::Source::Own(key) => {
             let game = if game_ram { tokio::task::spawn_blocking(|| crate::busy::read().busy).await.unwrap_or(false) } else { false };
             let cpu_only = brain::placement_for(game_ram, game) == crate::system::Placement::CpuOnly;
-            b.complete(app, &state.paths.models, &catalog, &key, cpu_only, messages).await
+            b.complete(app, &state.paths.models, &catalog, &key, cpu_only, messages, fmt).await
         }
         brain::Source::Chat => {
             let ep = state.engine.endpoint().await.ok_or_else(|| AppError::msg("no model is running to plan with (start one in Models, or pick a control model in Settings)"))?;
-            b.complete_at(&ep, messages).await
+            b.complete_at(&ep, messages, fmt).await
         }
     }
 }
 
-/// When the model that would plan is too small, what to tell the person (see `brain::too_small_say`).
-pub async fn small_model_say(app: &AppHandle) -> Option<String> {
+/// The plan question to BYTE Cloud: the same words, folded into one message with the reply format.
+async fn ask_cloud(app: &AppHandle, messages: &[Value], fmt: brain::PlanFormat) -> Result<String, String> {
+    let state = app.state::<AppState>();
+    let ep = crate::backend::cloud_cards(&state).await.ok_or("BYTE Cloud is not connected")?;
+    let helper = ep.cloud.ok_or("BYTE Cloud is not connected")?;
+    let (system, user) = planner::flatten(messages);
+    let schema = match fmt {
+        brain::PlanFormat::Schema { max_steps, reasons } => brain::plan_schema(max_steps, reasons),
+        brain::PlanFormat::JsonObject => brain::plan_schema(actions::MAX_STEPS, false),
+    };
+    helper.complete(&system, &user, &schema).await.map_err(|e| e.to_string())
+}
+
+/// The planner in use: its name and size in billions of parameters (None when unknown).
+pub async fn planner_params(app: &AppHandle) -> Option<(String, f32)> {
     let state = app.state::<AppState>();
     let setting = state.settings.lock().await.control_model.clone();
     let catalog = state.catalog.get();
@@ -214,29 +242,109 @@ pub async fn small_model_say(app: &AppHandle) -> Option<String> {
         brain::Source::Chat => state.engine.endpoint().await?.model,
     };
     let (m, _) = catalog.resolve(&key).ok()?;
-    brain::too_small_say(&m.name, m.params_b, &catalog)
+    Some((m.name.clone(), m.params_b?))
 }
 
-/// Asks the model for a plan and reads it; one correction round when the reply is not a valid plan.
-pub async fn plan_with_model(app: &AppHandle, user: String) -> Result<Vec<Step>, String> {
-    let mut messages = vec![json!({"role":"system","content":brain::SYSTEM}), json!({"role":"user","content":user})];
-    let mut last = String::new();
-    for _ in 0..2 {
-        let reply = ask_model(app, &messages).await.map_err(|e| e.to_string())?;
-        let limit = settings_now(app).map(|s| executor::step_limit(&s.control_max_steps)).unwrap_or(actions::MAX_STEPS);
-        match actions::parse_plan_with(&reply, limit) {
-            Ok(p) => return Ok(p),
-            Err(e) => {
-                last = e.to_string();
-                messages.push(json!({"role":"assistant","content":reply}));
-                messages.push(json!({"role":"user","content":brain::fix_prompt(&last)}));
+/// When the model that would plan is too small, what to tell the person (see `brain::too_small_say`).
+pub async fn small_model_say(app: &AppHandle) -> Option<String> {
+    let (name, b) = planner_params(app).await?;
+    brain::too_small_say(&name, Some(b), &app.state::<AppState>().catalog.get())
+}
+
+/// Whether this plan goes to BYTE Cloud: only when the person chose Cloud (or Auto with a planner that is too small) AND turned on
+/// cloud planning and confirmed what it sends; never for a window BYTE may not look at, in kids mode, or when not connected.
+pub async fn use_cloud(app: &AppHandle, snap: Option<&uia::Snapshot>) -> bool {
+    let Some(s) = settings_now(app) else { return false };
+    let w = planner::parse_where(&s.control_plan_where);
+    if w == planner::Where::Local {
+        return false;
+    }
+    let window_ok = snap.map(|sn| guide::allowed(&sn.app, &sn.title, &s.screen_exclude_apps).is_ok()).unwrap_or(true);
+    let ready = s.cloud_connected && window_ok && !s.kids_mode && !s.offline;
+    let b = if w == planner::Where::Auto { planner_params(app).await.map(|(_, b)| b) } else { None };
+    let (route, why) = planner::decide(w, planner::Cloud { allowed: s.control_cloud_planning, confirmed: s.control_cloud_confirmed, ready }, b);
+    if let Some(why) = why {
+        activity_log(app).record("Planning", true, why);
+    }
+    route == planner::Route::Cloud
+}
+
+/// The planning question as the app asks it.
+struct AppAsker<'a> {
+    app: &'a AppHandle,
+    fmt: brain::PlanFormat,
+    cloud: bool,
+}
+
+impl planner::Asker for AppAsker<'_> {
+    fn ask<'a>(&'a self, messages: &'a [Value]) -> BoxFuture<'a, Result<String, String>> {
+        Box::pin(async move { ask_model(self.app, messages, self.fmt, self.cloud).await.map_err(|e| e.to_string()) })
+    }
+}
+
+/// Notes from earlier runs that fit this program and goal, as text for the question ("" when notes are off or none fit).
+fn notes_hint(app: &AppHandle, snap: Option<&uia::Snapshot>, goal: &str) -> String {
+    let (Some(s), Some(snap)) = (settings_now(app), snap) else { return String::new() };
+    if !s.control_app_notes {
+        return String::new();
+    }
+    notes::hint_text(&notes::load(&notes_file(app)), &snap.app, goal).0
+}
+
+/// `notes_hint` for a walk-through's window.
+pub(crate) fn notes_hint_for(app: &AppHandle, snap: &uia::Snapshot, goal: &str) -> String {
+    notes_hint(app, Some(snap), goal)
+}
+
+pub fn notes_file(app: &AppHandle) -> std::path::PathBuf {
+    app.state::<AppState>().paths.data.join(notes::FILE)
+}
+
+fn scores_file(app: &AppHandle) -> std::path::PathBuf {
+    app.state::<AppState>().paths.data.join(selftest::FILE)
+}
+
+/// Asks the model for a plan for `user` (the question), checks it against `snap` (the window it was made for) and the open windows,
+/// and corrects it with the exact error up to three times. `goal` finds notes. A reply that says the goal cannot be done comes back
+/// as an error starting with `planner::CANNOT`.
+pub async fn plan_with_model(app: &AppHandle, user: String, snap: Option<uia::Snapshot>, goal: &str) -> Result<Vec<Step>, String> {
+    let limit = settings_now(app).map(|s| executor::step_limit(&s.control_max_steps)).unwrap_or(actions::MAX_STEPS);
+    let windows: Vec<String> = tokio::task::spawn_blocking(|| real_screen().window_titles()).await.unwrap_or_default();
+    let cloud = use_cloud(app, snap.as_ref()).await;
+    if cloud {
+        activity_log(app).record("Planning with BYTE Cloud", true, planner::cloud_payload_note());
+    }
+    let user = format!("{user}{}", notes_hint(app, snap.as_ref(), goal));
+    let asker = AppAsker { app, fmt: brain::PlanFormat::Schema { max_steps: limit, reasons: false }, cloud };
+    let check = snap.as_ref().map(|s| planner::Check { snap: s, windows: &windows });
+    let p = planner::plan_loop(&asker, &brain::system_text(""), &user, check, limit, planner::ATTEMPTS).await;
+    match p.outcome {
+        planner::Outcome::Plan(steps) => Ok(steps),
+        planner::Outcome::Cannot(why) => Err(format!("{}{why}", planner::CANNOT)),
+        planner::Outcome::Failed(last) => {
+            if let Some(say) = small_model_say(app).await {
+                return Err(say);
             }
+            Err(format!("the control model did not give a usable plan ({last})"))
         }
     }
-    if let Some(say) = small_model_say(app).await {
-        return Err(say);
-    }
-    Err(format!("the control model did not give a usable plan ({last})"))
+}
+
+/// The front window, read once: as text for the model, and as marks for checking the plan.
+async fn read_foreground() -> (String, Option<uia::Snapshot>) {
+    tokio::task::spawn_blocking(|| match real_screen().snapshot() {
+        Ok(s) => (uia::render(&s), Some(s)),
+        Err(e) => (format!("(the front window can't be read: {e})"), None),
+    })
+    .await
+    .unwrap_or_default()
+}
+
+/// Plans a goal from the window in front (for a dry run or a run): the steps and the window they were made for.
+pub async fn plan_goal(app: &AppHandle, goal: &str) -> Result<(Vec<Step>, Option<uia::Snapshot>), String> {
+    let (screen, snap) = read_foreground().await;
+    let steps = plan_with_model(app, brain::plan_prompt(goal, &screen), snap.clone(), goal).await?;
+    Ok((steps, snap))
 }
 
 struct ModelReplanner<'a> {
@@ -245,7 +353,10 @@ struct ModelReplanner<'a> {
 
 impl Replanner for ModelReplanner<'_> {
     fn replan<'a>(&'a self, req: ReplanRequest) -> BoxFuture<'a, Result<Vec<Step>, String>> {
-        Box::pin(async move { plan_with_model(self.app, brain::replan_prompt(&req)).await })
+        Box::pin(async move {
+            let snap = tokio::task::spawn_blocking(|| real_screen().snapshot().ok()).await.ok().flatten();
+            plan_with_model(self.app, brain::replan_prompt(&req), snap, &req.goal).await
+        })
     }
 }
 
@@ -320,6 +431,14 @@ async fn run_steps(app: &AppHandle, settings: &crate::settings::Settings, steps:
     let report = executor::run(&env, &cfg, steps).await;
     watcher.abort();
     set_active(app, false, "");
+    // --- track:accuracy begin ---
+    if !report.ok && !report.declined && settings.control_app_notes {
+        learn::offer(app, &ctx.goal, report.stopped, &report.summary);
+        if report.stopped && settings.control_learn {
+            learn::watch(app.clone(), ctx.goal.clone());
+        }
+    }
+    // --- track:accuracy end ---
     report
 }
 
@@ -366,14 +485,44 @@ pub async fn run_tool(app: &AppHandle, args: &Value, ctx_cancel: &CancellationTo
     if !settings.pc_control {
         return (false, "PC control is off".into(), "PC control is off. Tell the user to turn it on in Settings → PC control.".into());
     }
-    let screen = describe_foreground_async().await;
-    let steps = match plan_with_model(app, brain::plan_prompt(&goal, &screen)).await {
-        Ok(s) => s,
-        Err(e) => return (false, "Couldn't plan".into(), format!("BYTE could not plan this: {e}")),
+    let (steps, snap) = match plan_goal(app, &goal).await {
+        Ok(p) => p,
+        Err(e) => {
+            if let Some(why) = e.strip_prefix(planner::CANNOT) {
+                return (false, "Can't do that".into(), format!("BYTE decided it can't do this: {why} Tell the user that, in your own words."));
+            }
+            return (false, "Couldn't plan".into(), format!("BYTE could not plan this: {e}"));
+        }
     };
+    if settings.control_dry_run {
+        let lines = plancheck::dry_lines(&steps, snap.as_ref());
+        let (title, detail) = dryrun::card_text(&goal, &lines);
+        activity(app, "Dry run", true, &format!("{} steps for: {goal}", steps.len()));
+        let _ = send(crate::chat::ChatEvent::MacDone(crate::macctl::MacDone { app: "PC".into(), title: title.clone(), detail: detail.clone(), ok: true, undo: None }));
+        return (true, title, format!("Dry run is on in Settings, so BYTE did NOT do anything. {detail}"));
+    }
     let ctx = PlanCtx { goal: goal.clone(), cancel: ctx_cancel, send };
-    let report = run_steps(app, &settings, steps, &ctx).await;
+    let report = run_steps(app, &settings, steps.clone(), &ctx).await;
+    if report.ok && report.replans == 0 {
+        remember_run(app, &steps, snap.as_ref(), &goal);
+    }
     (report.ok, report.summary.clone(), report_text(&report))
+}
+
+/// After a run that worked on the first plan: a note of which buttons did it, when the person turned notes on.
+fn remember_run(app: &AppHandle, steps: &[Step], snap: Option<&uia::Snapshot>, goal: &str) {
+    let (Some(s), Some(snap)) = (settings_now(app), snap) else { return };
+    if !s.control_app_notes {
+        return;
+    }
+    if let Some(n) = notes::from_run(steps, snap, goal) {
+        let path = notes_file(app);
+        let mut list = notes::load(&path);
+        notes::upsert(&mut list, n);
+        if let Err(e) = notes::save(&path, &list) {
+            ::log::warn!("could not save the note: {e}");
+        }
+    }
 }
 
 // ------------------------------------------------------------------ commands for Settings
@@ -386,18 +535,28 @@ pub struct ControlStatus {
     /// The control model in words: its name, or "the chat model".
     pub model_label: String,
     pub models: Vec<brain::CapableModel>,
+    // --- track:accuracy begin ---
+    /// A test is running now (see `selftest::control_selftest`).
+    pub testing: bool,
+    // --- track:accuracy end ---
 }
 
 #[tauri::command]
 pub async fn control_status(state: State<'_, AppState>) -> AppResult<ControlStatus> {
     let setting = state.settings.lock().await.control_model.clone();
     let catalog = state.catalog.get();
-    let models = brain::capable_models(&catalog, &state.paths.models, &setting);
+    let mut models = brain::capable_models(&catalog, &state.paths.models, &setting);
+    // --- track:accuracy begin ---
+    let scores = selftest::load_scores(&state.paths.data.join(selftest::FILE));
+    for m in &mut models {
+        m.score = scores.get(&m.id).map(|s| s.percent);
+    }
+    // --- track:accuracy end ---
     let label = match brain::choose_source(&setting, &catalog, &state.paths.models).0 {
         brain::Source::Chat => "the chat model".to_string(),
         brain::Source::Own(k) => catalog.resolve(&k).map(|(m, _)| m.name.clone()).unwrap_or(k),
     };
-    Ok(ControlStatus { supported: cfg!(windows), active: is_active(), model_label: label, models })
+    Ok(ControlStatus { supported: cfg!(windows), active: is_active(), model_label: label, models, testing: accuracy::testing() })
 }
 
 #[tauri::command]

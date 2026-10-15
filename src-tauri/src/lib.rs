@@ -403,6 +403,15 @@ pub fn run() {
             control::guide::guide_dismiss,
             control::guide::guide_command,
             // --- track:control end ---
+            // --- track:accuracy begin ---
+            control::accuracy::control_selftest,
+            control::accuracy::control_selftest_stop,
+            control::accuracy::control_scores,
+            control::accuracy::control_notes_list,
+            control::accuracy::control_note_add,
+            control::accuracy::control_note_delete,
+            control::accuracy::control_notes_clear,
+            // --- track:accuracy end ---
             commands::engine_live,
             lab::lab_inspect,
             lab::lab_inspect_url,

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { inTauri } from "../lib/api";
 import { bannerText, controlApi, type ControlState } from "../lib/control";
+import { ControlNoteCard } from "./ControlNoteCard"; // track:accuracy
 
 /** A bar that shows while BYTE is operating the PC, with a Stop button. Follows the `control://state` event. */
 export function ControlBanner() {
@@ -13,7 +14,7 @@ export function ControlBanner() {
     const off = listen<ControlState>("control://state", (e) => setState(e.payload));
     return () => void off.then((f) => f());
   }, []);
-  if (!state.active) return null;
+  if (!state.active) return <ControlNoteCard /> /* track:accuracy */;
   return (
     <div
       role="status"

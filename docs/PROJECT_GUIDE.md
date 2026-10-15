@@ -587,3 +587,11 @@ crash reports, beta channel, multi-Mac sync, version history, unsubscribe assist
 matrices beyond compare-and-decide, forms filling, table extraction, contracts explainer, resume builder,
 interview practice, essay coach, podcast digest, screen-recording notes, games, story mode, daily fun card,
 guest mode, household board, explain-code, formula helper, regex cleanup, Intel build, notarization.
+
+
+## PC-control planning accuracy (control/plancheck, planner, selftest, notes, learn, dryrun)
+- A plan is checked against the window it was made for before it runs (`plancheck.rs`): clicks must point at listed, enabled, non-secret items; a switch must name an open window (or one the plan opens first). Errors, including "too many steps", go back to the model verbatim (`planner::plan_loop`, three tries). A reply `{"steps":[],"cannot":"why"}` is an answer, not a failure.
+- Local planning asks llama-server for a JSON schema (`brain::plan_schema`) and falls back to plain JSON when the server refuses it. The system prompt carries five worked examples (`brain::EXAMPLES`), each parsed by a test.
+- Settings: `controlPlanWhere` (local default, cloud, auto), `controlCloudPlanning` + `controlCloudConfirmed` (cloud planning sends the goal and the window's button names, nothing else), `controlAppNotes`, `controlLearn`, `controlDryRun`. All off or local by default.
+- `selftest.rs` + `selftest_tasks.json`: 42 standard tasks scored deterministically (no clicking); scores per model in `control_scores.json` in the data folder; shown in the model catalog "PC control" chip and Settings -> Planning.
+- `notes.rs`: per-program notes (button names only, no typed text) in `control_notes.json`, used as hints; `learn.rs` offers (never silently) to save a note after a failed or stopped run.

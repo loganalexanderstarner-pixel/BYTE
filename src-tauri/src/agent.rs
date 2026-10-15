@@ -824,6 +824,14 @@ async fn specialist(
         }
     }
     // --- track:control end ---
+    // --- track:accuracy begin ---
+    // "dry run: …" lists what PC control would do, without doing it.
+    if !writing_only && turn.modules.control.pc_control {
+        if let Some((b, n)) = crate::control::dryrun::route(turn, q, cancel, send).await? {
+            return Ok(Some((b, n, "pc_control")));
+        }
+    }
+    // --- track:accuracy end ---
     // --- track:house begin ---
     if !writing_only && act {
         if let Some(found) = crate::houseroutes::try_route(turn, q, cancel, send).await? {

@@ -9,6 +9,9 @@ export interface CapableModel {
   downloadKey: string | null;
   downloadBytes: number;
   selected: boolean;
+  recommended: boolean;
+  /** The last test's score, 0 to 100. */
+  score: number | null;
 }
 
 export interface ControlStatus {
@@ -16,6 +19,7 @@ export interface ControlStatus {
   active: boolean;
   modelLabel: string;
   models: CapableModel[];
+  testing: boolean;
 }
 
 export interface LogEntry {
@@ -40,6 +44,53 @@ export interface Routine {
   schedule: string;
   enabled: boolean;
 }
+
+// --- track:accuracy begin ---
+export interface TestScore {
+  model: string;
+  total: number;
+  valid: number;
+  correct: number;
+  percent: number;
+  avgAttempts: number;
+  at: string;
+  byCategory: { category: string; correct: number; total: number }[];
+  misses: string[];
+}
+
+export interface AppNote {
+  id: string;
+  app: string;
+  goal: string;
+  steps: { kind: string; name: string }[];
+  text: string;
+  at: string;
+  uses: number;
+}
+
+/** The models BYTE lists for PC control: the recommended one first, then by size as the catalog gave them. */
+export function recommendedFirst<T extends { recommended: boolean }>(models: T[]): T[] {
+  return [...models].sort((a, b) => Number(b.recommended) - Number(a.recommended));
+}
+
+/** One line for a note in the list. */
+export function noteLine(n: AppNote): string {
+  const how = n.steps.length
+    ? n.steps.map((s) => (s.kind === "click" ? `click "${s.name}"` : s.kind === "type" ? "type text" : `${s.kind} ${s.name}`.trim())).join(", then ")
+    : "";
+  return [n.goal ? `For "${n.goal}":` : "", how, n.text].filter(Boolean).join(" ");
+}
+
+export const planApi = {
+  selftest: (model: string) => invoke<TestScore>("control_selftest", { model }),
+  selftestStop: () => invoke<void>("control_selftest_stop"),
+  scores: () => invoke<Record<string, TestScore>>("control_scores"),
+  notes: () => invoke<AppNote[]>("control_notes_list"),
+  noteAdd: (program: string, goal: string, text: string) => invoke<AppNote[]>("control_note_add", { program, goal, text }),
+  noteDelete: (id: string) => invoke<AppNote[]>("control_note_delete", { id }),
+  notesClear: () => invoke<void>("control_notes_clear"),
+};
+// --- track:accuracy end ---
 
 export const controlApi = {
   status: () => invoke<ControlStatus>("control_status"),

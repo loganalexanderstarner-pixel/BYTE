@@ -35,6 +35,7 @@ import type { CustomTheme } from "../../lib/customTheme";
 import { ConnectorsTab } from "./ConnectorsTab";
 /* --- track:control begin --- */
 import { ControlSettings } from "./ControlSettings";
+import { PlanningSettings } from "./PlanningSettings"; // track:accuracy
 /* --- track:control end --- */
 import { KnowledgeTab } from "./KnowledgeTab";
 import { ModelLab } from "./ModelLab";
@@ -113,6 +114,7 @@ function GroupBody({ group, about = true }: { group: SettingsGroup; about?: bool
           {about && <AboutTab />}
           <ActionModeRow />
           <ControlSettings settings={settings} />
+          <PlanningSettings settings={settings} /> {/* track:accuracy */}
           <ScreenSettings />
           <BrowserSettings />
           <ConnectorsTab />

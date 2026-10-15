@@ -237,6 +237,20 @@ export interface Settings {
   /** How long one PC-control run may take: "90s" | "3m" | "10m" | "30m" | "1h" | "unlimited". */
   /** Steps allowed in one plan: "12" | "25" | "50" | "100" | "unlimited". */
   controlMaxSteps?: "12" | "25" | "50" | "100" | "unlimited";
+  // --- track:accuracy begin ---
+  /** Where PC-control plans are made: "local" (default) | "cloud" | "auto". */
+  controlPlanWhere?: "local" | "cloud" | "auto";
+  /** Let planning use BYTE Cloud (sends the goal and the window's button names). */
+  controlCloudPlanning?: boolean;
+  /** The one-time confirmation of what cloud planning sends was given. */
+  controlCloudConfirmed?: boolean;
+  /** Per-program notes from runs that worked. */
+  controlAppNotes?: boolean;
+  /** List what BYTE would do instead of doing it. */
+  controlDryRun?: boolean;
+  /** After a stopped run, offer to save what the person did next as a note. */
+  controlLearn?: boolean;
+  // --- track:accuracy end ---
   /** Times a run may re-plan after a step fails: "2" | "5" | "10" | "unlimited". */
   controlMaxReplans?: "2" | "5" | "10" | "unlimited";
   /** Never show an approval card for PC control (program files and a few other things stay refused). */
