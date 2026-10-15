@@ -22,6 +22,9 @@ const CONTEXT: u32 = 8192;
 /// Models picked by catalog id for steady JSON and tool calling (all of them have `tools` in the catalog), smallest first,
 /// with a note of what each is for. Anything else the user has can still be chosen as the control model by key; this is the
 /// list BYTE recommends.
+/// The catalog id BYTE recommends for PC control.
+pub const RECOMMENDED: &str = "qwen3.5-4b";
+
 pub const CAPABLE: &[(&str, &str)] = &[
     ("qwen3.5-2b", "Fastest. Fine for opening things and simple steps."),
     ("qwen3.5-4b", "Recommended: quick and accurate for most voice control."),
@@ -90,6 +93,36 @@ pub fn choose_source(setting: &str, catalog: &Catalog, models_dir: &Path) -> (So
         Ok((m, _)) => (Source::Chat, Some(format!("{} is not downloaded, so the chat model is used", m.name))),
         Err(_) => (Source::Chat, Some("the chosen control model is not in the catalog, so the chat model is used".into())),
     }
+}
+
+/// Below this many billion parameters a model cannot plan PC control reliably (a 0.6B model wrote a 28-step plan for "change the font").
+pub const MIN_PLANNER_B: f32 = 3.0;
+
+/// The recommended control model, in words ("Qwen3.5 4B, about 2.5 GB"), from the catalog.
+pub fn recommended_say(catalog: &Catalog) -> String {
+    let id = RECOMMENDED;
+    match catalog.models.iter().find(|m| m.id == id) {
+        Some(m) => {
+            let size = m.variants.iter().filter(|v| v.bits >= 4.0).map(|v| v.size_bytes).min().or_else(|| m.variants.iter().map(|v| v.size_bytes).min());
+            match size {
+                Some(s) => format!("{} (a download of about {:.1} GB)", m.name, s as f64 / 1e9),
+                None => m.name.clone(),
+            }
+        }
+        None => "Qwen3.5 4B".to_string(),
+    }
+}
+
+/// What to tell the person when the model that plans is too small: which model it is, and how to get a better one. `None` when it is big
+/// enough (or its size is unknown).
+pub fn too_small_say(planner_name: &str, params_b: Option<f32>, catalog: &Catalog) -> Option<String> {
+    let b = params_b?;
+    (b < MIN_PLANNER_B).then(|| {
+        format!(
+            "The model that plans PC control is {planner_name} ({b:.1}B), which is too small to plan reliably. Recommended: {}. Download it in Settings → Models, then choose it under Settings → Control and screen → Model that does the controlling.",
+            recommended_say(catalog)
+        )
+    })
 }
 
 /// Where the control model runs: with `game_ram` on and a game running, on the processor and system memory only; else normal.
@@ -261,6 +294,20 @@ impl ControlBrain {
                 }
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod size_tests {
+    use super::*;
+
+    #[test]
+    fn a_tiny_planner_is_called_out_and_a_good_one_is_not() {
+        let cat = Catalog::embedded();
+        let say = too_small_say("Qwen3 0.6B", Some(0.6), &cat).unwrap();
+        assert!(say.contains("too small") && say.contains("Settings → Models") && say.contains("Model that does the controlling"), "{say}");
+        assert!(too_small_say("Qwen3.5 4B", Some(4.0), &cat).is_none());
+        assert!(too_small_say("Mystery", None, &cat).is_none(), "an unknown size is not blamed");
     }
 }
 

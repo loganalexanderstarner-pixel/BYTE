@@ -204,6 +204,19 @@ pub async fn ask_model(app: &AppHandle, messages: &[Value]) -> AppResult<String>
     }
 }
 
+/// When the model that would plan is too small, what to tell the person (see `brain::too_small_say`).
+pub async fn small_model_say(app: &AppHandle) -> Option<String> {
+    let state = app.state::<AppState>();
+    let setting = state.settings.lock().await.control_model.clone();
+    let catalog = state.catalog.get();
+    let key = match brain::choose_source(&setting, &catalog, &state.paths.models).0 {
+        brain::Source::Own(k) => k,
+        brain::Source::Chat => state.engine.endpoint().await?.model,
+    };
+    let (m, _) = catalog.resolve(&key).ok()?;
+    brain::too_small_say(&m.name, m.params_b, &catalog)
+}
+
 /// Asks the model for a plan and reads it; one correction round when the reply is not a valid plan.
 pub async fn plan_with_model(app: &AppHandle, user: String) -> Result<Vec<Step>, String> {
     let mut messages = vec![json!({"role":"system","content":brain::SYSTEM}), json!({"role":"user","content":user})];
@@ -219,6 +232,9 @@ pub async fn plan_with_model(app: &AppHandle, user: String) -> Result<Vec<Step>,
                 messages.push(json!({"role":"user","content":brain::fix_prompt(&last)}));
             }
         }
+    }
+    if let Some(say) = small_model_say(app).await {
+        return Err(say);
     }
     Err(format!("the control model did not give a usable plan ({last})"))
 }

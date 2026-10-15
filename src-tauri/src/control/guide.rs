@@ -568,6 +568,10 @@ pub async fn route(turn: &Turn<'_>, q: &str, _cancel: &CancellationToken, send: 
         }
         Err(e) => {
             super::activity(app, "Guided help", false, &e);
+            // A model that is too small is the usual reason: say so, with the way to get a better one, instead of answering as if nothing happened.
+            if let Some(say) = super::small_model_say(app).await {
+                return Ok(Some((SourceBook::default(), format!("BYTE tried to plan the steps on the person's screen but could not. {say} Tell the user that in two short sentences, then answer their question briefly from general knowledge."))));
+            }
             return Ok(None);
         }
     };
