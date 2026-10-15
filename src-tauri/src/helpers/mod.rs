@@ -15,6 +15,7 @@ pub mod ask;
 pub mod dialogs;
 pub mod dictate;
 pub mod explain;
+pub mod mic;
 pub mod page;
 pub mod popup;
 pub mod region;

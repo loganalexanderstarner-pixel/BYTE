@@ -136,7 +136,7 @@ mod flow {
             return say(app, "Dictate", "Dictation needs a speech model first: Settings > Models > Voice.".into(), 8_000);
         }
         say(app, "Listening", "Speak now. Let go of the key to type it.".into(), 0);
-        let rec = win::Recording::start();
+        let rec = crate::helpers::mic::Recording::start(crate::helpers::mic::Source::Mic, Some(MAX_SECONDS as usize + 5));
         let Some(rec) = rec else { return say(app, "Dictate", "BYTE couldn't open the microphone.".into(), 6_000) };
         // Wait for the key to be let go.
         let began = std::time::Instant::now();
@@ -155,7 +155,7 @@ mod flow {
             Ok(f) => f.into_temp_path(),
             Err(e) => return say(app, "Dictate", e.to_string(), 6_000),
         };
-        if let Err(e) = crate::wake::write_wav(&wav, &samples) {
+        if let Err(e) = std::fs::write(&wav, crate::helpers::mic::wav16(&samples)) {
             return say(app, "Dictate", e.to_string(), 6_000);
         }
         let heard = crate::voice::transcribe(Some(app), &state.paths.models, &model, &language, &wav).await;
@@ -194,7 +194,6 @@ mod flow {
     pub(super) mod win {
         use super::super::units;
         use super::super::Typer;
-        use std::sync::mpsc;
         use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
         use windows::Win32::UI::Accessibility::{CUIAutomation, IUIAutomation};
         use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, VIRTUAL_KEY, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT};
@@ -245,63 +244,6 @@ mod flow {
                     }
                 }
                 Ok(())
-            }
-        }
-
-        /// The microphone, open only for as long as the key is held.
-        pub struct Recording {
-            stop: mpsc::Sender<()>,
-            done: mpsc::Receiver<Vec<f32>>,
-        }
-
-        impl Recording {
-            pub fn start() -> Option<Recording> {
-                let (stop, stop_rx) = mpsc::channel::<()>();
-                let (done_tx, done) = mpsc::channel::<Vec<f32>>();
-                let (ready_tx, ready_rx) = mpsc::channel::<bool>();
-                std::thread::spawn(move || {
-                    use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-                    let (tx, rx) = mpsc::channel::<Vec<f32>>();
-                    let stream = (|| {
-                        let dev = cpal::default_host().default_input_device()?;
-                        let cfg = dev.default_input_config().ok()?;
-                        let (rate, channels) = (cfg.sample_rate(), cfg.channels() as usize);
-                        let s = dev
-                            .build_input_stream(
-                                cfg.into(),
-                                move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                                    let mono: Vec<f32> = data.chunks(channels.max(1)).map(|c| c.iter().sum::<f32>() / c.len() as f32).collect();
-                                    let _ = tx.send(crate::wake::downsample(&mono, rate));
-                                },
-                                |e| log::warn!("dictation mic: {e}"),
-                                None,
-                            )
-                            .ok()?;
-                        s.play().ok()?;
-                        Some(s)
-                    })();
-                    let _ = ready_tx.send(stream.is_some());
-                    let Some(_stream) = stream else { return };
-                    let mut all: Vec<f32> = Vec::new();
-                    loop {
-                        while let Ok(c) = rx.try_recv() {
-                            all.extend(c);
-                        }
-                        if stop_rx.recv_timeout(std::time::Duration::from_millis(20)).is_ok() {
-                            break;
-                        }
-                    }
-                    while let Ok(c) = rx.try_recv() {
-                        all.extend(c);
-                    }
-                    let _ = done_tx.send(all);
-                });
-                ready_rx.recv_timeout(std::time::Duration::from_secs(3)).ok().filter(|ok| *ok).map(|_| Recording { stop, done })
-            }
-
-            pub fn finish(self) -> Vec<f32> {
-                let _ = self.stop.send(());
-                self.done.recv_timeout(std::time::Duration::from_secs(3)).unwrap_or_default()
             }
         }
 
