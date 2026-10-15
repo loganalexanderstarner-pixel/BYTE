@@ -1,6 +1,9 @@
 // The tutorial: one short walkthrough per feature, a "do them all" run, and what the person has finished.
 // Pure data and helpers (no React): the screen is components/help/Tutorial.tsx.
 import type { Os } from "./platform";
+// --- track:found begin ---
+import { FOUND_TUTORIALS } from "./tutorial-found";
+// --- track:found end ---
 
 export type LinkKind =
   | { kind: "setting"; tab: string; label: string }
@@ -277,6 +280,9 @@ export const TUTORIALS: Tutorial[] = [
       { id: "more", title: "More help", body: ["The Help window has an article for every feature, and it works offline. You can also just ask BYTE how to do something."], links: [H("getting-started", "Open the help articles")] },
     ],
   },
+  // --- track:found begin ---
+  ...FOUND_TUTORIALS,
+  // --- track:found end ---
 ];
 
 // ---------------------------------------------------------------- filtering
