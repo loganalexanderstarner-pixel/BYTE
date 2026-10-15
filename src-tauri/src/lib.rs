@@ -402,6 +402,11 @@ pub fn run() {
             control::guide::guide_do,
             control::guide::guide_dismiss,
             control::guide::guide_command,
+            // --- track:autonomy begin ---
+            control::auto::cmd::auto_rules_list,
+            control::auto::cmd::auto_rule_remove,
+            control::auto::cmd::auto_rules_clear,
+            // --- track:autonomy end ---
             // --- track:control end ---
             commands::engine_live,
             lab::lab_inspect,

@@ -9,6 +9,9 @@
 //! setting). Everything that touches Windows sits behind a trait, so the logic runs under test on any system.
 
 pub mod actions;
+// --- track:autonomy begin ---
+pub mod auto;
+// --- track:autonomy end ---
 pub mod brain;
 pub mod com;
 pub mod executor;
@@ -81,6 +84,13 @@ pub fn kill_now(app: &AppHandle) {
 pub fn settings_now(app: &AppHandle) -> Option<crate::settings::Settings> {
     app.state::<AppState>().settings.try_lock().ok().map(|s| s.clone())
 }
+
+// --- track:autonomy begin ---
+/// Programs BYTE never touches or reads: the shared never-touch list (the screen exclusions in Settings). Autonomous jobs refuse them.
+pub fn never_touch_apps(settings: &crate::settings::Settings) -> Vec<String> {
+    settings.screen_exclude_apps.clone()
+}
+// --- track:autonomy end ---
 
 pub fn enabled(app: &AppHandle) -> bool {
     settings_now(app).is_some_and(|s| s.pc_control)
@@ -249,16 +259,42 @@ impl Replanner for ModelReplanner<'_> {
     }
 }
 
-/// The approval card, through the same card the Mac and PC actions use.
+/// The approval card, through the same card the Mac and PC actions use. With a rule store, "Approve and don't ask again" is offered
+/// on cards for steps that may be remembered, and a saved rule answers without a card.
 struct CardApprover<'a> {
     cancel: &'a CancellationToken,
     send: Emit<'a>,
+    // --- track:autonomy begin ---
+    rules: Option<(auto::rules::RuleStore, String)>,
+    // --- track:autonomy end ---
 }
 
 impl Approver for CardApprover<'_> {
     fn approve<'a>(&'a self, title: &'a str, fields: Vec<(String, String)>) -> BoxFuture<'a, bool> {
         Box::pin(async move { crate::macctl::ask_ok(title, "PC control", fields, self.cancel, self.send).await.unwrap_or(false) })
     }
+
+    // --- track:autonomy begin ---
+    fn approve_step<'a>(&'a self, title: &'a str, mut fields: Vec<(String, String)>, key: Option<auto::rules::RuleKey>) -> BoxFuture<'a, bool> {
+        Box::pin(async move {
+            let (Some((store, user)), Some(key)) = (&self.rules, &key) else { return self.approve(title, fields).await };
+            if store.matches(key, user) {
+                return true;
+            }
+            // The card shows the second button when it carries this marker field (the card hides it and shows the rule in words).
+            fields.push((auto::REMEMBER_FIELD.into(), auto::rules::describe(key)));
+            match crate::macctl::ask_ok_edit(title, "PC control", fields, &[], self.cancel, self.send).await {
+                Ok((true, edits)) => {
+                    if edits.iter().any(|f| f.label == auto::REMEMBER_FIELD) {
+                        let _ = store.add(key, user);
+                    }
+                    true
+                }
+                _ => false,
+            }
+        })
+    }
+    // --- track:autonomy end ---
 }
 
 /// What a run needs from its caller.
@@ -312,11 +348,12 @@ async fn run_steps(app: &AppHandle, settings: &crate::settings::Settings, steps:
     let screen: std::sync::Arc<dyn uia::Screen> = real_screen().into();
     let input: std::sync::Arc<dyn input::Input> = real_input().into();
     let launcher: std::sync::Arc<dyn Launcher> = std::sync::Arc::new(PcLauncher);
-    let approver = CardApprover { cancel: ctx.cancel, send: ctx.send };
+    let approver = CardApprover { cancel: ctx.cancel, send: ctx.send, rules: Some((auto::rules::RuleStore::new(auto::rules_file(app)), auto::user_id(app))) }; // track:autonomy
     let replanner = ModelReplanner { app };
     let clock = executor::RealClock(std::time::Instant::now());
     let env = executor::Env { screen, input, launcher, approver: &approver, replanner: &replanner, log: activity_log(app), clock: &clock, stop: &STOP };
-    let cfg = executor::Config { goal: ctx.goal.clone(), allowed_apps: settings.control_allowed_apps.clone(), confirm_risky: settings.control_confirm_risky, max_run_ms: Some(executor::run_limit_ms(&settings.control_run_limit)), max_replans: Some(executor::replan_limit(&settings.control_max_replans)), never_ask: settings.control_never_ask };
+    let level = auto::level::Level::from_settings(&settings.control_autonomy, settings.control_never_ask); // track:autonomy
+    let cfg = executor::Config { goal: ctx.goal.clone(), allowed_apps: settings.control_allowed_apps.clone(), confirm_risky: settings.control_confirm_risky, max_run_ms: Some(executor::run_limit_ms(&settings.control_run_limit)), max_replans: Some(executor::replan_limit(&settings.control_max_replans)), never_ask: settings.control_never_ask || level == auto::level::Level::Never, policy: auto::chat_policy(settings, level) }; // track:autonomy
     let report = executor::run(&env, &cfg, steps).await;
     watcher.abort();
     set_active(app, false, "");

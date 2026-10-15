@@ -134,6 +134,9 @@ windows = { version = "0.62", features = [
   # control/: UI Automation (read the front window), lock and sleep.
   "Win32_UI_Accessibility", "Win32_System_Shutdown", "Win32_Graphics_Dwm",
   # --- track:control end ---
+  # --- track:autonomy begin --- control/auto: the system clock for "the person is using the PC" (GetLastInputInfo).
+  "Win32_System_SystemInformation",
+  # --- track:autonomy end ---
   # --- track:screen begin --- screen/wgc.rs: Windows.Graphics.Capture (what OBS and the Game Bar use; nothing is injected into games),
   # Direct3D 11 to read the frame, GDI for the fallback, input desktop to see a locked screen.
   "Graphics_Capture", "Graphics_DirectX", "Graphics_DirectX_Direct3D11", "Win32_Graphics_Direct3D", "Win32_Graphics_Direct3D11",

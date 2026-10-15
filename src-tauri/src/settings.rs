@@ -478,6 +478,33 @@ pub struct Settings {
     /// Guided help (control/guide.rs): a how-to question about the window in front gets an offer to ring each button in turn, or do it.
     pub guided_help: bool,
     // --- track:control end ---
+    // --- track:autonomy begin ---
+    /// How much BYTE asks while controlling the PC: "ask" (risky steps), "contract" (only outside a run contract) or "never".
+    #[serde(default = "default_control_autonomy")]
+    pub control_autonomy: String,
+    /// Autonomous mode (jobs that run stage after stage). Off until the person has read and accepted the notice.
+    pub auto_mode: bool,
+    /// The person read and accepted the autonomous-mode notice.
+    pub auto_accepted: bool,
+    /// The global key that stops a running job.
+    #[serde(default = "default_auto_stop_key")]
+    pub auto_stop_key: String,
+    /// Pause a job when the person uses the mouse or keyboard (best effort).
+    pub auto_pause_on_input: bool,
+    /// Keep the PC awake while a job runs.
+    #[serde(default = "yes")]
+    pub auto_keep_awake: bool,
+    /// A notification when a job waits for an answer or ends.
+    #[serde(default = "yes")]
+    pub auto_notify: bool,
+    /// Read the morning report aloud when a job ends.
+    pub auto_speak_report: bool,
+    /// Stages in one job: "10" (default), "25", "50" or "unlimited".
+    #[serde(default = "default_auto_max_stages")]
+    pub auto_max_stages: String,
+    /// "Watch me do this once": record the person's own steps as a routine. Off until chosen.
+    pub macro_recorder: bool,
+    // --- track:autonomy end ---
 }
 
 fn valid_theme(t: &serde_json::Value) -> bool {
@@ -657,6 +684,18 @@ impl Default for Settings {
             pc_status: true,
             guided_help: false,
             // --- track:control end ---
+            // --- track:autonomy begin ---
+            control_autonomy: default_control_autonomy(),
+            auto_mode: false,
+            auto_accepted: false,
+            auto_stop_key: default_auto_stop_key(),
+            auto_pause_on_input: false,
+            auto_keep_awake: true,
+            auto_notify: true,
+            auto_speak_report: false,
+            auto_max_stages: default_auto_max_stages(),
+            macro_recorder: false,
+            // --- track:autonomy end ---
         }
     }
 }
@@ -768,6 +807,20 @@ fn default_voice_where() -> String {
 fn default_wake_show_window() -> bool {
     cfg!(target_os = "macos")
 }
+
+// --- track:autonomy begin ---
+fn default_control_autonomy() -> String {
+    "ask".into()
+}
+
+fn default_auto_stop_key() -> String {
+    "Ctrl+Alt+F12".into()
+}
+
+fn default_auto_max_stages() -> String {
+    "10".into()
+}
+// --- track:autonomy end ---
 
 fn default_control_max_steps() -> String {
     "12".into()
