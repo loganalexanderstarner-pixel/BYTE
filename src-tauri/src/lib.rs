@@ -139,6 +139,10 @@ mod shortcut_make;
 mod background;
 mod trackers;
 mod connectors;
+// --- track:connect begin ---
+mod messaging;
+mod triggers;
+// --- track:connect end ---
 mod dashboard;
 mod bundled;
 mod diagnostics;
@@ -240,6 +244,10 @@ pub fn run() {
             // --- track:voice end ---
             lock::start(app.handle().clone(), settings_now.lock_enabled);
             clipboard::watch(app.handle().clone());
+            // --- track:connect begin ---
+            messaging::commands::init(app.handle());
+            triggers::run::start(app.handle().clone());
+            // --- track:connect end ---
             // Reminders, the daily briefing and scheduled questions.
             scheduler::start(app.handle().clone());
             timers::resume(app.handle().clone());
@@ -629,6 +637,29 @@ pub fn run() {
             connectors::notion_disconnect,
             connectors::calendar_link_add,
             connectors::calendar_link_remove,
+            // --- track:connect begin ---
+            messaging::commands::connect_status,
+            messaging::commands::connect_token_set,
+            messaging::commands::connect_email_set,
+            messaging::commands::connect_channels,
+            messaging::commands::connect_set,
+            messaging::commands::connect_forget,
+            messaging::commands::connect_log,
+            messaging::commands::connect_log_clear,
+            messaging::commands::connect_post_test,
+            messaging::commands::connect_pending,
+            messaging::commands::connect_pending_yes,
+            messaging::commands::connect_pending_no,
+            messaging::commands::connect_mailto,
+            messaging::commands::jobs_pause,
+            triggers::commands::autojobs_list,
+            triggers::commands::autojob_save,
+            triggers::commands::autojob_delete,
+            triggers::commands::autojob_toggle,
+            triggers::commands::autojob_run,
+            triggers::commands::autojob_runs,
+            triggers::commands::autojob_digest_template,
+            // --- track:connect end ---
             dashboard::dashboard_summary,
             dashboard::dashboard_today,
             dashboard::dashboard_usage,

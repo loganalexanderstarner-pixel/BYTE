@@ -43,6 +43,12 @@ walkdir = "2"
 tower-service = "0.3"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls-native-roots", "gzip", "brotli", "http2", "charset", "multipart"] }
 
+# --- track:connect begin ---
+# Email (IMAP) over TLS for the mail connector (messaging/email.rs); both are already in the lockfile through reqwest.
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+rustls-native-certs = "0.8"
+# --- track:connect end ---
+
 sysinfo = "0.39"
 sha2 = "0.10"
 chrono = { version = "0.4", features = ["serde"] }

@@ -342,7 +342,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         Some(app) if !cfg!(mobile) && turn.web && turn.agent && (turn.task == Some(Task::Browse) || crate::web_agent::wants_web_agent(&question) || research.is_some()) => Some(open_session(app, &bcfg).await?),
         _ => None,
     };
-    let specs = match &session {
+    let mut specs = match &session {
         Some(_) => {
             let mut v: Vec<Value> = tools::specs(true, false, false, false).into_iter().filter(|s| [tools::WEB_SEARCH, tools::CALCULATE].contains(&s["function"]["name"].as_str().unwrap_or(""))).collect();
             v.extend(crate::web_agent::specs());
@@ -358,6 +358,9 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
             v
         }
     };
+    // --- track:connect begin --- unattended work (jobs, phone requests) only offers the tool groups it was given
+    crate::triggers::toolbox::filter_specs(&mut specs);
+    // --- track:connect end ---
     let tool_rounds = session.as_ref().map(|s| s.max_steps()).unwrap_or(lim.tool_rounds);
     let mut messages = chat::base_messages(turn.system, turn.history);
     let extra_rules = match (&session, turn.task) {
@@ -698,6 +701,12 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
             let name = call["function"]["name"].as_str().unwrap_or_default().to_string();
             let raw = call["function"]["arguments"].as_str().unwrap_or("{}");
             let args: Value = serde_json::from_str(raw).unwrap_or_else(|_| json!({ "raw": raw }));
+            // --- track:connect begin ---
+            if !crate::triggers::toolbox::allowed(&name) {
+                messages.push(json!({ "role": "tool", "tool_call_id": id, "content": crate::triggers::toolbox::REFUSED }));
+                continue;
+            }
+            // --- track:connect end ---
             if name == tools::WEB_SEARCH {
                 let q = args.get("query").and_then(Value::as_str).unwrap_or("").to_string();
                 // Out of searches, or the same search again: answer from what's there.
