@@ -254,6 +254,7 @@ pub fn run() {
             // --- track:voice end ---
             // --- track:found begin ---
             found::power::start(app.handle());
+            found::approval::start(app.handle());
             // --- track:found end ---
             lock::start(app.handle().clone(), settings_now.lock_enabled);
             clipboard::watch(app.handle().clone());
@@ -514,6 +515,7 @@ pub fn run() {
             found::whatsnew::whatsnew_status,
             found::whatsnew::whatsnew_seen,
             found::power::power_status,
+            found::approval::approval_pop_state,
             found::remove::data_remove_plan,
             found::remove::data_remove,
             // --- track:found end ---

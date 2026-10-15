@@ -61,4 +61,17 @@ export const FOUND_TUTORIALS: Tutorial[] = [
       { id: "model", title: "A smaller model", body: ["The badge can switch to a smaller model you already downloaded, which uses less power. Switch back in Models and speed any time."], links: [S("models", "Open Models and speed")] },
     ],
   },
+  {
+    id: "approval-popup",
+    title: "Approvals: the popup and your voice",
+    promise: "Say yes or no to BYTE without switching windows",
+    minutes: 3,
+    icon: "shield",
+    os: "windows",
+    steps: [
+      { id: "why", title: "When BYTE asks", body: ["Before BYTE does something risky it asks for a yes. If BYTE's window is not in front, the question also appears as a small popup in the corner of your screen."] },
+      { id: "answer", title: "Answer it", body: ["- Click Do it or Don't.", "- Or press Ctrl+Alt+Y for yes and Ctrl+Alt+N for no from anywhere.", "The popup never takes the keyboard from what you are typing. If the time runs out the answer is no."], example: "Ctrl+Alt+Y" },
+      { id: "voice", title: "Answer by voice (off by default)", body: ["Turn on Speak and listen for approvals, and BYTE says the question and listens for yes or no. It needs Hey BYTE turned on.", "Only a short, clear yes or no counts."], links: [S("general", "Open General"), H("approval-popup", "Read about approvals")], check: { id: "heyByteOn", label: "Hey BYTE is on" } },
+    ],
+  },
 ];

@@ -252,6 +252,10 @@ export interface Settings {
   /* --- track:found begin --- */
   /** Laptop mode: on battery, pause Hey BYTE listening and the screen replay and suggest a smaller model. Off by default. */
   laptopMode?: boolean;
+  /** A small always-on-top popup for an approval while BYTE's window is not in front (on by default). */
+  approvalPopup?: boolean;
+  /** Speak the approval question and accept a spoken yes or no (needs Hey BYTE; off by default). */
+  approvalVoice?: boolean;
   /* --- track:found end --- */
 }
 

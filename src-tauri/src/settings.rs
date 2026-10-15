@@ -481,6 +481,10 @@ pub struct Settings {
     // --- track:found begin --- all off by default, device-local (not in the profile sync)
     /// Laptop mode: on battery, pause "Hey BYTE" listening and the screen replay, and suggest a smaller model (found/power.rs).
     pub laptop_mode: bool,
+    /// Show a small always-on-top popup for an approval when BYTE's window is not in front (found/approval.rs).
+    pub approval_popup: bool,
+    /// Also speak the approval question and accept a spoken yes or no (needs Hey BYTE on). Off by default.
+    pub approval_voice: bool,
     // --- track:found end ---
 }
 
@@ -663,6 +667,8 @@ impl Default for Settings {
             // --- track:control end ---
             // --- track:found begin ---
             laptop_mode: false,
+            approval_popup: true,
+            approval_voice: false,
             // --- track:found end ---
         }
     }

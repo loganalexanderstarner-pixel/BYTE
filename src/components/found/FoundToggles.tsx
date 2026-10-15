@@ -14,6 +14,20 @@ export function FoundToggles() {
         </span>
         <input type="checkbox" checked={settings?.laptopMode ?? false} onChange={(e) => void update({ laptopMode: e.target.checked })} aria-label="Laptop mode" />
       </label>
+      <label className="field">
+        <span>
+          Approval popup
+          <small>When BYTE needs a yes or no and its window is not in front, a small popup appears on top with Do it and Don't. It does not take the keyboard from what you are typing; press Ctrl+Alt+Y or Ctrl+Alt+N to answer from anywhere. It counts as “no” when the time runs out, and nothing is ever approved by itself.</small>
+        </span>
+        <input type="checkbox" checked={settings?.approvalPopup ?? true} onChange={(e) => void update({ approvalPopup: e.target.checked })} aria-label="Approval popup" />
+      </label>
+      <label className="field">
+        <span>
+          Speak and listen for approvals
+          <small>BYTE also says what it wants to do and listens for a spoken “yes” or “no”, the same way it listens after “Hey BYTE” (so Hey BYTE must be on). Off until you turn it on.</small>
+        </span>
+        <input type="checkbox" checked={settings?.approvalVoice ?? false} disabled={!settings?.wakeWord} onChange={(e) => void update({ approvalVoice: e.target.checked })} aria-label="Speak and listen for approvals" />
+      </label>
     </div>
   );
 }

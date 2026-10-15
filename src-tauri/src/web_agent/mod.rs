@@ -253,6 +253,9 @@ pub(crate) async fn ask(ask: ApprovalAsk, wait: Duration, cancel: &CancellationT
     }
     let id = ask.id.clone();
     let rx = wait_for(&id);
+    // --- track:found begin --- the on-screen popup (and the spoken question) for this approval; closes when this returns
+    let _popup = crate::found::approval::open(&ask, wait);
+    // --- track:found end ---
     send(ChatEvent::Approval(ask))?;
     let ok = tokio::select! {
         r = rx => r.unwrap_or(false),

@@ -16,6 +16,8 @@ import { MicButton, type MicHandle } from "./MicButton";
 import { isStopPhrase, isDone } from "../../lib/handsfree";
 import { isTaught, parseFocusCommand } from "../../lib/voiceFocus"; // track:voice
 import { whoIsSpeaking } from "../../lib/voiceId"; // track:voice
+import { listen } from "@tauri-apps/api/event"; // track:found
+import { approvalVoice, type VoiceAsk } from "../../lib/approvalVoice"; // track:found
 import { TurnJoiner, type JoinAction } from "../../lib/turnJoin"; // track:voice
 import type { Mode, ThinkingPref } from "../../lib/types";
 import { canSpeak, cutSpeech, spaceOf, useStore, workspaceOf } from "../../state/store";
@@ -202,7 +204,29 @@ export function Composer() {
       // wake.rs keeps listening on its own stream and sends the turn as `wake://utterance`.
       mic.current?.listening();
     });
-    const turn = api.onWakeUtterance((wav) => mic.current?.heard(wav));
+    // --- track:found begin --- a spoken approval question is waiting: the next thing heard answers it instead of starting a turn
+    const turn = api.onWakeUtterance((wav) => {
+      if (!approvalVoice.pending()) return mic.current?.heard(wav);
+      if (!wav) return void api.wakeListen(5000).catch(() => undefined);
+      void api
+        .voiceTranscribe(wav)
+        .catch(() => "")
+        .then(async (text) => {
+          const r = approvalVoice.hear(text);
+          if (r.say) await api.speechSay(r.say).catch(() => undefined);
+          if (r.listenAgain) void api.wakeListen(8000).catch(() => undefined);
+        });
+    });
+    const approval = listen<VoiceAsk>("found://approval-voice", (e) => {
+      // Only the quick window hears the wake listener's utterances, so only it asks.
+      if (getCurrentWebview().label !== "quick") return;
+      approvalVoice.begin(e.payload.id);
+      void api
+        .speechSay(e.payload.question)
+        .catch(() => undefined)
+        .then(() => api.wakeListen(Math.min(15_000, Math.max(3_000, e.payload.waitMs))).catch(() => undefined));
+    });
+    // --- track:found end ---
     // --- track:voice begin ---
     const barge = api.onWakeBarge(() => {
       const st = useStore.getState();
@@ -232,6 +256,7 @@ export function Composer() {
       void barge.then((f) => f()); // track:voice
       void off.then((f) => f());
       void turn.then((f) => f());
+      void approval.then((f) => f()); // track:found
     };
   }, []);
   const send = useStore((s) => s.send);
