@@ -205,6 +205,9 @@ pub async fn house_backup_restore(app: AppHandle, state: State<'_, AppState>, pa
     for e in state.extras.all().await {
         e.stop().await;
     }
+    // --- track:found begin ---
+    crate::found::crash::clean_exit();
+    // --- track:found end ---
     app.restart();
 }
 

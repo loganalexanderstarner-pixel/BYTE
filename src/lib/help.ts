@@ -57,7 +57,7 @@ export const HELP_SECTIONS: { title: string; ids: string[] }[] = [
   { title: "Controlling your PC", ids: ["mac-control", "pc-control", "browser", "screen", "commands-or-conversation"] },
   { title: "Models and speed", ids: ["models", "gaming-and-model-memory"] },
   { title: "Account, privacy and style", ids: ["cloud", "privacy", "personality"] },
-  { title: "Fixing problems", ids: ["troubleshooting"] },
+  { title: "Fixing problems", ids: ["safe-mode-and-crashes", "troubleshooting"] },
 ];
 
 /** The articles in the order of HELP_SECTIONS, each section with its articles (empty sections left out). */

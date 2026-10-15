@@ -102,7 +102,9 @@ pub async fn update_install(app: AppHandle, state: State<'_, AppState>) -> AppRe
                 got += chunk as u64;
                 let _ = progress.emit(PROGRESS_EVENT, Progress { got, total });
             },
-            || {},
+            // --- track:found begin --- on Windows the installer ends this process itself, so the exit is marked as clean first
+            crate::found::crash::clean_exit,
+            // --- track:found end ---
         )
         .await
         .map_err(|e| {
@@ -118,6 +120,9 @@ pub async fn update_install(app: AppHandle, state: State<'_, AppState>) -> AppRe
     for e in state.extras.all().await {
         e.stop().await;
     }
+    // --- track:found begin ---
+    crate::found::crash::clean_exit();
+    // --- track:found end ---
     app.restart();
 }
 

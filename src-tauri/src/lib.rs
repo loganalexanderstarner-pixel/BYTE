@@ -142,6 +142,9 @@ mod connectors;
 mod dashboard;
 mod bundled;
 mod diagnostics;
+// --- track:found begin ---
+mod found;
+// --- track:found end ---
 
 use tauri::{Manager, RunEvent};
 
@@ -149,6 +152,9 @@ use crate::state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // --- track:found begin ---
+    found::crash::install_hook();
+    // --- track:found end ---
     let app = tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -205,6 +211,9 @@ pub fn run() {
             if let Err(e) = backup::apply_pending(&paths.data) {
                 log::error!("couldn't finish the restore/erase: {e}");
             }
+            // --- track:found begin --- notes an unclean last exit, then marks this run as started
+            found::crash::begin(&paths.root);
+            // --- track:found end ---
             let state = AppState::new(paths);
             // --- track:house begin ---
             let _ = housebackup::apply_staged(&state);
@@ -488,6 +497,13 @@ pub fn run() {
             busy::pc_busy,
             // --- track:house begin ---
             diskhints::disk_items,
+            // --- track:found begin ---
+            found::safe::safe_mode_status,
+            found::safe::safe_mode_restart,
+            found::crash::crash_status,
+            found::crash::crash_dismiss,
+            found::crash::crash_report_build,
+            // --- track:found end ---
             problemreport::problem_report_build,
             problemreport::problem_report_save,
             housebackup::house_backup_save,
@@ -677,6 +693,9 @@ pub fn run() {
             background::show_main(handle);
         }
         if let RunEvent::Exit = event {
+            // --- track:found begin ---
+            found::crash::clean_exit();
+            // --- track:found end ---
             if let Some(state) = handle.try_state::<AppState>() {
                 state.engine.kill_now();
                 state.extras.kill_all_now();

@@ -23,6 +23,9 @@ import { bars } from "../../lib/dashboard";
 import { onMac, useStore, type SettingsGroup, type SettingsTab } from "../../state/store";
 import { TABS } from "./tabs";
 /* --- track:house begin --- */
+// --- track:found begin ---
+import { FoundBackupCards } from "../found/FoundSettings";
+// --- track:found end ---
 import { BackupRestoreCard, FreeUpSpace, HouseToggles, ProblemReportCard } from "./HouseSettings";
 /* --- track:house end --- */
 import { CatalogBrowser } from "../models/CatalogBrowser";
@@ -1112,6 +1115,11 @@ function AboutTab() {
         <ProblemReportCard />
       </G>
       {/* --- track:house end --- */}
+      {/* --- track:found begin --- */}
+      <G g="backup">
+        <FoundBackupCards />
+      </G>
+      {/* --- track:found end --- */}
       <G g="general">
       <div className="section">
         <h4>In the background</h4>

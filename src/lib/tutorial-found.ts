@@ -21,4 +21,17 @@ export const FOUND_TUTORIALS: Tutorial[] = [
       { id: "later", title: "Change your mind later", body: ["Every feature has its own switch. If you skipped one, turn it on later in Settings. Skipping never counts as a no."], links: [S("voice", "Open Voice and Hey BYTE"), S("control", "Open Control and screen")] },
     ],
   },
+  {
+    id: "safe-mode",
+    title: "Safe mode and crash recovery",
+    promise: "Start BYTE with every optional feature off, and send a report after a crash",
+    minutes: 3,
+    icon: "lifebuoy",
+    steps: [
+      { id: "what", title: "What safe mode does", body: ["Safe mode starts BYTE with everything that listens, looks at the screen or controls things switched off for that run.", "Your saved settings are not changed. A normal start brings them all back."] },
+      { id: "start", title: "Start it", body: ["- Press Restart in safe mode in Backup and help.", "- Or start BYTE with the option --safe.", "A banner at the top tells you it is on, with a button to restart normally."], links: [S("backup", "Open Backup and help")] },
+      { id: "use", title: "When it helps", body: ["If BYTE keeps closing, start it in safe mode. If it works, one of the optional features was the cause: turn them back on one at a time."], ifStuck: "Safe mode refuses to turn those features on. Restart normally first." },
+      { id: "crash", title: "After BYTE closes unexpectedly", body: ["Next time you open BYTE it says it closed unexpectedly and offers to prepare a problem report.", "You read the whole report, can change it, and save it to a file. Nothing is sent anywhere."], links: [H("safe-mode-and-crashes", "Read about safe mode and crashes")] },
+    ],
+  },
 ];

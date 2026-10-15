@@ -676,7 +676,9 @@ impl Settings {
     /// half-written settings file behind.
     pub fn save(&self, path: &Path) -> AppResult<()> {
         let tmp = path.with_extension("json.tmp");
-        std::fs::write(&tmp, serde_json::to_vec_pretty(self)?)?;
+        // --- track:found begin --- in safe mode the file keeps what the person saved (found/safe.rs)
+        std::fs::write(&tmp, serde_json::to_vec_pretty(&crate::found::safe::for_disk(self)?)?)?;
+        // --- track:found end ---
         std::fs::rename(&tmp, path)?;
         Ok(())
     }

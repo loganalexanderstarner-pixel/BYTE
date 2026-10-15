@@ -38,6 +38,9 @@ import { osText } from "../lib/platform";
 import { TimersPanel } from "../components/TimersPanel";
 /* --- track:control begin --- */
 import { ControlBanner } from "../components/ControlBanner";
+// --- track:found begin ---
+import { FoundOverlays } from "../components/found/FoundOverlays";
+// --- track:found end ---
 /* --- track:control end --- */
 /* track:screen */ import { ReplayBadge } from "../components/ReplayBadge";
 
@@ -723,6 +726,9 @@ export function Shell() {
           </div>
         )}
         {!kids && <TimersPanel />}
+        {/* --- track:found begin --- */}
+        <FoundOverlays />
+        {/* --- track:found end --- */}
         {/* --- track:control begin --- */}
         {!kids && <ControlBanner />}
         {/* --- track:control end --- */}
