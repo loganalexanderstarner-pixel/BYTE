@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>BYTE guide</title>
+<style>
+  html, body { margin: 0; background: transparent; overflow: hidden; font: 600 13px "Segoe UI", system-ui, sans-serif; user-select: none; pointer-events: none; }
+  #ring { position: absolute; border-radius: 8px; border: 3px solid #4aa8ff; box-shadow: 0 0 12px 3px rgba(74, 168, 255, 0.85); animation: glow 1.2s ease-in-out infinite; display: none; }
+  #cap { position: absolute; left: 0; right: 0; box-sizing: border-box; padding: 8px 12px; border-radius: 10px; background: rgba(14, 16, 24, 0.9); color: #e8ecf4; box-shadow: 0 0 10px rgba(0, 0, 0, 0.45); display: none; }
+  #hint { display: block; margin-top: 3px; font-weight: 400; font-size: 11px; color: #9aa3b6; }
+  @keyframes glow { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { #ring { animation: none; } }
+</style>
+</head>
+<body>
+<div id="ring"></div>
+<div id="cap"><span id="text"></span><span id="hint"></span></div>
+<script>
+  window.setGuide = function (g) {
+    var ring = document.getElementById("ring"), cap = document.getElementById("cap");
+    if (!g) { ring.style.display = "none"; cap.style.display = "none"; return; }
+    if (g.ring) {
+      ring.style.display = "block";
+      ring.style.left = g.ring.x - 3 + "px"; ring.style.top = g.ring.y - 3 + "px";
+      ring.style.width = g.ring.w + "px"; ring.style.height = g.ring.h + "px";
+    } else { ring.style.display = "none"; }
+    cap.style.display = "block";
+    document.getElementById("text").textContent = "Step " + g.n + " of " + g.total + ": " + g.text;
+    document.getElementById("hint").textContent = g.hint;
+    if (g.below) { cap.style.top = ""; cap.style.bottom = "0"; } else { cap.style.bottom = ""; cap.style.top = "0"; }
+  };
+</script>
+</body>
+</html>

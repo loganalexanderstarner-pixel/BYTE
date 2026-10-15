@@ -1,0 +1,15 @@
+{
+  "bundle": {
+    "targets": ["deb", "appimage"],
+    "longDescription": "BYTE runs a capable AI model entirely on your PC. It searches the web to stay current, writes real documents, remembers your conversations, and reads your files — all on-device.",
+    "linux": {
+      "deb": {
+        "section": "utils",
+        "recommends": ["libvulkan1", "gnome-keyring | kwalletmanager"]
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
+  }
+}

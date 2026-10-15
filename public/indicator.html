@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>BYTE listening</title>
+<style>
+  html, body { margin: 0; background: transparent; overflow: hidden; font: 600 12px "Segoe UI", system-ui, sans-serif; user-select: none; }
+  #pill { display: flex; align-items: center; gap: 8px; height: 26px; margin: 4px; padding: 0 12px; border-radius: 14px;
+    background: rgba(14, 16, 24, 0.86); color: #e8ecf4; box-shadow: 0 0 10px rgba(0, 0, 0, 0.45); opacity: 0; transition: opacity 0.18s; }
+  #pill.on { opacity: 1; }
+  #dot { width: 9px; height: 9px; border-radius: 50%; background: #8a93a6; }
+  .listening #dot { background: #3ddc97; animation: pulse 1s ease-in-out infinite; }
+  .thinking #dot { background: #f5b942; animation: pulse 0.6s ease-in-out infinite; }
+  .speaking #dot { background: #4aa8ff; animation: pulse 1.4s ease-in-out infinite; }
+  .call #dot { background: #8a93a6; }
+  .call { color: #aab2c3; }
+  @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: 0.7; } 50% { transform: scale(1.25); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { #dot { animation: none !important; } }
+</style>
+</head>
+<body>
+<div id="pill"><span id="dot"></span><span id="label"></span></div>
+<script>
+  var labels = { listening: "Listening", thinking: "Thinking", speaking: "Speaking", call: "In a call: Hey BYTE is off" };
+  window.setPill = function (state) {
+    var p = document.getElementById("pill");
+    if (!labels[state]) { p.className = ""; return; }
+    p.className = "on " + state;
+    document.getElementById("label").textContent = labels[state];
+  };
+</script>
+</body>
+</html>

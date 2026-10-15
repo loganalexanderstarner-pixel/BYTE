@@ -1,0 +1,127 @@
+name: CI
+
+# Runs once per push (the repo is public, so Actions minutes are free); a
+# pull_request trigger too would run every push twice. Docs-only pushes skip it.
+on:
+  push:
+    branches: ["**"]
+    tags-ignore: ["**"]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "tools/ui-shots/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  frontend:
+    name: Frontend (types, tests, build)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: No secrets in the repository (it's public)
+        run: scripts/check-secrets.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx vitest run
+      - run: npm run build
+
+  rust:
+    # Unit tests run on Linux: GitHub bills macOS minutes at 10x on private
+    # repositories. The real-engine test runs on macOS in mac-engine.yml.
+    name: Rust unit tests (Linux)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: System libraries for Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libsoup-3.0-dev
+      - name: Placeholder engine sidecar (tauri-build requires the file)
+        run: |
+          mkdir -p src-tauri/binaries dist && echo "<!doctype html>" > dist/index.html
+          for b in llama-server whisper-cli sherpa-diarize sherpa-tts; do touch src-tauri/binaries/$b-x86_64-unknown-linux-gnu; chmod +x src-tauri/binaries/$b-x86_64-unknown-linux-gnu; done
+      - name: Unit tests
+        working-directory: src-tauri
+        run: cargo test --locked
+
+  windows:
+    # Not a Windows app yet (docs/DESIGN-AND-PLATFORMS.md): this keeps the Rust
+    # core compiling there, so Mac-only code stays behind #[cfg(target_os = "macos")].
+    name: Rust core compiles on Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Placeholder engine sidecar (tauri-build requires the file)
+        run: |
+          mkdir -p src-tauri/binaries dist && echo "<!doctype html>" > dist/index.html
+          touch src-tauri/binaries/llama-server-x86_64-pc-windows-msvc.exe src-tauri/binaries/whisper-cli-x86_64-pc-windows-msvc.exe src-tauri/binaries/sherpa-diarize-x86_64-pc-windows-msvc.exe src-tauri/binaries/sherpa-tts-x86_64-pc-windows-msvc.exe
+      - name: cargo check (lib and tests)
+        working-directory: src-tauri
+        # SQLCipher's bundled OpenSSL is configured with perl; Git Bash's perl
+        # lacks modules it needs, the runner's Strawberry Perl has them.
+        env:
+          PERL: C:\Strawberry\perl\bin\perl.exe
+        run: cargo check --locked --all-targets
+
+      # The first Rust tests ever run on Windows (2026-10-04); before this the job
+      # only compiled. A test executable has no Common Controls v6 manifest, so it
+      # imports TaskDialogIndirect and dies at load with 0xC0000139 before any test
+      # runs. Delay-loading comctl32 fixes that, and it is done through RUSTFLAGS
+      # for this step only: it cannot go in build.rs, because Cargo has no way to
+      # apply a link argument to test binaries alone, and the shipped app must not
+      # be built with it.
+      - name: cargo test (lib)
+        working-directory: src-tauri
+        env:
+          PERL: C:\Strawberry\perl\bin\perl.exe
+          RUSTFLAGS: -C link-arg=/DELAYLOAD:comctl32.dll -C link-arg=delayimp.lib
+        run: cargo test --locked --lib
+  android:
+    # The Android app (docs/ANDROID.md): keeps the Rust core compiling for
+    # phones, so desktop-only code stays behind #[cfg(desktop)].
+    name: Rust core compiles for Android
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Placeholder engine sidecars (tauri-build requires the files)
+        run: |
+          mkdir -p src-tauri/binaries dist && echo "<!doctype html>" > dist/index.html
+          for b in llama-server whisper-cli sherpa-diarize sherpa-tts; do touch src-tauri/binaries/$b-aarch64-linux-android; done
+      - name: cargo check for arm64 Android (the runner's NDK)
+        working-directory: src-tauri
+        run: |
+          BIN="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          export CC_aarch64_linux_android="$BIN/aarch64-linux-android28-clang"
+          export CXX_aarch64_linux_android="$BIN/aarch64-linux-android28-clang++"
+          export AR_aarch64_linux_android="$BIN/llvm-ar"
+          export RANLIB_aarch64_linux_android="$BIN/llvm-ranlib"
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$BIN/aarch64-linux-android28-clang"
+          cargo check --locked --lib --target aarch64-linux-android

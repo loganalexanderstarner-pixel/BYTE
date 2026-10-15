@@ -1,0 +1,114 @@
+{
+ "status": "ok",
+ "message": {
+  "items": [
+   {
+    "title": [
+     "Confidence-Modulated Speculative Decoding for Large Language Models"
+    ],
+    "author": [
+     {
+      "given": "Jaydip",
+      "family": "Sen"
+     },
+     {
+      "given": "Subhasis",
+      "family": "Dasgupta"
+     },
+     {
+      "given": "Hetvi",
+      "family": "Waghela"
+     }
+    ],
+    "issued": {
+     "date-parts": [
+      [
+       2025,
+       8,
+       21
+      ]
+     ]
+    },
+    "container-title": [
+     "2025 IEEE 6th India Council International Subsections Conference (INDISCON)"
+    ],
+    "DOI": "10.1109/indiscon66021.2025.11254640",
+    "URL": "https://doi.org/10.1109/indiscon66021.2025.11254640",
+    "type": "proceedings-article"
+   },
+   {
+    "title": [
+     "Communication-Efficient Speculative Decoding for Large Language Models Inference"
+    ],
+    "author": [
+     {
+      "given": "Yong",
+      "family": "Yang"
+     },
+     {
+      "given": "Ting Ting",
+      "family": "Yang"
+     },
+     {
+      "given": "Shao Shuai",
+      "family": "Gao"
+     }
+    ],
+    "issued": {
+     "date-parts": [
+      [
+       2025,
+       10,
+       16
+      ]
+     ]
+    },
+    "container-title": [
+     "2025 IEEE 25th International Conference on Communication Technology (ICCT)"
+    ],
+    "DOI": "10.1109/icct67417.2025.11374072",
+    "URL": "https://doi.org/10.1109/icct67417.2025.11374072",
+    "type": "proceedings-article",
+    "abstract": "<jats:title>Abstract</jats:title><jats:p>Speculative decoding speeds up inference of large language models by drafting tokens with a small model and verifying them with the large one.</jats:p>"
+   },
+   {
+    "title": [
+     "Collaborative Edge Inference for Large Language Models with Speculative Decoding"
+    ],
+    "author": [
+     {
+      "given": "Bingjie",
+      "family": "Zhu"
+     },
+     {
+      "given": "Zhixiong",
+      "family": "Chen"
+     },
+     {
+      "given": "Liqiang",
+      "family": "Zhao"
+     },
+     {
+      "given": "Hyundong",
+      "family": "Shin"
+     }
+    ],
+    "issued": {
+     "date-parts": [
+      [
+       2026,
+       5,
+       24
+      ]
+     ]
+    },
+    "container-title": [
+     "ICC 2026 - IEEE International Conference on Communications"
+    ],
+    "DOI": "10.1109/icc59461.2026.11587792",
+    "URL": "https://doi.org/10.1109/icc59461.2026.11587792",
+    "type": "proceedings-article"
+   }
+  ]
+ }
+}

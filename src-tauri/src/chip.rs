@@ -1,0 +1,385 @@
+//! Identifies the Apple Silicon chip and estimates how fast models run on it.
+//!
+//! Token generation on Apple Silicon is limited by memory bandwidth (every
+//! generated token reads the model's active weights once), while reading the
+//! prompt is limited by GPU compute. Both are known per chip, so BYTE can
+//! estimate speed for any model before it's downloaded — and an M4 is
+//! correctly shown as faster than an M2.
+//!
+//! The Neural Engine isn't used by llama.cpp for chat (it runs on the GPU);
+//! BYTE uses it through Apple's frameworks for OCR and speech (Phases 4, 11).
+
+use serde::Serialize;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Tier {
+    Base,
+    Pro,
+    Max,
+    Ultra,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ChipInfo {
+    /// Marketing name, e.g. "Apple M4 Pro".
+    pub name: String,
+    /// 1 for M1, 4 for M4, … (0 when unknown, e.g. Intel).
+    pub generation: u8,
+    pub tier: Tier,
+    pub gpu_cores: Option<u32>,
+    /// Unified memory bandwidth, GB/s.
+    pub bandwidth_gbps: f64,
+    /// Approximate GPU FP16 throughput, TFLOPS.
+    pub gpu_tflops: f64,
+    /// Neural Engine throughput, trillions of operations per second.
+    pub neural_engine_tops: f64,
+    /// False when the numbers are extrapolated for an unlisted chip.
+    pub exact: bool,
+}
+
+/// Parses a CPU brand like "Apple M4 Pro" and the GPU core count.
+pub fn identify(brand: &str, gpu_cores: Option<u32>) -> ChipInfo {
+    let b = brand.to_lowercase();
+    // Apple-only parsing, gated on the brand actually being an Apple chip.
+    //
+    // Without that gate the tier keywords match any CPU name containing them,
+    // and PC brands are full of them: "Intel Core Ultra 7 265K" came out as an
+    // Apple ULTRA tier and "AMD Ryzen 7 PRO" as an Apple PRO, each then handed
+    // an M-series chip's bandwidth and TFLOPS out of the table below -- numbers
+    // the planner predicts speed from and the catalogue recommends models from.
+    // Found by the fixtures in hardware_fixtures_tests.rs.
+    let apple = b.contains("apple")
+        || b.split_whitespace().any(|w| {
+            w.len() >= 2
+                && w.starts_with('m')
+                && w[1..].chars().next().is_some_and(|c| c.is_ascii_digit())
+        });
+    let generation = if apple {
+        b.split_whitespace()
+            .find_map(|w| w.strip_prefix('m').and_then(|n| n.parse::<u8>().ok()))
+            .unwrap_or(0)
+    } else {
+        0
+    };
+    let tier = if !apple {
+        // A PC chip has no Apple tier. Saying Base is not a guess about the
+        // hardware; it keeps it out of the Apple lookup table entirely, and
+        // `exact: false` below is what tells callers the numbers are estimates.
+        Tier::Base
+    } else if b.contains("ultra") {
+        Tier::Ultra
+    } else if b.contains("max") {
+        Tier::Max
+    } else if b.contains("pro") {
+        Tier::Pro
+    } else {
+        Tier::Base
+    };
+    let cores = gpu_cores.unwrap_or(0);
+    // (bandwidth GB/s, GPU TFLOPS FP16, Neural Engine TOPS)
+    let known = match (generation, tier) {
+        (1, Tier::Base) => Some((68.25, 2.6, 11.0)),
+        (1, Tier::Pro) => Some((200.0, 5.2, 11.0)),
+        (1, Tier::Max) => Some((400.0, 10.4, 11.0)),
+        (1, Tier::Ultra) => Some((800.0, 21.0, 22.0)),
+        (2, Tier::Base) => Some((100.0, 3.6, 15.8)),
+        (2, Tier::Pro) => Some((200.0, 6.8, 15.8)),
+        (2, Tier::Max) => Some((400.0, 13.6, 15.8)),
+        (2, Tier::Ultra) => Some((800.0, 27.2, 31.6)),
+        (3, Tier::Base) => Some((100.0, 4.1, 18.0)),
+        (3, Tier::Pro) => Some((150.0, 7.4, 18.0)),
+        // The 30-core M3 Max has 300 GB/s, the 40-core 400 GB/s.
+        (3, Tier::Max) => Some(if cores > 0 && cores <= 30 { (300.0, 10.6, 18.0) } else { (400.0, 14.2, 18.0) }),
+        (3, Tier::Ultra) => Some((819.0, 28.4, 36.0)),
+        (4, Tier::Base) => Some((120.0, 4.3, 38.0)),
+        (4, Tier::Pro) => Some((273.0, 9.2, 38.0)),
+        // The 32-core M4 Max has 410 GB/s, the 40-core 546 GB/s.
+        (4, Tier::Max) => Some(if cores > 0 && cores <= 32 { (410.0, 14.7, 38.0) } else { (546.0, 18.4, 38.0) }),
+        (5, Tier::Base) => Some((153.0, 5.7, 38.0)),
+        _ => None,
+    };
+    let phone = if apple { None } else { phone_soc(&b) };
+    let (bandwidth_gbps, gpu_tflops, neural_engine_tops, exact) = match known {
+        Some((bw, tf, ne)) => (bw, tf, ne, true),
+        // Phones: llama.cpp runs on the CPU there, so memory bandwidth is what
+        // sets the speed. Still `exact: false` -- these are the memory's peak
+        // figures, not a measurement -- until `models::calibrate` measures the
+        // phone in front of the user.
+        None if phone.is_some() => (phone.unwrap_or(24.0), 1.0, 0.0, false),
+        None if apple && generation >= 4 => {
+            // Newer or unlisted chip: scale the newest known base chip by tier.
+            let mult = match tier {
+                Tier::Base => 1.0,
+                Tier::Pro => 2.0,
+                Tier::Max => 3.6,
+                Tier::Ultra => 7.2,
+            };
+            (153.0 * mult, 5.7 * mult, 38.0, false)
+        }
+        // No data source for non-Apple hardware yet, so this is the first
+        // number a PC user sees before anything is measured. It was 50 GB/s,
+        // which is optimistic for a thin laptop and wildly optimistic for a
+        // small ARM board: a Pi 5 has about 17 GB/s and the old value
+        // overpredicted its measured 3.26 tok/s by five times.
+        //
+        // Deliberately conservative now. Under an honest-limits rule, telling
+        // someone a model will be slower than it turns out to be costs them a
+        // mild surprise; telling them it will be fast when it crawls costs
+        // them their trust in every other number BYTE shows. `exact: false`
+        // marks it as an estimate, and `models::calibrate` replaces it with a
+        // real measurement of the machine in front of the user, which is the
+        // actual fix.
+        None => (24.0, 1.0, 0.0, false),
+    };
+    ChipInfo {
+        name: if brand.trim().is_empty() { "Unknown".into() } else { brand.trim().to_string() },
+        generation,
+        tier,
+        gpu_cores,
+        bandwidth_gbps,
+        gpu_tflops,
+        neural_engine_tops,
+        exact,
+    }
+}
+
+/// What speed estimates need to know about a PC: the card that will run the model, or the
+/// processor when there is none.
+///
+/// The figures are approximate and always `exact: false`. They exist so the FIRST estimate
+/// a user sees is sensible; BYTE's own tuning measures the real machine and replaces them.
+pub fn identify_pc(cpu_brand: &str, gpus: &[crate::gpu::Gpu]) -> ChipInfo {
+    let gpu = crate::gpu::best_discrete(gpus).or_else(|| gpus.first());
+    let (name, bandwidth_gbps, gpu_tflops) = match gpu {
+        Some(g) => {
+            let (bw, tf) = crate::gpu::profile(&g.name).unwrap_or_else(|| crate::gpu::guess(g));
+            (g.name.clone(), bw, tf)
+        }
+        // No usable GPU: the CPU runs the model out of system memory. The conservative
+        // default from `identify`, since a thin laptop and a small ARM board both sit well
+        // below a desktop here.
+        None => {
+            let c = identify(cpu_brand, None);
+            (c.name, c.bandwidth_gbps, c.gpu_tflops)
+        }
+    };
+    ChipInfo { name, generation: 0, tier: Tier::Base, gpu_cores: None, bandwidth_gbps, gpu_tflops, neural_engine_tops: 0.0, exact: false }
+}
+
+/// Peak memory bandwidth (GB/s) of a phone chip, from its LPDDR type and the
+/// 64-bit bus flagships use: MT/s x 8 bytes. Matched on the marketing name or the
+/// part number Android reports in `ro.soc.model` (e.g. "SM8750"). `None` = not a
+/// phone chip we know, and the conservative default applies.
+pub fn phone_soc(brand_lower: &str) -> Option<f64> {
+    let has = |k: &str| brand_lower.contains(k);
+    Some(if has("8 elite") || has("sm8750") || has("sm8850") {
+        85.3 // LPDDR5X-10667
+    } else if has("dimensity 9400") || has("mt6991") || has("exynos 2500") || has("s5e9955") || has("tensor g5") {
+        85.3 // LPDDR5X-10667
+    } else if has("dimensity 9300") || has("mt6989") {
+        76.8 // LPDDR5T-9600
+    } else if has("8 gen 3") || has("sm8650") || has("8 gen 2") || has("sm8550") || has("exynos 2400")
+        || has("s5e9945") || has("tensor g4") || has("tensor g3")
+    {
+        68.3 // LPDDR5X-8533
+    } else if has("8 gen 1") || has("8+ gen 1") || has("sm8450") || has("sm8475") || has("exynos 2200")
+        || has("tensor g2") || has("tensor g1") || has("dimensity 9200")
+    {
+        51.2 // LPDDR5-6400
+    } else if has("7 gen") || has("7s gen") || has("7+ gen") || has("dimensity 8") || has("dimensity 7") {
+        34.1 // LPDDR4X-4266 to LPDDR5 on mid-range phones
+    } else {
+        return None;
+    })
+}
+
+/// Reads the GPU core count from IOKit (macOS only).
+pub fn gpu_core_count() -> Option<u32> {
+    #[cfg(target_os = "macos")]
+    {
+        let out = std::process::Command::new("/usr/sbin/ioreg").args(["-rc", "AGXAccelerator", "-d", "1"]).output().ok()?;
+        let text = String::from_utf8_lossy(&out.stdout);
+        for line in text.lines() {
+            if let Some(rest) = line.split("\"gpu-core-count\" = ").nth(1) {
+                return rest.trim().parse().ok();
+            }
+        }
+    }
+    None
+}
+
+/// Which engine will actually serve the model. It belongs in a speed estimate
+/// because the engines differ a little. Measured on a 16 GB NVIDIA desktop card with Qwen3 4B
+/// Q4_K_M, a 2,781-token prompt, llama.cpp b11205, prompt cache off: CUDA generated 213 tok/s
+/// and read the prompt at 12,600 tok/s; Vulkan 194 and 11,090. Vulkan is about 10% slower
+/// generating and 12% slower reading a prompt.
+///
+/// (An earlier measurement said Vulkan read prompts 39 times slower, 251 against 9,827 tok/s.
+/// That was wrong, and BYTE's estimates for every AMD and Intel card were built on it. It was
+/// found by repeating the test on the same card with the same model through both engines.)
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum Backend {
+    /// Apple unified memory. The existing numbers were tuned here.
+    Metal,
+    /// NVIDIA through CUDA: the fastest engine on that hardware, by about 10%.
+    Cuda,
+    /// Any vendor through Vulkan: within about 12% of CUDA on the same NVIDIA card.
+    Vulkan,
+    /// No usable GPU.
+    Cpu,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SpeedEstimate {
+    /// Generated tokens per second.
+    pub tokens_per_sec: f64,
+    /// Prompt tokens read per second.
+    pub prompt_per_sec: f64,
+    /// Seconds for a typical answer (~350 words out, a short conversation in).
+    pub reply_secs: f64,
+    /// Same, with the model thinking first.
+    pub reply_thinking_secs: f64,
+}
+
+/// Typical sizes used for the reply-time estimate.
+const TYPICAL_PROMPT: f64 = 1500.0;
+const TYPICAL_ANSWER: f64 = 450.0;
+const TYPICAL_THINKING: f64 = 700.0;
+
+/// Estimates speed for a model file of `file_bytes` with `total_b` billion
+/// parameters of which `active_b` are used per token (MoE), on `chip`.
+pub fn estimate(chip: &ChipInfo, file_bytes: u64, total_b: Option<f32>, active_b: Option<f32>) -> SpeedEstimate {
+    estimate_on(chip, file_bytes, total_b, active_b, Backend::Metal)
+}
+
+/// Memory bandwidth (GB/s) a backend actually reaches on `chip`, a share of the peak figure.
+pub fn achievable_gbps(chip: &ChipInfo, moe: bool, backend: Backend) -> f64 {
+    // Achievable share of peak bandwidth (MoE routing is less efficient).
+    let mut efficiency = if moe { 0.6 } else { 0.8 };
+    // Discrete cards reach a smaller share of peak bandwidth than unified
+    // memory does (measured 0.62 CUDA / 0.58 Vulkan against a predicted 0.8).
+    if matches!(backend, Backend::Cuda | Backend::Vulkan) {
+        efficiency *= 0.75;
+    }
+    // Running on CPU reaches a smaller share again. Measured on a Cortex-A76
+    // (Pi 5, 4 cores, no GPU) with Qwen3 4B Q4_K_M: 3.26 tok/s against about
+    // 17 GB/s of real memory bandwidth, so roughly 0.46 of peak -- and that is
+    // with three threads, where more threads stop helping because the limit is
+    // memory, not arithmetic.
+    if matches!(backend, Backend::Cpu) {
+        efficiency *= 0.58;
+    }
+    chip.bandwidth_gbps * efficiency
+}
+
+/// As `estimate`, told which engine will serve the model.
+///
+/// The two correction factors below are measured, not assumed, and that matters
+/// because the uncorrected arithmetic is badly wrong off Apple hardware. For
+/// Qwen3 4B Q4_K_M (2.33 GB) on a 960 GB/s card the bandwidth model
+/// predicts 329 tok/s at the Apple efficiency of 0.8; the card actually
+/// delivered 204.8 on CUDA and 192.1 on Vulkan, so the achievable share of peak
+/// on a discrete card is nearer 0.6 than 0.8 -- it overpredicted by 45%.
+///
+/// One GPU, one model, one build: a single calibration point, honestly, and the
+/// right fix long term is `models::calibrate` measuring the real machine. These
+/// factors exist so the first estimate a user ever sees is not fiction.
+pub fn estimate_on(
+    chip: &ChipInfo,
+    file_bytes: u64,
+    total_b: Option<f32>,
+    active_b: Option<f32>,
+    backend: Backend,
+) -> SpeedEstimate {
+    let total = total_b.map(|t| t as f64).filter(|t| *t > 0.0).unwrap_or(file_bytes as f64 / 0.6e9);
+    let active = active_b.map(|a| a as f64).filter(|a| *a > 0.0 && *a < total).unwrap_or(total);
+    let moe = active < total;
+    // Bytes of weights touched per generated token.
+    let bytes_per_token = file_bytes as f64 * (active / total);
+    let tokens_per_sec = (achievable_gbps(chip, moe, backend) * 1e9 / bytes_per_token.max(1.0)).min(250.0);
+
+    // Prompt processing is bounded by arithmetic, not memory, so it follows the card's compute
+    // figure. Measured on one NVIDIA card (see `Backend`): CUDA 12,600 tok/s, Vulkan 11,090,
+    // so Vulkan reads at 0.88 of CUDA and tops out a little lower. The formula below lands on
+    // both. On an integrated AMD GPU (2 compute units, measured 232 tok/s on a 0.6B model) it
+    // follows from that chip's own, much smaller, compute figure in the table, not from a
+    // blanket penalty for the engine.
+    let prompt_ceiling = match backend {
+        Backend::Cuda => 12_000.0,
+        Backend::Metal => 5_000.0,
+        Backend::Vulkan => 11_000.0,
+        Backend::Cpu => 60.0,
+    };
+    let prompt_scale = match backend {
+        Backend::Vulkan => 0.88,   // 11,090 / 12,620, same card, same model, same prompt
+        Backend::Cpu => 0.004,
+        _ => 1.0,
+    };
+    let mut prompt_per_sec =
+        (chip.gpu_tflops * 1e12 * 0.9 * prompt_scale / (2.0 * active * 1e9)).clamp(5.0, prompt_ceiling);
+    // On the CPU, reading a prompt is batched work on the same cores and scales
+    // with how fast they generate: the Pi 5 measured 11.4 tok/s reading against
+    // 3.26 writing, 3.5x. Without this floor a phone, which has no GPU figure
+    // that matters to llama.cpp, was told 5 tok/s, so a 1,500-token prompt
+    // "took five minutes".
+    if matches!(backend, Backend::Cpu) {
+        prompt_per_sec = prompt_per_sec.max((tokens_per_sec * 3.5).min(prompt_ceiling));
+    }
+    let reply_secs = TYPICAL_PROMPT / prompt_per_sec + TYPICAL_ANSWER / tokens_per_sec;
+    SpeedEstimate {
+        tokens_per_sec,
+        prompt_per_sec,
+        reply_secs,
+        reply_thinking_secs: reply_secs + TYPICAL_THINKING / tokens_per_sec,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn identifies_chips() {
+        let m4 = identify("Apple M4", Some(10));
+        assert_eq!((m4.generation, m4.tier, m4.bandwidth_gbps), (4, Tier::Base, 120.0));
+        assert!(m4.exact);
+        assert_eq!(identify("Apple M2 Pro", None).bandwidth_gbps, 200.0);
+        assert_eq!(identify("Apple M4 Max", Some(32)).bandwidth_gbps, 410.0);
+        assert_eq!(identify("Apple M4 Max", Some(40)).bandwidth_gbps, 546.0);
+        assert_eq!(identify("Apple M3 Max", Some(30)).bandwidth_gbps, 300.0);
+        assert_eq!(identify("Apple M1 Ultra", None).tier, Tier::Ultra);
+        let intel = identify("Intel(R) Core(TM) i7", None);
+        assert_eq!(intel.generation, 0);
+        assert!(!intel.exact);
+        let future = identify("Apple M6 Pro", None);
+        assert!(!future.exact && future.bandwidth_gbps > 200.0);
+    }
+
+    #[test]
+    fn m4_is_faster_than_m2_and_pro_faster_than_base() {
+        let file = 7_460_000_000; // Qwen3.5 9B Q6_K
+        let m2 = estimate(&identify("Apple M2", None), file, Some(9.2), None);
+        let m4 = estimate(&identify("Apple M4", None), file, Some(9.2), None);
+        let m4p = estimate(&identify("Apple M4 Pro", None), file, Some(9.2), None);
+        assert!(m4.tokens_per_sec > m2.tokens_per_sec);
+        assert!(m4p.tokens_per_sec > 2.0 * m4.tokens_per_sec);
+        assert!(m4.reply_secs < m2.reply_secs);
+    }
+
+    #[test]
+    fn estimates_are_realistic() {
+        let m4 = identify("Apple M4", Some(10));
+        // An 8B Q4_K_M (~4.9 GB) runs around 20 tok/s on a base M4.
+        let s = estimate(&m4, 4_900_000_000, Some(8.2), None);
+        assert!((15.0..=25.0).contains(&s.tokens_per_sec), "{s:?}");
+        // MoE with 3B active out of 30B is several times faster than its size suggests.
+        let moe = estimate(&m4, 18_000_000_000, Some(30.5), Some(3.0));
+        let dense = estimate(&m4, 18_000_000_000, Some(30.5), None);
+        assert!(moe.tokens_per_sec > 3.0 * dense.tokens_per_sec, "{moe:?} {dense:?}");
+        assert!(s.reply_thinking_secs > s.reply_secs);
+    }
+}

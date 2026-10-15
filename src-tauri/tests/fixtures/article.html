@@ -1,0 +1,1098 @@
+<!DOCTYPE html><html lang="en" dir="ltr" data-theme="dark" data-has-toc data-has-sidebar class="astro-kuswk4rs"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Tauri 2.0 Stable Release | Tauri</title><link rel="canonical" href="https://v2.tauri.app/blog/tauri-20/"/><link rel="alternate" hreflang="en" href="https://v2.tauri.app/blog/tauri-20/"/><link rel="alternate" hreflang="fr" href="https://v2.tauri.app/fr/blog/tauri-20/"/><link rel="alternate" hreflang="es" href="https://v2.tauri.app/es/blog/tauri-20/"/><link rel="alternate" hreflang="zh-CN" href="https://v2.tauri.app/zh-cn/blog/tauri-20/"/><link rel="alternate" hreflang="ja" href="https://v2.tauri.app/ja/blog/tauri-20/"/><link rel="alternate" hreflang="de" href="https://v2.tauri.app/de/blog/tauri-20/"/><link rel="alternate" hreflang="x-default" href="https://v2.tauri.app/blog/tauri-20/"/><link rel="sitemap" href="/sitemap-index.xml"/><script src="/navigate.js"></script><link rel="manifest" href="/manifest.json"/><link href="https://v2.tauri.app/blog/rss.xml" rel="alternate" title="Blog" type="application/rss+xml"/><link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml"/><meta name="generator" content="Astro v7.3.2"/><meta name="generator" content="Starlight v0.42.0"/><meta property="og:title" content="Tauri 2.0 Stable Release"/><meta property="og:type" content="article"/><meta property="og:url" content="https://v2.tauri.app/blog/tauri-20/"/><meta property="og:locale" content="en"/><meta property="og:description" content="The cross-platform app building toolkit"/><meta property="og:site_name" content="Tauri"/><meta name="twitter:card" content="summary_large_image"/><meta name="description" content="The cross-platform app building toolkit"/><meta name="twitter:site" content="@TauriApps"/><meta property="og:image" content="https://v2.tauri.app/og.png?v=1"/><meta property="twitter:image" content="https://v2.tauri.app/og.png?v=1"/><meta name="theme-color" content="#181818"/><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BlogPosting","datePublished":"2024-10-02T00:00:00.000Z","headline":"Tauri 2.0 Stable Release","inLanguage":"en","isPartOf":{"@id":"https://v2.tauri.app/blog/#blog","@type":"Blog","name":"Blog","url":"https://v2.tauri.app/blog/"},"mainEntityOfPage":"https://v2.tauri.app/blog/tauri-20/","url":"https://v2.tauri.app/blog/tauri-20/","author":[{"@type":"Person","@id":"https://v2.tauri.app/blog/authors/tillmann-weidinger/#author","name":"Tillmann Weidinger"}],"description":"Tauri 2.0 stable is released!"},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Blog","item":"https://v2.tauri.app/blog/"},{"@type":"ListItem","position":2,"name":"Tauri 2.0 Stable Release"}]}]}</script><script>
+	window.StarlightThemeProvider = (() => {
+		const storedTheme =
+			typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
+		const theme =
+			storedTheme ||
+			(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+		document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+		return {
+			updatePickers(theme = storedTheme || 'auto') {
+				document.querySelectorAll('starlight-theme-select').forEach((picker) => {
+					const select = picker.querySelector('select');
+					if (select) select.value = theme;
+					/** @type {HTMLTemplateElement | null} */
+					const tmpl = document.querySelector(`#theme-icons`);
+					const newIcon = tmpl && tmpl.content.querySelector('.' + theme);
+					if (newIcon) {
+						const oldIcon = picker.querySelector('svg.label-icon');
+						if (oldIcon) {
+							oldIcon.replaceChildren(...newIcon.cloneNode(true).childNodes);
+						}
+					}
+				});
+			},
+		};
+	})();
+</script><template id="theme-icons"><svg aria-hidden="true" class="light astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M5 12a1 1 0 0 0-1-1H3a1 1 0 0 0 0 2h1a1 1 0 0 0 1-1Zm.64 5-.71.71a1 1 0 0 0 0 1.41 1 1 0 0 0 1.41 0l.71-.71A1 1 0 0 0 5.64 17ZM12 5a1 1 0 0 0 1-1V3a1 1 0 0 0-2 0v1a1 1 0 0 0 1 1Zm5.66 2.34a1 1 0 0 0 .7-.29l.71-.71a1 1 0 1 0-1.41-1.41l-.66.71a1 1 0 0 0 0 1.41 1 1 0 0 0 .66.29Zm-12-.29a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.71-.71a1.004 1.004 0 1 0-1.43 1.41l.73.71ZM21 11h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm-2.64 6A1 1 0 0 0 17 18.36l.71.71a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.76-.66ZM12 6.5a5.5 5.5 0 1 0 5.5 5.5A5.51 5.51 0 0 0 12 6.5Zm0 9a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm0 3.5a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z"/></svg><svg aria-hidden="true" class="dark astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.64 13a1 1 0 0 0-1.05-.14 8.049 8.049 0 0 1-3.37.73 8.15 8.15 0 0 1-8.14-8.1 8.59 8.59 0 0 1 .25-2A1 1 0 0 0 8 2.36a10.14 10.14 0 1 0 14 11.69 1 1 0 0 0-.36-1.05Zm-9.5 6.69A8.14 8.14 0 0 1 7.08 5.22v.27a10.15 10.15 0 0 0 10.14 10.14 9.784 9.784 0 0 0 2.1-.22 8.11 8.11 0 0 1-7.18 4.32v-.04Z"/></svg><svg aria-hidden="true" class="auto astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg></template><link rel="stylesheet" href="/_astro/print.ehPL0gv-.css" media="print"><link rel="stylesheet" href="/_astro/middleware.DD4pqW38.css"><style>@layer starlight.components{.card:where(.astro-uoylmrmj){--sl-card-border:var(--sl-color-purple);--sl-card-bg:var(--sl-color-purple-low);border:1px solid var(--sl-color-gray-5);background-color:var(--sl-color-black);flex-direction:column;gap:clamp(.5rem,.125rem + 1vw,1rem);padding:clamp(1rem,.125rem + 3vw,2.5rem)}.card:where(.astro-uoylmrmj):nth-child(4n+1){--sl-card-border:var(--sl-color-orange);--sl-card-bg:var(--sl-color-orange-low)}.card:where(.astro-uoylmrmj):nth-child(4n+3){--sl-card-border:var(--sl-color-green);--sl-card-bg:var(--sl-color-green-low)}.card:where(.astro-uoylmrmj):nth-child(4n+4){--sl-card-border:var(--sl-color-red);--sl-card-bg:var(--sl-color-red-low)}.card:where(.astro-uoylmrmj):nth-child(4n+5){--sl-card-border:var(--sl-color-blue);--sl-card-bg:var(--sl-color-blue-low)}.title:where(.astro-uoylmrmj){font-weight:600;font-size:var(--sl-text-h4);color:var(--sl-color-white);line-height:var(--sl-line-height-headings);align-items:center;gap:1rem}.card:where(.astro-uoylmrmj) .icon:where(.astro-uoylmrmj){border:1px solid var(--sl-card-border);background-color:var(--sl-card-bg);border-radius:.25rem;flex-shrink:0;padding:.2em}.card:where(.astro-uoylmrmj) .body:where(.astro-uoylmrmj){font-size:clamp(var(--sl-text-sm), calc(.5rem + 1vw), var(--sl-text-body));margin:0}}
+@layer starlight.components{.card-grid:where(.astro-ndljr3oz){grid-template-columns:100%;gap:1rem;display:grid}.card-grid:where(.astro-ndljr3oz)>*{margin-top:0!important}@media (width>=50rem){.card-grid:where(.astro-ndljr3oz){grid-template-columns:1fr 1fr;gap:1.5rem}.stagger:where(.astro-ndljr3oz){--stagger-height:5rem;padding-bottom:var(--stagger-height)}.stagger:where(.astro-ndljr3oz)>:nth-child(2n){transform:translateY(var(--stagger-height))}}}
+@layer starlight.components{svg:where(.astro-rg4rwwxs){color:var(--sl-icon-color);font-size:var(--sl-icon-size,1em);width:1em;height:1em}}
+@layer starlight.components{starlight-tabs:where(.astro-4d55wg7u){display:block}.tablist-wrapper:where(.astro-4d55wg7u){overflow-x:auto}:where(.astro-4d55wg7u)[role=tablist]{border-bottom:2px solid var(--sl-color-gray-5);padding:0;list-style:none;display:flex}.tab:where(.astro-4d55wg7u){display:flex}.tab:where(.astro-4d55wg7u)>:where(.astro-4d55wg7u)[role=tab]{--sl-tab-color-border:var(--sl-color-gray-5);line-height:var(--sl-line-height-headings);box-shadow:0 2px 0 var(--sl-tab-color-border);color:var(--sl-color-gray-3);outline-offset:var(--sl-outline-offset-inside);overflow-wrap:initial;align-items:center;gap:.5rem;padding:.275rem 1.25rem;text-decoration:none;display:flex}.tab:where(.astro-4d55wg7u) :where(.astro-4d55wg7u)[role=tab][aria-selected=true]{--sl-tab-color-border:var(--sl-color-text-accent);color:var(--sl-color-white);font-weight:600}.tablist-wrapper:where(.astro-4d55wg7u)~[role=tabpanel]{margin-top:1rem}}
+@layer starlight.components{.sl-link-card:where(.astro-p5ne6glh){border:1px solid var(--sl-color-gray-5);box-shadow:var(--sl-shadow-sm);border-radius:.5rem;grid-template-columns:1fr auto;gap:.5rem;padding:1rem;display:grid;position:relative}a:where(.astro-p5ne6glh){line-height:var(--sl-line-height-headings);text-decoration:none}a:where(.astro-p5ne6glh):before{content:"";position:absolute;inset:0}.stack:where(.astro-p5ne6glh){flex-direction:column;gap:.5rem}.title:where(.astro-p5ne6glh){color:var(--sl-color-white);font-weight:600;font-size:var(--sl-text-lg)}.description:where(.astro-p5ne6glh){color:var(--sl-color-gray-3);line-height:1.5}.icon:where(.astro-p5ne6glh){color:var(--sl-color-gray-3)}.sl-link-card:where(.astro-p5ne6glh):hover{background:var(--sl-color-gray-7,var(--sl-color-gray-6));border-color:var(--sl-color-gray-2)}.sl-link-card:where(.astro-p5ne6glh):hover .icon:where(.astro-p5ne6glh){color:var(--sl-color-white)}}
+@layer starlight.components{.sl-steps{--bullet-size:calc(var(--sl-line-height) * 1rem);--bullet-margin:.375rem;counter-reset:steps-counter var(--sl-steps-start,0);padding-inline-start:0;list-style:none}.sl-steps>li{counter-increment:steps-counter;padding-inline-start:calc(var(--bullet-size) + 1rem);min-height:calc(var(--bullet-size) + var(--bullet-margin));padding-bottom:1px;position:relative}.sl-steps>li+li{margin-top:0}.sl-steps>li:before{content:counter(steps-counter);top:0;width:var(--bullet-size);height:var(--bullet-size);line-height:var(--bullet-size);font-size:var(--sl-text-xs);text-align:center;color:var(--sl-color-white);background-color:var(--sl-color-gray-6);box-shadow:inset 0 0 0 1px var(--sl-color-gray-5);border-radius:99rem;font-weight:600;position:absolute;inset-inline-start:0}.sl-steps>li:after{--guide-width:1px;content:"";top:calc(var(--bullet-size) + var(--bullet-margin));bottom:var(--bullet-margin);width:var(--guide-width);background-color:var(--sl-color-hairline-light);position:absolute;inset-inline-start:calc((var(--bullet-size) - var(--guide-width)) / 2)}}@layer starlight.content{.sl-steps>li>:first-child{--lh:calc(1em * var(--sl-line-height));--shift-y:calc(.5 * (var(--bullet-size) - var(--lh)));transform:translateY(var(--shift-y));margin-bottom:var(--shift-y)}.sl-steps>li>:first-child:where(h1,h2,h3,h4,h5,h6){--lh:calc(1em * var(--sl-line-height-headings))}@supports (--prop:1lh){.sl-steps>li>:first-child{--lh:1lh}}}
+@layer starlight.components{.sl-link-button:where(.astro-jgaw6nip){font-size:var(--sl-text-sm);outline-offset:.25rem;border:1px solid #0000;border-radius:999rem;align-items:center;gap:.5em;padding:.4375rem 1.125rem;line-height:1.1875;text-decoration:none;display:inline-flex}.sl-link-button:where(.astro-jgaw6nip).primary{background:var(--sl-color-text-accent);border-color:var(--sl-color-text-accent);color:var(--sl-color-black)}.sl-link-button:where(.astro-jgaw6nip).primary:hover{color:var(--sl-color-black)}.sl-link-button:where(.astro-jgaw6nip).secondary{border-color:inherit;color:var(--sl-color-white)}.sl-link-button:where(.astro-jgaw6nip).minimal{color:var(--sl-color-white);padding-inline:0}.sl-link-button:where(.astro-jgaw6nip) svg{flex-shrink:0}@media (width>=50rem){.sl-link-button:where(.astro-jgaw6nip){font-size:var(--sl-text-base);padding:.9375rem 1.25rem}}.sl-markdown-content .sl-link-button:where(.astro-jgaw6nip){margin-inline-end:1rem}.sl-markdown-content .sl-link-button:where(.astro-jgaw6nip):not(:where(p *)){margin-block:1rem}}
+</style><script type="module" src="/_astro/page.Dwipeu-R.js"></script><script>if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/service-worker.js');
+}</script><style>.footer:where(.astro-4b624pye){flex-direction:row;align-items:end;display:inline-flex;position:absolute;bottom:1em;left:1em}.sl-link-card-custom:where(.astro-4b624pye){border:1px solid var(--sl-color-gray-5);border-radius:.5rem;grid-template-columns:1fr auto;gap:.5rem;padding:1rem 1rem 5em;display:grid;position:relative}a:where(.astro-4b624pye){line-height:var(--sl-line-height-headings);text-decoration:none}a:where(.astro-4b624pye):before{content:"";position:absolute;inset:0}.stack:where(.astro-4b624pye){flex-direction:column;gap:.5rem}.title:where(.astro-4b624pye){color:var(--sl-color-white);font-weight:600;font-size:var(--sl-text-lg)}.description:where(.astro-4b624pye){color:var(--sl-color-gray-3);line-height:1.5}.sl-link-card-custom:where(.astro-4b624pye):hover{border-color:var(--sl-color-text-accent)}.fallback-badge:where(.astro-46sefvi2):after{content:"EN";vertical-align:super;margin-left:1ch;font-size:.75em;font-weight:700}
+</style><style>table:where(.astro-rb2umfnd){width:100%}.support:where(.astro-rb2umfnd){cursor:help}.icon:where(.astro-rb2umfnd){width:1rem;display:inline-block}.notes:where(.astro-rb2umfnd){margin-left:.5rem;font-size:.8em}
+</style></head><body class="astro-kuswk4rs"><a class="sl-skip-link astro-7qfgdib7" href="#_top">Skip to content</a><div class="page sl-flex astro-oiou2loo"><header class="header astro-oiou2loo"><div class="header astro-xiqy3rs3"><div class="title-wrapper sl-flex astro-xiqy3rs3"><a href="/" class="site-title sl-flex astro-r777iga5"><img class="light:sl-hidden print:hidden astro-r777iga5" alt src="/_astro/logo.BQPqkdSq.svg" width="432" height="137"><img class="dark:sl-hidden print:block astro-r777iga5" alt src="/_astro/logo_light.C7Zm2ZoX.svg" width="432" height="137"><span class="sr-only astro-r777iga5" translate="no">Tauri</span></a></div><div class="desktop astro-xiqy3rs3"><a href="/start/" data-locale-link="/start/" class="astro-xiqy3rs3">Guides</a><a href="/reference/cli/" data-locale-link="/reference/cli/" class="astro-xiqy3rs3">References</a><a href="/blog/" class="starlight-sidebar-topics-current astro-xiqy3rs3">Blog</a><a href="/release/" class="astro-xiqy3rs3">Releases</a></div><div class="sl-flex search astro-xiqy3rs3"><site-search class="astro-xiqy3rs3 astro-7j6h7qu7" data-translations="{&quot;placeholder&quot;:&quot;Search&quot;}"><button data-open-modal disabled aria-label="Search" aria-keyshortcuts="Control+K" class="astro-7j6h7qu7"><svg aria-hidden="true" class="astro-7j6h7qu7 astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.71 20.29 18 16.61A9 9 0 1 0 16.61 18l3.68 3.68a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.39ZM11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg><span class="sl-hidden md:sl-block astro-7j6h7qu7" aria-hidden="true">Search</span><kbd class="sl-hidden md:sl-flex astro-7j6h7qu7" style="display: none;"><kbd class="astro-7j6h7qu7">Ctrl</kbd><kbd class="astro-7j6h7qu7">K</kbd></kbd></button><dialog style="padding:0" aria-label="Search" class="astro-7j6h7qu7"><div class="dialog-frame sl-flex astro-7j6h7qu7"><button data-close-modal class="sl-flex md:sl-hidden astro-7j6h7qu7">Cancel</button><div class="search-container astro-7j6h7qu7"><div id="starlight__search" class="astro-7j6h7qu7"></div></div></div></dialog></site-search><script>
+	(() => {
+		const openBtn = document.querySelector('button[data-open-modal]');
+		const shortcut = openBtn?.querySelector('kbd');
+		if (!openBtn || !(shortcut instanceof HTMLElement)) return;
+		const platformKey = shortcut.querySelector('kbd');
+		if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+			platformKey.textContent = '⌘';
+			openBtn.setAttribute('aria-keyshortcuts', 'Meta+K');
+		}
+		shortcut.style.display = '';
+	})();
+</script><script type="module" src="/_astro/Search.astro_astro_type_script_index_0_lang.DZqJ8Bdf.js"></script></div><div class="sl-hidden md:sl-flex right-group astro-xiqy3rs3"><div class="sl-flex social-icons astro-xiqy3rs3"><a href="https://github.com/tauri-apps/tauri" rel="me" class="sl-flex astro-7tgeax7f"><span class="sr-only astro-7tgeax7f">GitHub</span><svg aria-hidden="true" class="astro-7tgeax7f astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z"/></svg></a><a href="https://discord.com/invite/tauri" rel="me" class="sl-flex astro-7tgeax7f"><span class="sr-only astro-7tgeax7f">Discord</span><svg aria-hidden="true" class="astro-7tgeax7f astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M20.32 4.37a19.8 19.8 0 0 0-4.93-1.51 13.78 13.78 0 0 0-.64 1.28 18.27 18.27 0 0 0-5.5 0 12.64 12.64 0 0 0-.64-1.28h-.05A19.74 19.74 0 0 0 3.64 4.4 20.26 20.26 0 0 0 .11 18.09l.02.02a19.9 19.9 0 0 0 6.04 3.03l.04-.02a14.24 14.24 0 0 0 1.23-2.03.08.08 0 0 0-.05-.07 13.1 13.1 0 0 1-1.9-.92.08.08 0 0 1 .02-.1 10.2 10.2 0 0 0 .41-.31h.04a14.2 14.2 0 0 0 12.1 0l.04.01a9.63 9.63 0 0 0 .4.32.08.08 0 0 1-.03.1 12.29 12.29 0 0 1-1.9.91.08.08 0 0 0-.02.1 15.97 15.97 0 0 0 1.27 2.01h.04a19.84 19.84 0 0 0 6.03-3.05v-.03a20.12 20.12 0 0 0-3.57-13.69ZM8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42 0-1.33.96-2.42 2.16-2.42 1.21 0 2.18 1.1 2.16 2.42 0 1.34-.96 2.42-2.16 2.42Zm7.97 0c-1.18 0-2.15-1.08-2.15-2.42 0-1.33.95-2.42 2.15-2.42 1.22 0 2.18 1.1 2.16 2.42 0 1.34-.94 2.42-2.16 2.42Z"/></svg></a><a href="https://twitter.com/TauriApps" rel="me" class="sl-flex astro-7tgeax7f"><span class="sr-only astro-7tgeax7f">Twitter</span><svg aria-hidden="true" class="astro-7tgeax7f astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M24 4.4a10 10 0 0 1-2.83.78 5.05 5.05 0 0 0 2.17-2.79 9.7 9.7 0 0 1-3.13 1.23 4.89 4.89 0 0 0-5.94-1.03 5 5 0 0 0-2.17 2.38 5.15 5.15 0 0 0-.3 3.25c-1.95-.1-3.86-.63-5.61-1.53a14.04 14.04 0 0 1-4.52-3.74 5.2 5.2 0 0 0-.09 4.91c.39.74.94 1.35 1.61 1.82a4.77 4.77 0 0 1-2.23-.63v.06c0 1.16.4 2.29 1.12 3.18a4.9 4.9 0 0 0 2.84 1.74c-.73.22-1.5.26-2.24.12a4.89 4.89 0 0 0 4.59 3.49A9.78 9.78 0 0 1 0 19.73 13.65 13.65 0 0 0 7.55 22a13.63 13.63 0 0 0 9.96-4.16A14.26 14.26 0 0 0 21.6 7.65V7c.94-.72 1.75-1.6 2.4-2.6Z"/></svg></a><a href="https://bsky.app/profile/tauri.app" rel="me" class="sl-flex astro-7tgeax7f"><span class="sr-only astro-7tgeax7f">Bluesky</span><svg aria-hidden="true" class="astro-7tgeax7f astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 10.8c-1-2.1-4-6-6.8-8C2.6 1 1.6 1.3.9 1.6.1 1.9 0 3 0 3.8c0 .7.4 5.6.6 6.4C1.4 13 4.3 14 7 13.6h.4H7c-4 .6-7.4 2-2.8 7 5 5.3 6.8-1 7.8-4.2 1 3.2 2 9.3 7.7 4.3 4.3-4.3 1.2-6.5-2.7-7a9 9 0 0 1-.4-.1h.4c2.7.3 5.6-.6 6.4-3.4.2-.8.6-5.7.6-6.4 0-.7-.1-1.9-.9-2.2-.7-.3-1.7-.7-4.3 1.2-2.8 2-5.7 5.9-6.8 8"/></svg></a><a href="https://fosstodon.org/@TauriApps" rel="me" class="sl-flex astro-7tgeax7f"><span class="sr-only astro-7tgeax7f">Mastodon</span><svg aria-hidden="true" class="astro-7tgeax7f astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M16.45 17.77c2.77-.33 5.18-2.03 5.49-3.58.47-2.45.44-5.97.44-5.97 0-4.77-3.15-6.17-3.15-6.17-1.58-.72-4.3-1.03-7.13-1.05h-.07c-2.83.02-5.55.33-7.13 1.05 0 0-3.14 1.4-3.14 6.17v.91c-.01.88-.02 1.86 0 2.88.12 4.67.87 9.27 5.2 10.4 2 .53 3.72.64 5.1.57 2.51-.14 3.92-.9 3.92-.9l-.08-1.8s-1.8.56-3.8.5c-2-.08-4.1-.22-4.43-2.66a4.97 4.97 0 0 1-.04-.68s1.96.48 4.44.59c1.51.07 2.94-.09 4.38-.26Zm2.22-3.4h-2.3v-5.6c0-1.19-.5-1.79-1.5-1.79-1.1 0-1.66.71-1.66 2.12v3.07h-2.3V9.1c0-1.4-.55-2.12-1.65-2.12-1 0-1.5.6-1.5 1.78v5.61h-2.3V8.6c0-1.18.3-2.12.9-2.81a3.17 3.17 0 0 1 2.47-1.05c1.18 0 2.07.45 2.66 1.35l.57.96.58-.96a2.97 2.97 0 0 1 2.66-1.35c1.01 0 1.83.36 2.46 1.05.6.7.9 1.63.9 2.81v5.78Z"/></svg></a><a href="https://v2.tauri.app/rss" rel="me" class="sl-flex astro-7tgeax7f"><span class="sr-only astro-7tgeax7f">RSS</span><svg aria-hidden="true" class="astro-7tgeax7f astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M2.88 16.88a3 3 0 0 0 0 4.24 3 3 0 0 0 4.24 0 3 3 0 0 0-4.24-4.24Zm2.83 2.83a1 1 0 0 1-1.42-1.42 1 1 0 0 1 1.42 0 1 1 0 0 1 0 1.42ZM5 12a1 1 0 0 0 0 2 5 5 0 0 1 5 5 1 1 0 0 0 2 0 7 7 0 0 0-7-7Zm0-4a1 1 0 0 0 0 2 9 9 0 0 1 9 9 1 1 0 0 0 2 0 11.08 11.08 0 0 0-3.22-7.78A11.08 11.08 0 0 0 5 8Zm10.61.39A15.11 15.11 0 0 0 5 4a1 1 0 0 0 0 2 13 13 0 0 1 13 13 1 1 0 0 0 2 0 15.11 15.11 0 0 0-4.39-10.61Z"/></svg></a></div><starlight-lang-select><label style="--sl-select-width: 7em" class="astro-cvx6mmab"><span class="sr-only astro-cvx6mmab">Select language</span><svg aria-hidden="true" class="icon label-icon astro-cvx6mmab astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path fill-rule="evenodd" d="M8.516 3a.94.94 0 0 0-.941.94v1.15H2.94a.94.94 0 1 0 0 1.882h7.362a7.422 7.422 0 0 1-1.787 3.958 7.42 7.42 0 0 1-1.422-2.425.94.94 0 1 0-1.774.627 9.303 9.303 0 0 0 1.785 3.043 7.422 7.422 0 0 1-4.164 1.278.94.94 0 1 0 0 1.881 9.303 9.303 0 0 0 5.575-1.855 9.303 9.303 0 0 0 4.11 1.74l-.763 1.525a.968.968 0 0 0-.016.034l-1.385 2.77a.94.94 0 1 0 1.683.841l1.133-2.267h5.806l1.134 2.267a.94.94 0 0 0 1.683-.841l-1.385-2.769a.95.95 0 0 0-.018-.036l-3.476-6.951a.94.94 0 0 0-1.682 0l-1.82 3.639a7.423 7.423 0 0 1-3.593-1.256 9.303 9.303 0 0 0 2.27-5.203h1.894a.94.94 0 0 0 0-1.881H9.456V3.94A.94.94 0 0 0 8.516 3Zm6.426 11.794a1.068 1.068 0 0 1-.02.039l-.703 1.407h3.924l-1.962-3.924-1.24 2.478Z" clip-rule="evenodd"/></svg><select autocomplete="off" class="astro-cvx6mmab"><option value="/blog/tauri-20/" class="astro-cvx6mmab">English</option><option value="/fr/blog/tauri-20/" class="astro-cvx6mmab">Français</option><option value="/es/blog/tauri-20/" class="astro-cvx6mmab">Español</option><option value="/zh-cn/blog/tauri-20/" class="astro-cvx6mmab">简体中文</option><option value="/ja/blog/tauri-20/" class="astro-cvx6mmab">日本語</option><option value="/de/blog/tauri-20/" class="astro-cvx6mmab">German</option></select><svg aria-hidden="true" class="icon caret astro-cvx6mmab astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M17 9.17a1 1 0 0 0-1.41 0L12 12.71 8.46 9.17a1 1 0 1 0-1.41 1.42l4.24 4.24a1.002 1.002 0 0 0 1.42 0L17 10.59a1.002 1.002 0 0 0 0-1.42Z"/></svg></label></starlight-lang-select><script type="module">var e=class extends HTMLElement{constructor(){super();let e=this.querySelector(`select`);e&&(e.addEventListener(`change`,e=>{e.currentTarget instanceof HTMLSelectElement&&(window.location.pathname=e.currentTarget.value)}),window.addEventListener(`pageshow`,t=>{if(!t.persisted)return;let n=e.querySelector(`option[selected]`)?.index;n!==e.selectedIndex&&(e.selectedIndex=n??0)}))}};customElements.define(`starlight-lang-select`,e);</script><script type="module" src="/_astro/LanguageSelect.astro_astro_type_script_index_0_lang.CoBY_VR_.js"></script><script type="module">var e=class extends HTMLElement{constructor(){super();let e=typeof localStorage<`u`&&localStorage.getItem(`starlight-theme`)||(window.matchMedia(`(prefers-color-scheme: light)`).matches?`light`:`dark`);document.documentElement.dataset.theme=e===`light`?`light`:`dark`,this.handleMouseDown=this.handleMouseDown.bind(this)}connectedCallback(){this.addEventListener(`click`,this.handleMouseDown)}disconnectedCallback(){this.removeEventListener(`click`,this.handleMouseDown)}handleMouseDown(e){let t=document.documentElement.dataset.theme===`light`?`dark`:`light`;document.documentElement.dataset.theme=t,localStorage.setItem(`starlight-theme`,t)}};customElements.define(`theme-switcher`,e);</script><theme-switcher class="sl-flex astro-davbrek5"><svg aria-hidden="true" class="theme-selector-light astro-davbrek5 astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.2em;"><path d="M5 12a1 1 0 0 0-1-1H3a1 1 0 0 0 0 2h1a1 1 0 0 0 1-1Zm.64 5-.71.71a1 1 0 0 0 0 1.41 1 1 0 0 0 1.41 0l.71-.71A1 1 0 0 0 5.64 17ZM12 5a1 1 0 0 0 1-1V3a1 1 0 0 0-2 0v1a1 1 0 0 0 1 1Zm5.66 2.34a1 1 0 0 0 .7-.29l.71-.71a1 1 0 1 0-1.41-1.41l-.66.71a1 1 0 0 0 0 1.41 1 1 0 0 0 .66.29Zm-12-.29a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.71-.71a1.004 1.004 0 1 0-1.43 1.41l.73.71ZM21 11h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm-2.64 6A1 1 0 0 0 17 18.36l.71.71a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.76-.66ZM12 6.5a5.5 5.5 0 1 0 5.5 5.5A5.51 5.51 0 0 0 12 6.5Zm0 9a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm0 3.5a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z"/></svg><svg aria-hidden="true" class="theme-selector-dark astro-davbrek5 astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.2em;"><path d="M21.64 13a1 1 0 0 0-1.05-.14 8.049 8.049 0 0 1-3.37.73 8.15 8.15 0 0 1-8.14-8.1 8.59 8.59 0 0 1 .25-2A1 1 0 0 0 8 2.36a10.14 10.14 0 1 0 14 11.69 1 1 0 0 0-.36-1.05Zm-9.5 6.69A8.14 8.14 0 0 1 7.08 5.22v.27a10.15 10.15 0 0 0 10.14 10.14 9.784 9.784 0 0 0 2.1-.22 8.11 8.11 0 0 1-7.18 4.32v-.04Z"/></svg></theme-switcher></div></div><script type="module" src="/_astro/Header.astro_astro_type_script_index_0_lang.zSV1PHET.js"></script></header><nav class="sidebar print:hidden astro-oiou2loo" aria-label="Main"><button popovertarget="starlight__sidebar" class="sl-menu-button sl-flex md:sl-hidden print:hidden astro-bldz2c53"><svg aria-hidden="true" class="open-menu astro-bldz2c53 astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M3 8h18a1 1 0 1 0 0-2H3a1 1 0 0 0 0 2Zm18 8H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2Zm0-5H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2Z"/></svg><svg aria-hidden="true" class="close-menu astro-bldz2c53 astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="m13.41 12 6.3-6.29a1.004 1.004 0 1 0-1.42-1.42L12 10.59l-6.29-6.3a1.004 1.004 0 0 0-1.42 1.42l6.3 6.29-6.3 6.29a1 1 0 0 0 0 1.42.998.998 0 0 0 1.42 0l6.29-6.3 6.29 6.3a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.42L13.41 12Z"/></svg><span class="sr-only astro-bldz2c53">Menu</span></button><div id="starlight__sidebar" class="sidebar-pane astro-oiou2loo"><div class="sidebar-content sl-flex astro-oiou2loo"><ul class="starlight-sidebar-topics astro-cj7u6tdq"><li class="astro-cj7u6tdq"><a href="/start/" class="astro-cj7u6tdq"><div class="starlight-sidebar-topics-icon astro-cj7u6tdq"><svg aria-hidden="true" class="astro-cj7u6tdq astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.17 2.06A13.1 13.1 0 0 0 19 1.87a12.94 12.94 0 0 0-7 2.05 12.94 12.94 0 0 0-7-2 13.1 13.1 0 0 0-2.17.19 1 1 0 0 0-.83 1v12a1 1 0 0 0 1.17 1 10.9 10.9 0 0 1 8.25 1.91l.12.07h.11a.91.91 0 0 0 .7 0h.11l.12-.07A10.899 10.899 0 0 1 20.83 16 1 1 0 0 0 22 15V3a1 1 0 0 0-.83-.94ZM11 15.35a12.87 12.87 0 0 0-6-1.48H4v-10c.333-.02.667-.02 1 0a10.86 10.86 0 0 1 6 1.8v9.68Zm9-1.44h-1a12.87 12.87 0 0 0-6 1.48V5.67a10.86 10.86 0 0 1 6-1.8c.333-.02.667-.02 1 0v10.04Zm1.17 4.15a13.098 13.098 0 0 0-2.17-.19 12.94 12.94 0 0 0-7 2.05 12.94 12.94 0 0 0-7-2.05c-.727.003-1.453.066-2.17.19A1 1 0 0 0 2 19.21a1 1 0 0 0 1.17.79 10.9 10.9 0 0 1 8.25 1.91 1 1 0 0 0 1.16 0A10.9 10.9 0 0 1 20.83 20a1 1 0 0 0 1.17-.79 1 1 0 0 0-.83-1.15Z"/></svg></div><div class="astro-cj7u6tdq">Guides</div></a></li><li class="astro-cj7u6tdq"><a href="/reference/cli/" class="astro-cj7u6tdq"><div class="starlight-sidebar-topics-icon astro-cj7u6tdq"><svg aria-hidden="true" class="astro-cj7u6tdq astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M9 10h1a1 1 0 1 0 0-2H9a1 1 0 0 0 0 2Zm0 2a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2H9Zm11-3.06a1.3 1.3 0 0 0-.06-.27v-.09c-.05-.1-.11-.2-.19-.28l-6-6a1.07 1.07 0 0 0-.28-.19h-.09a.88.88 0 0 0-.33-.11H7a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8.94Zm-6-3.53L16.59 8H15a1 1 0 0 1-1-1V5.41ZM18 19a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5v3a3 3 0 0 0 3 3h3v9Zm-3-3H9a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2Z"/></svg></div><div class="astro-cj7u6tdq">References</div></a></li><li class="astro-cj7u6tdq"><a href="/blog/" class="starlight-sidebar-topics-current astro-cj7u6tdq"><div class="starlight-sidebar-topics-icon astro-cj7u6tdq"><svg aria-hidden="true" class="astro-cj7u6tdq astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 12a1 1 0 0 0-1 1v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h6a1 1 0 1 0 0-2H5a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-6a1 1 0 0 0-1-1Zm-15 .76V17a1 1 0 0 0 1 1h4.24a1 1 0 0 0 .71-.29l6.92-6.93L21.71 8a1 1 0 0 0 0-1.42l-4.24-4.29a1 1 0 0 0-1.42 0l-2.82 2.83-6.94 6.93a1 1 0 0 0-.29.71Zm10.76-8.35 2.83 2.83-1.42 1.42-2.83-2.83 1.42-1.42ZM8 13.17l5.93-5.93 2.83 2.83L10.83 16H8v-2.83Z"/></svg></div><div class="astro-cj7u6tdq">Blog</div></a></li></ul><sl-sidebar-state-persist data-hash="0163j9c" class="astro-zd6zbpqm"><script aria-hidden="true">
+		(() => {
+			try {
+				if (!matchMedia('(min-width: 50em)').matches) return;
+				/** @type {HTMLElement | null} */
+				const target = document.querySelector('sl-sidebar-state-persist');
+				const state = JSON.parse(sessionStorage.getItem('sl-sidebar-state') || '0');
+				if (!target || !state || target.dataset.hash !== state.hash) return;
+				window._starlightScrollRestore = state.scroll;
+				customElements.define(
+					'sl-sidebar-restore',
+					class SidebarRestore extends HTMLElement {
+						connectedCallback() {
+							try {
+								const idx = parseInt(this.dataset.index || '');
+								const details = this.closest('details');
+								if (details && typeof state.open[idx] === 'boolean') details.open = state.open[idx];
+							} catch {}
+						}
+					}
+				);
+			} catch {}
+		})();
+	</script><ul class="top-level astro-5pqgjsxl"><li class="astro-5pqgjsxl"><a href="/blog/" class="large astro-5pqgjsxl"><span class="astro-5pqgjsxl">All posts</span></a></li><li class="astro-5pqgjsxl"><details open class="astro-5pqgjsxl"><summary class="astro-5pqgjsxl"><span class="group-label astro-5pqgjsxl"><span class="large astro-5pqgjsxl">Recent posts</span></span><svg aria-hidden="true" class="caret astro-5pqgjsxl astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg></summary><sl-sidebar-restore data-index="0"></sl-sidebar-restore><ul class="astro-5pqgjsxl"><li class="astro-5pqgjsxl"><a href="/blog/tauri-2.12/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Announcing Tauri 2.12</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/tauri-board-elections-2026/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Tauri Board Elections 2026</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/tauri-board-elections-2025/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Tauri Board Elections 2025</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/tauri-verso-integration/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Experimental Tauri Verso Integration</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/tauri-20/" aria-current="page" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Tauri 2.0 Stable Release</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/tauri-2-0-0-release-candidate/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Tauri 2.0 Release Candidate</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/tauri-1-7/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Announcing Tauri 1.7.0</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/tauri-board-elections-2024/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Tauri Board Elections 2024</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/cve-2024-24576/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Rust Security Advisory CVE-2024-24576</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/tauri-1-6/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Announcing Tauri 1.6.0</span></a></li></ul></details></li><li class="astro-5pqgjsxl"><details open class="astro-5pqgjsxl"><summary class="astro-5pqgjsxl"><span class="group-label astro-5pqgjsxl"><span class="large astro-5pqgjsxl">Authors</span></span><svg aria-hidden="true" class="caret astro-5pqgjsxl astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg></summary><sl-sidebar-restore data-index="1"></sl-sidebar-restore><ul class="astro-5pqgjsxl"><li class="astro-5pqgjsxl"><a href="/blog/authors/lucas-nogueira/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Lucas Nogueira (11)</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/authors/tillmann-weidinger/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Tillmann Weidinger (4)</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/authors/jacob-bolda/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Jacob Bolda (3)</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/authors/lorenzo-lewis/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Lorenzo Lewis (3)</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/authors/robin-van-boven/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Robin van Boven (3)</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/authors/amr-bashir/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Amr Bashir (2)</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/authors/daniel-thompson-yvetot/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Daniel Thompson-Yvetot (2)</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/authors/tony/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Tony (2)</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/authors/chip-reed/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Chip Reed (1)</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/authors/fabian-lars/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Fabian-Lars (1)</span></a></li><li class="astro-5pqgjsxl"><a href="/blog/authors/wu-yu-wei/" class="astro-5pqgjsxl"><span class="astro-5pqgjsxl">Wu Yu Wei (1)</span></a></li></ul></details></li><li class="astro-5pqgjsxl"><a href="/blog/rss.xml" class="large astro-5pqgjsxl"><span class="astro-5pqgjsxl">RSS</span></a></li></ul><script aria-hidden="true">
+		(() => {
+			const scroller = document.getElementById('starlight__sidebar');
+			if (!window._starlightScrollRestore || !scroller) return;
+			scroller.scrollTop = window._starlightScrollRestore;
+			delete window._starlightScrollRestore;
+		})();
+	</script></sl-sidebar-state-persist><div class="md:sl-hidden"><div class="mobile-preferences sl-flex astro-qeimqyfn"><div class="social-icons astro-qeimqyfn"><a href="https://github.com/tauri-apps/tauri" rel="me" class="sl-flex astro-7tgeax7f"><span class="sr-only astro-7tgeax7f">GitHub</span><svg aria-hidden="true" class="astro-7tgeax7f astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z"/></svg></a><a href="https://discord.com/invite/tauri" rel="me" class="sl-flex astro-7tgeax7f"><span class="sr-only astro-7tgeax7f">Discord</span><svg aria-hidden="true" class="astro-7tgeax7f astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M20.32 4.37a19.8 19.8 0 0 0-4.93-1.51 13.78 13.78 0 0 0-.64 1.28 18.27 18.27 0 0 0-5.5 0 12.64 12.64 0 0 0-.64-1.28h-.05A19.74 19.74 0 0 0 3.64 4.4 20.26 20.26 0 0 0 .11 18.09l.02.02a19.9 19.9 0 0 0 6.04 3.03l.04-.02a14.24 14.24 0 0 0 1.23-2.03.08.08 0 0 0-.05-.07 13.1 13.1 0 0 1-1.9-.92.08.08 0 0 1 .02-.1 10.2 10.2 0 0 0 .41-.31h.04a14.2 14.2 0 0 0 12.1 0l.04.01a9.63 9.63 0 0 0 .4.32.08.08 0 0 1-.03.1 12.29 12.29 0 0 1-1.9.91.08.08 0 0 0-.02.1 15.97 15.97 0 0 0 1.27 2.01h.04a19.84 19.84 0 0 0 6.03-3.05v-.03a20.12 20.12 0 0 0-3.57-13.69ZM8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42 0-1.33.96-2.42 2.16-2.42 1.21 0 2.18 1.1 2.16 2.42 0 1.34-.96 2.42-2.16 2.42Zm7.97 0c-1.18 0-2.15-1.08-2.15-2.42 0-1.33.95-2.42 2.15-2.42 1.22 0 2.18 1.1 2.16 2.42 0 1.34-.94 2.42-2.16 2.42Z"/></svg></a><a href="https://twitter.com/TauriApps" rel="me" class="sl-flex astro-7tgeax7f"><span class="sr-only astro-7tgeax7f">Twitter</span><svg aria-hidden="true" class="astro-7tgeax7f astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M24 4.4a10 10 0 0 1-2.83.78 5.05 5.05 0 0 0 2.17-2.79 9.7 9.7 0 0 1-3.13 1.23 4.89 4.89 0 0 0-5.94-1.03 5 5 0 0 0-2.17 2.38 5.15 5.15 0 0 0-.3 3.25c-1.95-.1-3.86-.63-5.61-1.53a14.04 14.04 0 0 1-4.52-3.74 5.2 5.2 0 0 0-.09 4.91c.39.74.94 1.35 1.61 1.82a4.77 4.77 0 0 1-2.23-.63v.06c0 1.16.4 2.29 1.12 3.18a4.9 4.9 0 0 0 2.84 1.74c-.73.22-1.5.26-2.24.12a4.89 4.89 0 0 0 4.59 3.49A9.78 9.78 0 0 1 0 19.73 13.65 13.65 0 0 0 7.55 22a13.63 13.63 0 0 0 9.96-4.16A14.26 14.26 0 0 0 21.6 7.65V7c.94-.72 1.75-1.6 2.4-2.6Z"/></svg></a><a href="https://bsky.app/profile/tauri.app" rel="me" class="sl-flex astro-7tgeax7f"><span class="sr-only astro-7tgeax7f">Bluesky</span><svg aria-hidden="true" class="astro-7tgeax7f astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 10.8c-1-2.1-4-6-6.8-8C2.6 1 1.6 1.3.9 1.6.1 1.9 0 3 0 3.8c0 .7.4 5.6.6 6.4C1.4 13 4.3 14 7 13.6h.4H7c-4 .6-7.4 2-2.8 7 5 5.3 6.8-1 7.8-4.2 1 3.2 2 9.3 7.7 4.3 4.3-4.3 1.2-6.5-2.7-7a9 9 0 0 1-.4-.1h.4c2.7.3 5.6-.6 6.4-3.4.2-.8.6-5.7.6-6.4 0-.7-.1-1.9-.9-2.2-.7-.3-1.7-.7-4.3 1.2-2.8 2-5.7 5.9-6.8 8"/></svg></a><a href="https://fosstodon.org/@TauriApps" rel="me" class="sl-flex astro-7tgeax7f"><span class="sr-only astro-7tgeax7f">Mastodon</span><svg aria-hidden="true" class="astro-7tgeax7f astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M16.45 17.77c2.77-.33 5.18-2.03 5.49-3.58.47-2.45.44-5.97.44-5.97 0-4.77-3.15-6.17-3.15-6.17-1.58-.72-4.3-1.03-7.13-1.05h-.07c-2.83.02-5.55.33-7.13 1.05 0 0-3.14 1.4-3.14 6.17v.91c-.01.88-.02 1.86 0 2.88.12 4.67.87 9.27 5.2 10.4 2 .53 3.72.64 5.1.57 2.51-.14 3.92-.9 3.92-.9l-.08-1.8s-1.8.56-3.8.5c-2-.08-4.1-.22-4.43-2.66a4.97 4.97 0 0 1-.04-.68s1.96.48 4.44.59c1.51.07 2.94-.09 4.38-.26Zm2.22-3.4h-2.3v-5.6c0-1.19-.5-1.79-1.5-1.79-1.1 0-1.66.71-1.66 2.12v3.07h-2.3V9.1c0-1.4-.55-2.12-1.65-2.12-1 0-1.5.6-1.5 1.78v5.61h-2.3V8.6c0-1.18.3-2.12.9-2.81a3.17 3.17 0 0 1 2.47-1.05c1.18 0 2.07.45 2.66 1.35l.57.96.58-.96a2.97 2.97 0 0 1 2.66-1.35c1.01 0 1.83.36 2.46 1.05.6.7.9 1.63.9 2.81v5.78Z"/></svg></a><a href="https://v2.tauri.app/rss" rel="me" class="sl-flex astro-7tgeax7f"><span class="sr-only astro-7tgeax7f">RSS</span><svg aria-hidden="true" class="astro-7tgeax7f astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M2.88 16.88a3 3 0 0 0 0 4.24 3 3 0 0 0 4.24 0 3 3 0 0 0-4.24-4.24Zm2.83 2.83a1 1 0 0 1-1.42-1.42 1 1 0 0 1 1.42 0 1 1 0 0 1 0 1.42ZM5 12a1 1 0 0 0 0 2 5 5 0 0 1 5 5 1 1 0 0 0 2 0 7 7 0 0 0-7-7Zm0-4a1 1 0 0 0 0 2 9 9 0 0 1 9 9 1 1 0 0 0 2 0 11.08 11.08 0 0 0-3.22-7.78A11.08 11.08 0 0 0 5 8Zm10.61.39A15.11 15.11 0 0 0 5 4a1 1 0 0 0 0 2 13 13 0 0 1 13 13 1 1 0 0 0 2 0 15.11 15.11 0 0 0-4.39-10.61Z"/></svg></a></div><theme-switcher class="sl-flex astro-davbrek5"><svg aria-hidden="true" class="theme-selector-light astro-davbrek5 astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.2em;"><path d="M5 12a1 1 0 0 0-1-1H3a1 1 0 0 0 0 2h1a1 1 0 0 0 1-1Zm.64 5-.71.71a1 1 0 0 0 0 1.41 1 1 0 0 0 1.41 0l.71-.71A1 1 0 0 0 5.64 17ZM12 5a1 1 0 0 0 1-1V3a1 1 0 0 0-2 0v1a1 1 0 0 0 1 1Zm5.66 2.34a1 1 0 0 0 .7-.29l.71-.71a1 1 0 1 0-1.41-1.41l-.66.71a1 1 0 0 0 0 1.41 1 1 0 0 0 .66.29Zm-12-.29a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.71-.71a1.004 1.004 0 1 0-1.43 1.41l.73.71ZM21 11h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm-2.64 6A1 1 0 0 0 17 18.36l.71.71a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.76-.66ZM12 6.5a5.5 5.5 0 1 0 5.5 5.5A5.51 5.51 0 0 0 12 6.5Zm0 9a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm0 3.5a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z"/></svg><svg aria-hidden="true" class="theme-selector-dark astro-davbrek5 astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.2em;"><path d="M21.64 13a1 1 0 0 0-1.05-.14 8.049 8.049 0 0 1-3.37.73 8.15 8.15 0 0 1-8.14-8.1 8.59 8.59 0 0 1 .25-2A1 1 0 0 0 8 2.36a10.14 10.14 0 1 0 14 11.69 1 1 0 0 0-.36-1.05Zm-9.5 6.69A8.14 8.14 0 0 1 7.08 5.22v.27a10.15 10.15 0 0 0 10.14 10.14 9.784 9.784 0 0 0 2.1-.22 8.11 8.11 0 0 1-7.18 4.32v-.04Z"/></svg></theme-switcher><starlight-lang-select><label style="--sl-select-width: 7em" class="astro-cvx6mmab"><span class="sr-only astro-cvx6mmab">Select language</span><svg aria-hidden="true" class="icon label-icon astro-cvx6mmab astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path fill-rule="evenodd" d="M8.516 3a.94.94 0 0 0-.941.94v1.15H2.94a.94.94 0 1 0 0 1.882h7.362a7.422 7.422 0 0 1-1.787 3.958 7.42 7.42 0 0 1-1.422-2.425.94.94 0 1 0-1.774.627 9.303 9.303 0 0 0 1.785 3.043 7.422 7.422 0 0 1-4.164 1.278.94.94 0 1 0 0 1.881 9.303 9.303 0 0 0 5.575-1.855 9.303 9.303 0 0 0 4.11 1.74l-.763 1.525a.968.968 0 0 0-.016.034l-1.385 2.77a.94.94 0 1 0 1.683.841l1.133-2.267h5.806l1.134 2.267a.94.94 0 0 0 1.683-.841l-1.385-2.769a.95.95 0 0 0-.018-.036l-3.476-6.951a.94.94 0 0 0-1.682 0l-1.82 3.639a7.423 7.423 0 0 1-3.593-1.256 9.303 9.303 0 0 0 2.27-5.203h1.894a.94.94 0 0 0 0-1.881H9.456V3.94A.94.94 0 0 0 8.516 3Zm6.426 11.794a1.068 1.068 0 0 1-.02.039l-.703 1.407h3.924l-1.962-3.924-1.24 2.478Z" clip-rule="evenodd"/></svg><select autocomplete="off" class="astro-cvx6mmab"><option value="/blog/tauri-20/" class="astro-cvx6mmab">English</option><option value="/fr/blog/tauri-20/" class="astro-cvx6mmab">Français</option><option value="/es/blog/tauri-20/" class="astro-cvx6mmab">Español</option><option value="/zh-cn/blog/tauri-20/" class="astro-cvx6mmab">简体中文</option><option value="/ja/blog/tauri-20/" class="astro-cvx6mmab">日本語</option><option value="/de/blog/tauri-20/" class="astro-cvx6mmab">German</option></select><svg aria-hidden="true" class="icon caret astro-cvx6mmab astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M17 9.17a1 1 0 0 0-1.41 0L12 12.71 8.46 9.17a1 1 0 1 0-1.41 1.42l4.24 4.24a1.002 1.002 0 0 0 1.42 0L17 10.59a1.002 1.002 0 0 0 0-1.42Z"/></svg></label></starlight-lang-select></div></div></div></div></nav><div class="main-frame astro-oiou2loo"><script type="module">var e=document.getElementById(`starlight__sidebar`),t=e?.querySelector(`sl-sidebar-state-persist`),n=`sl-sidebar-state`,r=()=>{let r=[],i=t?.dataset.hash||``;try{let e=sessionStorage.getItem(n),t=JSON.parse(e||`{}`);Array.isArray(t.open)&&t.hash===i&&(r=t.open)}catch{}return{hash:i,open:r,scroll:e?.scrollTop||0}},i=e=>{try{sessionStorage.setItem(n,JSON.stringify(e))}catch{}},a=()=>i(r()),o=(e,t)=>{let n=r();n.open[t]=e,i(n)};t?.addEventListener(`click`,e=>{if(!(e.target instanceof Element))return;let t=e.target.closest(`summary`)?.closest(`details`);if(!t)return;let n=t.querySelector(`sl-sidebar-restore`),r=parseInt(n?.dataset.index||``);isNaN(r)||o(!t.open,r)}),addEventListener(`visibilitychange`,()=>{document.visibilityState===`hidden`&&a()});</script><div class="two-column-content astro-zrieslpu"><aside class="right-sidebar-container print:hidden astro-zrieslpu"><div class="right-sidebar astro-zrieslpu"><div class="lg:sl-hidden astro-euv2dvuy"><mobile-starlight-toc data-min-h="2" data-max-h="3" class="astro-uiltrd42"><nav aria-labelledby="starlight__on-this-page--mobile" class="astro-uiltrd42"><details id="starlight__mobile-toc" class="astro-uiltrd42"><summary id="starlight__on-this-page--mobile" class="sl-flex astro-uiltrd42"><span class="toggle sl-flex astro-uiltrd42">On this page<svg aria-hidden="true" class="caret astro-uiltrd42 astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg></span><span class="display-current astro-uiltrd42"></span></summary><div class="dropdown astro-uiltrd42"><ul class="isMobile astro-g4ne6ent" style="--depth: 0;"><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#_top" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">Overview</span></a></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#what-is-tauri" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">What is Tauri?</span></a><ul class="isMobile astro-g4ne6ent" style="--depth: 1;"><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#when-should-i-use-tauri" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">When Should I Use Tauri?</span></a></li></ul></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#how-popular-is-tauri" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">How Popular is Tauri?</span></a></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#how-did-we-get-to-20" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">How Did We Get to 2.0?</span></a></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#who-made-this-release-possible" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">Who Made This Release Possible?</span></a></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#what-makes-20-great" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">What Makes 2.0 Great?</span></a><ul class="isMobile astro-g4ne6ent" style="--depth: 1;"><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#getting-started-experience" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Getting Started Experience</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#hot-module-replacement" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Hot-Module Replacement</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#plugins" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Plugins</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#mobile-support" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Mobile Support</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#the-allowlist-is-dead-long-live-the-allowlist" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">The Allowlist is Dead, Long Live the Allowlist</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#external-security-audit" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">External Security Audit</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#inter-process-communication-ipc-rewrite" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Inter Process Communication (IPC) Rewrite</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#distribution-guides" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Distribution Guides</span></a></li></ul></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#changelog" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">Changelog</span></a><ul class="isMobile astro-g4ne6ent" style="--depth: 1;"><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#added" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Added</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#enhancements" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Enhancements</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#bug-fixes" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Bug Fixes</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#changed" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Changed</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#removed" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Removed</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#config-restructure" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Config restructure</span></a></li></ul></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#migration" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">Migration</span></a></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#call-to-action" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">Call To Action</span></a></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#roadmap" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">Roadmap</span></a></li></ul></div></details></nav></mobile-starlight-toc><script type="module" src="/_astro/MobileTableOfContents.astro_astro_type_script_index_0_lang.BcSo_yiZ.js"></script></div><div class="right-sidebar-panel sl-hidden lg:sl-block astro-euv2dvuy"><div class="sl-container astro-euv2dvuy"><starlight-toc data-min-h="2" data-max-h="3"><nav aria-labelledby="starlight__on-this-page"><h2 id="starlight__on-this-page">On this page</h2><ul class="astro-g4ne6ent" style="--depth: 0;"><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#_top" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">Overview</span></a></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#what-is-tauri" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">What is Tauri?</span></a><ul class="astro-g4ne6ent" style="--depth: 1;"><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#when-should-i-use-tauri" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">When Should I Use Tauri?</span></a></li></ul></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#how-popular-is-tauri" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">How Popular is Tauri?</span></a></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#how-did-we-get-to-20" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">How Did We Get to 2.0?</span></a></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#who-made-this-release-possible" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">Who Made This Release Possible?</span></a></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#what-makes-20-great" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">What Makes 2.0 Great?</span></a><ul class="astro-g4ne6ent" style="--depth: 1;"><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#getting-started-experience" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Getting Started Experience</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#hot-module-replacement" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Hot-Module Replacement</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#plugins" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Plugins</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#mobile-support" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Mobile Support</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#the-allowlist-is-dead-long-live-the-allowlist" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">The Allowlist is Dead, Long Live the Allowlist</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#external-security-audit" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">External Security Audit</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#inter-process-communication-ipc-rewrite" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Inter Process Communication (IPC) Rewrite</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#distribution-guides" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Distribution Guides</span></a></li></ul></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#changelog" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">Changelog</span></a><ul class="astro-g4ne6ent" style="--depth: 1;"><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#added" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Added</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#enhancements" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Enhancements</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#bug-fixes" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Bug Fixes</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#changed" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Changed</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#removed" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Removed</span></a></li><li style="--depth: 1;" class="astro-g4ne6ent"><a href="#config-restructure" style="--depth: 1;" class="astro-g4ne6ent"><span style="--depth: 1;" class="astro-g4ne6ent">Config restructure</span></a></li></ul></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#migration" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">Migration</span></a></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#call-to-action" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">Call To Action</span></a></li><li style="--depth: 0;" class="astro-g4ne6ent"><a href="#roadmap" style="--depth: 0;" class="astro-g4ne6ent"><span style="--depth: 0;" class="astro-g4ne6ent">Roadmap</span></a></li></ul></nav></starlight-toc><script type="module" src="/_astro/TableOfContents.astro_astro_type_script_index_0_lang.Csloo1VZ.js"></script></div></div></div></aside><div class="main-pane astro-zrieslpu"><main data-pagefind-body class="astro-kuswk4rs" lang="en" dir="ltr"><div class="content-panel astro-niqzxul7"><div class="sl-container astro-niqzxul7"><h1 id="_top" class="astro-kzllzjj3">Tauri 2.0 Stable Release</h1></div></div><div class="content-panel astro-niqzxul7"><div class="sl-container astro-niqzxul7"><div class="sl-markdown-content"><div class="sl-blog-metadata not-content astro-v3hl4bea"><div class="sl-blog-metadata-items astro-v3hl4bea"><time class="sl-blog-metadata-date astro-v3hl4bea" datetime="2024-10-02T00:00:00.000Z">Oct 2, 2024</time></div><div class="sl-blog-metadata-authors astro-v3hl4bea"><div class="sl-blog-author astro-7dm5hnmc"><img src="/authors/tweidinger.png" alt="Tillmann Weidinger" loading="eager" decoding="async" width="40" height="40" class="sl-blog-author-picture astro-7dm5hnmc"><div class="sl-blog-author-details astro-7dm5hnmc"><div class="sl-blog-author-name astro-7dm5hnmc">Tillmann Weidinger</div><div class="sl-blog-author-title astro-7dm5hnmc">Tauri Security</div></div></div></div></div>
+<p>We are very proud to finally announce the stable release for the new major version of Tauri.
+Welcome to Tauri 2.0!</p>
+<div style="display:flex; flex-direction: row; justify-content: center; align-items: center"><div style="padding-inline-end: 10px"><svg width="48" height="48"><use xlink:href="/assets/platforms.svg#wpf-android-os"></use></svg></div><div style="padding-inline-end: 10px"><svg width="48" height="48"><use xlink:href="/assets/platforms.svg#simple-icons-ios"></use></svg></div><div style="padding-inline-end: 10px"><svg width="48" height="48"><use xlink:href="/assets/platforms.svg#cib-linux"></use></svg></div><div style="padding-inline-end: 10px"><svg width="48" height="48"><use xlink:href="/assets/platforms.svg#wpf-mac-os"></use></svg></div><div style="padding-inline-end: 10px"><svg width="48" height="48"><use xlink:href="/assets/platforms.svg#bi-windows"></use></svg></div></div>
+<div class="sl-heading-wrapper level-h2"><h2 id="what-is-tauri">What is Tauri?</h2><a class="sl-anchor-link" href="#what-is-tauri"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “What is Tauri?”</span></a></div>
+<aside aria-label="Definition" class="starlight-aside starlight-aside--note"><p class="starlight-aside__title" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" class="starlight-aside__icon"><path d="M12 11a1 1 0 0 0-1 1v4a1 1 0 0 0 2 0v-4a1 1 0 0 0-1-1Zm.38-3.92a1 1 0 0 0-.76 0 1 1 0 0 0-.33.21 1.15 1.15 0 0 0-.21.33 1 1 0 0 0 .21 1.09c.097.088.209.16.33.21A1 1 0 0 0 13 8a1.05 1.05 0 0 0-.29-.71 1 1 0 0 0-.33-.21ZM12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16.001A8 8 0 0 1 12 20Z"/></svg>Definition</p><div class="starlight-aside__content"><p>Tauri is a framework for building tiny and fast binaries for all major desktop (macOS, linux, windows) and mobile (iOS, Android) platforms.</p><p>Developers can integrate any frontend framework that compiles to HTML, JavaScript, and CSS for building their user experience while leveraging languages such as Rust, Swift, and Kotlin for backend logic when needed.</p></div></aside>
+<p>In a Tauri application the frontend is written in your favorite web frontend stack.
+This runs inside the operating system WebView and communicates with the application core written mostly in Rust.</p>
+<p><img src="/_astro/tauri-trust-boundaries.C0cC9LAT_1KhzH4.svg" alt="a graph showing the IPC bridge between the Application Core and the System’s WebView" loading="lazy" decoding="async" width="1516" height="753"></p>
+<aside aria-label="No Rust Skills Needed!" class="starlight-aside starlight-aside--tip"><p class="starlight-aside__title" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" class="starlight-aside__icon"><path fill-rule="evenodd" d="M1.44 8.855v-.001l3.527-3.516c.34-.344.802-.541 1.285-.548h6.649l.947-.947c3.07-3.07 6.207-3.072 7.62-2.868a1.821 1.821 0 0 1 1.557 1.557c.204 1.413.203 4.55-2.868 7.62l-.946.946v6.649a1.845 1.845 0 0 1-.549 1.286l-3.516 3.528a1.844 1.844 0 0 1-3.11-.944l-.858-4.275-4.52-4.52-2.31-.463-1.964-.394A1.847 1.847 0 0 1 .98 10.693a1.843 1.843 0 0 1 .46-1.838Zm5.379 2.017-3.873-.776L6.32 6.733h4.638l-4.14 4.14Zm8.403-5.655c2.459-2.46 4.856-2.463 5.89-2.33.134 1.035.13 3.432-2.329 5.891l-6.71 6.71-3.561-3.56 6.71-6.711Zm-1.318 15.837-.776-3.873 4.14-4.14v4.639l-3.364 3.374Z" clip-rule="evenodd"/><path d="M9.318 18.345a.972.972 0 0 0-1.86-.561c-.482 1.435-1.687 2.204-2.934 2.619a8.22 8.22 0 0 1-1.23.302c.062-.365.157-.79.303-1.229.415-1.247 1.184-2.452 2.62-2.935a.971.971 0 1 0-.62-1.842c-.12.04-.236.084-.35.13-2.02.828-3.012 2.588-3.493 4.033a10.383 10.383 0 0 0-.51 2.845l-.001.016v.063c0 .536.434.972.97.972H2.24a7.21 7.21 0 0 0 .878-.065c.527-.063 1.248-.19 2.02-.447 1.445-.48 3.205-1.472 4.033-3.494a5.828 5.828 0 0 0 .147-.407Z"/></svg>No Rust Skills Needed!</p><div class="starlight-aside__content"><p>You don’t need to write Code in Rust, Swift or Kotlin in most cases. Tauri already offers an extensive JavaScript API.</p></div></aside>
+<div class="sl-heading-wrapper level-h3"><h3 id="when-should-i-use-tauri">When Should I Use Tauri?</h3><a class="sl-anchor-link" href="#when-should-i-use-tauri"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “When Should I Use Tauri?”</span></a></div>
+<p>If you check <strong>any</strong> of the boxes below, you should use Tauri:</p>
+<ul class="contains-task-list">
+<li class="task-list-item"><input type="checkbox" disabled> Do you want a single UI codebase for all platforms?</li>
+<li class="task-list-item"><input type="checkbox" disabled> Do you want to reach as many users as possible on their platform (eg. Windows, MacOS, Linux, Android, iOS)?</li>
+<li class="task-list-item"><input type="checkbox" disabled> Are you a frontend web developer and want to write native applications?</li>
+<li class="task-list-item"><input type="checkbox" disabled> Are you a Rust developer looking to write applications with a nice looking UI with the option to do it in Rust?</li>
+<li class="task-list-item"><input type="checkbox" disabled> Do you have an existing team of web developers and want to expand to native application markets with low upfront investment?</li>
+<li class="task-list-item"><input type="checkbox" disabled> Do you have an existing team of rustaceans and want everything written in Rust?</li>
+</ul>
+<div class="sl-heading-wrapper level-h2"><h2 id="how-popular-is-tauri">How Popular is Tauri?</h2><a class="sl-anchor-link" href="#how-popular-is-tauri"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “How Popular is Tauri?”</span></a></div>
+<p><img src="/_astro/tauri-star-history.Dr3CGlN3_5J4eO.webp" alt="a graph showing the progression of Tauri GitHub stars over the years, starting with 0 at 2019 and continuing to grow past 80.000 in 2024" loading="lazy" decoding="async" width="878" height="579"></p>
+<p>On GitHub the Tauri repository has <a href="https://github.com/tauri-apps/tauri/pulls?q=is%3Apr+is%3Aclosed">~4,878 Pull Requests</a> and <a href="https://github.com/tauri-apps/tauri/issues?q=is%3Aissue+is%3Aclosed">~3,570 Issues</a> closed and around <a href="https://github.com/tauri-apps/tauri/discussions">1000 discussions</a>, at the time of writing.
+To get a more detailed insight take a look at <a href="https://ossinsight.io/analyze/tauri-apps/tauri">the OSSinsight analysis</a> of the Tauri repository.</p>
+<p>Our <a href="https://discord.gg/tauri">Discord Server</a> currently has ~17,700 members. We are seeing a lot of individual user support, questions on Tauri itself, questions directly to the working group or just discussions between fellow Tauri app developers.</p>
+<p>We are very happy about the positive and supportive community and grateful to all the community members answering or helping others in Discord or GitHub.</p>
+<p>We maintain a curated list of Tauri related projects, applications, plugins, guides and more at <a href="https://github.com/tauri-apps/awesome-tauri?tab=readme-ov-file#applications">awesome-tauri</a>. Check this out if you want to get inspiration, see what others are building and ideally create a PR to add your project.</p>
+<p>Of course this is only a representative sample set and we don’t know exactly who else is building on Tauri.</p>
+<div class="sl-heading-wrapper level-h2"><h2 id="how-did-we-get-to-20">How Did We Get to 2.0?</h2><a class="sl-anchor-link" href="#how-did-we-get-to-20"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “How Did We Get to 2.0?”</span></a></div>
+<p>In June 2022 we released Tauri 1.0 with a great impact on the desktop operating system market and how cross platform applications can be built.</p>
+<p>In the end of 2022 we released our initial alpha version of 2.0 to get initial feedback and to test out how mobile interaction should be defined.</p>
+<p>After the initial alpha we spent close to two years refining and changing the architecture of Tauri in public. After we saw the broad picture clear enough ourselves we released the beta in Februrary this year. At the same time we collaborated and worked with external security auditors to check our decisions, architecture changes and much more.</p>
+<p>This August we published the release candidate version of 2.0 to iron out major bugs and to get more feedback from productive use. At the same time the external audit was concluded and made public.</p>
+<p>The release candidate time frame was considerably shorter and consisted mainly of high impact bugfixes and documentation improvements. Some breaking changes we had to make during the release candidate phase were bundled up until the end and are now included in the stable release. Take a look at the <a href="#migration">migration section</a> if your main concern is upgrading from a previous version.</p>
+<p>In total we spent over two years working on improvements, new features, bugfixes, documentation, rewrites and a lot of discussions.</p>
+<p>This all happened while we released 8 minor versions of the Tauri 1.x branch and backported security fixes and other important bug fixes in several patch releases.</p>
+<div class="sl-heading-wrapper level-h2"><h2 id="who-made-this-release-possible">Who Made This Release Possible?</h2><a class="sl-anchor-link" href="#who-made-this-release-possible"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Who Made This Release Possible?”</span></a></div>
+<p>This release and Tauri itself is only possible due to massive amount of contributions from <a href="https://github.com/lucasfernog">Lucas</a>, who has provided a constant stream of code changes over the years ❤️.</p>
+<p><img src="/_astro/lucas-commit-graph.gQ6-XyEM_HJIsi.webp" alt="Lucas’ contribution graph, with 2744 commits, over 896.000 additions and 688.000 deletions." loading="lazy" decoding="async" width="644" height="312"></p>
+<p>Obviously, Lucas is not the only individual working and contributing to Tauri, but we feel he deserves a very special mention for carrying, starting, and supporting the project and its community throughout the years.</p>
+<p>We have had major contributions to the Tauri repository in 2.0 from <a href="https://github.com/amrbashir">Amr</a>, <a href="https://github.com/FabianLars">Fabian-Lars</a>, <a href="https://github.com/Legend-Master">Tony</a>, <a href="https://github.com/chippers">Chip</a>, <a href="https://github.com/pewsheen">Jason</a>, <a href="https://github.com/wusyong">YuWei</a>, <a href="https://github.com/i-c-b">icb</a> , <a href="https://github.com/simonhyll">Simon</a>, <a href="https://github.com/olivierlemasle">Oliver Lemasle</a> and many more contributors (<a href="https://github.com/tauri-apps/tauri/graphs/contributors?from=9%2F24%2F2022">source data</a>).</p>
+<p>We received an increasing number of drive-by contributors (one or very few PRs). We are grateful for these, but naming everyone would make this a very long list here.</p>
+<p>We have a lot(!) of <a href="https://github.com/orgs/tauri-apps/repositories">repositories</a> in our organization, which are supporting the success of Tauri and without community and working group contributions Tauri would not be where it is now. A big thank you to everyone involved!</p>
+<p>Another special shout out and thanks for their constant involvement in the community goes to <a href="https://github.com/FabianLars">Fabian-Lars</a> and <a href="https://github.com/simonhyll">Simon</a>. If you have been involved in Tauri’s Discord or Github discussions you likely know their name or avatar.</p>
+<p>If you ever searched on Google or YouTube for Tauri, you have probably seen one of <a href="https://www.youtube.com/c/JacobBolda">Jacob’s streams</a>. If that’s not the case please make sure to check it out and subscribe as his sessions are beyond just educational.</p>
+<p>Another special place in our heart has the <a href="https://github.com/tauri-apps/governance-and-guidance/issues/58">Tauri Board</a>, highlighting <a href="https://mt.linkedin.com/in/daniel-thompson-yvetot-a98301222">Daniel Yvetot-Thompson</a> for the numerous hours, sweat, blood and dedication to make Tauri known and sustainable.</p>
+<p>One important thing we should not forget, is that we acquired support from a stable partner of this open source project.</p>
+<p><img src="/_astro/crabnebula.xh9nhpEF_ZIM7Po.svg" alt="CrabNebula Logo" loading="lazy" decoding="async" width="1204" height="210"></p>
+<p><a href="https://crabnebula.dev/">CrabNebula</a> granted multiple people mentioned above and others that are not mentioned here, the privilege to work on the Tauri ecosystem not only in their private time, but also during work time. You can find the <a href="/blog/partnership-crabnebula/">partnership announcement</a> on our blog and we have been more than happy about this collaboration over the last year.</p>
+<p>In 2024 alone they spent over <strong>2,870</strong> work hours on this project, which massively pushed the progress and allows us to announce the stable 2.0 release today.</p>
+<p>If you were not aware of CrabNebula yet, make sure to check out their <a href="https://crabnebula.dev/">products and services</a> and consider the symbiotic relationship with Tauri if you are interested in not only improving your workflows, but also supporting the Tauri ecosystem.</p>
+<div class="sl-heading-wrapper level-h2"><h2 id="what-makes-20-great">What Makes 2.0 Great?</h2><a class="sl-anchor-link" href="#what-makes-20-great"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “What Makes 2.0 Great?”</span></a></div>
+<p>With this major release we improved and changed several aspects of how and where you can build, develop and publish your Tauri app. In the following sections we have more detailed insight. This does not cover everything, but should give you a decent impression on what you can expect from Tauri.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="getting-started-experience">Getting Started Experience</h3><a class="sl-anchor-link" href="#getting-started-experience"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Getting Started Experience”</span></a></div>
+<p>One thing you are always going to go through when starting with a new framework or tool is the initial onboarding or getting started process.</p>
+<p>We value developer experience (DX) and try to make this initial process as seamless as building and distributing your final application.</p>
+<p>For this we created another project, which is called <a href="https://github.com/tauri-apps/create-tauri-app"><code dir="auto">create-tauri-app</code></a> or in short CTA.
+This tool allows developers to start from scratch and get to a running Tauri app in a few minutes instead of hours.</p>
+<starlight-tabs data-sync-key="cmd" class="astro-4d55wg7u"><div class="tablist-wrapper not-content astro-4d55wg7u"><ul role="tablist" class="astro-4d55wg7u"><li role="presentation" class="tab astro-4d55wg7u"><a role="tab" href="#tab-panel-1-0" id="tab-1-0" aria-selected="true" tabindex="0" class="astro-4d55wg7u">Bash</a></li><li role="presentation" class="tab astro-4d55wg7u"><a role="tab" href="#tab-panel-1-1" id="tab-1-1" aria-selected="false" tabindex="-1" class="astro-4d55wg7u">PowerShell</a></li><li role="presentation" class="tab astro-4d55wg7u"><a role="tab" href="#tab-panel-1-2" id="tab-1-2" aria-selected="false" tabindex="-1" class="astro-4d55wg7u">Fish</a></li><li role="presentation" class="tab astro-4d55wg7u"><a role="tab" href="#tab-panel-1-3" id="tab-1-3" aria-selected="false" tabindex="-1" class="astro-4d55wg7u">npm</a></li><li role="presentation" class="tab astro-4d55wg7u"><a role="tab" href="#tab-panel-1-4" id="tab-1-4" aria-selected="false" tabindex="-1" class="astro-4d55wg7u">Yarn</a></li><li role="presentation" class="tab astro-4d55wg7u"><a role="tab" href="#tab-panel-1-5" id="tab-1-5" aria-selected="false" tabindex="-1" class="astro-4d55wg7u">pnpm</a></li><li role="presentation" class="tab astro-4d55wg7u"><a role="tab" href="#tab-panel-1-6" id="tab-1-6" aria-selected="false" tabindex="-1" class="astro-4d55wg7u">deno</a></li><li role="presentation" class="tab astro-4d55wg7u"><a role="tab" href="#tab-panel-1-7" id="tab-1-7" aria-selected="false" tabindex="-1" class="astro-4d55wg7u">bun</a></li><li role="presentation" class="tab astro-4d55wg7u"><a role="tab" href="#tab-panel-1-8" id="tab-1-8" aria-selected="false" tabindex="-1" class="astro-4d55wg7u">Cargo</a></li></ul></div><div id="tab-panel-1-0" aria-labelledby="tab-1-0" role="tabpanel"><div class="expressive-code"><link rel="stylesheet" href="/_astro/ec.z9dce.css"><script type="module" src="/_astro/ec.0vx5m.js"></script><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="sh"><code><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">sh</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#D9F5DD;--1:#111111">&#x3C;(</span><span style="--1:#3B61B0"><span style="--0:#82AAFF">curl</span><span style="--0:#ECC48D"> https://create.tauri.app/sh</span></span><span style="--0:#D9F5DD;--1:#111111">)</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="sh <(curl https://create.tauri.app/sh)"><div></div></button></div></figure></div></div><div id="tab-panel-1-1" aria-labelledby="tab-1-1" role="tabpanel" hidden><div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="sh"><code><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">irm</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">https://create.tauri.app/ps</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#7FDBCA;--1:#096E72">|</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#82AAFF;--1:#3B61B0">iex</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="irm https://create.tauri.app/ps | iex"><div></div></button></div></figure></div></div><div id="tab-panel-1-2" aria-labelledby="tab-1-2" role="tabpanel" hidden><div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="sh"><code><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">sh</span><span style="--0:#D6DEEB;--1:#403F53"> (curl </span><span style="--0:#82AAFF;--1:#3B61B0">-sSL</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">https://create.tauri.app/sh</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#7FDBCA;--1:#096E72">|</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#82AAFF;--1:#3B61B0">psub</span><span style="--0:#D6DEEB;--1:#403F53">)</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="sh (curl -sSL https://create.tauri.app/sh | psub)"><div></div></button></div></figure></div></div><div id="tab-panel-1-3" aria-labelledby="tab-1-3" role="tabpanel" hidden><div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="sh"><code><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">npm</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">create</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">tauri-app@latest</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="npm create tauri-app@latest"><div></div></button></div></figure></div></div><div id="tab-panel-1-4" aria-labelledby="tab-1-4" role="tabpanel" hidden><div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="sh"><code><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">yarn</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">create</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">tauri-app</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="yarn create tauri-app"><div></div></button></div></figure></div></div><div id="tab-panel-1-5" aria-labelledby="tab-1-5" role="tabpanel" hidden><div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="sh"><code><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">pnpm</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">create</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">tauri-app</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="pnpm create tauri-app"><div></div></button></div></figure></div></div><div id="tab-panel-1-6" aria-labelledby="tab-1-6" role="tabpanel" hidden><div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="sh"><code><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">deno</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">run</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#82AAFF;--1:#3B61B0">-A</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">npm:create-tauri-app</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="deno run -A npm:create-tauri-app"><div></div></button></div></figure></div></div><div id="tab-panel-1-7" aria-labelledby="tab-1-7" role="tabpanel" hidden><div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="sh"><code><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">bun</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">create</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">tauri-app</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="bun create tauri-app"><div></div></button></div></figure></div></div><div id="tab-panel-1-8" aria-labelledby="tab-1-8" role="tabpanel" hidden><div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="sh"><code><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">cargo</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">install</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">create-tauri-app</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#82AAFF;--1:#3B61B0">--locked</span></div></div><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">cargo</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">create-tauri-app</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="cargo install create-tauri-app --lockedcargo create-tauri-app"><div></div></button></div></figure></div></div><starlight-tabs-restore class="astro-4d55wg7u"></starlight-tabs-restore></starlight-tabs><script type="module">var e=class e extends HTMLElement{static#e=new Map;tabs;panels;#t;#n=`starlight-synced-tabs__`;constructor(){super();let t=this.querySelector(`[role="tablist"]`);if(this.tabs=[...t.querySelectorAll(`[role="tab"]`)],this.panels=[...this.querySelectorAll(`:scope > [role="tabpanel"]`)],this.#t=this.dataset.syncKey,this.#t){let t=e.#e.get(this.#t)??[];t.push(this),e.#e.set(this.#t,t)}this.tabs.forEach((e,n)=>{e.addEventListener(`click`,e=>{e.preventDefault();let r=t.querySelector(`[aria-selected="true"]`);e.currentTarget!==r&&this.switchTab(e.currentTarget,n)}),e.addEventListener(`keydown`,e=>{let t=this.tabs.indexOf(e.currentTarget),n=e.key===`ArrowLeft`?t-1:e.key===`ArrowRight`?t+1:e.key===`Home`?0:e.key===`End`?this.tabs.length-1:null;n!==null&&this.tabs[n]&&(e.preventDefault(),this.switchTab(this.tabs[n],n))})})}switchTab(t,n,r=!0){if(!t)return;let i=r?this.getBoundingClientRect().top:0;this.tabs.forEach(e=>{e.setAttribute(`aria-selected`,`false`),e.setAttribute(`tabindex`,`-1`)}),this.panels.forEach(e=>{e.hidden=!0});let a=this.panels[n];a&&(a.hidden=!1),t.removeAttribute(`tabindex`),t.setAttribute(`aria-selected`,`true`),r&&(t.focus(),e.#i(this,t),window.scrollTo({top:window.scrollY+(this.getBoundingClientRect().top-i),behavior:`instant`}))}#r(e){!this.#t||typeof localStorage>`u`||localStorage.setItem(this.#n+this.#t,e)}static#i(t,n){let r=t.#t,i=e.#a(n);if(!r||!i)return;let a=e.#e.get(r);if(a){for(let n of a){if(n===t)continue;let r=n.tabs.findIndex(t=>e.#a(t)===i);r!==-1&&n.switchTab(n.tabs[r],r,!1)}t.#r(i)}}static#a(e){return e.textContent?.trim()}};customElements.define(`starlight-tabs`,e);</script>
+<p>Of course you need to install some prerequisites on your development system before you can start building your application. For this we have extensive guides with operating system specific sections in our <a href="https://v2.tauri.app/start/prerequisites/">official documentation</a>.</p>
+<p>This whole onboarding experience has been improved and now also bootstraps mobile development templates for iOS and Android.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="hot-module-replacement">Hot-Module Replacement</h3><a class="sl-anchor-link" href="#hot-module-replacement"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Hot-Module Replacement”</span></a></div>
+<p>After the initial onboarding you will regularly develop and debug your Tauri application. We considered what would improve your development process already in 1.x of Tauri and extended the Hot-Module Replacement (HMR) to mobile devices and emulators.</p>
+<p>This means that all changes to the frontend of your application do not require a rebuild of your whole application and you can live preview how it will look like in the device or operating system your are developing for.</p>
+<video controls><source src="/assets/hmr-preview.mp4" type="video/mp4"/><p>Your browser does not support the video tag.</p></video>
+<div class="sl-heading-wrapper level-h3"><h3 id="plugins">Plugins</h3><a class="sl-anchor-link" href="#plugins"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Plugins”</span></a></div>
+<p>With Tauri 2.0 we built a more advanced plugin system. We transferred a lot of our previous functionality into our official plugins (see <a href="https://github.com/tauri-apps/plugins-workspace">plugins-workspace</a>), to allow the community an easier entry into contributing to Tauri. We also hope to attract more maintainers for plugins and to speed up the process of implementing new features.</p>
+<p>This move to plugins has another benefit. We are going to be able to define a definition of done for Tauri’s core. We hope to stabilize the core functionality and offer a stable framework, where the moving parts are mostly plugins offering access to system specific functionality.</p>
+<p>You no longer need to understand all of Tauri to improve or implement specific features. The plugins usually do not depend on other plugins, with some exceptions. This means to implement a new file system access functionality it is only required to contribute to the <code dir="auto">fs</code> plugin instead of Tauri itself.</p>
+<p>As this release also targets mobile platforms, the plugin system also supports mobile plugins. You can write or re-use native code in Swift on iOS and Kotlin on Android and directly expose functions to the Tauri frontend using <a href="https://kotlinlang.org/docs/annotations.html"><code dir="auto">Annotations</code></a> (<code dir="auto">@Command</code> on Android), implementing a <a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/inheritance#Subclassing"><code dir="auto">Subclass</code></a> (<code dir="auto">YourPluginClass: Plugin</code>) on iOS, or by invoking the Swift or Kotlin code from a Rust based Tauri command. Check out the <a href="https://v2.tauri.app/develop/plugins/">documentation</a> on how to write your own plugin.</p>
+<p>As we are releasing Tauri as 2.0, the official plugins will follow the major version of Tauri to make compatibility with Tauri’s major version visible at a glance. Not all plugins are as stable as Tauri itself though.</p>
+<p>Each plugin’s stableness is defined per plugin and documented (soon) in the plugin documentation. The plugin API can possibly break in minor versions, but we will try to keep these changes to a minimum, especially for plugins considered stable.</p>
+<aside aria-label="Tip" class="starlight-aside starlight-aside--tip"><p class="starlight-aside__title" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" class="starlight-aside__icon"><path fill-rule="evenodd" d="M1.44 8.855v-.001l3.527-3.516c.34-.344.802-.541 1.285-.548h6.649l.947-.947c3.07-3.07 6.207-3.072 7.62-2.868a1.821 1.821 0 0 1 1.557 1.557c.204 1.413.203 4.55-2.868 7.62l-.946.946v6.649a1.845 1.845 0 0 1-.549 1.286l-3.516 3.528a1.844 1.844 0 0 1-3.11-.944l-.858-4.275-4.52-4.52-2.31-.463-1.964-.394A1.847 1.847 0 0 1 .98 10.693a1.843 1.843 0 0 1 .46-1.838Zm5.379 2.017-3.873-.776L6.32 6.733h4.638l-4.14 4.14Zm8.403-5.655c2.459-2.46 4.856-2.463 5.89-2.33.134 1.035.13 3.432-2.329 5.891l-6.71 6.71-3.561-3.56 6.71-6.711Zm-1.318 15.837-.776-3.873 4.14-4.14v4.639l-3.364 3.374Z" clip-rule="evenodd"/><path d="M9.318 18.345a.972.972 0 0 0-1.86-.561c-.482 1.435-1.687 2.204-2.934 2.619a8.22 8.22 0 0 1-1.23.302c.062-.365.157-.79.303-1.229.415-1.247 1.184-2.452 2.62-2.935a.971.971 0 1 0-.62-1.842c-.12.04-.236.084-.35.13-2.02.828-3.012 2.588-3.493 4.033a10.383 10.383 0 0 0-.51 2.845l-.001.016v.063c0 .536.434.972.97.972H2.24a7.21 7.21 0 0 0 .878-.065c.527-.063 1.248-.19 2.02-.447 1.445-.48 3.205-1.472 4.033-3.494a5.828 5.828 0 0 0 .147-.407Z"/></svg>Tip</p><div class="starlight-aside__content"><p>You can pin your plugin versions to only patch updates if you need absolute stable interfaces. We generally try to backport security updates and will announce advisories on GitHub.</p></div></aside>
+<div class="card-grid astro-ndljr3oz"><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/autostart/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Autostart</span></a><p class="description astro-4b624pye">Automatically launch your app at system startup.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/barcode-scanner/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Barcode Scanner</span></a><p class="description astro-4b624pye">Allows your mobile application to use the camera to scan QR codes, EAN-13 and other types of barcodes.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/biometric/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Biometric</span></a><p class="description astro-4b624pye">Prompt the user for biometric authentication on Android and iOS.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/clipboard/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Clipboard</span></a><p class="description astro-4b624pye">Read and write to the system clipboard.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/cli/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Command Line Interface (CLI)</span></a><p class="description astro-4b624pye">Parse arguments from the command line interface.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/deep-linking/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Deep Linking</span></a><p class="description astro-4b624pye">Set your Tauri application as the default handler for an URL.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/dialog/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Dialog</span></a><p class="description astro-4b624pye">Native system dialogs for opening and saving files along with message dialogs.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/file-system/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">File System</span></a><p class="description astro-4b624pye">Access the file system.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/geolocation/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Geolocation</span></a><p class="description astro-4b624pye">Get and track the device's current position, including information about altitude, heading, and speed (if available).</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/global-shortcut/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Global Shortcut</span></a><p class="description astro-4b624pye">Register global shortcuts.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/haptics/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Haptics</span></a><p class="description astro-4b624pye">Haptic feedback and vibrations on Android and iOS</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/http-client/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">HTTP Client</span></a><p class="description astro-4b624pye">Access the HTTP client written in Rust.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/localhost/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Localhost</span></a><p class="description astro-4b624pye">Use a localhost server in production apps.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/logging/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Logging</span></a><p class="description astro-4b624pye">Configurable logging.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/nfc/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">NFC</span></a><p class="description astro-4b624pye">Read and write NFC tags on Android and iOS.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/notification/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Notifications</span></a><p class="description astro-4b624pye">Send native notifications to the user.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/opener/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Opener</span></a><p class="description astro-4b624pye">Open files and URLs in external applications.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/os-info/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">OS Information</span></a><p class="description astro-4b624pye">Read information about the operating system.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/persisted-scope/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Persisted Scope</span></a><p class="description astro-4b624pye">Persist runtime scope changes on the filesystem.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/positioner/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Positioner</span></a><p class="description astro-4b624pye">Move windows to common locations.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/process/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Process</span></a><p class="description astro-4b624pye">Access the current process.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/shell/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Shell</span></a><p class="description astro-4b624pye">Access the system shell to spawn child processes.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/single-instance/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Single Instance</span></a><p class="description astro-4b624pye">Ensure that a single instance of your Tauri app is running at a time.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/sql/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">SQL</span></a><p class="description astro-4b624pye">Tauri Plugin providing an interface for the frontend to communicate with SQL databases through sqlx.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/store/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Store</span></a><p class="description astro-4b624pye">Persistent key value storage.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/stronghold/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Stronghold</span></a><p class="description astro-4b624pye">Encrypted, secure database.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/updater/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Updater</span></a><p class="description astro-4b624pye">In-app updates for Tauri applications.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/upload/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Upload</span></a><p class="description astro-4b624pye">File uploads through HTTP.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/websocket/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Websocket</span></a><p class="description astro-4b624pye">Open a WebSocket connection using a Rust client in JavaScript.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+
+  <div class="android-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#material-symbols-android"></use>
+    </svg>
+  </div>
+
+  <div class="ios-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-ios"></use>
+    </svg>
+  </div>
+</div></span></div><div class="sl-link-card-custom not-content astro-4b624pye"><span class="sl-flex stack astro-4b624pye"><a href="/plugin/window-state/" class="astro-46sefvi2 astro-4b624pye"><span class="title astro-4b624pye">Window State</span></a><p class="description astro-4b624pye">Persist window sizes and positions.</p><div style="pointer-events:none" class="footer astro-4b624pye">
+  <div class="windows-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#bi-windows"></use>
+    </svg>
+  </div>
+
+  <div class="linux-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#cib-linux"></use>
+    </svg>
+  </div>
+
+  <div class="macos-search" style="padding-inline-end: 4px">
+    <svg width="24" height="24">
+      <use xlink:href="/assets/platforms.svg#simple-icons-macos"></use>
+    </svg>
+  </div>
+</div></span></div></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="mobile-support">Mobile Support</h3><a class="sl-anchor-link" href="#mobile-support"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Mobile Support”</span></a></div>
+<p>A very much awaited part of this release is the mobile operating system support. The previous version of Tauri allowed to have a single UI code base for desktop operating systems but now this extends to iOS and Android.</p>
+<p>We have investigated and experimented with different solutions to support mobile and decided on using the operating system native language (Swift and Kotlin) to build an interface for the Rust code and to allow developers to write part of their functionality in these languages.</p>
+<p>This means you can re-use existing logic of your Swift or Kotlin app that interacts with the system and expose it to Rust or the frontend. Right now this works as mentioned above via the plugin system.</p>
+<p>We support development with an emulator or a real device and provide a lot of tooling to make the process as seamless as possible. We are not completely happy about the developer experience at the moment but are actively improving to bring it up to par with the desktop experience.</p>
+<p>On mobile not all of the official plugins are supported. Some are by design not a good fit for mobile and some are just not implemented to support mobile yet. If you would like to contribute on this part check the <a href="#call-to-action">last section</a> of this post.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="the-allowlist-is-dead-long-live-the-allowlist">The Allowlist is Dead, Long Live the Allowlist</h3><a class="sl-anchor-link" href="#the-allowlist-is-dead-long-live-the-allowlist"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “The Allowlist is Dead, Long Live the Allowlist”</span></a></div>
+<p>Yes, there is no <code dir="auto">allowlist</code> anymore, as we hit the limits of this system pretty quickly. We made it exclusive for Tauri core features and it did not even cover all of Tauri’s APIs. Our new system not only covers all of Tauri’s core API surface, it also supports app and plugin developers to implement their own access control and scoping with a unified approach.</p>
+<p>The new system we implemented is using <a href="https://v2.tauri.app/security/permissions/"><code dir="auto">permissions</code></a> - <em>“On-off toggles for Tauri commands”</em>, <a href="https://v2.tauri.app/security/scope/"><code dir="auto">scopes</code></a> - <em>“Parameter validation for Tauri commands”</em> and <a href="https://v2.tauri.app/security/capabilities/"><code dir="auto">capabilities</code></a> - <em>“Attaching permissions and scopes to Windows and WebViews”</em>, to create a flexible but simple to use access control system.</p>
+<p>It allows the creation of named permission or scoping files and to re-use and combine them with other named permissions or scopes. This makes it possible to build more fine grained descriptive sets containing several simple or complex permissions and scopes.</p>
+<p>As a plugin developer you can abstract away several base permissions into a <code dir="auto">default</code> permission. This can be based on your default security assumptions and threat model. All official Tauri plugin default permissions are reasonably secure by default.</p>
+<p>As an app developer you can use, extend or reduce plugin permissions. Of course you can also build permissions and scopes for your own application.</p>
+<p>With this addition, Tauri’s core is now able to understand if a command invoke message from a frontend WebView is allowed to reach the command function. It is also able to attach the configured scope to the message.</p>
+<p>The command implementation is responsible for interpreting and enforcing the scope. You can read more about our Threat Model and approach to security in our <a href="https://v2.tauri.app/security/">documentation</a>.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="external-security-audit">External Security Audit</h3><a class="sl-anchor-link" href="#external-security-audit"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “External Security Audit”</span></a></div>
+<p>The major changes and architecture of v2 was independently audited by <a href="https://www.radicallyopensecurity.com/">Radically Open Security</a> during the beta and release candidate period. Please take your time to read the <a href="https://github.com/tauri-apps/tauri/blob/dev/audits/Radically_Open_Security-v2-report.pdf">report</a> and learn more about the awesome work of <a href="https://github.com/gronke">@gronke</a> and <a href="https://github.com/pcwizz">@pcwizz</a>.</p>
+<p>The whole audit was funded by the great folks at <a href="https://nlnet.nl/">NLNet</a> via funding from <a href="https://ngi.eu">NGI</a> and we are super grateful to be in the privileged position to get fully funded external security audits for major releases.</p>
+<p>The results of this audit caused us to rewrite parts of how our dev server is exposed, specifically for mobile development. Without the help and guidance of the auditors this rewrite would not have been possible ❤️.</p>
+<p>Additionally, we hardened our iFrame API exposure, fixed scope validation and resource identifier access for the <code dir="auto">fs</code> and <code dir="auto">http</code> plugin, improved our inter-process communication stability, and many other security related fixes and improvements.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="inter-process-communication-ipc-rewrite">Inter Process Communication (IPC) Rewrite</h3><a class="sl-anchor-link" href="#inter-process-communication-ipc-rewrite"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Inter Process Communication (IPC) Rewrite”</span></a></div>
+<p>With the rewrite of our IPC layer we now support a long wished feature of Raw Payloads and generally changed how it works under the hood.</p>
+<p>Previously <strong>all</strong> IPC payloads were json serialized and deserialized which caused an overhead. This was noticeable once more than a few kilobytes were transfered between frontend and backend.</p>
+<p>The new system supports <a href="https://v2.tauri.app/develop/calling-rust/#accessing-raw-request">Raw Requests</a>. These speed up the transfer of large data from backend to frontend and vice versa, where you can either use raw bytes directly or use your own (de)serialization process (eg. bson, protobuf, avro and others).</p>
+<p>For directly reading files from the filesystem into the WebView we still recommend the <a href="https://v2.tauri.app/reference/javascript/api/namespacecore/#convertfilesrc"><code dir="auto">convertFileSrc</code></a> functionality, as it is most likely still faster if you do not need to process the data on the Rust backend.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="distribution-guides">Distribution Guides</h3><a class="sl-anchor-link" href="#distribution-guides"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Distribution Guides”</span></a></div>
+<p>With Tauri 2.0 the distribution diversity greatly increased. Partially, due to the mobile ecosystem and partially due to our community contributions.</p>
+<p>We have official guides on how to ship to the <a href="https://v2.tauri.app/distribute/app-store/">Apple Appstore</a>, <a href="https://v2.tauri.app/distribute/google-play/">Google Play</a>, <a href="https://v2.tauri.app/distribute/microsoft-store/">Microsoft Store</a>, <a href="https://v2.tauri.app/distribute/crabnebula-cloud/">CrabNebula Cloud</a>, <a href="https://v2.tauri.app/distribute/flatpak/">Flathub</a>, <a href="https://v2.tauri.app/distribute/snapcraft/">Snapcraft</a>, <a href="https://v2.tauri.app/distribute/aur/">AUR</a> and more distribution formats in our <a href="https://v2.tauri.app/distribute/">distribution docs</a>.</p>
+<aside aria-label="Github Action" class="starlight-aside starlight-aside--note"><p class="starlight-aside__title" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" class="starlight-aside__icon"><path d="M12 11a1 1 0 0 0-1 1v4a1 1 0 0 0 2 0v-4a1 1 0 0 0-1-1Zm.38-3.92a1 1 0 0 0-.76 0 1 1 0 0 0-.33.21 1.15 1.15 0 0 0-.21.33 1 1 0 0 0 .21 1.09c.097.088.209.16.33.21A1 1 0 0 0 13 8a1.05 1.05 0 0 0-.29-.71 1 1 0 0 0-.33-.21ZM12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16.001A8 8 0 0 1 12 20Z"/></svg>Github Action</p><div class="starlight-aside__content"><p>Our GitHub action (<code dir="auto">tauri-action</code>) is in progress to support automated building for the mobile operating systems but does not support it yet.</p></div></aside>
+<div class="sl-heading-wrapper level-h2"><h2 id="changelog">Changelog</h2><a class="sl-anchor-link" href="#changelog"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Changelog”</span></a></div>
+<p>This section contains all changes going from 1.x in a concise list.</p>
+<details><summary><i>Show the Full List</i></summary><div class="sl-heading-wrapper level-h3"><h3 id="added">Added</h3><a class="sl-anchor-link" href="#added"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Added”</span></a></div><ul>
+<li>Added Mobile support.</li>
+<li>Added multiwebview support behind the unstable feature flag. See WindowBuilder and WebviewBuilder for more information.</li>
+<li>Added <code dir="auto">rustls-tls</code> cargo feature flag</li>
+<li>Added <code dir="auto">shadow</code> option when creating a webview window,<code dir="auto">WebviewWindow::set_shadow</code> method in Rust and equivalent API in JS.</li>
+<li>Added <code dir="auto">tauri::Webview</code>, <code dir="auto">tauri::WebviewBuilder</code>, <code dir="auto">tauri::WebviewWindow</code>, <code dir="auto">tauri::WebviewWindowBuilder</code> structs in Rust and equivalent classes in Js. The old <code dir="auto">tauri::Window</code> and <code dir="auto">tauri::WindowBuilder</code> behaviors have moved to <code dir="auto">tauri::WebviewWindow</code> and <code dir="auto">tauri::WebviewWindowBuilder</code>.</li>
+<li>Added <code dir="auto">tauri::scope::fs</code> module</li>
+<li>Added <code dir="auto">tauri::App/AppHandle::default_window_icon</code> method.</li>
+<li>Added <code dir="auto">tauri::ipc</code> module with IPC primitives.</li>
+<li>Added <code dir="auto">tauri::ipc::Channel</code> type and equivalent JS <code dir="auto">Channel</code> type to send data across the IPC.</li>
+<li>Added <code dir="auto">incognito</code> option when creating a webview window.</li>
+<li>Added <code dir="auto">windowEffects</code> option when creating a webview window and <code dir="auto">WebviewWindow::set_effects</code> to try and change effects at runtime.</li>
+<li>Added <code dir="auto">tauri::path::PathResolver</code></li>
+<li>Added <code dir="auto">tauri::Manager::path</code> method to access the new <code dir="auto">PathResolver</code></li>
+<li>Added <code dir="auto">visibleOnAllWorkspaces</code> option when creating a webview window.</li>
+<li>Added <code dir="auto">tauri::App/AppHandle::primary_monitor</code> and <code dir="auto">App/AppHandle::available_monitors</code> methods.</li>
+<li>Added <code dir="auto">tauri::plugin::Builder::on_navigation</code> and <code dir="auto">tauri::plugin::Plugin::on_navigation</code>.</li>
+<li>Added <code dir="auto">tauri::WebviewWindow::navigate</code> method</li>
+<li>Added <code dir="auto">tauri::RunEvent::Opened</code> on macOS and iOS for deep link support.</li>
+<li>Added file associations support in bundler.</li>
+<li>Added <code dir="auto">tauri::App/AppHandle::cleanup_before_exit</code> to manually call the cleanup logic. You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.</li>
+<li>On Linux, add <code dir="auto">tauri::WebviewWindow::default_vbox</code> method to get a reference to the <code dir="auto">gtk::Box</code> that contains the menu bar and the webview.</li>
+<li>Added <code dir="auto">linux-libxdo</code> cargo feature flag (disabled by default) to enable linking to <code dir="auto">libxdo</code> which is used to make <code dir="auto">Cut</code>, <code dir="auto">Copy</code>, <code dir="auto">Paste</code> and <code dir="auto">SelectAll</code> native menu items work on Linux.</li>
+<li>On macOS, add <code dir="auto">tauri::WebviewWindow::ns_view</code> method to get a pointer to the <code dir="auto">NSWindow</code> content view.</li>
+<li>Added <code dir="auto">tauri::Builder::register_asynchronous_uri_scheme_protocol</code> to allow resolving a custom URI scheme protocol request asynchronously to prevent blocking the main thread.</li>
+<li>Included drop and hover position for drag and drop events.</li>
+<li>Added <code dir="auto">tauri::WebviewWindow::set_progress_bar</code> method</li>
+<li>Added <code dir="auto">tauri::WebviewWindow::set_always_on_bottom</code> method and <code dir="auto">alwaysOnTop</code> option when creating a webview window.</li>
+<li>Added <code dir="auto">tauri::WebviewWindowBuilder::on_page_load</code> method.</li>
+<li>Added <code dir="auto">common-controls-v6</code> cargo feature flag (enabled by default).</li>
+<li>Added <code dir="auto">Window::destroy</code> to force close a window.</li>
+<li>Added <code dir="auto">tauri::EventId</code> type</li>
+<li>Added <code dir="auto">tauri::WindowBuilder::on_download</code> to handle download request events.</li>
+<li>Added <code dir="auto">tauri::WebviewWindowBuilder::parent</code> which is a convenient wrapper around parent functionality for Windows, Linux and macOS.</li>
+<li>Added <code dir="auto">tauri::WebviewWindowBuilder::owner</code> on Windows only.</li>
+<li>Added <code dir="auto">tauri::WebviewWindowBuilder::transient_for</code> and <code dir="auto">tauri::WebviewWindowBuilder::transient_for_raw</code> on Linux only.</li>
+<li>Added <code dir="auto">tauri::WebviewWindow::start_resize_dragging</code> and <code dir="auto">tauri::ResizeDirection</code> enum.</li>
+<li>Added <code dir="auto">tauri::WebviewWindowBuilder::proxy_url</code> method.</li>
+<li>Added <code dir="auto">tauri::WebviewEvent</code> enum</li>
+<li>Added <code dir="auto">tauri::RunEvent::WebviewEvent</code> variant.</li>
+<li>Added <code dir="auto">tauri::Builder::on_webview_event</code> and <code dir="auto">tauri::Webview::on_webview_event</code> methods.</li>
+<li>Added <code dir="auto">tauri::image</code> module which includes<code dir="auto">tauri::image::Image</code> and <code dir="auto">tauri::image::JsImage</code> types and <code dir="auto">tauri::image::include_img!</code> macro.</li>
+<li>Added <code dir="auto">tauri::is_dev</code> function to determine whether the app is running in development mode or not.</li>
+<li>Added <code dir="auto">tauri::Assets::setup</code> method on <code dir="auto">tauri::Assets</code> trait that lets you run initialization code for your custom asset provider.</li>
+<li>Added <code dir="auto">tauri::Rect</code> struct.</li>
+<li>Added <code dir="auto">tauri::WebviewWindow::set_zoom</code> method</li>
+<li>Added <code dir="auto">zoomHotkeys</code> option when creating a webview window.</li>
+<li>Added <code dir="auto">window.isTauri</code> JS global function to check whether running in tauri or not.</li>
+<li>Added <code dir="auto">specta</code> feature flag which adds <code dir="auto">specta</code> support for <code dir="auto">AppHandle</code>, <code dir="auto">State</code>, <code dir="auto">Window</code>, <code dir="auto">Webview</code> and <code dir="auto">WebviewWindow</code> types.</li>
+<li>Added <code dir="auto">tauri::App/AppHandle/WebviewWindow::cursor_position</code> getter to get the current cursor position.</li>
+<li>Added <code dir="auto">tauri::App/AppHandle/WebviewWindow::monitor_from_point(x,y)</code> getter to get the monitor from a given point..</li>
+<li>Added <code dir="auto">tauri::RunEvent::Reopen</code> to handle click on dock icon on macOS.</li>
+<li>Added <code dir="auto">defaultWindowIcon</code> to the JS <code dir="auto">app</code> module to retrieve the default window icon in JS.</li>
+<li>Added <code dir="auto">tauri::WebviewWindow::set_title_bar_style</code> to set title bar at runtime on macOS.</li>
+<li>Add APIs to enable setting window size constraints separately:
+<ul>
+<li>Added <code dir="auto">tauri::WindowBuilder::inner_size_constraints</code> and <code dir="auto">tauri::WebviewWindowBuilder::inner_size_constraints</code></li>
+<li>Added <code dir="auto">tauri::WindowSizeConstraints</code> struct</li>
+<li>Added <code dir="auto">tauri::Window::set_size_constraints</code> and <code dir="auto">tauri::WebviewWindow::set_size_constraints</code></li>
+</ul>
+</li>
+</ul><div class="sl-heading-wrapper level-h3"><h3 id="enhancements">Enhancements</h3><a class="sl-anchor-link" href="#enhancements"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Enhancements”</span></a></div><ul>
+<li>Use custom protocols on the IPC implementation to enhance performance.</li>
+<li>Enhance centering a newly created window, it will no longer jump to center after being visible.</li>
+<li>The <code dir="auto">custom-protocol</code> Cargo feature is no longer required on your application and is now ignored. To check if running on production, use <code dir="auto">#[cfg(not(dev))]</code> instead of <code dir="auto">#[cfg(feature = "custom-protocol")]</code>.</li>
+<li>Improved the JS <code dir="auto">path</code> APIs to return simplified paths on Windows when possible, i.e removing UNC (<code dir="auto">\\?\</code>) prefix.</li>
+<li>Improved the error message that is shown when deserializing the Tauri plugin config.</li>
+<li>Set the gtk application id to the <code dir="auto">identifier</code> defined in <code dir="auto">tauri.conf.json</code> to ensure the app uniqueness. This can be disabled by setting <code dir="auto">enableGtkAppId</code> option to <code dir="auto">false</code>.</li>
+<li>On Windows, handle resizing undecorated windows natively which improves performance and fixes a couple of annoyances with previous JS implementation:
+<ul>
+<li>No more cursor flickering when moving the cursor across an edge.</li>
+<li>Can resize from top even when <code dir="auto">data-tauri-drag-region</code> element exists there.</li>
+<li>Upon starting rezing, clicks don’t go through elements behind it so no more accidental clicks.</li>
+</ul>
+</li>
+<li>Mark <code dir="auto">AppHandle::restart</code> and <code dir="auto">process::restart</code> as <a href="https://doc.rust-lang.org/rust-by-example/fn/diverging.html">diverging functions</a></li>
+</ul><div class="sl-heading-wrapper level-h3"><h3 id="bug-fixes">Bug Fixes</h3><a class="sl-anchor-link" href="#bug-fixes"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Bug Fixes”</span></a></div><ul>
+<li>No longer unpacking and flattening the <code dir="auto">payload</code> over the IPC so that commands with arguments called <code dir="auto">cmd</code>, <code dir="auto">callback</code>, <code dir="auto">error</code>, <code dir="auto">options</code> or <code dir="auto">payload</code> aren’t breaking the IPC.</li>
+<li>Fix calling <code dir="auto">set_activation_policy</code> when the event loop is running.</li>
+<li>Fix can not prevent closing a window from another webview.</li>
+<li>On Windows, fix decorated window not transparent initially until resized.</li>
+<li>Resolve symlinks on the filesystem scope check.</li>
+<li>Fix the JS <code dir="auto">basename(path, 'ext')</code> API implementation removing all occurances of <code dir="auto">ext</code> where it should only remove the last one.</li>
+<li>Fix window white flashing on exit on Windows</li>
+<li>Apply <code dir="auto">minWidth</code>, <code dir="auto">minHieght</code>, <code dir="auto">maxWidth</code> and <code dir="auto">maxHeight</code> constraints separately, which fixes a long standing bug where these constraints were never applied unless width and height were constrained together.</li>
+</ul><div class="sl-heading-wrapper level-h3"><h3 id="changed">Changed</h3><a class="sl-anchor-link" href="#changed"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Changed”</span></a></div><ul>
+<li>The window creation and setup hook are now called when the event loop is ready.</li>
+<li>Renamed the <code dir="auto">default-tls</code> feature to <code dir="auto">native-tls</code> and.</li>
+<li>Changed the plugin setup hook to take a second argument of type <code dir="auto">PluginApi</code></li>
+<li>Changed <code dir="auto">tauri::Window</code> struct behavior and moved its old behavior to the new <code dir="auto">tauri::WebviewWindow</code> type.</li>
+<li>Moved <code dir="auto">tauri::api::path</code> module to <code dir="auto">tauri::path</code></li>
+<li>Moved all functions from <code dir="auto">tauri::api::path</code> to be methods on <code dir="auto">tauri::path::PathResolver</code></li>
+<li>Renamed <code dir="auto">system-tray</code> feature flag to <code dir="auto">tray-icon</code>.</li>
+<li>Changed <code dir="auto">tauri::App::handle</code> and <code dir="auto">tauri::Manager::app_handle</code> methods to return a reference to an <code dir="auto">AppHandle</code> instead of an owned value.</li>
+<li>Changed <code dir="auto">tauri::Builder::register_uri_scheme_protocol</code> to return a <code dir="auto">http::Response</code> instead of <code dir="auto">Result&lt;http::Response&gt;</code>. To return an error response, manually create a response with status code &gt;= 400.</li>
+<li>The custom protocol on Windows and Android now uses the <code dir="auto">http</code> scheme instead of <code dir="auto">https</code>.</li>
+<li>Changed <code dir="auto">tauri::Env.args</code> to <code dir="auto">tauri::Env.args_os</code> and now uses <code dir="auto">OsString</code> instead of <code dir="auto">String</code></li>
+<li>Changed <code dir="auto">TAURI_AUTOMATION</code> env var to <code dir="auto">TAURI_WEBVIEW_AUTOMATION</code></li>
+<li>Changed <code dir="auto">tauri::Builder::invoke_system</code> to take references instead of owned values.</li>
+<li>Changed<code dir="auto">tauri::Builder::invoke_system</code>, <code dir="auto">tauri::Builder::on_page_load</code> hooks to take a <code dir="auto">tauri::Webview</code> argument instead of a <code dir="auto">tauri::Window</code>.</li>
+<li>Moved the <code dir="auto">tauri::command</code> module items to the <code dir="auto">tauri::ipc</code> module so its import name does not clash with the <code dir="auto">tauri::command</code> macro.</li>
+<li>Changed <code dir="auto">tauri::App::run_iteration</code> to take a callback and removed its return value.</li>
+<li>Changed <code dir="auto">AppHandle::exit</code> and <code dir="auto">AppHandle::restart</code> to trigger <code dir="auto">RunEvent::ExitRequested</code> and <code dir="auto">RunEvent::Exit</code></li>
+<li>Renamed <code dir="auto">tauri::WebviewWindowBuilder::owner_window</code> to <code dir="auto">tauri::WebviewWindowBuilder::owner_raw</code> and <code dir="auto">tauri::WebviewWindowBuilder::parent_window</code> to <code dir="auto">tauri::WebviewWindowBuilder::parent_raw</code>.</li>
+<li>Renamed the <code dir="auto">window-data-url</code> feature flag to <code dir="auto">webview-data-url</code>.</li>
+<li>Changed <code dir="auto">tauri::WebviewWindow::close</code> to trigger a close requested event instead of forcing the window to be closed. Use <code dir="auto">tauri::WebviewWindow::destroy</code> to force close.</li>
+<li>Renamed <code dir="auto">icon-ico</code> and <code dir="auto">icon-png</code> feature flags to <code dir="auto">image-ico</code> and <code dir="auto">image-png</code> respectively.</li>
+<li>Removed <code dir="auto">tauri::Icon</code> enum, use the new <code dir="auto">tauri::Image</code> type instead. All APIs that previously accepted <code dir="auto">tauri::Icon</code> have changed to accept <code dir="auto">tauri::Image</code> instead.</li>
+<li>Changed <code dir="auto">tauri::Context</code> struct and <code dir="auto">tauri::Assets</code> trait to have a <code dir="auto">R: Runtime</code> generic.</li>
+<li>Renamed <code dir="auto">tauri::Context::assets_mut</code> to <code dir="auto">tauri::Context::set_assets</code></li>
+<li>Changed <code dir="auto">tauri::Context</code> type to not have <code dir="auto">&lt;A: Assets&gt;</code> generic so the assets implementation can be swapped with <code dir="auto">Context::set_assets</code>.</li>
+<li>Changed <code dir="auto">tauri::Context::assets</code> to return <code dir="auto">&amp;dyn Assets</code> instead of <code dir="auto">&amp;A</code> generic.</li>
+<li>Renamed <code dir="auto">tauri::FileDropEvent</code> enum to <code dir="auto">tauri::DragDropEvent</code> and renamed its variants. Also renamed the js events</li>
+<li>Renamed <code dir="auto">tauri::WindowEvent::FileDrop</code> enum variant to <code dir="auto">tauri::WindowEvent::DragDrop</code></li>
+<li>Renamed file drop emitted events to <code dir="auto">tauri://drag-enter</code>, <code dir="auto">tauri://drag-over</code>, <code dir="auto">tauri://drag-drop</code>, and <code dir="auto">tauri://drag-leave</code></li>
+<li>Renamed <code dir="auto">tauri::WebviewWindow::disable_file_drop_handler</code> to <code dir="auto">tauri::WebviewWindow::disable_drag_drop_handler</code>.</li>
+<li>Changed <code dir="auto">tauri::WebviewWindow::url</code> getter to return a result.</li>
+<li>Changed <code dir="auto">tauri::Env.args_os</code>, to include the binary path, previously it was skipped.</li>
+<li>Renamed <code dir="auto">getAll</code> and <code dir="auto">getCurrent</code> to <code dir="auto">getAllWindows</code> and <code dir="auto">getCurrentWindow</code> in the JS <code dir="auto">window</code> module but you probably want <code dir="auto">getAllWebviewWindows</code> and <code dir="auto">getCurrentWebviewWindow</code> from the <code dir="auto">webviewWindow</code> module.</li>
+</ul><div class="sl-heading-wrapper level-h3"><h3 id="removed">Removed</h3><a class="sl-anchor-link" href="#removed"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Removed”</span></a></div><ul>
+<li>The <code dir="auto">reqwest-*</code> Cargo features were removed</li>
+<li><code dir="auto">UpdaterEvent</code></li>
+<li>Removed<code dir="auto">tauri::api</code> module and moved them into standalone plugins in <code dir="auto">plugins-workspace</code> repo.</li>
+<li>Removed <code dir="auto">tauri::scope::IpcScope</code></li>
+<li>Removed <code dir="auto">tauri::scope::ipc</code> module and all its types.</li>
+<li>Removed <code dir="auto">tauri::scope::FsScope</code>, use <code dir="auto">tauri::scope::fs::Scope</code></li>
+<li>Removed <code dir="auto">tauri::scope::GlobPattern</code>, use <code dir="auto">tauri::scope::fs::Pattern</code></li>
+<li>Removed <code dir="auto">tauri::scope::FsScopeEvent</code>, use <code dir="auto">tauri::scope::fs::Event</code></li>
+<li>Removed <code dir="auto">tauri::scope::HttpScope</code></li>
+<li>Removed <code dir="auto">tauri::scope::ShellScope</code></li>
+<li>Removed <code dir="auto">tauri::scope::ShellScopeAllowedCommand</code></li>
+<li>Removed <code dir="auto">tauri::scope::ShellScopeAllowedArg</code></li>
+<li>Removed <code dir="auto">tauri::scope::ExecuteArgs</code></li>
+<li>Removed <code dir="auto">tauri::scope::ShellScopeConfig</code></li>
+<li>Removed <code dir="auto">tauri::scope::ShellScopeError</code></li>
+<li>Removed <code dir="auto">linux-protocol-headers</code> cargo feature flag, now enabled by default.</li>
+<li>Removed <code dir="auto">tauri::path::Error</code> and <code dir="auto">tauri::path::Result</code> and added its variants to <code dir="auto">tauri::Error</code></li>
+<li>Removed <code dir="auto">tauri::path::Result</code> and <code dir="auto">tauri::plugin::Result</code> aliases, you should use <code dir="auto">tauri::Result</code> or your own <code dir="auto">Result</code> type.</li>
+<li>Changed <code dir="auto">tauri::Builder::on_page_load</code> handler to take references. The page load hook is now triggered for load started and finished events, to determine what triggered it see <code dir="auto">tauri::PageLoadPayload::event</code> field.</li>
+<li>Removed <code dir="auto">tauri::GlobalWindowEvent</code> struct, and unpacked its fields to be passed directly to <code dir="auto">tauri::Builder::on_window_event</code>.</li>
+<li>Removed <code dir="auto">tauri::EventHandler</code> type.</li>
+<li>Renamed <code dir="auto">tauri::Context::default_window_icon_mut</code> to <code dir="auto">tauri::Context::set_default_window_icon</code> and changed it to accept <code dir="auto">Option&lt;T&gt;</code>.</li>
+</ul><div class="sl-heading-wrapper level-h3"><h3 id="config-restructure">Config restructure</h3><a class="sl-anchor-link" href="#config-restructure"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Config restructure”</span></a></div><p>Restructured Tauri config per <a href="https://github.com/tauri-apps/rfcs/blob/f3e82a6b0c5390401e855850d47dc7b7d9afd684/texts/0005-tauri-config-restructure.md">RFC#5</a>:</p><ul>
+<li>Moved <code dir="auto">package.productName</code>, <code dir="auto">package.version</code> and <code dir="auto">tauri.bundle.identifier</code> fields to the top-level.</li>
+<li>Removed <code dir="auto">package</code> object.</li>
+<li>Renamed <code dir="auto">tauri</code> object to <code dir="auto">app</code>.</li>
+<li>Moved <code dir="auto">tauri.bundle</code> object to the top-level.</li>
+<li>Renamed <code dir="auto">build.distDir</code> field to <code dir="auto">frontendDist</code>.</li>
+<li>Renamed <code dir="auto">build.devPath</code> field to <code dir="auto">devUrl</code> and will no longer accepts paths, it will only accept URLs.</li>
+<li>Moved <code dir="auto">tauri.pattern</code> to <code dir="auto">app.security.pattern</code>.</li>
+<li>Removed <code dir="auto">tauri.bundle.updater</code> object, and its fields have been moved to the updater plugin under <code dir="auto">plugins.updater</code> object.</li>
+<li>Moved <code dir="auto">build.withGlobalTauri</code> to <code dir="auto">app.withGlobalTauri</code>.</li>
+<li>Moved <code dir="auto">tauri.bundle.dmg</code> object to <code dir="auto">bundle.macOS.dmg</code>.</li>
+<li>Moved <code dir="auto">tauri.bundle.deb</code> object to <code dir="auto">bundle.linux.deb</code>.</li>
+<li>Moved <code dir="auto">tauri.bundle.appimage</code> object to <code dir="auto">bundle.linux.appimage</code>.</li>
+<li>Removed all license fields from each bundle configuration object and instead added <code dir="auto">bundle.license</code> and <code dir="auto">bundle.licenseFile</code>.</li>
+<li>Renamed <code dir="auto">AppUrl</code> to <code dir="auto">FrontendDist</code> and refactored its variants to be more explicit.</li>
+<li>Renamed <code dir="auto">tauri.window.fileDropEnabeld</code> to <code dir="auto">app.window.dragDropEnabled</code></li>
+</ul></details>
+<div class="sl-heading-wrapper level-h2"><h2 id="migration">Migration</h2><a class="sl-anchor-link" href="#migration"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Migration”</span></a></div>
+<p>As we try to make the migration from previous Tauri versions as smooth as possible, we have documentation available to guide you through the process.</p>
+<p>If you are migrating from a 1.x release please check out this <a href="https://v2.tauri.app/start/migrate/from-tauri-1/">migration guide</a>.</p>
+<p>For upgrading from a 2.0 beta or release candidate version check out this <a href="https://v2.tauri.app/start/migrate/from-tauri-2-beta/">migration guide</a>.</p>
+<p>The Tauri v2 CLI includes a <code dir="auto">migrate</code> command that automates most of the process and helps you finish the migration:</p>
+<script>
+(() => {
+	class StarlightTabsRestore extends HTMLElement {
+		connectedCallback() {
+			const starlightTabs = this.closest('starlight-tabs');
+			if (!(starlightTabs instanceof HTMLElement) || typeof localStorage === 'undefined') return;
+			const syncKey = starlightTabs.dataset.syncKey;
+			if (!syncKey) return;
+			const label = localStorage.getItem(`starlight-synced-tabs__${syncKey}`);
+			if (!label) return;
+			const tabs = [...starlightTabs?.querySelectorAll('[role="tab"]')];
+			const tabIndexToRestore = tabs.findIndex(
+				(tab) => tab instanceof HTMLAnchorElement && tab.textContent?.trim() === label
+			);
+			const panels = starlightTabs?.querySelectorAll(':scope > [role="tabpanel"]');
+			const newTab = tabs[tabIndexToRestore];
+			const newPanel = panels[tabIndexToRestore];
+			if (tabIndexToRestore < 1 || !newTab || !newPanel) return;
+			tabs[0]?.setAttribute('aria-selected', 'false');
+			tabs[0]?.setAttribute('tabindex', '-1');
+			panels?.[0]?.setAttribute('hidden', 'true');
+			newTab.removeAttribute('tabindex');
+			newTab.setAttribute('aria-selected', 'true');
+			newPanel.removeAttribute('hidden');
+		}
+	}
+	customElements.define('starlight-tabs-restore', StarlightTabsRestore);
+})()
+</script><starlight-tabs data-sync-key="cmd" class="astro-4d55wg7u"><div class="tablist-wrapper not-content astro-4d55wg7u"><ul role="tablist" class="astro-4d55wg7u"><li role="presentation" class="tab astro-4d55wg7u"><a role="tab" href="#tab-panel-0-0" id="tab-0-0" aria-selected="true" tabindex="0" class="astro-4d55wg7u">npm</a></li><li role="presentation" class="tab astro-4d55wg7u"><a role="tab" href="#tab-panel-0-1" id="tab-0-1" aria-selected="false" tabindex="-1" class="astro-4d55wg7u">yarn</a></li><li role="presentation" class="tab astro-4d55wg7u"><a role="tab" href="#tab-panel-0-2" id="tab-0-2" aria-selected="false" tabindex="-1" class="astro-4d55wg7u">pnpm</a></li><li role="presentation" class="tab astro-4d55wg7u"><a role="tab" href="#tab-panel-0-3" id="tab-0-3" aria-selected="false" tabindex="-1" class="astro-4d55wg7u">cargo</a></li></ul></div><div id="tab-panel-0-0" aria-labelledby="tab-0-0" role="tabpanel"><div class="expressive-code"><link rel="stylesheet" href="/_astro/ec.z9dce.css"><script type="module" src="/_astro/ec.0vx5m.js"></script><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="sh"><code><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">npm</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">install</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">@tauri-apps/cli@next</span></div></div><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">npm</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">run</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">tauri</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">migrate</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="npm install @tauri-apps/cli@nextnpm run tauri migrate"><div></div></button></div></figure></div></div><div id="tab-panel-0-1" aria-labelledby="tab-0-1" role="tabpanel" hidden><div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="sh"><code><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">yarn</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">upgrade</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">@tauri-apps/cli@next</span></div></div><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">yarn</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">tauri</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">migrate</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="yarn upgrade @tauri-apps/cli@nextyarn tauri migrate"><div></div></button></div></figure></div></div><div id="tab-panel-0-2" aria-labelledby="tab-0-2" role="tabpanel" hidden><div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="sh"><code><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">pnpm</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">update</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">@tauri-apps/cli@next</span></div></div><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">pnpm</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">tauri</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">migrate</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="pnpm update @tauri-apps/cli@nextpnpm tauri migrate"><div></div></button></div></figure></div></div><div id="tab-panel-0-3" aria-labelledby="tab-0-3" role="tabpanel" hidden><div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="sh"><code><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">cargo</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">install</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">tauri-cli</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#82AAFF;--1:#3B61B0">--version</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#D9F5DD;--1:#111111">"</span><span style="--0:#ECC48D;--1:#984E4D">^2.0.0</span><span style="--0:#D9F5DD;--1:#111111">"</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#82AAFF;--1:#3B61B0">--locked</span></div></div><div class="ec-line"><div class="code"><span style="--0:#82AAFF;--1:#3B61B0">cargo</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">tauri</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#ECC48D;--1:#3B61B0">migrate</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="cargo install tauri-cli --version &#x22;^2.0.0&#x22; --lockedcargo tauri migrate"><div></div></button></div></figure></div></div><starlight-tabs-restore class="astro-4d55wg7u"></starlight-tabs-restore></starlight-tabs>
+<aside aria-label="Rust Migration" class="starlight-aside starlight-aside--caution"><p class="starlight-aside__title" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" class="starlight-aside__icon"><path d="M12 16a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm10.67 1.47-8.05-14a3 3 0 0 0-5.24 0l-8 14A3 3 0 0 0 3.94 22h16.12a3 3 0 0 0 2.61-4.53Zm-1.73 2a1 1 0 0 1-.88.51H3.94a1 1 0 0 1-.88-.51 1 1 0 0 1 0-1l8-14a1 1 0 0 1 1.78 0l8.05 14a1 1 0 0 1 .05 1.02v-.02ZM12 8a1 1 0 0 0-1 1v4a1 1 0 0 0 2 0V9a1 1 0 0 0-1-1Z"/></svg>Rust Migration</p><div class="starlight-aside__content"><p>We can not automatically migrate your Rust code, so make sure to go through the documentation and rust docs of the 2.0 version.</p></div></aside>
+<div class="sl-heading-wrapper level-h2"><h2 id="call-to-action">Call To Action</h2><a class="sl-anchor-link" href="#call-to-action"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Call To Action”</span></a></div>
+<p>If you are familiar with Tauri and have used it already during your journey, please take your time to check out the <a href="https://github.com/tauri-apps/tauri/discussions">Github Discussions</a>, <a href="https://github.com/tauri-apps/tauri/issues">Github Issues</a>. Maybe you have already solved the issues your fellow newcomers to Tauri are experiencing right now.</p>
+<p>If you think that some of these problems you have seen are generic and should be documented somewhere we probably have the perfect place for it in our official <a href="https://v2.tauri.app">documentation</a>.</p>
+<p>To contribute improvements or additions we are open for PRs in the <a href="https://github.com/tauri-apps/tauri-docs">tauri-docs</a> repository. Please make sure you’ve read the <a href="https://github.com/tauri-apps/tauri-docs/blob/v2/.github/CONTRIBUTING.md">guidelines</a> for contribution though.</p>
+<p>If you are in the position to understand and translate the current documentation into your native language we appreciate <a href="https://v2.tauri.app/contribute/translate-status">content translations</a> to our documentation.</p>
+<p>The repositories surrounding Tauri are also looking for contributors, especially we would love more maintainers and contributors to the <a href="https://github.com/tauri-apps/plugins-workspace"><code dir="auto">plugin-workspace</code></a>.</p>
+<p>The plugins are now a major part of the development and user experience of Tauri and all kind of help is welcome there. From discussing new plugin ideas, collaborating with others to write new plugins, contributing PRs to fix bugs in existing plugins or documenting weird workarounds and knowledge in the plugin readme or code.</p>
+<div class="sl-heading-wrapper level-h2"><h2 id="roadmap">Roadmap</h2><a class="sl-anchor-link" href="#roadmap"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Roadmap”</span></a></div>
+<p>You probably expect solid plans for the future and new cool ideas from us.
+We currently have some in mind but have not committed to a roadmap beyond 2.x yet.</p>
+<p>We mainly want to focus on improving this major version with a better developer experience, better documentation and less impactful bugs. We want to improve especially the mobile development experience and make the whole flow from idea to published application as seamless as possible.</p>
+<p>Things on our radar for the future we feel we should mention at least:</p>
+<ul>
+<li>Providing or Bundling Chromium Embedded Framework (CEF) for Linux as an alternative to WebKit2GTK</li>
+<li><a href="https://github.com/servo/servo">Servo</a> as Tauri WebView (<a href="https://github.com/tauri-apps/wry/tree/servo-wry-demo">POC in Wry</a>)</li>
+</ul>
+<p>If you want to collaborate on these ideas, please let us know and we will figure it out together.</p><div class="sl-blog-post-footer astro-uflrwjkc"><div class="sl-blog-pagination astro-rov2jybe" data-pagefind-ignore><div class="card-grid astro-ndljr3oz"><div class="sl-link-card astro-p5ne6glh"><span class="sl-flex stack astro-p5ne6glh"><a href="/blog/tauri-verso-integration/" rel="prev" class="astro-rov2jybe astro-p5ne6glh"><span class="title astro-p5ne6glh">Experimental Tauri Verso Integration</span></a></span><svg aria-hidden="true" class="icon rtl:flip astro-p5ne6glh astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.333em;"><path d="M17.92 11.62a1.001 1.001 0 0 0-.21-.33l-5-5a1.003 1.003 0 1 0-1.42 1.42l3.3 3.29H7a1 1 0 0 0 0 2h7.59l-3.3 3.29a1.002 1.002 0 0 0 .325 1.639 1 1 0 0 0 1.095-.219l5-5a1 1 0 0 0 .21-.33 1 1 0 0 0 0-.76Z"/></svg></div><div class="sl-link-card astro-p5ne6glh"><span class="sl-flex stack astro-p5ne6glh"><a href="/blog/tauri-2-0-0-release-candidate/" rel="next" class="astro-rov2jybe astro-p5ne6glh"><span class="title astro-p5ne6glh">Tauri 2.0 Release Candidate</span></a></span><svg aria-hidden="true" class="icon rtl:flip astro-p5ne6glh astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.333em;"><path d="M17.92 11.62a1.001 1.001 0 0 0-.21-.33l-5-5a1.003 1.003 0 1 0-1.42 1.42l3.3 3.29H7a1 1 0 0 0 0 2h7.59l-3.3 3.29a1.002 1.002 0 0 0 .325 1.639 1 1 0 0 0 1.095-.219l5-5a1 1 0 0 0 .21-.33 1 1 0 0 0 0-.76Z"/></svg></div></div></div></div></div><footer class="sl-flex astro-wu6s2jei"><div class="meta sl-flex astro-wu6s2jei"><a href="https://github.com/tauri-apps/tauri-docs/edit/v2/src/content/docs/blog/tauri-2.0.mdx" class="sl-flex print:hidden astro-iya4ldlr"><svg aria-hidden="true" class="astro-iya4ldlr astro-rg4rwwxs" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.2em;"><path d="M22 7.24a1 1 0 0 0-.29-.71l-4.24-4.24a1 1 0 0 0-1.1-.22 1 1 0 0 0-.32.22l-2.83 2.83L2.29 16.05a1 1 0 0 0-.29.71V21a1 1 0 0 0 1 1h4.24a1 1 0 0 0 .76-.29l10.87-10.93L21.71 8c.1-.1.17-.2.22-.33a1 1 0 0 0 0-.24v-.14l.07-.05ZM6.83 20H4v-2.83l9.93-9.93 2.83 2.83L6.83 20ZM18.17 8.66l-2.83-2.83 1.42-1.41 2.82 2.82-1.41 1.42Z"/></svg>Edit page</a><p>Last updated: <time datetime="2024-10-08T19:19:56.000Z">Oct 8, 2024</time></p></div><div class="pagination-links print:hidden astro-w736gqul" dir="ltr"></div></footer><hr class="astro-ft5hcqwl"><div class="sponsors astro-ft5hcqwl"><a href="https://opencollective.com/tauri" target="_blank" class="astro-ft5hcqwl">Support on Open Collective</a><a href="https://github.com/sponsors/tauri-apps" target="_blank" class="astro-ft5hcqwl">Sponsor on GitHub</a></div><p class="astro-ft5hcqwl">&copy; 2026 Tauri Contributors. CC-BY / MIT</p></div></div></main></div></div></div></div>
+<script async id="netlify-rum-container" src="/.netlify/scripts/rum" data-netlify-rum-site-id="6dc81a5e-32ac-46f4-80c5-198f4a536e26" data-netlify-deploy-branch="v2" data-netlify-deploy-context="production" data-netlify-cwv-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzaXRlX2lkIjoiNmRjODFhNWUtMzJhYy00NmY0LTgwYzUtMTk4ZjRhNTM2ZTI2IiwiYWNjb3VudF9pZCI6IjVlOGUzM2E3YmNhOGVjNjRiZmY4ZDIzOCIsImRlcGxveV9pZCI6IjZhYjgwYzUxNjVkYTkxMDAwODk0ZGMwOSIsImlzc3VlciI6Im5mc2VydmVyIn0.k51bqaTVpVMr9gQgtGNOPfcW0V5SE9nG9SUchBDXaHM"></script>
+</body></html>

@@ -1,0 +1,92 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "BYTE",
+  "version": "0.12.6",
+  "identifier": "com.loganstarner.byte",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "BYTE",
+        "width": 1240,
+        "height": 820,
+        "minWidth": 480,
+        "minHeight": 480,
+        "center": true,
+        "resizable": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: blob: asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost; media-src 'self' blob: data:; worker-src 'self' blob:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "app",
+      "dmg"
+    ],
+    "category": "Productivity",
+    "shortDescription": "Local-first AI assistant",
+    "longDescription": "BYTE runs a capable AI model entirely on your Mac. It searches the web to stay current, writes real documents, remembers your conversations, and reads your files \u2014 all on-device.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "externalBin": [
+      "binaries/llama-server",
+      "binaries/whisper-cli",
+      "binaries/sherpa-diarize",
+      "binaries/sherpa-tts"
+    ],
+    "createUpdaterArtifacts": false,
+    "macOS": {
+      "minimumSystemVersion": "13.3",
+      "signingIdentity": "-",
+      "dmg": {
+        "appPosition": {
+          "x": 180,
+          "y": 170
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 170
+        },
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        }
+      },
+      "entitlements": "Entitlements.plist",
+      "hardenedRuntime": true
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "byte"
+        ]
+      }
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM2MEEyNDczOEI5QkM4N0IKUldSN3lKdUxjeVFLTmo3SWg2S0pLTG1PdW84Tmtvc0w3VzZqQk1OQlZjaVBTMUtCa3FQZ2ZVd1MK",
+      "endpoints": [
+        "https://github.com/loganalexanderstarner-pixel/BYTE/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

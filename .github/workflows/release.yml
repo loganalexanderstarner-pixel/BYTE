@@ -1,0 +1,339 @@
+name: Release BYTE
+
+# Tags name the phase: v0.5.0 = Phase 5, v0.5.1 = a Phase 5 improvement build
+# (docs/VERSIONS.md). Tags with a "-" (e.g. v0.6.0-beta.1) publish a hidden
+# pre-release for testing; v1.0.0 is the finished app.
+on:
+  push:
+    tags: ["v*"]
+  # Manual runs build the chosen branch and create the tag + release for it.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to create for this build, e.g. v1.0.0-test.1"
+        required: true
+      windows_only:
+        description: "Test build: only the Windows x64 installer, lighter optimization (about 15 minutes instead of 50). Not for real releases."
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  macos:
+    name: Build macOS (Apple Silicon)
+    if: ${{ github.event.inputs.windows_only != 'true' }}
+    runs-on: macos-15
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Check versions match the tag
+        run: node scripts/bump.mjs --check "${TAG#v}"
+
+      - name: Cache llama.cpp build
+        uses: actions/cache@v4
+        with:
+          path: .cache/llama.cpp
+          key: llama-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/LLAMA_TAG', 'scripts/build-llama-server.sh') }}
+
+      - name: Build engine (llama-server, Metal)
+        run: TARGET_TRIPLE=aarch64-apple-darwin scripts/build-llama-server.sh
+
+      - name: Cache whisper.cpp build
+        uses: actions/cache@v4
+        with:
+          path: .cache/whisper.cpp
+          key: whisper-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/WHISPER_TAG', 'scripts/build-whisper.sh') }}
+
+      - name: Build voice engine (whisper-cli, Metal)
+        run: TARGET_TRIPLE=aarch64-apple-darwin scripts/build-whisper.sh
+
+      - name: Cache sherpa-onnx build
+        uses: actions/cache@v4
+        with:
+          path: .cache/sherpa-onnx
+          key: sherpa-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/SHERPA_TAG', 'scripts/build-sherpa.sh') }}
+
+      - name: Build speaker-label and voice tools (sherpa-onnx)
+        run: TARGET_TRIPLE=aarch64-apple-darwin scripts/build-sherpa.sh
+
+      - run: npm ci
+
+      # Title and description from docs/releases/<tag>.md (first line "# Title"),
+      # so every version on the Releases page says what it has. Falls back to
+      # a plain title when the file doesn't exist.
+      - name: Release notes
+        id: notes
+        run: |
+          f="docs/releases/${TAG}.md"
+          if [ -f "$f" ]; then
+            title=$(head -n1 "$f" | sed 's/^# *//')
+            body=$(tail -n +2 "$f")
+          else
+            title="BYTE ${TAG}"
+            body=""
+          fi
+          {
+            echo "title=$title"
+            echo "body<<BYTE_NOTES_END"
+            echo "$body"
+            echo
+            echo "## Install"
+            echo "**Apple Silicon Macs (M1 or newer), macOS 13.3+.** Download the \`.dmg\`, open it, and drag BYTE to Applications."
+            echo
+            echo "**Before the first launch, run this once in Terminal:** \`xattr -cr /Applications/BYTE.app\`"
+            echo "BYTE isn't signed with a paid Apple Developer ID, so macOS marks it as downloaded and blocks it; the command removes that mark, so BYTE opens normally and can update itself in one click."
+            echo "- Without Terminal: macOS 15+ open BYTE, click **Done**, then **System Settings → Privacy & Security → Open Anyway**; macOS 13–14 right-click BYTE → **Open** → **Open**. Run the command before the first update, or it fails with \"Read-only file system\"."
+            echo "- Or install with Homebrew, which does this for you: \`brew tap loganalexanderstarner-pixel/byte https://github.com/loganalexanderstarner-pixel/BYTE && brew install --cask byte\`"
+            echo "BYTE_NOTES_END"
+          } >> "$GITHUB_OUTPUT"
+
+      # One-click updates (updater.rs) need the owner's signing key as a secret. The key is cleaned of the
+      # spaces and line breaks a terminal copy can add, and checked before the build uses it. Without a key, or
+      # with one that can't be read, the release is built as before, just without the signed update files.
+      - name: Signed updates (when the signing key is set up)
+        id: updater
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: scripts/updater-key.sh
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # TAURI_SIGNING_PRIVATE_KEY (cleaned) comes from the step above, through $GITHUB_ENV.
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ env.TAG }}
+          releaseCommitish: ${{ github.sha }}
+          releaseName: ${{ steps.notes.outputs.title }}
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: false
+          prerelease: ${{ contains(env.TAG, '-') }}
+          args: --target aarch64-apple-darwin ${{ steps.updater.outputs.args }}
+
+      - name: Verify the bundle contains the engine
+        run: |
+          app=$(ls -d src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app | head -n1)
+          test -x "$app/Contents/MacOS/llama-server"
+          test -x "$app/Contents/MacOS/whisper-cli"
+          test -x "$app/Contents/MacOS/sherpa-diarize"
+          test -x "$app/Contents/MacOS/sherpa-tts"
+          # Without these macOS silently refuses the microphone and Apple Events (hardened runtime).
+          ents=$(codesign -d --entitlements - --xml "$app" 2>/dev/null)
+          echo "$ents" | grep -q "com.apple.security.device.audio-input"
+          echo "$ents" | grep -q "com.apple.security.automation.apple-events"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          "$app/Contents/MacOS/llama-server" --version
+          "$app/Contents/MacOS/whisper-cli" --help >/dev/null
+
+      # The .dmg is also kept on the run's page, so a build can be downloaded
+      # even if publishing the release fails (e.g. the token is read-only).
+      - name: Keep the .dmg as a run artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BYTE-${{ env.TAG }}-dmg
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: ignore
+
+  # Runs after macOS so the release already exists and the two jobs cannot race
+  # to create it. Deliberately passes no releaseName or releaseBody: those belong
+  # to the macOS job's notes and must not be overwritten.
+  windows:
+    name: Build Windows (x64)
+    needs: macos
+    # A Windows-only test build skips the macOS job, so its result is "skipped".
+    if: ${{ !cancelled() && (needs.macos.result == 'success' || needs.macos.result == 'skipped') }}
+    # Pinned, not windows-latest (see windows-engine.yml for why).
+    runs-on: windows-2022
+    timeout-minutes: 240
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      # Windows-only test builds trade a few percent of speed for a much shorter compile (cargo reads these over Cargo.toml's release profile).
+      CARGO_PROFILE_RELEASE_LTO: ${{ github.event.inputs.windows_only == 'true' && 'off' || 'true' }}
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: ${{ github.event.inputs.windows_only == 'true' && '16' || '1' }}
+      CARGO_PROFILE_RELEASE_OPT_LEVEL: ${{ github.event.inputs.windows_only == 'true' && '2' || '3' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Check versions match the tag
+        shell: bash
+        run: node scripts/bump.mjs --check "${TAG#v}"
+
+      - uses: ./.github/actions/windows-engines
+
+      - run: npm ci
+
+      - name: Signed updates (when the signing key is set up)
+        id: updater
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: scripts/updater-key.sh
+
+      # updater-key.sh emits a quoted inline --config, which is the macOS job's
+      # to use. A file avoids depending on how tauri-action splits quotes on
+      # Windows.
+      - name: Updater config as a file
+        id: updcfg
+        shell: bash
+        run: |
+          if [ -n "${{ steps.updater.outputs.args }}" ]; then
+            echo '{"bundle":{"createUpdaterArtifacts":true}}' > src-tauri/tauri.updater.conf.json
+            echo "args=--config src-tauri/tauri.updater.conf.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Only for Windows-only test builds: the macOS job normally creates the release with its notes, and it is skipped then.
+      - name: Release notes (Windows-only test builds)
+        id: wnotes
+        if: ${{ github.event.inputs.windows_only == 'true' }}
+        shell: bash
+        run: |
+          f="docs/releases/${TAG}.md"
+          if [ -f "$f" ]; then
+            title=$(head -n1 "$f" | sed 's/^# *//')
+            body=$(tail -n +2 "$f")
+          else
+            title="BYTE ${TAG}"
+            body=""
+          fi
+          {
+            echo "title=$title"
+            echo "body<<BYTE_NOTES_END"
+            echo "$body"
+            echo
+            echo "_Windows-only test build (lighter optimization): there is no Mac or ARM64 installer in this release._"
+            echo "BYTE_NOTES_END"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ env.TAG }}
+          releaseName: ${{ steps.wnotes.outputs.title }}
+          releaseBody: ${{ steps.wnotes.outputs.body }}
+          releaseDraft: false
+          prerelease: ${{ contains(env.TAG, '-') }}
+          args: --config src-tauri/tauri.windows-release.conf.json ${{ steps.updcfg.outputs.args }}
+
+      - name: Keep the installer as a run artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BYTE-${{ env.TAG }}-windows
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: ignore
+
+  # Windows on ARM64 (Snapdragon laptops). Cross-built here and checked on a real ARM64 machine by
+  # windows-arm64.yml, which runs the same steps without publishing. It never blocks the Mac and x64
+  # release: if it fails, the release is simply without an ARM64 installer. The first run of this
+  # exact job needs a test tag, because publishing cannot be tried any other way.
+  windows-arm64:
+    name: Build Windows (ARM64)
+    needs: macos
+    if: ${{ github.event.inputs.windows_only != 'true' }}
+    runs-on: windows-2022
+    continue-on-error: true
+    timeout-minutes: 180
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: arm64
+
+      - name: Check versions match the tag
+        shell: bash
+        run: node scripts/bump.mjs --check "${TAG#v}"
+
+      - uses: ./.github/actions/windows-arm64-engines
+
+      - run: npm ci
+
+      - name: Signed updates (when the signing key is set up)
+        id: updater
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: scripts/updater-key.sh
+
+      - name: Updater config as a file
+        id: updcfg
+        shell: bash
+        run: |
+          if [ -n "${{ steps.updater.outputs.args }}" ]; then
+            echo '{"bundle":{"createUpdaterArtifacts":true}}' > src-tauri/tauri.updater.conf.json
+            echo "args=--config src-tauri/tauri.updater.conf.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ env.TAG }}
+          releaseDraft: false
+          prerelease: ${{ contains(env.TAG, '-') }}
+          args: --target aarch64-pc-windows-msvc --config src-tauri/tauri.arm64-windows.conf.json ${{ steps.updcfg.outputs.args }}
+
+      - name: Keep the installer as a run artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BYTE-${{ env.TAG }}-windows-arm64
+          path: src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+          if-no-files-found: ignore

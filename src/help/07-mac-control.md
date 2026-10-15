@@ -1,0 +1,38 @@
+<!-- mac -->
+# Mac control and permissions
+
+BYTE can act on your Mac: reminders, calendar, notes, Mail drafts, texts, music, dark mode, files, Shortcuts and more.
+
+- Anything that changes something shows an **approval card** first. Most actions have **Undo**.
+- **Texting:** say "text Mom I'm on my way". The card shows the text in a box you can edit, with **Fix grammar & punctuation**, **Rephrase** (Formal, Friendly, Fun, Sympathetic, Shorter) and **Ideas** (a few versions to pick from). Press **Send** and BYTE sends it through Messages. A sent text can't be taken back from BYTE (iMessages can be unsent in Messages for a couple of minutes).
+- **Emails** open as a draft in Mail for you to send; BYTE never sends an email by itself.
+- **Messages inbox** (Settings → Privacy, off until you turn it on): texts you receive show up in BYTE (the speech-bubble button) and as a banner with **Draft a reply** and **Reply**. It needs **Full Disk Access** (System Settings → Privacy & Security → Full Disk Access → BYTE), reads your messages on this Mac only, read-only, and never sends without you pressing Send.
+- The first time, macOS asks to let BYTE control an app. Click **OK**. To change it later: System Settings → Privacy & Security → Automation.
+- **⌥⌘B** on selected text in any app opens it in BYTE (reply, explain, rewrite). This needs Accessibility permission.
+- **Mac upkeep:** "what's taking up space?", "why is my Mac slow?", "uninstall Zoom".
+<!-- win -->
+# PC control, hotkeys and clipboard
+
+BYTE can do things on your PC when you ask, and it works with the text you select in other apps. Anything that adds something lasting shows an **approval card** first.
+
+- **Settings and sound:** "turn on dark mode", "set the volume to 30", "mute", "turn off Wi-Fi", "turn off the display", "open Bluetooth settings". BYTE does it and tells you what it did.
+- **Music:** "pause the music", "next song" and "what's playing" work with whatever is playing (Spotify, your browser, Media Player). "Play some jazz" opens a search in Spotify, or in YouTube Music if you don't have Spotify; press play on the result.
+- **Emails** open as a draft in your mail app for you to send; BYTE never sends an email by itself. Give it the address ("email sam@example.com about Friday"), because a PC has no address book for BYTE to look in.
+- **Calendar:** "add lunch with Sam to my calendar tomorrow at noon" opens the event in your calendar app, which asks you to save it.
+- **Reminders and notes** are kept inside BYTE (Tasks and Notes), and you can undo a note from its card. A reminder pops up as a notification with **Snooze** (5 minutes, 10 minutes or an hour) and **Done**; Snooze is handled by Windows itself, and Done works while BYTE is open. If Windows is in Do Not Disturb the banner stays hidden, but the reminder is waiting in the notification list (Win+N). BYTE can't send texts from a PC, run Shortcuts, or read your inbox or calendar.
+- **Files:** "find my tax return pdf" searches with Windows Search, by file name and by the text inside documents. "Organize my Downloads" (or Desktop, Documents, Pictures, Videos, Music) shows a plan first; it moves only loose files into folders by kind or by month, leaves shortcuts, hidden files and files that are open in another program alone, deletes nothing, and Undo puts everything back.
+- **Selected files and photos:** select files in File Explorer (or icons on the Desktop, when no File Explorer window has a selection) and ask "summarize the files I selected in File Explorer" and BYTE reads them. Select photos and say "make the selected photos smaller" or "convert the selected photos to jpg" (or png, tiff, bmp): BYTE shows the new file names first, saves the copies next to the originals, which stay as they are, turns them the right way up and leaves out the camera's details such as where the photo was taken. Undo moves the copies to the Recycle Bin. Windows can't save HEIC (it can open it with Microsoft's HEIF extension).
+- **PC upkeep** (a switch in Settings): "what's taking up space?", "find duplicate files", "why is my PC slow?", "check my PC", "what opens at startup?" and "uninstall Zoom". BYTE looks first and asks before it changes anything. Files go to the Recycle Bin and Undo puts them back; a startup app is only switched off, and Undo switches it on again. Uninstalling runs the program's own uninstaller, so it can't be undone; BYTE leaves Windows itself, drivers and your antivirus alone.
+
+- **Ctrl+Alt+B** on selected text in any app opens it in BYTE (reply, explain, rewrite), then **Paste into** puts the result back. It can't read an app that is running as administrator.
+- The clipboard history keeps your recent copies on this PC only, and never keeps what looks like a password or a secret.
+- **PowerShell commands** (a switch in Settings, off until you turn it on): ask "run a command to show my disk space" or "use the terminal to see what's using port 3000". BYTE proposes one command, explains it in plain words and runs it **only after you press Do it**. It only runs commands that read or show information, plus a few careful ones that move or delete a single file. Formatting, the registry, downloads, other programs and anything that needs administrator rights are never run.
+- **PC control** (off until you turn it on) can also use other programs' windows for you, run routines and find files by voice. See [PC control, routines and finding files](help:pc-control). Texts, reading your mail inbox and Shortcuts are not on Windows yet.
+<!-- linux -->
+# Hotkeys and clipboard
+
+Controlling other apps, reminders, calendars and system settings by voice or text, the selected-text hotkey and the clipboard history aren't available on Linux yet.
+
+- Your reminders and notes still work: they are kept inside BYTE (Tasks and Notes).
+- **Ctrl+Alt+Space** opens Quick Ask from any app on X11 desktops. Wayland doesn't let one app listen for keys in another, so there open BYTE from its tray icon or window.
+<!-- all -->

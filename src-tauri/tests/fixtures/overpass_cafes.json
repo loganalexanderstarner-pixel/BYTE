@@ -1,0 +1,116 @@
+{
+ "version": 0.6,
+ "generator": "Overpass API 0.7.62.4 2390de5a",
+ "osm3s": {
+  "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+ },
+ "elements": [
+  {
+   "type": "node",
+   "id": 1739520407,
+   "lat": 40.4436373,
+   "lon": -79.9957766,
+   "tags": {
+    "addr:city": "Pittsburgh",
+    "addr:country": "US",
+    "addr:housenumber": "963",
+    "addr:postcode": "15222",
+    "addr:street": "Liberty Avenue",
+    "amenity": "cafe",
+    "fax": "+1-412-281-4523",
+    "name": "Fernando's Cafe",
+    "note:name": "Name changed 5/3/2012 according to owner's twitter feed.",
+    "phone": "+1-412-281-4522",
+    "website": "http://fernandoscafe.com/"
+   }
+  },
+  {
+   "type": "node",
+   "id": 2126716420,
+   "lat": 40.44242,
+   "lon": -80.0028811,
+   "tags": {
+    "addr:city": "Pittsburgh",
+    "addr:housenumber": "524",
+    "addr:postcode": "15222",
+    "addr:state": "PA",
+    "addr:street": "Penn Avenue",
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "indoor_seating": "yes",
+    "name": "Rock'n Joe",
+    "opening_hours": "Mo-Fr 07:00-15:00; Sa,Su 07:00-15:00",
+    "outdoor_seating": "yes",
+    "website": "https://www.rocknjoe.com/"
+   }
+  },
+  {
+   "type": "node",
+   "id": 2130946311,
+   "lat": 40.4368682,
+   "lon": -80.0005621,
+   "tags": {
+    "amenity": "cafe",
+    "email": "buongiornopittsburgh@yahoo.com",
+    "name": "Buon Giorno Cafe",
+    "opening_hours": "Mo-Fr 07:00-14:00",
+    "phone": "+1-412-471-9048",
+    "website": "https://buongiorno-eats.com/"
+   }
+  },
+  {
+   "type": "node",
+   "id": 2133810135,
+   "lat": 40.4381763,
+   "lon": -79.9986315,
+   "tags": {
+    "amenity": "cafe",
+    "brand:wikidata": "Q12055615",
+    "cuisine": "coffee_shop",
+    "level": "2",
+    "name": "Crazy Mocha",
+    "opening_hours": "Mo-Fr 06:00-18:00",
+    "phone": "+1 412 456 2730",
+    "website": "https://crazymocha.com/"
+   }
+  },
+  {
+   "type": "node",
+   "id": 4153545831,
+   "lat": 40.4366434,
+   "lon": -79.9863114,
+   "tags": {
+    "amenity": "cafe",
+    "brand": "Starbucks",
+    "brand:wikidata": "Q37158",
+    "cuisine": "coffee_shop",
+    "name": "Starbucks",
+    "official_name": "Starbucks Coffee",
+    "takeaway": "yes"
+   }
+  },
+  {
+   "type": "node",
+   "id": 5152666849,
+   "lat": 40.4425312,
+   "lon": -80.0022313,
+   "tags": {
+    "addr:city": "Pittsburgh",
+    "addr:housenumber": "606",
+    "addr:postcode": "15222",
+    "addr:state": "PA",
+    "addr:street": "6th Street",
+    "amenity": "cafe",
+    "branch": "Sixth Street",
+    "brand": "Starbucks",
+    "brand:wikidata": "Q37158",
+    "cuisine": "coffee_shop",
+    "name": "Starbucks",
+    "official_name": "Starbucks Coffee",
+    "phone": "+1 412-281-2380",
+    "takeaway": "yes",
+    "website": "https://www.starbucks.com/store-locator/store/15313/sixth-street-202-sixth-street-pittsburgh-pa-152223102-us"
+   }
+  }
+ ]
+}

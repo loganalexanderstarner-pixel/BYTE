@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- BYTE is signed with the hardened runtime: without these, macOS refuses silently (no prompt, and BYTE never
+       appears in System Settings → Privacy & Security). The prompts' wording is in Info.plist. -->
+  <!-- Voice input, Talk mode and "Hey BYTE". -->
+  <key>com.apple.security.device.audio-input</key>
+  <true/>
+  <!-- Mac control: Notes, Reminders, Calendar, Mail, Messages, Music… through Apple Events, when asked. -->
+  <key>com.apple.security.automation.apple-events</key>
+  <true/>
+</dict>
+</plist>

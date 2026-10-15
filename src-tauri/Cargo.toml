@@ -1,0 +1,154 @@
+[package]
+name = "byte"
+version = "0.12.6"
+description = "BYTE — a local-first AI assistant for Apple Silicon Macs"
+authors = ["Logan Starner"]
+edition = "2021"
+rust-version = "1.95"
+
+[lib]
+name = "byte_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+tauri = { version = "2.12", features = ["tray-icon", "image-png"] }
+tauri-plugin-shell = "2.4"
+tauri-plugin-dialog = "2.8"
+tauri-plugin-os = "2.4"
+tauri-plugin-log = "2.10"
+tauri-plugin-process = "2.4"
+tauri-plugin-opener = "2.6"
+# Reminders, finished briefings and scheduled runs (scheduler.rs).
+tauri-plugin-notification = "2"
+tauri-plugin-deep-link = "2"
+# One-click updates, signed with the owner's key (updater.rs).
+plist = "1"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+thiserror = "2"
+anyhow = "1"
+log = "0.4"
+
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "io-util", "process", "sync", "time", "signal", "net"] }
+tokio-util = { version = "0.7", features = ["io"] }
+futures-util = "0.3"
+tower-layer = "0.3"
+# Backups: passphrase → key (PBKDF2) and encryption (ChaCha20-Poly1305); already used by rustls.
+ring = "0.17"
+walkdir = "2"
+tower-service = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls-native-roots", "gzip", "brotli", "http2", "charset", "multipart"] }
+
+sysinfo = "0.39"
+sha2 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+once_cell = "1"
+
+# Web search & reading
+scraper = "0.27"
+dom_smoothie = "0.18"
+url = "2"
+base64 = "0.22"
+# Voice input writes recordings to temporary files for whisper-cli (voice.rs).
+tempfile = "3"
+# Exact math, units and dates for the calculator tool
+fend-core = "1.5"
+# Encrypted local database (chats, memories); SQLCipher with a vendored OpenSSL so
+# nothing extra is needed on the Mac.
+rusqlite = { version = "0.37", features = ["bundled-sqlcipher-vendored-openssl"] }
+pdf-extract = "0.12"
+quick-xml = "0.37"
+zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+
+# Cloud mode: the API key lives in the macOS Keychain, never in files.
+# Phones (docs/ANDROID.md): Android has no certificate store at the paths
+# rustls-native-certs reads, so with native roots alone every HTTPS request
+# failed ("error sending request") and models couldn't download. The Mozilla
+# root set bundled in the app is added for Android only; desktops are unchanged.
+[target.'cfg(target_os = "android")'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots"] }
+# Files picked on Android come back as content:// links; this plugin can open them (files.rs / androidfs.rs).
+tauri-plugin-fs = "2"
+
+# Desktop only (docs/ANDROID.md): global shortcuts, opening at login, signed updates.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-updater = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# "Hey BYTE": the microphone read natively (wake.rs).
+keyring = { version = "3", features = ["apple-native"] }
+# Reading text in photos and scanned PDFs (Apple Vision + PDFKit, see ocr.rs).
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSDictionary", "NSEnumerator", "NSError", "NSGeometry", "NSString", "NSValue"] }
+objc2-vision = { version = "0.3", default-features = false, features = ["std", "VNObservation", "VNRecognizeTextRequest", "VNRequest", "VNRequestHandler", "VNTypes"] }
+objc2-pdf-kit = { version = "0.3", default-features = false, features = ["std", "PDFDocument", "PDFPage", "objc2-app-kit"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSImage", "NSBitmapImageRep", "NSImageRep", "NSGraphics", "NSPasteboard"] }
+# The web agent saves pages as PDF / picture / web archive (web_agent/capture_mac.rs).
+objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-app-kit", "WKWebView", "WKPDFConfiguration", "WKSnapshotConfiguration"] }
+block2 = "0.6"
+# The lock: Touch ID or the Mac password (lock.rs).
+# Settings → Privacy: is the microphone allowed? (privacy.rs)
+objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "AVCaptureDevice", "AVMediaFormat"] }
+objc2-local-authentication = { version = "0.3", default-features = false, features = ["std", "block2", "LAContext", "LAError"] }
+
+[target.'cfg(any(target_os = "macos", windows))'.dependencies]
+# Audio in and out: BYTE's own voices play through it and "Hey BYTE" listens
+# through it. It was declared only under macOS, so on Windows no audio backend was
+# compiled at all and voice could not have worked whatever the gates said. WASAPI
+# is its Windows backend.
+cpal = "0.18"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Secrets live in the desktop's keyring (GNOME Keyring, KDE Wallet) through the Secret Service on D-Bus. zbus is pure Rust,
+# so the machine needs no libdbus. The async-io runtime, NOT tokio: with the tokio feature the keyring blocks on the app's own
+# tokio runtime when it is called from async code, which panics ("Cannot start a runtime from within a runtime"), and a release
+# build turns that panic into an abort of the whole app. async-io's blocking is safe from any thread.
+keyring = { version = "3", features = ["async-secret-service", "async-io", "crypto-rust"] }
+
+[target.'cfg(windows)'.dependencies]
+# Secrets (the cloud key, connector tokens) live in Windows Credential Manager, never in files.
+keyring = { version = "3", features = ["windows-native"] }
+# WinRT: Windows.Media.Ocr and Windows.Data.Pdf replace Apple Vision and PDFKit
+# in ocr.rs. Version 0.62 matches the copy tauri already pulls in, so this adds no
+# second one to the build.
+windows = { version = "0.62", features = [
+  "Foundation", "Foundation_Collections", "Graphics_Imaging", "Media_Ocr",
+  "Storage_Streams", "Data_Pdf", "Security_Credentials_UI", "Win32_System_WinRT",
+  "Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Memory",
+  "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell", "Win32_System_Diagnostics_Debug",
+  "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Threading",
+  "Win32_Graphics_Dxgi", "Win32_System_LibraryLoader", "Win32_Storage_FileSystem",
+  # pcctl.rs (PC control): the sound mixer, the registry (dark mode), the radios (Wi-Fi) and the media session.
+  "Win32_Media_Audio", "Win32_Media_Audio_Endpoints", "Win32_System_Com", "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant", "Win32_System_Registry", "Media_Control", "Devices_Radios", "Win32_System_Power",
+  # toast.rs: notifications with buttons.
+  "UI_Notifications", "Data_Xml_Dom",
+  # --- track:control begin ---
+  # control/: UI Automation (read the front window), lock and sleep.
+  "Win32_UI_Accessibility", "Win32_System_Shutdown", "Win32_Graphics_Dwm",
+  # --- track:control end ---
+  # --- track:screen begin --- screen/wgc.rs: Windows.Graphics.Capture (what OBS and the Game Bar use; nothing is injected into games),
+  # Direct3D 11 to read the frame, GDI for the fallback, input desktop to see a locked screen.
+  "Graphics_Capture", "Graphics_DirectX", "Graphics_DirectX_Direct3D11", "Win32_Graphics_Direct3D", "Win32_Graphics_Direct3D11",
+  "Win32_Graphics_Dxgi_Common", "Win32_System_WinRT_Direct3D11", "Win32_System_WinRT_Graphics_Capture", "Win32_Graphics_Gdi",
+  "Win32_System_StationsAndDesktops", "Globalization",
+  # --- track:screen end ---
+] }
+
+[dev-dependencies]
+lopdf = "0.42"
+wiremock = "0.6"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

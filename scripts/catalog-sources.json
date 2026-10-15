@@ -1,0 +1,347 @@
+{
+  "$comment": "Curated model list. `node scripts/build-catalog.mjs` looks up exact file sizes, SHA-256 and architecture on Hugging Face and writes src-tauri/catalog/models.json. Only ungated repos. Variants are listed smallest to largest. `quality` (0-100) is a curated overall-capability score used to recommend the best model that fits a Mac.",
+  "models": [
+    {
+      "id": "qwen3.5-0.8b",
+      "name": "Qwen3.5 0.8B",
+      "family": "Qwen",
+      "released": "2026-02",
+      "tagline": "Tiny and instant \u2014 runs on any Mac",
+      "tags": [
+        "fast",
+        "small"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "unsloth/Qwen3.5-0.8B-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q8_0"
+      ],
+      "quality": 35,
+      "usedFor": "instant replies, simple questions and older Macs"
+    },
+    {
+      "id": "qwen3.5-2b",
+      "name": "Qwen3.5 2B",
+      "family": "Qwen",
+      "released": "2026-02",
+      "tagline": "Small and quick for everyday questions",
+      "tags": [
+        "fast",
+        "small"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "unsloth/Qwen3.5-2B-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q8_0"
+      ],
+      "quality": 48,
+      "usedFor": "quick everyday questions and summaries"
+    },
+    {
+      "id": "lfm2.5-2.6b",
+      "name": "LFM2.5 2.6B",
+      "family": "Liquid",
+      "released": "2026-08",
+      "tagline": "Very fast hybrid model, great on 8 GB Macs",
+      "tags": [
+        "fast",
+        "small"
+      ],
+      "thinking": false,
+      "tools": true,
+      "license": "LFM Open License",
+      "repo": "LiquidAI/LFM2.5-2.6B-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q8_0"
+      ],
+      "quality": 52,
+      "usedFor": "fast answers and summaries on 8 GB Macs"
+    },
+    {
+      "id": "qwen3.5-4b",
+      "name": "Qwen3.5 4B",
+      "family": "Qwen",
+      "released": "2026-03",
+      "tagline": "Strong reasoning for its size; best pick for 8 GB Macs",
+      "tags": [
+        "reasoning",
+        "small"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "unsloth/Qwen3.5-4B-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q6_K",
+        "Q8_0"
+      ],
+      "quality": 66,
+      "usedFor": "everyday help, math and planning on smaller Macs"
+    },
+    {
+      "id": "gemma-4-e4b",
+      "name": "Gemma 4 E4B",
+      "family": "Gemma",
+      "released": "2026-04",
+      "tagline": "Google's efficient model, good at writing and languages",
+      "tags": [
+        "writing",
+        "multilingual",
+        "small"
+      ],
+      "thinking": false,
+      "tools": true,
+      "license": "Gemma",
+      "repo": "ggml-org/gemma-4-E4B-it-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q8_0"
+      ],
+      "quality": 62,
+      "usedFor": "writing, translation and chat"
+    },
+    {
+      "id": "qwen3.5-9b",
+      "name": "Qwen3.5 9B",
+      "family": "Qwen",
+      "released": "2026-02",
+      "tagline": "Smart and fast \u2014 excellent all-rounder for 16 GB",
+      "tags": [
+        "reasoning",
+        "coding",
+        "recommended-16"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "unsloth/Qwen3.5-9B-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q5_K_M",
+        "Q6_K",
+        "Q8_0"
+      ],
+      "quality": 80,
+      "usedFor": "research, reasoning, coding and everyday help"
+    },
+    {
+      "id": "gemma-4-12b",
+      "name": "Gemma 4 12B",
+      "family": "Gemma",
+      "released": "2026-05",
+      "tagline": "Polished writing and broad knowledge",
+      "tags": [
+        "writing",
+        "multilingual"
+      ],
+      "thinking": false,
+      "tools": true,
+      "license": "Gemma",
+      "repo": "unsloth/gemma-4-12b-it-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q6_K",
+        "Q8_0"
+      ],
+      "quality": 77,
+      "usedFor": "writing, editing and general knowledge"
+    },
+    {
+      "id": "qwen3-14b",
+      "name": "Qwen3 14B",
+      "family": "Qwen",
+      "released": "2025-04",
+      "tagline": "Proven reasoning model",
+      "tags": [
+        "reasoning"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "Qwen/Qwen3-14B-GGUF",
+      "variants": [
+        "Q4_K_M",
+        "Q8_0"
+      ],
+      "quality": 72,
+      "usedFor": "reasoning and analysis"
+    },
+    {
+      "id": "qwen3.8-27b",
+      "name": "Qwen3.8 27B",
+      "family": "Qwen",
+      "released": "2026-08",
+      "tagline": "Newest Qwen \u2014 top reasoning, research and coding",
+      "tags": [
+        "reasoning",
+        "coding",
+        "flagship"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "unsloth/Qwen3.8-27B-GGUF",
+      "variants": [
+        "UD-IQ2_XXS",
+        "UD-IQ2_S",
+        "UD-IQ3_XXS",
+        "UD-IQ4_XS",
+        "UD-Q4_K_M",
+        "UD-Q5_K_M",
+        "UD-Q6_K",
+        "Q8_0"
+      ],
+      "quality": 94,
+      "usedFor": "deep research, hard reasoning, coding and long documents"
+    },
+    {
+      "id": "qwen3.6-35b-a3b",
+      "name": "Qwen3.6 35B-A3B",
+      "family": "Qwen",
+      "released": "2026-04",
+      "tagline": "Mixture-of-experts: big-model knowledge at small-model speed",
+      "tags": [
+        "reasoning",
+        "coding",
+        "fast",
+        "moe"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+      "variants": [
+        "UD-IQ2_M",
+        "UD-IQ3_XXS",
+        "UD-IQ4_XS",
+        "UD-Q4_K_M",
+        "UD-Q6_K",
+        "Q8_0"
+      ],
+      "quality": 90,
+      "usedFor": "fast answers with big-model knowledge; coding and research",
+      "activeB": 3
+    },
+    {
+      "id": "gpt-oss-20b",
+      "name": "gpt-oss 20B",
+      "family": "OpenAI",
+      "released": "2025-08",
+      "tagline": "OpenAI's open model \u2014 fast reasoning with tools",
+      "tags": [
+        "reasoning",
+        "fast",
+        "moe"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "ggml-org/gpt-oss-20b-GGUF",
+      "variants": [
+        "MXFP4"
+      ],
+      "quality": 82,
+      "usedFor": "reasoning with tools, math and analysis",
+      "activeB": 3.6
+    },
+    {
+      "id": "gpt-oss-120b",
+      "name": "gpt-oss 120B",
+      "family": "OpenAI",
+      "released": "2025-08",
+      "tagline": "Frontier-class open model for 96 GB+ Macs",
+      "tags": [
+        "reasoning",
+        "flagship",
+        "moe"
+      ],
+      "thinking": true,
+      "tools": true,
+      "license": "Apache-2.0",
+      "repo": "ggml-org/gpt-oss-120b-GGUF",
+      "variants": [
+        "MXFP4"
+      ],
+      "quality": 96,
+      "usedFor": "the hardest questions on very large Macs",
+      "activeB": 5.1
+    }
+  ],
+  "helpers": [
+    {
+      "id": "qwen3-0.6b",
+      "name": "Qwen3 0.6B",
+      "role": "draft",
+      "tagline": "Speeds up answers and routes requests",
+      "repo": "Qwen/Qwen3-0.6B-GGUF",
+      "variants": [
+        "Q8_0"
+      ]
+    },
+    {
+      "id": "nomic-embed-v1.5",
+      "name": "Nomic Embed v1.5",
+      "role": "embed",
+      "tagline": "Powers your knowledge base and answer cache",
+      "repo": "nomic-ai/nomic-embed-text-v1.5-GGUF",
+      "variants": [
+        "Q8_0"
+      ]
+    }
+  ],
+  "qualityOverrides": {
+    "$comment": "Hand-set capability scores (0-100) for well-known models; others are estimated from size and release date.",
+    "glm-5.3": 97,
+    "kimi-k2.7-code": 96,
+    "deepseek-v4-flash-0731": 96,
+    "qwen3.8-flash-next": 96,
+    "glm-5.2": 95,
+    "deepseek-v4-flash": 95,
+    "qwen3.5-397b-a17b": 95,
+    "minimax-m3": 95,
+    "nemotron-3-ultra-550b-a55b": 94,
+    "qwen3.5-122b-a10b": 93,
+    "deepseek-v3.2": 93,
+    "minimax-m2.7": 93,
+    "minimax-m2.5": 91,
+    "mistral-medium-3.5-128b": 91,
+    "nemotron-3-super-120b-a12b": 91,
+    "qwen3-coder-next": 90,
+    "mistral-small-4-119b-2603": 90,
+    "glm-4.7": 90,
+    "qwen3.6-27b": 90,
+    "qwen3-235b-a22b": 88,
+    "deepseek-r1-0528": 88,
+    "qwen3.5-27b": 88,
+    "gemma-4-31b": 88,
+    "devstral-2-123b-instruct-2512": 88,
+    "minimax-m2": 88,
+    "glm-4.6": 87,
+    "gemma-4-26b-a4b": 86,
+    "qwen3.5-35b-a3b": 86,
+    "deepseek-r1": 85,
+    "qwen3-next-80b-a3b-thinking": 85,
+    "qwen3-next-80b-a3b": 84,
+    "llama-4-maverick-17b-128e": 84,
+    "glm-4.5-air": 84,
+    "kimi-dev-72b": 82,
+    "llama-3.3-70b": 80,
+    "deepseek-r1-distill-llama-70b": 80,
+    "qwen2.5-72b": 79,
+    "llama-4-scout-17b-16e": 78,
+    "hermes-3-llama-3.1-70b": 76,
+    "llama-3.1-70b": 76,
+    "deepseek-coder-v2": 75,
+    "qwen2-72b": 72,
+    "llama-3-70b": 70,
+    "qwen1.5-72b": 62
+  }
+}

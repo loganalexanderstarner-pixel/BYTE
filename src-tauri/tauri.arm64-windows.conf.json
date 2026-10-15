@@ -1,0 +1,15 @@
+{
+  "bundle": {
+    "externalBin": [
+      "binaries/llama-server",
+      "binaries/whisper-cli",
+      "binaries/sherpa-diarize",
+      "binaries/sherpa-tts"
+    ],
+    "resources": {
+      "../vendor/windows-runtime/MSVCP140.dll": "MSVCP140.dll",
+      "../vendor/windows-runtime/VCRUNTIME140.dll": "VCRUNTIME140.dll",
+      "../vendor/windows-runtime/VCOMP140.DLL": "VCOMP140.DLL"
+    }
+  }
+}

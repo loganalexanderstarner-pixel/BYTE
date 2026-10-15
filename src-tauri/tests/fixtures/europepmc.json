@@ -1,0 +1,132 @@
+{
+ "hitCount": 3,
+ "resultList": {
+  "result": [
+   {
+    "id": "42492498",
+    "source": "MED",
+    "pmid": "42492498",
+    "pmcid": "PMC13395427",
+    "doi": "10.2196/86281",
+    "title": "Exploring the Feasibility, Acceptability, and Safety of a 4:3 Intermittent Fasting Weight Loss Program Among Stage I-III Breast Cancer Survivors With Overweight or Obesity: Protocol for a 6-Month Proof-of-Concept Feasibility Trial.",
+    "authorString": "Oselinsky KM, Hill EB, Ostendorf DM, Pan Z, Bing K, Wayland LT, Simpson C, Clark KC, Sandoval A, Thomas EA, Marker RJ, Kabos P, MacLean PS, Catenacci VA.",
+    "journalInfo": {
+     "journal": {
+      "title": "JMIR research protocols"
+     },
+     "yearOfPublication": 2026
+    },
+    "pubYear": "2026",
+    "abstractText": "<h4>Background</h4>Mounting evidence underscores the adverse effects of excess body weight during cancer survivorship, yet many breast cancer survivors struggle to maintain a healthy weight (approximately 70% have overweight or obesity [OW/OB]). Daily caloric restriction with increased physical activity is the standard behavioral weight loss approach; however, many fail to achieve clinically meaningful (>5%) weight loss, emphasizing the need for innovative interventions. A recent investigation found that a behavioral weight loss program focusing on 4:3 intermittent fasting (4:3 IMF) produced 60% greater weight loss among healthy adults with OW/OB with no history of cancer than a program focu",
+    "fullTextUrlList": {
+     "fullTextUrl": [
+      {
+       "availability": "Subscription required",
+       "availabilityCode": "S",
+       "documentStyle": "doi",
+       "site": "DOI",
+       "url": "https://doi.org/10.2196/86281"
+      },
+      {
+       "availability": "Open access",
+       "availabilityCode": "OA",
+       "documentStyle": "html",
+       "site": "Europe_PMC",
+       "url": "https://europepmc.org/articles/PMC13395427"
+      },
+      {
+       "availability": "Open access",
+       "availabilityCode": "OA",
+       "documentStyle": "pdf",
+       "site": "Europe_PMC",
+       "url": "https://europepmc.org/articles/PMC13395427?pdf=render"
+      }
+     ]
+    },
+    "isOpenAccess": "Y"
+   },
+   {
+    "id": "42746281",
+    "source": "MED",
+    "pmid": "42746281",
+    "pmcid": "PMC13575763",
+    "doi": "10.1002/fsn3.72264",
+    "title": "Effect of Intermittent Fasting on Weight Loss in Overweight and Obese Adults: A Systematic Review of Clinical Trials.",
+    "authorString": "Manzoor HMI, Sultan MT, Hameed A, Noman AM, Khalid M, Kazmi M, Sohail A, Ramadan MF, Zongo E, Rahim MA, Al-Asmari F.",
+    "journalInfo": {
+     "journal": {
+      "title": "Food science & nutrition"
+     },
+     "yearOfPublication": 2026
+    },
+    "pubYear": "2026",
+    "abstractText": "Intermittent fasting (IF), an alternative calorie restriction strategy, supports weight management and may enhance cardiovascular health, improve glycemic control, and offer potential protective effects against cancer, alongside other possible health benefits. The objective of this systematic review is to study the impact of intermittent fasting on weight loss among overweight and obese adults. The original research articles were searched in four electronic databases: PubMed, Cochrane Library, Google Scholar, and ScienceDirect, with specific time frame restrictions. After going through an organized process of screening and eligibility, 26 out of 2307 studies fitting the inclusion criteria we",
+    "fullTextUrlList": {
+     "fullTextUrl": [
+      {
+       "availability": "Subscription required",
+       "availabilityCode": "S",
+       "documentStyle": "doi",
+       "site": "DOI",
+       "url": "https://doi.org/10.1002/fsn3.72264"
+      },
+      {
+       "availability": "Open access",
+       "availabilityCode": "OA",
+       "documentStyle": "html",
+       "site": "Europe_PMC",
+       "url": "https://europepmc.org/articles/PMC13575763"
+      },
+      {
+       "availability": "Open access",
+       "availabilityCode": "OA",
+       "documentStyle": "pdf",
+       "site": "Europe_PMC",
+       "url": "https://europepmc.org/articles/PMC13575763?pdf=render"
+      }
+     ]
+    },
+    "isOpenAccess": "Y"
+   },
+   {
+    "id": "PMC13587464",
+    "source": "PMC",
+    "pmcid": "PMC13587464",
+    "title": "Metabolic switching in MASLD: therapeutic roles of ketogenic diet, intermittent fasting, and the gut-liver axis",
+    "authorString": "Khanuja P, Mohan V, Perez Martinez A, Nellutla M, Alamgir M, Anjum A, Jamaleddin Ahmad F, Oguntona T, Mohamed Ali Saari H, Suresh D, Ansar N, Alaawad M, Hadi Z.",
+    "journalInfo": {
+     "journal": {
+      "title": "Frontiers in nutrition"
+     },
+     "yearOfPublication": 0
+    },
+    "fullTextUrlList": {
+     "fullTextUrl": [
+      {
+       "availability": "Free",
+       "availabilityCode": "F",
+       "documentStyle": "html",
+       "site": "PubMedCentral",
+       "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC13587464/?tool=EBI"
+      },
+      {
+       "availability": "Free",
+       "availabilityCode": "F",
+       "documentStyle": "pdf",
+       "site": "PubMedCentral",
+       "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC13587464/pdf/?tool=EBI"
+      },
+      {
+       "availability": "Free",
+       "availabilityCode": "F",
+       "documentStyle": "html",
+       "site": "Europe_PMC",
+       "url": "https://europepmc.org/articles/PMC13587464"
+      }
+     ]
+    },
+    "isOpenAccess": "Y"
+   }
+  ]
+ }
+}

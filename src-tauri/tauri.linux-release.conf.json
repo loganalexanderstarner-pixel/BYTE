@@ -1,0 +1,12 @@
+{
+  "bundle": {
+    "externalBin": [
+      "binaries/llama-server",
+      "binaries/llama-server-vulkan",
+      "binaries/llama-server-cpu",
+      "binaries/whisper-cli",
+      "binaries/sherpa-diarize",
+      "binaries/sherpa-tts"
+    ]
+  }
+}
