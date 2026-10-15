@@ -37,3 +37,48 @@ export function crashCardText(c: CrashFound): string {
   const v = c.version ? ` (version ${c.version})` : "";
   return `BYTE closed unexpectedly last time${v}. Nothing was lost that was already saved.`;
 }
+
+export interface WhatsNew {
+  version: string;
+  notes: string;
+  show: boolean;
+}
+
+export const whatsNewApi = {
+  status: () => invoke<WhatsNew>("whatsnew_status"),
+  seen: () => invoke<void>("whatsnew_seen"),
+};
+
+/** The release notes cut for the card: the title without its phase and version, and the "New in this version" part
+ *  (or everything after the first paragraph when a file has no such heading). */
+export function whatsNewParts(notes: string): { title: string; body: string } {
+  const lines = notes.replace(/\r\n/g, "\n").split("\n");
+  const first = lines.findIndex((l) => l.startsWith("# "));
+  const raw = first >= 0 ? lines[first].slice(2).trim() : "";
+  const title = raw.replace(/\s*\(v?[\d.]+[^)]*\)\s*$/, "").replace(/^Phase \d+( improvements)?\s*[—-]\s*/, "").trim() || "What's new";
+  const rest = lines.slice(first + 1);
+  const start = rest.findIndex((l) => /^##\s+new\b/i.test(l));
+  let body: string[];
+  if (start >= 0) {
+    const end = rest.findIndex((l, i) => i > start && /^##\s/.test(l));
+    body = rest.slice(start + 1, end < 0 ? undefined : end);
+  } else {
+    body = rest.filter((l) => !/^##\s+(not in this version|what byte can do)/i.test(l));
+  }
+  return { title, body: body.join("\n").trim() };
+}
+
+export interface RemovePlan {
+  paths: [string, number][];
+  totalBytes: number;
+}
+
+export const removeApi = {
+  plan: (chats: boolean, models: boolean) => invoke<RemovePlan>("data_remove_plan", { chats, models }),
+  remove: (chats: boolean, models: boolean, confirm: string) => invoke<void>("data_remove", { chats, models, confirm }),
+};
+
+/** The file name at the end of a path, for the list the person confirms. */
+export function leafName(p: string): string {
+  return p.split(/[\\/]/).filter(Boolean).pop() ?? p;
+}

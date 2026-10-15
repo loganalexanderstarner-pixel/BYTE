@@ -34,4 +34,18 @@ export const FOUND_TUTORIALS: Tutorial[] = [
       { id: "crash", title: "After BYTE closes unexpectedly", body: ["Next time you open BYTE it says it closed unexpectedly and offers to prepare a problem report.", "You read the whole report, can change it, and save it to a file. Nothing is sent anywhere."], links: [H("safe-mode-and-crashes", "Read about safe mode and crashes")] },
     ],
   },
+  {
+    id: "updates-removal",
+    title: "Updates, what's new and removing BYTE",
+    promise: "Update safely, read what changed, and remove BYTE's data when you leave",
+    minutes: 3,
+    icon: "lifebuoy",
+    steps: [
+      { id: "update", title: "Installing an update", body: ["When a new version is out a banner appears. Install downloads it, checks BYTE's signature and restarts BYTE. Your chats and models are kept."], links: [S("general", "Open General")] },
+      { id: "new", title: "What's new", body: ["The first time you open BYTE after an update, a card lists what changed. It works offline and shows once. Press Got it to close it."] },
+      { id: "remove", title: "Remove BYTE's data", body: ["Before uninstalling, Backup and help can remove your chats and settings, your models, or both. It lists exactly what it will delete and asks you to type REMOVE.", "Your notes and backups are never touched."], links: [S("backup", "Open Backup and help")], ifStuck: "If a file is in use, close other programs that show BYTE's folder and try again." },
+      { id: "uninstall", title: "Uninstalling", os: "windows", body: ["The Windows uninstaller has a Delete the application data checkbox. Leave it empty to keep your chats and models for a later install.", "It always removes the startup entry."], links: [H("updates-and-uninstalling", "Read about updates and uninstalling")] },
+      { id: "uninstall-mac", title: "Uninstalling", os: "mac", body: ["Drag BYTE to the Bin. To remove your chats and models too, use Remove BYTE's data first."], links: [H("updates-and-uninstalling", "Read about updates and uninstalling")] },
+    ],
+  },
 ];

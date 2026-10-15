@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { errorText, inTauri } from "../../lib/api";
-import { crashApi, crashCardText, foundApi, safeBannerText, type CrashFound, type SafeStatus } from "../../lib/found";
+import { renderMarkdown } from "../../lib/markdown";
+import { crashApi, crashCardText, foundApi, safeBannerText, whatsNewApi, whatsNewParts, type CrashFound, type SafeStatus, type WhatsNew } from "../../lib/found";
 
 /** Safe mode banner: shown at the top for the whole run, with the way back to normal. */
 function SafeModeBanner() {
@@ -96,12 +97,51 @@ function CrashRecoveryCard() {
   );
 }
 
+/** After an update: this version's notes, once. */
+function WhatsNewCard() {
+  const [info, setInfo] = useState<WhatsNew | null>(null);
+  useEffect(() => {
+    if (inTauri) void whatsNewApi.status().then((w) => w.show && setInfo(w), () => undefined);
+  }, []);
+  if (!info) return null;
+  const { title, body } = whatsNewParts(info.notes);
+  const close = () => {
+    void whatsNewApi.seen();
+    setInfo(null);
+  };
+  return (
+    <div className="banner whatsnew-card" role="dialog" aria-labelledby="whatsnew-title" style={{ display: "block", maxHeight: "60vh", overflow: "auto" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <b className="grow" id="whatsnew-title">
+          What's new in BYTE {info.version}: {title}
+        </b>
+        <button className="btn sm primary" onClick={close}>
+          Got it
+        </button>
+      </div>
+      {/* The notes are bundled with the app and go through the same sanitising as every other text. */}
+      <div
+        className="md"
+        onClick={(e) => {
+          const a = (e.target as HTMLElement).closest("a");
+          if (!a) return;
+          e.preventDefault();
+          const href = a.getAttribute("href") ?? "";
+          if (/^https?:/i.test(href)) void import("@tauri-apps/plugin-opener").then((m) => m.openUrl(href));
+        }}
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }}
+      />
+    </div>
+  );
+}
+
 /** Everything the foundations track shows over the app: one mount point in the shell. */
 export function FoundOverlays() {
   return (
     <>
       <SafeModeBanner />
       <CrashRecoveryCard />
+      <WhatsNewCard />
     </>
   );
 }

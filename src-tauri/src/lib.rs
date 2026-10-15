@@ -227,6 +227,11 @@ pub fn run() {
             state.catalog.set_added(crate::lab::load(&state.paths.data.join("added_models.json")).iter().map(crate::lab::LabModel::to_catalog).collect());
             let _ = state.app.set(app.handle().clone());
             let settings_now = state.settings.blocking_lock().clone();
+            // --- track:found begin --- a fresh install has nothing new to read; the next update will
+            if !settings_now.onboarding_complete {
+                found::whatsnew::mark_seen_at(&state.paths.root);
+            }
+            // --- track:found end ---
             system::set_placement(&settings_now.memory_mode);
             offline::set(settings_now.offline);
             messages::set_enabled(settings_now.messages_inbox);
@@ -503,6 +508,10 @@ pub fn run() {
             found::crash::crash_status,
             found::crash::crash_dismiss,
             found::crash::crash_report_build,
+            found::whatsnew::whatsnew_status,
+            found::whatsnew::whatsnew_seen,
+            found::remove::data_remove_plan,
+            found::remove::data_remove,
             // --- track:found end ---
             problemreport::problem_report_build,
             problemreport::problem_report_save,
