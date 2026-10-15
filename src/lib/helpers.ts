@@ -44,6 +44,13 @@ const ROWS: HelperRow[] = [
     title: "Smart copy toast",
     text: "When you copy a tracking number, an address, a link or a one-time code, a small toast offers the useful action (track it, show it on a map, open or clean the link, clear the code). Never for anything that looks like a password or a key, and nothing is looked up.",
   },
+  {
+    key: "helperDictate",
+    title: "Dictate anywhere",
+    text: "Hold the shortcut, speak, let go: the words are typed into the app you are in. The microphone is open only while you hold the key, and the speech is turned into text on this computer. Never typed into a password box, a game or a window on your never-look-at list.",
+    keys: "helperDictateKeys",
+    windowsOnly: true,
+  },
 ];
 
 /** The rows to show on this system. */
