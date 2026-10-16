@@ -916,6 +916,9 @@ async fn specialist(
     // --- track:control begin ---
     } else if act && crate::control::phrases::applies(turn, q) {
         crate::control::phrases::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "pc_control"))
+    } else if let Some(note) = act.then(|| crate::control::phrases::off_hint(turn, q)).flatten() {
+        // PC control is off: say so (and how to turn it on) instead of the model claiming it cannot control a computer.
+        Some((SourceBook::default(), note, "pc_control_off"))
     // --- track:control end ---
     } else if act && crate::macctl::applies(mac_on, q) {
         crate::macctl::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "mac"))

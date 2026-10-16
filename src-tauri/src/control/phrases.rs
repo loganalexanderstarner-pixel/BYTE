@@ -35,6 +35,8 @@ pub enum Ask {
     /// A step the executor does (open, focus, close, scroll, key, type).
     Direct(Action),
     Find(String),
+    /// Anything else that asks BYTE to do something on the PC ("open Edge and search for …"): planned from the screen, then run step by step.
+    Task(String),
     Stop,
 }
 
@@ -201,7 +203,7 @@ pub fn ask(q: &str) -> Option<Ask> {
     if super::find::is_find_request(&l) {
         return Some(Ask::Find(q.to_string()));
     }
-    direct_ask(&l).map(Ask::Direct)
+    direct_ask(&l).map(Ask::Direct).or_else(|| looks_like_pc_action(q).then(|| Ask::Task(q.to_string())))
 }
 
 /// A step for the executor from the plain action.
@@ -212,9 +214,40 @@ pub fn step(a: Action) -> Step {
 fn gated(flags: &Flags, a: &Ask) -> bool {
     match a {
         Ask::Status => flags.pc_status,
-        Ask::Sys(_) | Ask::Direct(_) | Ask::Stop => flags.pc_control,
+        Ask::Sys(_) | Ask::Direct(_) | Ask::Task(_) | Ask::Stop => flags.pc_control,
         Ask::Find(_) => flags.find_files,
     }
+}
+
+/// A request to DO something on the PC ("can you open up Edge for me and search…", "switch to Chrome"), as opposed to a question about
+/// something ("how do I open a bank account"). Only the start of the sentence counts, after politeness.
+pub fn looks_like_pc_action(q: &str) -> bool {
+    let mut l = q.trim().to_lowercase();
+    for p in ["hey byte,", "hey byte", "ok byte,", "okay byte,", "byte,"] {
+        if let Some(r) = l.strip_prefix(p) {
+            l = r.trim_start_matches([',', ' ']).to_string();
+        }
+    }
+    for p in ["can you ", "could you ", "would you ", "will you ", "please ", "i want you to ", "i need you to ", "go ahead and ", "just "] {
+        while let Some(r) = l.strip_prefix(p) {
+            l = r.to_string();
+        }
+    }
+    ["open ", "launch ", "start up ", "switch to ", "go to the desktop", "close the ", "close my ", "minimize ", "maximize ", "mute the ", "turn up the volume", "turn down the volume", "turn the volume", "lock the computer", "lock my pc", "put the computer to sleep", "take a screenshot"].iter().any(|v| l.starts_with(v))
+}
+
+/// When a PC request comes in while PC control is switched off in Settings: what the model is told to say (and the person is shown),
+/// instead of it answering "I can't control your desktop". `None` when the request is not one, or control is on (or held off for a
+/// private chat or kids mode, which is not the person's setting).
+pub fn off_hint(turn: &Turn<'_>, q: &str) -> Option<String> {
+    if !cfg!(windows) || turn.app.is_none() || turn.modules.control.pc_control || !looks_like_pc_action(q) {
+        return None;
+    }
+    let on_in_settings = super::settings_now(turn.app?).is_some_and(|s| s.pc_control);
+    if on_in_settings {
+        return None;
+    }
+    Some("The user asked BYTE to do something on their PC, but PC control is switched off (it starts off, and BYTE asks before anything risky). Say so in one or two short, friendly sentences and tell them how to turn it on: Settings, Control and screen, \"Let BYTE use this PC for you\". Do not say you are unable to control a computer, and do not pretend you did it. If part of the request can be done without controlling the PC (for example a web search), do that part.".to_string())
 }
 
 /// Whether this turn is one of ours: a switched-on group's phrase, or a routine's.
@@ -306,6 +339,18 @@ pub async fn run(turn: &Turn<'_>, question: &str, cancel: &CancellationToken, se
             let report = super::run_plan_steps(app, vec![step(action)], question, cancel, send).await;
             (desc, report.summary.clone(), report.ok, if report.ok { say_notes(&report.summary) } else { format!("BYTE could not finish: {}. Tell the user in one short sentence.", report.summary) })
         }
+        Ask::Task(goal) => match super::plan_goal(app, &goal).await {
+            Ok((steps, _)) => {
+                let n = steps.len();
+                let report = super::run_plan_steps(app, steps, &goal, cancel, send).await;
+                let title = format!("{n} step{}", if n == 1 { "" } else { "s" });
+                (title, report.summary.clone(), report.ok, if report.ok { say_notes(&report.summary) } else { format!("BYTE could not finish: {}. Tell the user in one short sentence.", report.summary) })
+            }
+            Err(e) => {
+                super::activity(app, "Planning", false, &e);
+                ("Could not plan that".to_string(), e.clone(), false, format!("BYTE could not plan that: {e}. Tell the user in one or two short sentences, and offer what you can do without controlling the PC."))
+            }
+        },
         Ask::Find(text) => {
             let (roots, today) = (find_roots(app), chrono::Local::now().date_naive());
             let Some(q) = super::find::parse_query(&text, today) else { return Ok(None) };
@@ -330,6 +375,30 @@ pub async fn run(turn: &Turn<'_>, question: &str, cancel: &CancellationToken, se
 
 fn find_roots(app: &tauri::AppHandle) -> Vec<PathBuf> {
     super::settings_now(app).map(|s| s.find_folders.iter().map(PathBuf::from).collect()).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod off_tests {
+    use super::looks_like_pc_action as a;
+
+    #[test]
+    fn a_free_form_request_becomes_a_task_for_the_planner() {
+        use super::{ask, Ask};
+        assert!(matches!(ask("can you open up microsoft edge for me and search for reddit posts on nuclear fusion for a project"), Some(Ask::Task(_))));
+        assert!(matches!(ask("open notepad"), Some(Ask::Direct(_))), "a simple phrase keeps its fast path");
+        assert!(ask("how do I open a bank account").is_none());
+    }
+
+    #[test]
+    fn a_request_to_do_something_is_told_from_a_question_about_it() {
+        assert!(a("can you open up microsoft edge for me and search for reddit posts on nuclear fusion for a project"));
+        assert!(a("Hey BYTE, please open Notepad"));
+        assert!(a("switch to chrome"));
+        assert!(a("could you mute the sound"));
+        assert!(!a("how do I open a bank account"));
+        assert!(!a("what does open source mean"));
+        assert!(!a("tell me about the start of the war"));
+    }
 }
 
 #[cfg(test)]
