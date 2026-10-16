@@ -10,7 +10,11 @@ use tauri::State;
 use crate::state::AppState;
 
 /// The release notes for the version this build is.
+#[cfg(found_notes)]
 pub const NOTES: &str = include_str!(concat!(env!("OUT_DIR"), "/whatsnew.md"));
+/// Without the build script (a copy of only `src/`) there are no notes, and the card stays away.
+#[cfg(not(found_notes))]
+pub const NOTES: &str = "";
 
 const SEEN: &str = "whatsnew_seen.txt";
 

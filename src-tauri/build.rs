@@ -7,7 +7,10 @@ fn main() {
         let out = std::path::Path::new(&std::env::var("OUT_DIR").unwrap_or_default()).join("whatsnew.md");
         // A copy of only src/ (no docs folder) gets empty notes, and the card then says nothing.
         let text = std::fs::read_to_string(&from).unwrap_or_default();
-        let _ = std::fs::write(out, text);
+        println!("cargo:rustc-check-cfg=cfg(found_notes)");
+        if std::fs::write(out, text).is_ok() {
+            println!("cargo:rustc-cfg=found_notes");
+        }
         println!("cargo:rerun-if-changed={}", from.display());
     }
     // --- track:found end ---
