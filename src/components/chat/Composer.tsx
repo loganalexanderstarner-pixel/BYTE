@@ -385,6 +385,21 @@ export function Composer() {
     return () => off?.();
   }, [onCloud, onLocal, attach]);
 
+  // --- track:helpers begin --- Explorer's right-click "Ask BYTE": the file waits attached in a new chat; nothing is sent by itself
+  useEffect(() => {
+    if (!inTauri) return;
+    let off: (() => void) | undefined;
+    void import("@tauri-apps/api/event").then(({ listen }) =>
+      listen<string>("helpers://ask-file", (e) => {
+        newChat();
+        void attach([e.payload]);
+        setTimeout(() => ref.current?.focus(), 0);
+      }).then((u) => (off = u)),
+    );
+    return () => off?.();
+  }, [newChat, attach]);
+  // --- track:helpers end ---
+
   // Android: the phone's camera app takes a photo, which is attached like any other.
   const takePhoto = async () => {
     try {

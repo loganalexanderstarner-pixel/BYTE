@@ -66,6 +66,48 @@ export interface Settings {
   /** "Read this page" / "read the selected text" aloud. Off by default. */
   readIt?: boolean;
   /* --- track:screen end --- */
+  /* --- track:helpers begin --- everyday helpers: each off by default, kept on this device */
+  /** Where the helpers' questions go: "local" (default), "cloud" or "auto". */
+  helperAskWhere?: "local" | "cloud" | "auto";
+  helperRegion?: boolean;
+  helperRegionKeys?: string;
+  helperExplain?: boolean;
+  helperExplainKeys?: string;
+  helperDialogs?: boolean;
+  helperSmartPaste?: boolean;
+  helperDictate?: boolean;
+  helperDictateKeys?: string;
+  helperPage?: boolean;
+  helperPageKeys?: string;
+  helperMeeting?: boolean;
+  helperMeetingMinutes?: number;
+  helperFocus?: boolean;
+  helperFocusMinutes?: number;
+  helperFocusBreak?: number;
+  helperFocusSpeak?: boolean;
+  helperTidy?: boolean;
+  helperRecipes?: boolean;
+  helperHa?: boolean;
+  helperHaUrl?: string;
+  helperGame?: boolean;
+  helperNav?: boolean;
+  helperRead?: boolean;
+  helperReadKeys?: string;
+  helperReadSpeed?: "slow" | "normal" | "fast";
+  helperCaptions?: boolean;
+  helperWakePhrase?: string;
+  helperPagetools?: boolean;
+  helperEmail?: boolean;
+  helperProduct?: boolean;
+  helperForm?: boolean;
+  helperRewrite?: boolean;
+  helperRewriteKeys?: string;
+  helperExplorer?: boolean;
+  helperScreenmem?: boolean;
+  helperScreenmemEvery?: number;
+  helperScreenmemDays?: number;
+  helperScreenmemExclude?: string[];
+  /* --- track:helpers end --- */
   /** The writing studio (✍️). */
   writingEnabled?: boolean;
   /** The user's writing style for "Write like me". */

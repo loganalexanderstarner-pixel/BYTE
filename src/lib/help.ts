@@ -52,7 +52,7 @@ export function linkTarget(href: string): { kind: "help"; id: string } | { kind:
 /** The help list is grouped by what someone needs; an article not named here lands in "More". */
 export const HELP_SECTIONS: { title: string; ids: string[] }[] = [
   { title: "Start here", ids: ["getting-started", "first-run-setup", "guided-help", "updates-and-uninstalling"] },
-  { title: "Chat, research and documents", ids: ["modes-and-web", "files", "documents", "notes", "everyday-helpers", "everyday"] },
+  { title: "Chat, research and documents", ids: ["modes-and-web", "files", "documents", "notes", "everyday-helpers", "pc-helpers", "focus-tidy-home", "voice-helpers", "page-tools", "writing-and-files", "screen-memory", "everyday"] },
   { title: "Talking to BYTE", ids: ["voice", "hey-byte", "interrupting-calls-games", "shortcuts"] },
   { title: "Controlling your PC", ids: ["mac-control", "pc-control", "approval-popup", "browser", "research-that-keeps-pages", "screen", "never-touch-list", "commands-or-conversation", "planning-accuracy"] },
   { title: "Models and speed", ids: ["models", "gaming-and-model-memory", "laptop-mode"] },

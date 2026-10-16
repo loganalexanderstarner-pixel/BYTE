@@ -135,6 +135,9 @@ pub fn apply_shortcuts(app: &AppHandle, s: &Settings) {
     // --- track:autonomy begin --- the stop key of a running autonomous job
     crate::control::auto::real::register_stop_key(app, s, &[now.0, now.1]);
     // --- track:autonomy end ---
+    // --- track:helpers begin --- (the region and explain hotkeys)
+    crate::helpers::register(app, s, &[now.0, now.1]);
+    // --- track:helpers end ---
     if let Ok(mut c) = CURRENT.lock() {
         *c = now;
     }
@@ -159,6 +162,10 @@ pub fn pressed(app: &AppHandle, shortcut: &Shortcut) {
     // --- track:autonomy end ---
     } else if crate::voicectl::is_talk(id) {
         crate::voicectl::talk_pressed(app); // track:voice
+    // --- track:helpers begin ---
+    } else if let Some(hot) = crate::helpers::which(id) {
+        crate::helpers::pressed(app, hot);
+    // --- track:helpers end ---
     }
 }
 
@@ -302,7 +309,8 @@ pub fn sync_offline_item(on: bool) {
     }
 }
 
-fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+/// The tray icon's menu. The helpers add their own entries when they have something to offer.
+fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let offline = CheckMenuItem::with_id(app, "offline", "Offline (no internet)", true, crate::offline::is_offline(), None::<&str>)?;
     if let Ok(mut slot) = OFFLINE_ITEM.lock() {
         *slot = Some(offline.clone());
@@ -319,6 +327,32 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             &MenuItem::with_id(app, "quit", "Quit BYTE", true, None::<&str>)?,
         ],
     )?;
+    // --- track:helpers begin ---
+    for (i, item) in crate::helpers::tray_items(app)?.iter().enumerate() {
+        menu.insert(item, i)?;
+    }
+    // --- track:helpers end ---
+    Ok(menu)
+}
+
+/// Rebuilds the tray menu in place (the helpers' entries come and go).
+pub fn refresh_tray_menu(app: &AppHandle) {
+    if let Some(tray) = app.tray_by_id(TRAY) {
+        match tray_menu(app) {
+            Ok(m) => {
+                let _ = tray.set_menu(Some(m));
+            }
+            Err(e) => log::warn!("tray menu: {e}"),
+        }
+    }
+}
+
+fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+    let offline = CheckMenuItem::with_id(app, "offline", "Offline (no internet)", true, crate::offline::is_offline(), None::<&str>)?;
+    if let Ok(mut slot) = OFFLINE_ITEM.lock() {
+        *slot = Some(offline.clone());
+    }
+    let menu = tray_menu(app)?;
     let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png"))?;
     TrayIconBuilder::with_id(TRAY)
         .icon(icon)
@@ -327,6 +361,9 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, e| match e.id.as_ref() {
+            // --- track:helpers begin ---
+            id if crate::helpers::tray_event(app, id) => {}
+            // --- track:helpers end ---
             "quick" => toggle(app, None),
             "show" => crate::background::show_main(app),
             "offline" => {
@@ -351,6 +388,13 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         })
         .on_tray_icon_event(|tray, e| {
             if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, rect, .. } = e {
+                // --- track:helpers begin --- a badge on the icon ("BYTE can explain this") is answered by the click
+                if crate::helpers::dialogs::has_pending() {
+                    let app = tray.app_handle().clone();
+                    tauri::async_runtime::spawn(async move { crate::helpers::dialogs::explain_pending(&app).await });
+                    return;
+                }
+                // --- track:helpers end ---
                 toggle(tray.app_handle(), Some(rect));
             }
         })

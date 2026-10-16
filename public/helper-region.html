@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>BYTE region</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: rgba(10, 12, 18, 0.28); cursor: crosshair; user-select: none; font: 600 13px "Segoe UI", system-ui, sans-serif; }
+  #box { position: fixed; display: none; border: 2px solid #4aa8ff; background: rgba(74, 168, 255, 0.12); box-shadow: 0 0 0 9999px rgba(10, 12, 18, 0.35); }
+  #hint { position: fixed; left: 50%; top: 24px; transform: translateX(-50%); padding: 8px 14px; border-radius: 10px; background: rgba(14, 16, 24, 0.92); color: #e8ecf4; }
+</style>
+</head>
+<body>
+<div id="hint">Drag a box around what you want BYTE to read. Esc cancels.</div>
+<div id="box"></div>
+<script>
+  var start = null, box = document.getElementById("box");
+  function invoke(cmd, args) {
+    var t = window.__TAURI_INTERNALS__;
+    return t && t.invoke ? t.invoke(cmd, args || {}) : Promise.resolve();
+  }
+  function draw(x, y) {
+    box.style.display = "block";
+    box.style.left = Math.min(start.x, x) + "px";
+    box.style.top = Math.min(start.y, y) + "px";
+    box.style.width = Math.abs(x - start.x) + "px";
+    box.style.height = Math.abs(y - start.y) + "px";
+  }
+  document.addEventListener("mousedown", function (e) { if (e.button === 0) { start = { x: e.clientX, y: e.clientY }; document.getElementById("hint").style.display = "none"; } });
+  document.addEventListener("mousemove", function (e) { if (start) draw(e.clientX, e.clientY); });
+  document.addEventListener("mouseup", function (e) {
+    if (!start || e.button !== 0) return;
+    var s = start; start = null;
+    invoke("helper_region_done", { x0: s.x, y0: s.y, x1: e.clientX, y1: e.clientY });
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") invoke("helper_region_cancel"); });
+  document.addEventListener("contextmenu", function (e) { e.preventDefault(); invoke("helper_region_cancel"); });
+  window.addEventListener("blur", function () { setTimeout(function () { if (!start) invoke("helper_region_cancel"); }, 150); });
+</script>
+</body>
+</html>

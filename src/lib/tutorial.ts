@@ -7,6 +7,9 @@ import { CONNECT_TUTORIALS } from "./tutorial-connect";
 import { FOUND_TUTORIALS } from "./tutorial-found";
 // --- track:found end ---
 import { autonomyTutorials } from "./tutorial-autonomy"; // track:autonomy
+// --- track:helpers begin ---
+import { HELPER_TUTORIALS } from "./tutorial-helpers";
+// --- track:helpers end ---
 
 export type LinkKind =
   | { kind: "setting"; tab: string; label: string }
@@ -290,6 +293,7 @@ export const TUTORIALS: Tutorial[] = [
   // --- track:found end ---
   ...autonomyTutorials, // track:autonomy
 ];
+TUTORIALS.push(...HELPER_TUTORIALS); // track:helpers
 
 // ---------------------------------------------------------------- filtering
 

@@ -449,7 +449,7 @@ pub fn plan_prompt(goal: &str, screen: &str) -> String {
 
 /// Builds the plan for a how-to question from the window in front. The model's plan is checked against the window and corrected with
 /// the exact error (up to three times); notes about this program (when the person turned them on) are given as hints.
-async fn make_plan(app: &AppHandle, goal: &str, snap: &Snapshot) -> Result<GuidePlan, String> {
+pub(crate) async fn make_plan(app: &AppHandle, goal: &str, snap: &Snapshot) -> Result<GuidePlan, String> {
     let limit = super::settings_now(app).map(|s| super::executor::step_limit(&s.control_max_steps)).unwrap_or(actions::MAX_STEPS);
     let cloud = super::use_cloud(app, Some(snap)).await;
     if cloud {

@@ -254,6 +254,15 @@ pub fn pause_history(on: bool) {
     HISTORY_PAUSED.store(on, std::sync::atomic::Ordering::SeqCst);
 }
 // --- track:screen end ---
+// --- track:helpers begin --- (helpers/smartpaste.rs reads the same two facts the history does)
+pub fn history_paused() -> bool {
+    HISTORY_PAUSED.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+pub fn own_write_count() -> i64 {
+    OWN_WRITE.load(std::sync::atomic::Ordering::SeqCst)
+}
+// --- track:helpers end ---
 
 /// Puts text on the clipboard without it showing up in the history.
 pub fn set_quietly(text: &str) {

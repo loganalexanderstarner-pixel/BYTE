@@ -882,6 +882,19 @@ async fn specialist(
         }
     }
     // --- track:house end ---
+    // --- track:helpers begin --- Home Assistant: "turn on the kitchen light" (only when it names something Home Assistant has)
+    if !writing_only && act {
+        if let Some(found) = crate::helpers::ha::try_route(turn, q, cancel, send).await? {
+            return Ok(Some(found));
+        }
+        if let Some(found) = crate::helpers::navigation::try_route(turn, q, cancel, send).await? {
+            return Ok(Some(found));
+        }
+        if let Some(found) = crate::helpers::screenmem::try_route(turn, q, send).await? {
+            return Ok(Some(found));
+        }
+    }
+    // --- track:helpers end ---
     Ok(if act && turn.modules.automations && turn.app.is_some() && !writing_only && crate::automations::applies(q) {
         crate::automations::run(turn, q, cancel, send).await?.map(|(b, n)| (b, n, "automation"))
     } else if act && mac_on && crate::playlists::applies(q) {

@@ -183,6 +183,119 @@ pub struct Settings {
     #[serde(default)]
     pub read_it: bool,
     // --- track:screen end ---
+    // --- track:helpers begin --- (helpers/): everyday helpers. Each has its own switch, off until switched on, and is device-local.
+    /// Where the helpers' questions go: "local" (this computer, the default), "cloud" or "auto". Text from the screen is
+    /// never sent to the cloud unless this says "cloud".
+    #[serde(default = "crate::helpers::default_ask_where")]
+    pub helper_ask_where: String,
+    /// Region screenshot: a hotkey draws a box; only that box is read, in memory.
+    #[serde(default)]
+    pub helper_region: bool,
+    #[serde(default = "crate::helpers::default_region_keys")]
+    pub helper_region_keys: String,
+    /// "Explain this": a hotkey over selected text shows a short explanation at the pointer.
+    #[serde(default)]
+    pub helper_explain: bool,
+    #[serde(default = "crate::helpers::default_explain_keys")]
+    pub helper_explain_keys: String,
+    /// A new error or installer window shows "BYTE can explain this" on the tray icon (Windows).
+    #[serde(default)]
+    pub helper_dialogs: bool,
+    /// A toast offers the useful action when a tracking number, address, link or code is copied.
+    #[serde(default)]
+    pub helper_smart_paste: bool,
+    /// Dictate anywhere: hold a key, speak, the words are typed into the focused app (Windows).
+    #[serde(default)]
+    pub helper_dictate: bool,
+    #[serde(default = "crate::helpers::dictate::default_keys")]
+    pub helper_dictate_keys: String,
+    /// "Look at this page and help" in the tray menu, and the address-bar reader.
+    #[serde(default)]
+    pub helper_page: bool,
+    #[serde(default = "crate::helpers::page::default_keys")]
+    pub helper_page_keys: String,
+    /// Meeting assistant: "Record a meeting" in the tray menu (only when clicked), written up as a note.
+    #[serde(default)]
+    pub helper_meeting: bool,
+    /// Longest meeting recording in minutes; 0 means no limit.
+    #[serde(default = "crate::helpers::meeting::default_minutes")]
+    pub helper_meeting_minutes: u32,
+    /// Focus mode: a timed session with notifications off (tray menu).
+    #[serde(default)]
+    pub helper_focus: bool,
+    /// Session length in minutes; 0 means no limit.
+    #[serde(default = "crate::helpers::focus::default_minutes")]
+    pub helper_focus_minutes: u32,
+    /// Minutes between break nudges; 0 means none.
+    #[serde(default = "crate::helpers::focus::default_break")]
+    pub helper_focus_break: u32,
+    /// Say the plan out loud when a session starts and ends.
+    #[serde(default = "yes")]
+    pub helper_focus_speak: bool,
+    /// Downloads tidy-up: offers to sort loose files into folders, with Undo.
+    #[serde(default)]
+    pub helper_tidy: bool,
+    /// Recipes: export a routine as a file, import one after a safety review.
+    #[serde(default)]
+    pub helper_recipes: bool,
+    /// Home Assistant (local): lights and plugs by voice. The access token is in the credential store, not here.
+    #[serde(default)]
+    pub helper_ha: bool,
+    #[serde(default)]
+    pub helper_ha_url: String,
+    /// Game companion: "Review my last play" and "How is my game going?" in the tray menu (local only).
+    #[serde(default)]
+    pub helper_game: bool,
+    /// Voice navigation (accessibility): "go back", "next tab", "click Send" (needs PC control).
+    #[serde(default)]
+    pub helper_nav: bool,
+    /// Read aloud with follow-along highlighting (selected text, a shortcut).
+    #[serde(default)]
+    pub helper_read: bool,
+    #[serde(default = "crate::helpers::readaloud::default_keys")]
+    pub helper_read_keys: String,
+    /// "slow", "normal" or "fast".
+    #[serde(default = "crate::helpers::readaloud::default_speed")]
+    pub helper_read_speed: String,
+    /// Live captions and "what did they just say" (the sound the computer plays; last 30 s, memory only).
+    #[serde(default)]
+    pub helper_captions: bool,
+    /// Your own wake phrase instead of "Hey BYTE" (empty = "Hey BYTE").
+    #[serde(default)]
+    pub helper_wake_phrase: String,
+    /// Page tools from the tray menu: to-do, note, tables, compare tabs.
+    #[serde(default)]
+    pub helper_pagetools: bool,
+    /// Email helper: summary and three drafts for a selected thread.
+    #[serde(default)]
+    pub helper_email: bool,
+    /// Product helper: price and review research with sources.
+    #[serde(default)]
+    pub helper_product: bool,
+    /// Form helper: fill name/email/phone/address boxes from a saved profile (needs PC control). Never passwords or cards.
+    #[serde(default)]
+    pub helper_form: bool,
+    /// Fix my writing in place, explain code, show maths steps, translate (selected text, a shortcut).
+    #[serde(default)]
+    pub helper_rewrite: bool,
+    #[serde(default = "crate::helpers::rewrite::default_keys")]
+    pub helper_rewrite_keys: String,
+    /// Explorer right-click "Ask BYTE" on files (adds a per-user entry under HKCU).
+    #[serde(default)]
+    pub helper_explorer: bool,
+    /// Searchable memory of what was on screen: text only, local only, off by default.
+    #[serde(default)]
+    pub helper_screenmem: bool,
+    /// Minutes between looks.
+    #[serde(default = "crate::helpers::screenmem::default_every")]
+    pub helper_screenmem_every: u32,
+    /// Days kept; 0 means until cleared.
+    #[serde(default = "crate::helpers::screenmem::default_days")]
+    pub helper_screenmem_days: u32,
+    /// Programs and window titles this memory never reads (on top of the never-look-at list).
+    #[serde(default)]
+    pub helper_screenmem_exclude: Vec<String>,
+    // --- track:helpers end ---
     /// The writing studio (✍️): rewrite, expand, shorten, tone, grammar.
     #[serde(default = "yes")]
     pub writing_enabled: bool,
@@ -612,6 +725,47 @@ impl Default for Settings {
             game_advisor: false,
             read_it: false,
             // --- track:screen end ---
+            // --- track:helpers begin ---
+            helper_ask_where: crate::helpers::default_ask_where(),
+            helper_region: false,
+            helper_region_keys: crate::helpers::default_region_keys(),
+            helper_explain: false,
+            helper_explain_keys: crate::helpers::default_explain_keys(),
+            helper_dialogs: false,
+            helper_smart_paste: false,
+            helper_dictate: false,
+            helper_dictate_keys: crate::helpers::dictate::default_keys(),
+            helper_page: false,
+            helper_page_keys: crate::helpers::page::default_keys(),
+            helper_meeting: false,
+            helper_meeting_minutes: crate::helpers::meeting::default_minutes(),
+            helper_focus: false,
+            helper_focus_minutes: crate::helpers::focus::default_minutes(),
+            helper_focus_break: crate::helpers::focus::default_break(),
+            helper_focus_speak: true,
+            helper_tidy: false,
+            helper_recipes: false,
+            helper_ha: false,
+            helper_ha_url: String::new(),
+            helper_game: false,
+            helper_nav: false,
+            helper_read: false,
+            helper_read_keys: crate::helpers::readaloud::default_keys(),
+            helper_read_speed: crate::helpers::readaloud::default_speed(),
+            helper_captions: false,
+            helper_wake_phrase: String::new(),
+            helper_pagetools: false,
+            helper_email: false,
+            helper_product: false,
+            helper_form: false,
+            helper_rewrite: false,
+            helper_rewrite_keys: crate::helpers::rewrite::default_keys(),
+            helper_explorer: false,
+            helper_screenmem: false,
+            helper_screenmem_every: crate::helpers::screenmem::default_every(),
+            helper_screenmem_days: crate::helpers::screenmem::default_days(),
+            helper_screenmem_exclude: Vec::new(),
+            // --- track:helpers end ---
             writing_enabled: true,
             writing_style: String::new(),
             model_overrides: Default::default(),
@@ -797,6 +951,19 @@ impl Settings {
             next.voice_focus = default_voice_focus();
         }
         // --- track:voice end ---
+        // --- track:helpers begin ---
+        if !matches!(next.helper_ask_where.as_str(), "local" | "cloud" | "auto") {
+            next.helper_ask_where = crate::helpers::default_ask_where();
+        }
+        if !matches!(next.helper_read_speed.as_str(), "slow" | "normal" | "fast") {
+            next.helper_read_speed = crate::helpers::readaloud::default_speed();
+        }
+        next.helper_wake_phrase = if next.helper_wake_phrase.trim().is_empty() { String::new() } else { crate::helpers::wakeword::valid(&next.helper_wake_phrase).unwrap_or_default() };
+        next.helper_screenmem_every = next.helper_screenmem_every.clamp(1, 120);
+        if !crate::helpers::dictate::valid_keys(&next.helper_dictate_keys) {
+            next.helper_dictate_keys = crate::helpers::dictate::default_keys();
+        }
+        // --- track:helpers end ---
         if !matches!(next.voice_lock.as_str(), "off" | "actions" | "all") {
             next.voice_lock = default_voice_lock();
         }

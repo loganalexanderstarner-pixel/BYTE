@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BYTE</title>
+<style>
+  :root { color-scheme: dark light; --bg: #14171f; --fg: #e8ecf4; --muted: #9aa3b6; --line: #2a3040; --accent: #4c8dff; --btn: #222838; }
+  @media (prefers-color-scheme: light) { :root { --bg: #ffffff; --fg: #161a22; --muted: #5b6475; --line: #d5d9e2; --btn: #eef1f7; } }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 13px/1.45 "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+  #card { box-sizing: border-box; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; max-height: 100vh; display: flex; flex-direction: column; }
+  h1 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em; }
+  #body { white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; max-height: 340px; }
+  mark { background: var(--accent); color: #fff; border-radius: 3px; padding: 0 1px; }
+  #busy { display: none; margin-top: 6px; color: var(--muted); }
+  #q { display: none; width: 100%; box-sizing: border-box; margin-top: 8px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--btn); color: var(--fg); font: inherit; }
+  #buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  button { font: inherit; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--btn); color: var(--fg); cursor: pointer; }
+  button:hover, button:focus-visible { border-color: var(--accent); outline: none; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  @media (prefers-reduced-motion: no-preference) { #busy.on { animation: pulse 1.2s ease-in-out infinite; } }
+  @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+</style>
+</head>
+<body>
+<div id="card" role="dialog" aria-live="polite">
+  <h1 id="title"></h1>
+  <div id="body"></div>
+  <div id="busy">Working...</div>
+  <input id="q" type="text" autocomplete="off" />
+  <div id="buttons"></div>
+</div>
+<script>
+  var hideTimer = null, current = null;
+  function invoke(cmd, args) {
+    var t = window.__TAURI_INTERNALS__;
+    return t && t.invoke ? t.invoke(cmd, args || {}) : Promise.resolve();
+  }
+  function fit() {
+    invoke("helper_popup_resize", { height: document.getElementById("card").scrollHeight + 2 });
+  }
+  function click(id) {
+    var q = document.getElementById("q");
+    invoke("helper_popup_click", { id: id, text: q.style.display === "block" ? q.value : null });
+  }
+  window.setHelper = function (p) {
+    current = p;
+    clearTimeout(hideTimer);
+    document.getElementById("title").textContent = p.title || "";
+    var bodyEl = document.getElementById("body");
+    bodyEl.textContent = "";
+    if (p.mark && p.body) {
+      var chars = Array.from(p.body);
+      var a = document.createTextNode(chars.slice(0, p.mark[0]).join(""));
+      var m = document.createElement("mark");
+      m.textContent = chars.slice(p.mark[0], p.mark[1]).join("");
+      var z = document.createTextNode(chars.slice(p.mark[1]).join(""));
+      bodyEl.appendChild(a); bodyEl.appendChild(m); bodyEl.appendChild(z);
+      setTimeout(function () { m.scrollIntoView({ block: "nearest" }); }, 10);
+    } else {
+      bodyEl.textContent = p.body || "";
+    }
+    var busy = document.getElementById("busy");
+    busy.style.display = p.busy ? "block" : "none";
+    busy.className = p.busy ? "on" : "";
+    var q = document.getElementById("q");
+    if (p.input) { q.style.display = "block"; q.placeholder = p.input; setTimeout(function () { q.focus(); }, 30); }
+    else { q.style.display = "none"; q.value = ""; }
+    var box = document.getElementById("buttons");
+    box.textContent = "";
+    (p.buttons || []).forEach(function (b, i) {
+      var el = document.createElement("button");
+      el.textContent = b.label;
+      if (i === 0 && b.id !== "close") el.className = "primary";
+      el.addEventListener("click", function () { click(b.id); });
+      box.appendChild(el);
+    });
+    if (p.autoHide > 0 && !p.busy) hideTimer = setTimeout(function () { invoke("helper_popup_close"); }, p.autoHide);
+    setTimeout(fit, 20);
+  };
+  document.getElementById("card").addEventListener("mouseenter", function () { clearTimeout(hideTimer); });
+  document.getElementById("q").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); click("send"); } });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") invoke("helper_popup_close"); });
+  invoke("helper_popup_state").then(function (p) { if (p) window.setHelper(p); });
+</script>
+</body>
+</html>

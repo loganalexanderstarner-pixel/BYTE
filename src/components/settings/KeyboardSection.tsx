@@ -7,7 +7,7 @@ import { useStore } from "../../state/store";
 import { osText } from "../../lib/platform";
 
 /** Click, then press the keys: records a global shortcut (Rust checks it again). */
-function KeyRecorder({ value, label, onSave, disabled }: { value: string; label: string; onSave: (keys: string) => Promise<void>; disabled?: boolean }) {
+export function KeyRecorder({ value, label, onSave, disabled }: { value: string; label: string; onSave: (keys: string) => Promise<void>; disabled?: boolean }) {
   const [rec, setRec] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const onKeyDown = async (e: React.KeyboardEvent) => {

@@ -32,6 +32,9 @@ mod timers;
 // --- track:screen begin ---
 mod screen;
 // --- track:screen end ---
+// --- track:helpers begin ---
+mod helpers;
+// --- track:helpers end ---
 mod voiceprints;
 mod toast;
 #[cfg(test)]
@@ -159,6 +162,11 @@ pub fn run() {
     // --- track:found begin ---
     found::crash::install_hook();
     // --- track:found end ---
+    // --- track:helpers begin --- a launch from Explorer's right-click menu while BYTE is already running hands its file over and ends
+    if helpers::explorer::handoff_at_start() {
+        return;
+    }
+    // --- track:helpers end ---
     let app = tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -272,6 +280,9 @@ pub fn run() {
             // --- track:screen begin ---
             screen::apply(app.handle(), &settings_now);
             // --- track:screen end ---
+            // --- track:helpers begin ---
+            helpers::apply(app.handle(), &settings_now);
+            // --- track:helpers end ---
             // Bring this device up to date with the person's account a little after launch (when BYTE Cloud is connected).
             {
                 let app = app.handle().clone();
@@ -531,6 +542,27 @@ pub fn run() {
             screen::screen_private,
             screen::screen_default_excludes,
             // --- track:screen end ---
+            // --- track:helpers begin ---
+            helpers::popup::helper_popup_state,
+            helpers::popup::helper_popup_click,
+            helpers::popup::helper_popup_close,
+            helpers::popup::helper_popup_resize,
+            helpers::region::helper_region_done,
+            helpers::region::helper_region_cancel,
+            helpers::recipes::recipe_export,
+            helpers::recipes::recipe_review,
+            helpers::recipes::recipe_import,
+            helpers::ha::ha_token_saved,
+            helpers::ha::ha_set_token,
+            helpers::ha::ha_clear_token,
+            helpers::ha::ha_test,
+            helpers::forms::form_profile_get,
+            helpers::forms::form_profile_set,
+            helpers::screenmem::screenmem_search,
+            helpers::screenmem::screenmem_count,
+            helpers::screenmem::screenmem_clear,
+            helpers::screenmem::screenmem_forget_hour,
+            // --- track:helpers end ---
             tts::cloud_voices,
             tts::voices_status,
             tts::tts_voice_download,
