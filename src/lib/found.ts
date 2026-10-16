@@ -129,3 +129,20 @@ export const UNTIL_BACK_CHOICES: { value: NonNullable<import("./types").Settings
 export const OWN_EDGE_WARNING =
   "Use your own Edge profile?\n\nBYTE would open Edge with YOUR everyday profile: the sites you are signed in to, your saved logins and your history. Pages BYTE opens can use those sign-ins, and what BYTE reads there is visible to BYTE.\n\n" +
   "BYTE still asks before it submits, buys, sends, deletes or downloads anything, never types passwords or card numbers, and blocks banking sites. Close Edge first. Newer Edge versions may refuse to be controlled this way; BYTE then uses its own separate profile instead.\n\nTurn this on only if you understand this.";
+
+export interface DaySummary {
+  day: string;
+  lines: string[];
+}
+
+export const summaryApi = { days: (days = 7) => invoke<DaySummary[]>("activity_summary", { days }) };
+
+/** "2026-10-14" as "Wednesday, October 14" (today and yesterday by name). */
+export function dayLabel(day: string, today: Date = new Date()): string {
+  const d = new Date(`${day}T12:00:00`);
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12);
+  const diff = Math.round((t.getTime() - d.getTime()) / 86_400_000);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  return d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+}

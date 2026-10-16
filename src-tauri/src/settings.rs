@@ -492,6 +492,8 @@ pub struct Settings {
     pub browser_research_until_back: String,
     /// Drive the person's own Edge profile instead of BYTE's separate one (strong warning, off by default).
     pub browser_own_edge: bool,
+    /// A short summary of what BYTE did yesterday (counts and times only), in the briefing and in Settings (found/summary.rs).
+    pub daily_summary: bool,
     // --- track:found end ---
 }
 
@@ -685,6 +687,7 @@ impl Default for Settings {
             browser_keep_pages: false,
             browser_research_until_back: default_until_back(),
             browser_own_edge: false,
+            daily_summary: false,
             // --- track:found end ---
         }
     }

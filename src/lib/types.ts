@@ -262,6 +262,8 @@ export interface Settings {
   browserResearchUntilBack?: "off" | "15m" | "1h" | "3h" | "8h" | "unlimited";
   /** Drive the person's own Edge profile instead of BYTE's separate one (strong warning; off by default). */
   browserOwnEdge?: boolean;
+  /** A short summary of what BYTE did yesterday (counts and times only) in the briefing and Settings. Off by default. */
+  dailySummary?: boolean;
   /* --- track:found end --- */
 }
 

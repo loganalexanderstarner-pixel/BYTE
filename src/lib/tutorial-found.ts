@@ -102,4 +102,17 @@ export const FOUND_TUTORIALS: Tutorial[] = [
       { id: "add", title: "Add your own", body: ["Add one line per program or window title, for example the name of a chat program. Reset to the starting list brings the defaults back."], ifStuck: "Words match whole words: chase matches Chase Online but not purchase." },
     ],
   },
+  {
+    id: "daily-summary",
+    title: "The daily summary of what BYTE did",
+    promise: "See, in a few lines, what BYTE did while you were away",
+    minutes: 2,
+    icon: "chart",
+    offByDefault: true,
+    steps: [
+      { id: "what", title: "What it is", body: ["A short summary of yesterday: how many searches, pages and steps on your computer, and when. Only the kind of thing and the time, never what was searched, typed or opened."] },
+      { id: "on", title: "Turn it on", body: ["It is off until you turn it on in General. Then it appears at the end of your morning briefing and in Settings, with the last seven days."], links: [S("general", "Open General")], example: "Give me my briefing" },
+      { id: "logs", title: "The detailed logs", body: ["The detailed activity logs are in Privacy, where you can clear them. Clearing a log clears it from the summary too."], links: [S("privacy", "Open Privacy"), H("what-byte-did", "Read about the summary")] },
+    ],
+  },
 ];

@@ -69,3 +69,14 @@ describe("browser research choices", () => {
     expect(OWN_EDGE_WARNING).toMatch(/never types passwords/);
   });
 });
+
+import { dayLabel } from "./found";
+
+describe("day labels", () => {
+  it("names today and yesterday", () => {
+    const now = new Date(2026, 9, 15, 8, 0);
+    expect(dayLabel("2026-10-15", now)).toBe("Today");
+    expect(dayLabel("2026-10-14", now)).toBe("Yesterday");
+    expect(dayLabel("2026-10-10", now)).toMatch(/October/);
+  });
+});

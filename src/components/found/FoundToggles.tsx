@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { api, errorText } from "../../lib/api";
 import { cleanList } from "../settings/ScreenSettings";
-import { OWN_EDGE_WARNING, UNTIL_BACK_CHOICES } from "../../lib/found";
+import { dayLabel, OWN_EDGE_WARNING, summaryApi, UNTIL_BACK_CHOICES, type DaySummary } from "../../lib/found";
 import { useStore } from "../../state/store";
 
 /** Settings → General: the foundations track's on/off switches. Every one starts off. */
@@ -19,6 +19,7 @@ export function FoundToggles() {
         </span>
         <input type="checkbox" checked={settings?.laptopMode ?? false} onChange={(e) => void update({ laptopMode: e.target.checked })} aria-label="Laptop mode" />
       </label>
+      <DailySummary />
       <label className="field">
         <span>
           Approval popup
@@ -119,5 +120,44 @@ export function NeverTouchList() {
         {error && <small className="bad">{error}</small>}
       </div>
     </div>
+  );
+}
+
+/** Settings → General: the daily "what BYTE did" summary (off by default), with the last days listed when it is on. */
+function DailySummary() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const [days, setDays] = useState<DaySummary[]>([]);
+  const on = settings?.dailySummary ?? false;
+  useEffect(() => {
+    if (on) void summaryApi.days(7).then(setDays, () => setDays([]));
+  }, [on]);
+  return (
+    <>
+      <label className="field">
+        <span>
+          Daily “what BYTE did” summary
+          <small>A short note in your morning briefing and here: how many PC steps, web searches and pages BYTE did, and when. Only the kind of thing and the time, never what was searched, typed or opened. Off until you turn it on.</small>
+        </span>
+        <input type="checkbox" checked={on} onChange={(e) => void update({ dailySummary: e.target.checked })} aria-label="Daily what BYTE did summary" />
+      </label>
+      {on && (
+        <div role="region" aria-label="What BYTE did in the last days" style={{ marginBottom: 8 }}>
+          {days.filter((d) => d.lines.length).length === 0 && <small>Nothing yet.</small>}
+          {days
+            .filter((d) => d.lines.length)
+            .map((d) => (
+              <div key={d.day}>
+                <b>{dayLabel(d.day)}</b>
+                <ul>
+                  {d.lines.map((l) => (
+                    <li key={l}>{l}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+        </div>
+      )}
+    </>
   );
 }

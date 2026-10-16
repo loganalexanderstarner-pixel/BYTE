@@ -515,6 +515,7 @@ pub fn run() {
             found::whatsnew::whatsnew_status,
             found::whatsnew::whatsnew_seen,
             found::power::power_status,
+            found::summary::activity_summary,
             found::approval::approval_pop_state,
             found::remove::data_remove_plan,
             found::remove::data_remove,

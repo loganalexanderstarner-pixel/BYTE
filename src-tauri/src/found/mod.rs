@@ -7,4 +7,5 @@ pub mod power;
 pub mod remove;
 pub mod research;
 pub mod safe;
+pub mod summary;
 pub mod whatsnew;
