@@ -11,6 +11,7 @@ No account. No subscription. Your chats and files stay on your device.</p>
   <a href="docs/mac-app.md">Mac</a> ·
   <a href="docs/WINDOWS-TESTING.md">Windows</a> ·
   <a href="docs/ANDROID.md">Android</a> ·
+  <a href="docs/PRIVACY.md">Privacy</a> ·
   <a href="docs/VERSIONS.md">Versions</a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
@@ -41,6 +42,7 @@ Test builds are for trying things out and reporting problems, not for daily use 
 - **Notes, mind maps and a brainstorm board**, Quick Ask from anywhere, and a command palette.
 - **Voice:** dictation, spoken answers in thousands of free natural voices, and **Hey BYTE**.
 - **Private by design:** an offline switch, an app lock, a log of everything BYTE did, kids mode, encrypted backups, and erasing everything in one step.
+- **Safe to try:** a first-run setup that asks about each optional feature, safe mode (`--safe`) that starts with them all off, crash recovery with a problem report, an on-screen approval popup you can answer by voice, and a Never touch list shared by PC control and the screen features.
 - **Yours:** 20 themes or your own, personality and talk-style settings, and a help center with a step-by-step tutorial that works offline.
 
 Every feature is a module you can turn off, and anything that listens, looks at your screen or controls your computer starts **off** and has its own switch.
@@ -68,6 +70,8 @@ All of this is off until you switch it on in Settings, and you can do it by voic
 The first launch walks you through picking a model that fits your device. Models download once and then work offline.
 
 ## Privacy
+
+Read it in plain words: [what stays on your device, what can leave it, and what each optional feature reads](docs/PRIVACY.md).
 
 - The model runs on your device. Prompts, answers and files are processed locally.
 - The internet is used for model downloads, web search and reading when you ask something that needs it, and BYTE Cloud if you connect it.

@@ -67,10 +67,10 @@ function RemoveDataCard() {
       </span>
       <div role="group" aria-label="What to remove" style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 6 }}>
         <label>
-          <input type="checkbox" checked={chats} onChange={(e) => (setChats(e.target.checked), setPlan(null))} /> Chats, memories and settings
+          <input type="checkbox" aria-label="Remove chats, memories and settings" checked={chats} onChange={(e) => (setChats(e.target.checked), setPlan(null))} /> Chats, memories and settings
         </label>
         <label>
-          <input type="checkbox" checked={models} onChange={(e) => (setModels(e.target.checked), setPlan(null))} /> Downloaded models
+          <input type="checkbox" aria-label="Remove downloaded models" checked={models} onChange={(e) => (setModels(e.target.checked), setPlan(null))} /> Downloaded models
         </label>
       </div>
       {!plan && (

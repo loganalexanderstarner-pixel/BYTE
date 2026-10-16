@@ -63,7 +63,7 @@ function CrashRecoveryCard() {
     }
   };
   return (
-    <div className="banner crash-card" role="alertdialog" aria-labelledby="crash-title" style={{ flexWrap: "wrap" }}>
+    <div className="banner crash-card" role="alertdialog" aria-labelledby="crash-title" style={{ flexWrap: "wrap" }} onKeyDown={(e) => e.key === "Escape" && close()}>
       <span className="grow" id="crash-title">
         {crashCardText(found)}
       </span>
@@ -112,7 +112,7 @@ function WhatsNewCard() {
     setInfo(null);
   };
   return (
-    <div className="banner whatsnew-card" role="dialog" aria-labelledby="whatsnew-title" style={{ display: "block", maxHeight: "60vh", overflow: "auto" }}>
+    <div className="banner whatsnew-card" role="dialog" aria-labelledby="whatsnew-title" style={{ display: "block", maxHeight: "60vh", overflow: "auto" }} onKeyDown={(e) => e.key === "Escape" && close()}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <b className="grow" id="whatsnew-title">
           What's new in BYTE {info.version}: {title}
