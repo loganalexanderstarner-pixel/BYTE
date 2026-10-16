@@ -335,7 +335,13 @@ pub async fn plan_with_model(app: &AppHandle, user: String, snap: Option<uia::Sn
     let p = planner::plan_loop(&asker, &brain::system_text(""), &user, check, limit, planner::ATTEMPTS).await;
     match p.outcome {
         planner::Outcome::Plan(steps) => Ok(steps),
-        planner::Outcome::Cannot(why) => Err(format!("{}{why}", planner::CANNOT)),
+        planner::Outcome::Cannot(why) => {
+            // A model that is too small invents reasons ("you must install it first"): do not pass its refusal on as fact.
+            if let Some(say) = small_model_say(app).await {
+                return Err(say);
+            }
+            Err(format!("{}{why}", planner::CANNOT))
+        }
         planner::Outcome::Failed(last) => {
             if let Some(say) = small_model_say(app).await {
                 return Err(say);

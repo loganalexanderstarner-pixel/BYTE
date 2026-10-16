@@ -189,7 +189,7 @@ const NEVER_EXT: &[&str] = &[
     "exe", "lnk", "url", "appx", "msix", "appxbundle", "msixbundle", "jnlp", "application", "msi", "msp", "bat", "cmd", "ps1", "psm1", "vbs", "vbe", "js", "jse", "wsf", "wsh", "scr", "com", "pif", "reg", "hta", "cpl", "msc", "dll", "jar", "gadget", "inf", "sys", "ocx", "chm",
 ];
 /// Links that are known to the opener at all. Only `http` and `https` are `Safe`; every other one asks first (`steam://run/...` starts programs).
-const KNOWN_SCHEMES: &[&str] = &["http", "https", "mailto", "ms-settings", "spotify", "steam", "discord", "tel"];
+const KNOWN_SCHEMES: &[&str] = &["http", "https", "mailto", "ms-settings", "spotify", "steam", "discord", "tel", "microsoft-edge"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Target {

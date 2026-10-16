@@ -140,6 +140,9 @@ fn program_words(rest: &str) -> Option<String> {
 
 /// "open notepad" -> open; "switch to chrome" -> focus; "close notepad" -> close; "scroll down"; "press ctrl s"; "type hello".
 pub fn direct_ask(l: &str) -> Option<Action> {
+    if let Some(a) = web_ask(l) {
+        return (actions::risk(&a) != actions::Risk::Never).then_some(a);
+    }
     for p in ["open ", "launch ", "start ", "run "] {
         if let Some(rest) = l.strip_prefix(p) {
             let name = program_words(rest)?;
@@ -382,9 +385,26 @@ mod off_tests {
     use super::looks_like_pc_action as a;
 
     #[test]
+    fn web_requests_open_the_right_address() {
+        use super::web_ask;
+        use crate::control::actions::Action;
+        let t = |q: &str| match web_ask(q) { Some(Action::Open { target }) => target, other => panic!("{q}: {other:?}") };
+        assert_eq!(t("open microsoft edge to youtube"), "microsoft-edge:https://www.youtube.com");
+        assert_eq!(t("open edge and go to reddit"), "microsoft-edge:https://www.reddit.com");
+        assert_eq!(t("go to github.com"), "https://github.com");
+        assert_eq!(t("open youtube"), "https://www.youtube.com");
+        assert_eq!(t("can you open up microsoft edge for me and search for reddit posts on nuclear fusion for a project"), "microsoft-edge:https://www.google.com/search?q=reddit+posts+on+nuclear+fusion");
+        assert_eq!(t("search youtube for lofi beats"), "https://www.youtube.com/results?search_query=lofi+beats");
+        assert!(web_ask("open notepad").is_none(), "a program is not a website");
+        assert!(web_ask("open edge").is_none(), "no site named");
+        assert!(web_ask("how do I open a bank account").is_none());
+    }
+
+    #[test]
     fn a_free_form_request_becomes_a_task_for_the_planner() {
         use super::{ask, Ask};
-        assert!(matches!(ask("can you open up microsoft edge for me and search for reddit posts on nuclear fusion for a project"), Some(Ask::Task(_))));
+        assert!(matches!(ask("can you open notepad and type hello world for me"), Some(Ask::Task(_))));
+        assert!(matches!(ask("can you open up microsoft edge for me and search for reddit posts on nuclear fusion for a project"), Some(Ask::Direct(_))), "a web request is answered without a model");
         assert!(matches!(ask("open notepad"), Some(Ask::Direct(_))), "a simple phrase keeps its fast path");
         assert!(ask("how do I open a bank account").is_none());
     }
@@ -472,7 +492,7 @@ mod tests {
 
     #[test]
     fn things_that_belong_elsewhere_or_are_refused_are_not_taken() {
-        for q in ["open bluetooth settings", "open example.com", "open https://example.com", "open notepad and type hello", "open the pod bay doors and", "open cmd", "open powershell", "open", "close", "press", "press win r", "press ctrl alt delete", "open the file i downloaded yesterday", "start a timer for ten minutes"] {
+        for q in ["open bluetooth settings", "open https://example.com", "open notepad and type hello", "open the pod bay doors and", "open cmd", "open powershell", "open", "close", "press", "press win r", "press ctrl alt delete", "open the file i downloaded yesterday", "start a timer for ten minutes"] {
             assert!(!matches!(a(q), Some(Ask::Direct(_))), "{q}: {:?}", a(q));
         }
     }
@@ -514,4 +534,121 @@ mod tests {
             }
         }
     }
+}
+
+// ------------------------------------------------------------------ web requests ("open Edge to YouTube", "go to reddit", "search for …")
+
+/// Websites a person names in plain words, with their address and, when they have one, how to search them.
+const SITES: &[(&str, &str, Option<&str>)] = &[
+    ("youtube", "https://www.youtube.com", Some("https://www.youtube.com/results?search_query=")),
+    ("google", "https://www.google.com", Some("https://www.google.com/search?q=")),
+    ("bing", "https://www.bing.com", Some("https://www.bing.com/search?q=")),
+    ("reddit", "https://www.reddit.com", Some("https://www.reddit.com/search/?q=")),
+    ("github", "https://github.com", Some("https://github.com/search?q=")),
+    ("amazon", "https://www.amazon.com", Some("https://www.amazon.com/s?k=")),
+    ("wikipedia", "https://en.wikipedia.org", Some("https://en.wikipedia.org/w/index.php?search=")),
+    ("gmail", "https://mail.google.com", None),
+    ("netflix", "https://www.netflix.com", None),
+    ("twitch", "https://www.twitch.tv", None),
+    ("discord", "https://discord.com/app", None),
+    ("twitter", "https://x.com", None),
+    ("facebook", "https://www.facebook.com", None),
+    ("instagram", "https://www.instagram.com", None),
+    ("spotify", "https://open.spotify.com", None),
+    ("maps", "https://www.google.com/maps", None),
+];
+
+fn url_encode(s: &str) -> String {
+    s.bytes().map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else if b == b' ' { "+".to_string() } else { format!("%{b:02X}") }).collect()
+}
+
+/// A browser named in the request: how it is told apart, and whether a link can be opened in it specifically (Edge can, through its own scheme).
+fn browser_in(s: &str) -> Option<(&'static str, bool)> {
+    [("microsoft edge", true), ("edge", true), ("google chrome", false), ("chrome", false), ("firefox", false), ("the browser", false), ("a browser", false), ("my browser", false), ("browser", false)]
+        .iter()
+        .find(|(n, _)| s == *n || s.starts_with(&format!("{n} ")))
+        .map(|(n, edge)| (*n, *edge))
+}
+
+fn with_browser(url: String, edge: bool) -> String {
+    if edge { format!("microsoft-edge:{url}") } else { url }
+}
+
+/// The address a site word or domain stands for; `None` for anything that is not clearly a site.
+fn site_url(word: &str) -> Option<String> {
+    let w = word.trim().trim_matches(['.', ',']).trim_start_matches("the ").trim();
+    if let Some((_, u, _)) = SITES.iter().find(|(n, ..)| *n == w || format!("{n} website") == w || format!("{n} dot com") == w || format!("{n}.com") == w) {
+        return Some((*u).to_string());
+    }
+    let looks_like_domain = w.contains('.') && !w.contains(' ') && w.chars().all(|c| c.is_ascii_alphanumeric() || "-./".contains(c)) && w.split('.').next_back().is_some_and(|t| (2..=6).contains(&t.len()));
+    looks_like_domain.then(|| format!("https://{w}"))
+}
+
+/// Opening a website, or searching the web, in plain words. Pure: no model, so it is fast and cannot be talked into something else.
+pub fn web_ask(q: &str) -> Option<Action> {
+    let mut l = q.trim().to_lowercase();
+    for p in ["hey byte,", "hey byte", "ok byte,", "okay byte,", "byte,"] {
+        if let Some(r) = l.strip_prefix(p) {
+            l = r.trim_start_matches([',', ' ']).to_string();
+        }
+    }
+    for p in ["can you ", "could you ", "would you ", "will you ", "please ", "i want you to ", "i need you to ", "go ahead and ", "just "] {
+        while let Some(r) = l.strip_prefix(p) {
+            l = r.to_string();
+        }
+    }
+    let l = l.trim_end_matches(['.', '!', '?']).replace(" for me", "").replace(" please", "").replace("open up ", "open ").replace(" for a project", "").replace(" for my project", "").replace(" for school", "").replace(" for class", "");
+    let l = l.trim();
+    let open = |url: String, edge: bool| Some(Action::Open { target: with_browser(url, edge) });
+    let search = |site: Option<&str>, query: &str, edge: bool| {
+        let q = query.trim().trim_start_matches("for ").trim();
+        if q.is_empty() {
+            return None;
+        }
+        let base = site.and_then(|s| SITES.iter().find(|(n, ..)| *n == s).and_then(|(_, _, sr)| *sr)).unwrap_or("https://www.google.com/search?q=");
+        open(format!("{base}{}", url_encode(q)), edge)
+    };
+    // "search youtube for X", "search for X", "google X", "look up X"
+    for p in ["search ", "look up ", "google ", "find "] {
+        if let Some(rest) = l.strip_prefix(p) {
+            if p == "find " && !(rest.starts_with("videos") || rest.starts_with("posts") || rest.starts_with("reddit")) {
+                continue;
+            }
+            for (name, ..) in SITES {
+                if let Some(r) = rest.strip_prefix(&format!("{name} for ")).or_else(|| rest.strip_prefix(&format!("{name} "))) {
+                    return search(Some(name), r, false);
+                }
+            }
+            return search(None, rest, false);
+        }
+    }
+    let (verb, rest) = ["open ", "launch ", "start ", "go to ", "navigate to ", "take me to ", "pull up "].iter().find_map(|v| l.strip_prefix(v).map(|r| (*v, r)))?;
+    // "open edge to youtube", "open edge and go to youtube", "open the browser and search for X", "open edge and search reddit for X"
+    if let Some((_, edge)) = browser_in(rest) {
+        let after = rest.split_once(' ').map(|(_, r)| r).unwrap_or("");
+        let after = ["microsoft edge", "google chrome"].iter().find_map(|n| rest.strip_prefix(n).map(|r| r.trim())).unwrap_or(after);
+        for sep in ["to ", "and go to ", "and open ", "and navigate to ", "at ", "and visit ", "and pull up "] {
+            if let Some(site) = after.strip_prefix(sep) {
+                return open(site_url(site)?, edge);
+            }
+        }
+        for sep in ["and search ", "and look up ", "and google ", "and find "] {
+            if let Some(r) = after.strip_prefix(sep) {
+                for (name, ..) in SITES {
+                    if let Some(rr) = r.strip_prefix(&format!("{name} for ")).or_else(|| r.strip_prefix(&format!("{name} "))) {
+                        return search(Some(name), rr, edge);
+                    }
+                }
+                return search(None, r, edge);
+            }
+        }
+        return None;
+    }
+    // "open youtube", "go to reddit.com" (a site, not a program)
+    if verb != "start " {
+        if let Some(url) = site_url(rest) {
+            return open(url, false);
+        }
+    }
+    None
 }
