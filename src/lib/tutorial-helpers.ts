@@ -167,4 +167,42 @@ export const HELPER_TUTORIALS: Tutorial[] = [
       },
     ],
   },
+  {
+    id: "pc-helpers-pages",
+    title: "Page tools",
+    promise: "Turn a web page into a to-do, a note or a spreadsheet; get email drafts; research a product; fill a form",
+    minutes: 5,
+    icon: "globe",
+    offByDefault: true,
+    os: "windows",
+    steps: [
+      {
+        id: "tools",
+        title: "Open the page tools",
+        body: ["Turn on **Page tools**. With a page open in your browser, right-click BYTE's tray icon and choose **Page tools**. Select some text first to use just that part."],
+        links: [S("control", "Open Control and screen"), H("page-tools", "Read about page tools")],
+      },
+      {
+        id: "todo",
+        title: "To-do, note or table",
+        body: ["Choose **Make a to-do**, **Save as a note** or **Extract a table** (with nothing selected). To-dos go on your list, notes in the Pages folder, and tables become spreadsheet files in Documents/BYTE/Tables."],
+      },
+      {
+        id: "email",
+        title: "Help with an email",
+        body: ["Turn on **Email helper**, select an email thread and choose **Help with this email**. You get a summary and three drafts; copy the one you like. BYTE never sends anything."],
+      },
+      {
+        id: "product",
+        title: "Research a product",
+        body: ["Turn on **Product helper** and choose **Research this product** on a product page. BYTE reads a few pages about its price and reviews and lists its sources."],
+      },
+      {
+        id: "form",
+        title: "Fill a form",
+        body: ["Turn on **Form helper** (and PC control), save your details, then choose **Fill this form**. BYTE shows what it will type first, never touches passwords or cards, and never presses Submit."],
+        ifStuck: "If it finds no boxes, the form may not share its boxes with other programs. Fill that one by hand.",
+      },
+    ],
+  },
 ];

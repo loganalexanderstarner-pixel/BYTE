@@ -7,7 +7,7 @@ export const ASK_WHERE: { id: "local" | "cloud" | "auto"; label: string }[] = [
   { id: "cloud", label: "Cloud" },
 ];
 
-type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate" | "helperPage" | "helperMeeting" | "helperFocus" | "helperTidy" | "helperRecipes" | "helperHa" | "helperGame" | "helperNav" | "helperRead" | "helperCaptions";
+type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate" | "helperPage" | "helperMeeting" | "helperFocus" | "helperTidy" | "helperRecipes" | "helperHa" | "helperGame" | "helperNav" | "helperRead" | "helperCaptions" | "helperPagetools" | "helperEmail" | "helperProduct" | "helperForm";
 type KeyName = "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys" | "helperReadKeys";
 
 export interface HelperRow {
@@ -108,6 +108,30 @@ const ROWS: HelperRow[] = [
     key: "helperCaptions",
     title: "Live captions",
     text: "Right-click BYTE's tray icon and choose \"Start live captions\": BYTE listens to the sound this computer plays, writes captions in a small window, and \"What did they just say?\" turns the last 30 seconds into words. The sound stays in memory only. Needs a speech model.",
+    windowsOnly: true,
+  },
+  {
+    key: "helperPagetools",
+    title: "Page tools",
+    text: "Right-click BYTE's tray icon and choose \"Page tools\" with a page open in your browser: make a to-do from it, save it as a note, extract its tables to spreadsheet files, or compare it with another tab. If you select text first, only that text is used. The page text is read on this computer (or BYTE Cloud only if you chose Cloud).",
+    windowsOnly: true,
+  },
+  {
+    key: "helperEmail",
+    title: "Email helper",
+    text: "Select an email thread in your browser or mail program, choose \"Page tools\" > \"Help with this email\", and BYTE gives a short summary and three reply drafts (friendly, formal, short). You pick one and it is copied for you to paste. BYTE never sends anything.",
+    windowsOnly: true,
+  },
+  {
+    key: "helperProduct",
+    title: "Product helper",
+    text: "On a product page, choose \"Page tools\" > \"Research this product\": BYTE searches the web for its price and reviews, reads a few pages and summarises them with the sources. The product name is sent to a search engine.",
+    windowsOnly: true,
+  },
+  {
+    key: "helperForm",
+    title: "Form helper",
+    text: "Save your name, email, phone and address here once. On a form, choose \"Page tools\" > \"Fill this form\": BYTE shows what it will type and types it only after you agree (PC control must be on). It never fills passwords, card numbers or security codes, and never presses Submit.",
     windowsOnly: true,
   },
 ];

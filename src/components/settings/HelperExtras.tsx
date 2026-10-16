@@ -163,3 +163,33 @@ export function WakePhrase({ settings, update }: { settings: Settings; update: U
     </div>
   );
 }
+
+/** The details the form helper may type. There is no place here for a password or a card number, and BYTE refuses one if you try. */
+export function FormProfile() {
+  const [fields, setFields] = useState<[string, string][]>([]);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    void invoke<[Record<string, string>, [string, string][]]>("form_profile_get").then(([p, f]) => { setValues(p); setFields(f); }, () => undefined);
+  }, []);
+  const save = () =>
+    invoke<string[]>("form_profile_set", { profile: values }).then(
+      (refused) => setNote(refused.length ? `Not saved (it looks like a card number or password): ${refused.join(", ")}` : "Saved on this computer."),
+      (e) => setNote(errorText(e)),
+    );
+  return (
+    <div className="field" style={{ display: "block" }}>
+      <span>Your details<small>Kept on this computer only. Never put a password or card number here.</small></span>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(110px, 160px) 1fr", gap: 6, marginTop: 6 }}>
+        {fields.map(([key, label]) => (
+          <label key={key} style={{ display: "contents" }}>
+            <span>{label}</span>
+            <input aria-label={label} value={values[key] ?? ""} onChange={(e) => setValues({ ...values, [key]: e.target.value })} />
+          </label>
+        ))}
+      </div>
+      <button className="btn sm" style={{ marginTop: 6 }} onClick={() => void save()}>Save details</button>
+      {note && <small role="status" style={{ display: "block" }}>{note}</small>}
+    </div>
+  );
+}

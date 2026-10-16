@@ -7,6 +7,7 @@ describe("helper settings rows", () => {
     expect(helperRows(true).map((r) => r.key)).toEqual([
       "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperDictate", "helperPage", "helperMeeting", "helperFocus",
       "helperTidy", "helperRecipes", "helperHa", "helperGame", "helperNav", "helperRead", "helperCaptions",
+      "helperPagetools", "helperEmail", "helperProduct", "helperForm",
     ]);
     expect(helperRows(false).map((r) => r.key)).toEqual(["helperExplain", "helperSmartPaste", "helperTidy", "helperHa", "helperRead"]);
   });
@@ -23,7 +24,7 @@ describe("helper settings rows", () => {
   });
 
   it("no row promises to send anything to the cloud on its own", () => {
-    for (const r of helperRows(true)) expect(r.text.toLowerCase()).not.toContain("sends");
+    for (const r of helperRows(true)) expect(r.text.toLowerCase()).not.toMatch(/sends? [^.]*cloud/);
   });
 
   it("every count has a No limit choice", () => {

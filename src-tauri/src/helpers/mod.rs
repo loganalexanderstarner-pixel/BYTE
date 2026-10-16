@@ -17,12 +17,14 @@ pub mod dialogs;
 pub mod dictate;
 pub mod explain;
 pub mod focus;
+pub mod forms;
 pub mod game;
 pub mod ha;
 pub mod meeting;
 pub mod navigation;
 pub mod mic;
 pub mod page;
+pub mod pagetools;
 pub mod popup;
 pub mod readaloud;
 pub mod recipes;
@@ -140,6 +142,10 @@ pub fn apply(app: &AppHandle, s: &Settings) {
     dialogs::apply(app, s.helper_dialogs);
     smartpaste::apply(app, s.helper_smart_paste);
     tidy::apply_watch(app, s.helper_tidy && tidy::supported() && !s.kids_mode);
+    let tools = pagetools::any_on(s);
+    if TOOLS_ON.swap(tools, std::sync::atomic::Ordering::SeqCst) != tools {
+        refresh_menu(app);
+    }
     let caps = s.helper_captions && captions::supported() && !s.kids_mode;
     if CAPTIONS_ON.swap(caps, std::sync::atomic::Ordering::SeqCst) != caps {
         if !caps {
@@ -168,6 +174,10 @@ pub fn apply(app: &AppHandle, s: &Settings) {
         refresh_menu(app);
     }
 }
+
+/// The tray menu offers "Page tools".
+#[cfg(desktop)]
+static TOOLS_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// The tray menu offers live captions.
 #[cfg(desktop)]
@@ -251,6 +261,9 @@ pub fn tray_items(app: &AppHandle) -> tauri::Result<Vec<tauri::menu::MenuItem<ta
     if PAGE_ON.load(std::sync::atomic::Ordering::SeqCst) {
         v.push(MenuItem::with_id(app, "helper_page", "Look at this page and help", true, None::<&str>)?);
     }
+    if TOOLS_ON.load(std::sync::atomic::Ordering::SeqCst) {
+        v.push(MenuItem::with_id(app, "helper_pagetools", "Page tools", true, None::<&str>)?);
+    }
     if CAPTIONS_ON.load(std::sync::atomic::Ordering::SeqCst) {
         if captions::listening() {
             v.push(MenuItem::with_id(app, "helper_captions_recap", "What did they just say?", true, None::<&str>)?);
@@ -290,6 +303,10 @@ pub fn tray_event(app: &AppHandle, id: &str) -> bool {
         "helper_dialog" => {
             let app = app.clone();
             tauri::async_runtime::spawn(async move { dialogs::explain_pending(&app).await });
+            true
+        }
+        "helper_pagetools" => {
+            pagetools::open(app);
             true
         }
         "helper_captions_start" => {
@@ -353,7 +370,7 @@ mod tests {
     #[test]
     fn every_helper_is_off_by_default_and_the_default_choice_is_local() {
         let s = Settings::default();
-        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate && !s.helper_page && !s.helper_meeting && !s.helper_focus && !s.helper_tidy && !s.helper_recipes && !s.helper_ha && s.helper_ha_url.is_empty() && !s.helper_game && !s.helper_nav && !s.helper_read && !s.helper_captions);
+        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate && !s.helper_page && !s.helper_meeting && !s.helper_focus && !s.helper_tidy && !s.helper_recipes && !s.helper_ha && s.helper_ha_url.is_empty() && !s.helper_game && !s.helper_nav && !s.helper_read && !s.helper_captions && !s.helper_pagetools && !s.helper_email && !s.helper_product && !s.helper_form);
         assert_eq!(s.helper_ask_where, "local");
         assert!(wanted(&s).is_empty());
     }
@@ -386,7 +403,7 @@ mod tests {
 
     #[test]
     fn settings_are_not_in_the_profile_sync_list() {
-        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys", "helperPage", "helperPageKeys", "helperMeeting", "helperMeetingMinutes", "helperFocus", "helperFocusMinutes", "helperFocusBreak", "helperFocusSpeak", "helperTidy", "helperRecipes", "helperHa", "helperHaUrl", "helperGame", "helperNav", "helperRead", "helperReadKeys", "helperReadSpeed", "helperCaptions", "helperWakePhrase"] {
+        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys", "helperPage", "helperPageKeys", "helperMeeting", "helperMeetingMinutes", "helperFocus", "helperFocusMinutes", "helperFocusBreak", "helperFocusSpeak", "helperTidy", "helperRecipes", "helperHa", "helperHaUrl", "helperGame", "helperNav", "helperRead", "helperReadKeys", "helperReadSpeed", "helperCaptions", "helperWakePhrase", "helperPagetools", "helperEmail", "helperProduct", "helperForm"] {
             assert!(!crate::profile_sync::KEYS.iter().any(|(_, setting)| *setting == k), "{k}");
         }
     }

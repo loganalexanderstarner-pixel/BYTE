@@ -96,6 +96,10 @@ export interface Settings {
   helperReadSpeed?: "slow" | "normal" | "fast";
   helperCaptions?: boolean;
   helperWakePhrase?: string;
+  helperPagetools?: boolean;
+  helperEmail?: boolean;
+  helperProduct?: boolean;
+  helperForm?: boolean;
   /* --- track:helpers end --- */
   /** The writing studio (✍️). */
   writingEnabled?: boolean;

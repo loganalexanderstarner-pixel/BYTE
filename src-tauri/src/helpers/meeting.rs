@@ -21,7 +21,7 @@ pub fn default_minutes() -> u32 {
 pub fn chunks(text: &str, max: usize) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     let mut cur = String::new();
-    let mut push_line = |line: &str, cur: &mut String, out: &mut Vec<String>| {
+    let push_line = |line: &str, cur: &mut String, out: &mut Vec<String>| {
         if !cur.is_empty() && cur.chars().count() + line.chars().count() + 1 > max {
             out.push(std::mem::take(cur));
         }

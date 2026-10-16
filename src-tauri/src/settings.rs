@@ -263,6 +263,18 @@ pub struct Settings {
     /// Your own wake phrase instead of "Hey BYTE" (empty = "Hey BYTE").
     #[serde(default)]
     pub helper_wake_phrase: String,
+    /// Page tools from the tray menu: to-do, note, tables, compare tabs.
+    #[serde(default)]
+    pub helper_pagetools: bool,
+    /// Email helper: summary and three drafts for a selected thread.
+    #[serde(default)]
+    pub helper_email: bool,
+    /// Product helper: price and review research with sources.
+    #[serde(default)]
+    pub helper_product: bool,
+    /// Form helper: fill name/email/phone/address boxes from a saved profile (needs PC control). Never passwords or cards.
+    #[serde(default)]
+    pub helper_form: bool,
     // --- track:helpers end ---
     /// The writing studio (✍️): rewrite, expand, shorten, tone, grammar.
     #[serde(default = "yes")]
@@ -657,6 +669,10 @@ impl Default for Settings {
             helper_read_speed: crate::helpers::readaloud::default_speed(),
             helper_captions: false,
             helper_wake_phrase: String::new(),
+            helper_pagetools: false,
+            helper_email: false,
+            helper_product: false,
+            helper_form: false,
             // --- track:helpers end ---
             writing_enabled: true,
             writing_style: String::new(),

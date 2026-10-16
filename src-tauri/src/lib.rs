@@ -491,6 +491,8 @@ pub fn run() {
             helpers::ha::ha_set_token,
             helpers::ha::ha_clear_token,
             helpers::ha::ha_test,
+            helpers::forms::form_profile_get,
+            helpers::forms::form_profile_set,
             // --- track:helpers end ---
             tts::cloud_voices,
             tts::voices_status,

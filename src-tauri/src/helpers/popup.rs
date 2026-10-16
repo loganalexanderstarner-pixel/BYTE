@@ -26,12 +26,13 @@ pub enum Kind {
     Game,
     Read,
     Captions,
+    PageTools,
 }
 
 impl Kind {
     pub fn label(self) -> &'static str {
         match self {
-            Kind::Explain | Kind::Dialog | Kind::Paste | Kind::Page | Kind::Meeting | Kind::Tidy | Kind::Game | Kind::Read | Kind::Captions => "helperpop-x",
+            Kind::Explain | Kind::Dialog | Kind::Paste | Kind::Page | Kind::Meeting | Kind::Tidy | Kind::Game | Kind::Read | Kind::Captions | Kind::PageTools => "helperpop-x",
             Kind::Region | Kind::Focus => "helperpop-r",
         }
     }
@@ -223,6 +224,7 @@ pub async fn helper_popup_click(app: tauri::AppHandle, id: String, text: Option<
         Kind::Paste => super::smartpaste::clicked(&app, &id).await,
         Kind::Page => super::page::clicked(&app, &id).await,
         Kind::Meeting => super::meeting::clicked(&app, &id).await,
+        Kind::PageTools => super::pagetools::clicked(&app, &id).await,
         Kind::Read => super::readaloud::clicked(&app, &id).await,
         Kind::Captions => super::captions::clicked(&app, &id).await,
         Kind::Game => super::game::clicked(&app, &id).await,
