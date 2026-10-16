@@ -279,6 +279,20 @@ export interface Settings {
   /** A short summary of what BYTE did yesterday (counts and times only) in the briefing and Settings. Off by default. */
   dailySummary?: boolean;
   /* --- track:found end --- */
+  /* --- track:autonomy begin --- */
+  /** How much BYTE asks: "ask" (risky steps), "contract" (only outside a run contract), "never". */
+  controlAutonomy?: "ask" | "contract" | "never";
+  autoMode?: boolean;
+  autoAccepted?: boolean;
+  autoStopKey?: string;
+  autoPauseOnInput?: boolean;
+  autoKeepAwake?: boolean;
+  autoNotify?: boolean;
+  autoSpeakReport?: boolean;
+  /** Stages in one job: "10" | "25" | "50" | "unlimited". */
+  autoMaxStages?: "10" | "25" | "50" | "unlimited";
+  macroRecorder?: boolean;
+  /* --- track:autonomy end --- */
 }
 
 export type Workspace = "local" | "cloud" | "both";

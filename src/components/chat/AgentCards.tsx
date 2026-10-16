@@ -6,6 +6,7 @@ import { api, errorText } from "../../lib/api";
 import { MessageComposer } from "../messages/MessageComposer";
 import type { ApprovalCard as Card, SavedFile } from "../../lib/types";
 import { osText } from "../../lib/platform";
+import { REMEMBER_FIELD, splitRemember } from "../../lib/auto"; // track:autonomy
 
 /** BYTE wants to submit, commit or download: nothing happens until the user says so. */
 export function ApprovalCard({ card }: { card: Card }) {
@@ -14,10 +15,15 @@ export function ApprovalCard({ card }: { card: Card }) {
   // Fields the user may change before approving (a text's wording), as they are now.
   const editable = card.status === "waiting" ? (card.editable ?? []) : [];
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(card.fields.filter((f) => editable.includes(f.label)).map((f) => [f.label, f.value])));
-  const decide = async (ok: boolean) => {
+  // --- track:autonomy begin --- "Approve and don't ask again": a card carries the rule in a marker field
+  const remember = splitRemember(card.fields);
+  const shownFields = remember.fields;
+  // --- track:autonomy end ---
+  const decide = async (ok: boolean, always = false) => {
     setBusy(true);
     try {
-      const edits = ok ? Object.entries(values).map(([label, value]) => ({ label, value })) : undefined;
+      let edits = ok ? Object.entries(values).map(([label, value]) => ({ label, value })) : undefined;
+      if (ok && always) edits = [...(edits ?? []), { label: REMEMBER_FIELD, value: "1" }]; // track:autonomy
       if (ok && edits?.some((e) => !e.value.trim())) {
         setError("Write something to send first.");
         return;
@@ -37,9 +43,9 @@ export function ApprovalCard({ card }: { card: Card }) {
         <ShieldAlert size={16} />
         <b>{card.title}</b>
       </div>
-      {card.fields.length > 0 && (
+      {shownFields.length > 0 && (
         <dl className="approval-fields">
-          {card.fields.map((f, i) => (
+          {shownFields.map((f, i) => (
             <div key={i} className={f.label in values ? "approval-field-edit" : undefined}>
               <dt>{f.label}</dt>
               <dd className={f.label === "Command" ? "mono" : undefined}>
@@ -69,6 +75,13 @@ export function ApprovalCard({ card }: { card: Card }) {
           <button className="btn sm primary" disabled={busy} onClick={() => void decide(true)}>
             <Icon size={13} /> {approveLabel(card)}
           </button>
+          {/* --- track:autonomy begin --- */}
+          {remember.rule && (
+            <button className="btn sm" disabled={busy} onClick={() => void decide(true, true)} title={`Saves this rule: ${remember.rule}. You can remove it in Settings, Control.`}>
+              <Check size={13} /> Approve and don't ask again
+            </button>
+          )}
+          {/* --- track:autonomy end --- */}
           <button className="btn sm ghost" disabled={busy} onClick={() => void decide(false)}>
             <X size={13} /> Don't
           </button>

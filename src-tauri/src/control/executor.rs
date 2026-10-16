@@ -10,6 +10,12 @@ use futures_util::future::BoxFuture;
 use serde::Serialize;
 
 use super::actions::{self, Action, Expect, Risk, Step, Target, WaitFor};
+// --- track:autonomy begin ---
+use super::auto::contract::Verdict;
+use super::auto::level::Level;
+use super::auto::policy::{Gate, HookStop, Policy};
+use super::auto::rules::{self, RuleKey};
+// --- track:autonomy end ---
 use super::input::Input;
 use super::log::Log;
 use super::uia::{self, Element, Screen};
@@ -66,6 +72,14 @@ pub trait Launcher: Send + Sync {
 /// The approval card.
 pub trait Approver: Send + Sync {
     fn approve<'a>(&'a self, title: &'a str, fields: Vec<(String, String)>) -> BoxFuture<'a, bool>;
+
+    // --- track:autonomy begin ---
+    /// As `approve`, for a step that has a saved-rule key: an approver that keeps "approve and don't ask again" rules looks the
+    /// key up first (a matching rule answers without a card) and offers the second button. Others just ask.
+    fn approve_step<'a>(&'a self, title: &'a str, fields: Vec<(String, String)>, _key: Option<RuleKey>) -> BoxFuture<'a, bool> {
+        self.approve(title, fields)
+    }
+    // --- track:autonomy end ---
 }
 
 /// What the model is told when a plan did not work.
@@ -118,6 +132,10 @@ pub struct Config {
     /// The shared "never touch" list (the same list the screen features use): programs and window titles BYTE never operates.
     pub never_touch: Vec<String>,
     // --- track:found end ---
+    // --- track:autonomy begin ---
+    /// The autonomy level, the run contract and the live hooks of an autonomous job. `None`: a plain run.
+    pub policy: Option<Policy>,
+    // --- track:autonomy end ---
 }
 
 pub struct Env<'a> {
@@ -169,12 +187,25 @@ enum Fail {
     /// The person said no: the run ends, nothing is re-planned.
     Declined,
     Stopped,
+    // --- track:autonomy begin ---
+    /// The contract or the never-touch list forbids it: the plan ends, nothing is re-planned.
+    Blocked(String),
+    // --- track:autonomy end ---
 }
 
 struct Run<'a, 'b> {
     env: &'b Env<'a>,
     cfg: &'b Config,
     approved_apps: Vec<String>,
+    /// The program the last step acted in (lower-case).
+    last_app: String,
+}
+
+/// A card to show, with the key a "don't ask again" rule would have.
+struct Card {
+    title: String,
+    fields: Vec<(String, String)>,
+    key: Option<RuleKey>,
 }
 
 fn app_key(s: &str) -> String {
@@ -187,17 +218,47 @@ impl Run<'_, '_> {
         self.env.stop.load(Ordering::SeqCst)
     }
 
-    /// Asks (once per program per run) before BYTE operates a program that is not in the allowed list.
-    async fn app_ok(&mut self, app: &str) -> bool {
+    /// Asks (once per program per run) before BYTE operates a program that is not in the allowed list. `Err` when the program is
+    /// forbidden (the never-touch list).
+    async fn app_ok(&mut self, app: &str) -> Result<bool, String> {
         let k = app_key(app);
-        if k.is_empty() || self.cfg.allowed_apps.iter().any(|a| app_key(a) == k) || self.approved_apps.contains(&k) {
-            return true;
+        if k.is_empty() {
+            return Ok(true);
         }
-        let ok = self.env.approver.approve("Let BYTE use this program?", vec![("Program".into(), k.clone()), ("Why".into(), self.cfg.goal.clone())]).await;
+        self.last_app = k.clone();
+        // --- track:autonomy begin ---
+        let mut outside = None;
+        if let Some(p) = &self.cfg.policy {
+            if p.contract.is_some() {
+                match p.app_verdict(&k) {
+                    Verdict::Refused(w) => return Err(w),
+                    Verdict::Inside => return Ok(true),
+                    Verdict::Outside(w) => {
+                        if p.level == Level::Never || self.approved_apps.contains(&k) {
+                            return Ok(true);
+                        }
+                        outside = Some(w);
+                    }
+                }
+            }
+        }
+        // --- track:autonomy end ---
+        if outside.is_none() && (self.cfg.allowed_apps.iter().any(|a| app_key(a) == k) || self.approved_apps.contains(&k)) {
+            return Ok(true);
+        }
+        let mut fields = vec![("Program".into(), k.clone()), ("Why".into(), self.cfg.goal.clone())];
+        let (title, key) = match &outside {
+            Some(w) => {
+                fields.push(("Outside the run contract".into(), w.clone()));
+                ("BYTE needs your OK: this program is outside the run contract", None)
+            }
+            None => ("Let BYTE use this program?", rules::key_for_app(&k)),
+        };
+        let ok = self.env.approver.approve_step(title, fields, key).await;
         if ok {
             self.approved_apps.push(k);
         }
-        ok
+        Ok(ok)
     }
 
     /// Runs a screen call on a blocking thread (UI Automation can take a while and must not hold an async worker).
@@ -229,11 +290,11 @@ impl Run<'_, '_> {
         }
     }
 
-    /// Does the step need the person's yes first? `Some((title, fields))` when it does.
-    fn needs_card(&self, step: &Step, el: Option<&Element>) -> Option<(String, Vec<(String, String)>)> {
-        if self.cfg.never_ask || !must_ask(&step.action, el, self.cfg.confirm_risky) {
-            return None;
-        }
+    /// Does the step need the person's yes first?
+    fn needs_card(&self, step: &Step, el: Option<&Element>, gate: &Gate) -> Option<Card> {
+        // --- track:autonomy begin ---
+        let level = self.cfg.policy.as_ref().map(|p| p.level);
+        let payment = matches!(step.action, Action::Click { .. }) && el.is_some_and(|e| rules::is_payment_label(&e.name));
         let mut fields = vec![("Step".to_string(), actions::describe(&step.action))];
         if let Some(e) = el {
             fields.push(("Item".into(), e.name.clone()));
@@ -241,7 +302,21 @@ impl Run<'_, '_> {
         if !self.cfg.goal.is_empty() {
             fields.push(("For".into(), self.cfg.goal.clone()));
         }
-        Some(("BYTE wants to do this on your PC".into(), fields))
+        if let (Gate::CheckIn(why), true) = (gate, level != Some(Level::Never)) {
+            fields.push(("Outside the run contract".into(), why.clone()));
+            return Some(Card { title: "BYTE needs your OK: this is outside the run contract".into(), fields, key: None });
+        }
+        let inside_contract = matches!(gate, Gate::Inside) && level == Some(Level::Contract) && !matches!(step.action, Action::Power { .. });
+        // Payments always ask, whatever the level says.
+        if !payment && (self.cfg.never_ask || level == Some(Level::Never) || inside_contract) {
+            return None;
+        }
+        if !payment && !must_ask(&step.action, el, self.cfg.confirm_risky) {
+            return None;
+        }
+        let key = rules::key_for(&step.action, el, &self.last_app).ok();
+        Some(Card { title: "BYTE wants to do this on your PC".into(), fields, key })
+        // --- track:autonomy end ---
     }
 
     async fn attempt(&self, step: &Step, el: Option<&Element>) -> Result<(), String> {
@@ -352,16 +427,20 @@ impl Run<'_, '_> {
         match &step.action {
             Action::Open { target } => {
                 if let Ok(Target::Program(p)) = actions::classify_target(target) {
-                    if !self.app_ok(&p).await {
-                        return Err(Fail::Declined);
+                    match self.app_ok(&p).await {
+                        Ok(true) => {}
+                        Ok(false) => return Err(Fail::Declined),
+                        Err(w) => return Err(Fail::Blocked(w)),
                     }
                 }
             }
             Action::Wait { .. } | Action::Focus { .. } | Action::Power { .. } => {}
             _ => {
                 if let Ok(s) = self.snap().await {
-                    if !self.app_ok(&s.app).await {
-                        return Err(Fail::Declined);
+                    match self.app_ok(&s.app).await {
+                        Ok(true) => {}
+                        Ok(false) => return Err(Fail::Declined),
+                        Err(w) => return Err(Fail::Blocked(w)),
                     }
                 }
             }
@@ -379,11 +458,28 @@ impl Run<'_, '_> {
             }
             _ => None,
         };
-        if let Some((title, fields)) = self.needs_card(step, el.as_ref()) {
-            if !self.env.approver.approve(&title, fields).await {
+        // --- track:autonomy begin ---
+        let approved = self.approved_apps.clone();
+        let gate = match &self.cfg.policy {
+            Some(p) => p.gate(&self.last_app, &step.action, el.as_ref(), &approved),
+            None => Gate::Go,
+        };
+        if let Gate::Refuse(why) = &gate {
+            return Err(Fail::Blocked(why.clone()));
+        }
+        // --- track:autonomy end ---
+        if let Some(card) = self.needs_card(step, el.as_ref(), &gate) {
+            if !self.env.approver.approve_step(&card.title, card.fields, card.key).await {
                 return Err(Fail::Declined);
             }
         }
+        // --- track:autonomy begin ---
+        if let (Some(hooks), Action::Click { .. }) = (self.cfg.policy.as_ref().and_then(|p| p.hooks.clone()), &step.action) {
+            if el.as_ref().is_some_and(|e| rules::click_class(&e.name) == Some("send")) {
+                hooks.take_message().map_err(Fail::Blocked)?;
+            }
+        }
+        // --- track:autonomy end ---
         let mut result = self.attempt(step, el.as_ref()).await;
         if result.is_err() && !matches!(step.action, Action::Wait { .. } | Action::Power { .. }) {
             self.env.clock.sleep(RETRY_PAUSE_MS).await;
@@ -445,7 +541,10 @@ fn log_text(a: &Action) -> String {
 
 /// Runs the plan. `steps` must already be parsed and validated (`actions::parse_plan`).
 pub async fn run(env: &Env<'_>, cfg: &Config, steps: Vec<Step>) -> Report {
-    let mut run = Run { env, cfg, approved_apps: Vec::new() };
+    let mut run = Run { env, cfg, approved_apps: Vec::new(), last_app: String::new() };
+    // --- track:autonomy begin ---
+    let hooks = cfg.policy.as_ref().and_then(|p| p.hooks.clone());
+    // --- track:autonomy end ---
     let mut queue: VecDeque<Step> = steps.into();
     let mut reports: Vec<StepReport> = Vec::new();
     let mut replans = 0u32;
@@ -461,7 +560,35 @@ pub async fn run(env: &Env<'_>, cfg: &Config, steps: Vec<Step>) -> Report {
             reports.push(StepReport { what, outcome: Outcome::Failed("ran out of time".into()) });
             return finish(false, false, false, replans, reports, format!("I stopped after {} seconds without finishing.", cap / 1000));
         }
-        match run.one(&step).await {
+        // --- track:autonomy begin ---
+        if let Some(h) = &hooks {
+            match h.before_step().await {
+                Ok(()) => {}
+                Err(HookStop::Stopped) => {
+                    env.log.record(&what, false, "stopped");
+                    reports.push(StepReport { what, outcome: Outcome::Stopped });
+                    return finish(false, true, false, replans, reports, "Stopped.".into());
+                }
+                Err(HookStop::Budget(why)) => {
+                    env.log.record(&what, false, &why);
+                    reports.push(StepReport { what, outcome: Outcome::Failed(why.clone()) });
+                    return finish(false, false, false, replans, reports, format!("I stopped: {why}."));
+                }
+            }
+            h.step_started(&run.last_app, &what);
+        }
+        let outcome = run.one(&step).await;
+        if let Some(h) = &hooks {
+            let (ok, detail) = match &outcome {
+                Ok(()) => (true, String::new()),
+                Err(Fail::Stopped) => (false, "stopped".to_string()),
+                Err(Fail::Declined) => (false, "you said no".to_string()),
+                Err(Fail::Blocked(w)) | Err(Fail::Refused(w)) | Err(Fail::Step(w)) => (false, w.clone()),
+            };
+            h.step_finished(&run.last_app, &what, ok, &detail);
+        }
+        // --- track:autonomy end ---
+        match outcome {
             Ok(()) => {
                 env.log.record(&what, true, "");
                 reports.push(StepReport { what: what.clone(), outcome: Outcome::Done });
@@ -479,6 +606,13 @@ pub async fn run(env: &Env<'_>, cfg: &Config, steps: Vec<Step>) -> Report {
                 return finish(false, false, false, replans, reports, why);
             }
             // --- track:found end ---
+            // --- track:autonomy begin ---
+            Err(Fail::Blocked(why)) => {
+                env.log.record(&what, false, &why);
+                reports.push(StepReport { what, outcome: Outcome::Failed(why.clone()) });
+                return finish(false, false, false, replans, reports, format!("I didn't do that: {why}."));
+            }
+            // --- track:autonomy end ---
             Err(Fail::Declined) => {
                 env.log.record(&what, false, "you said no");
                 reports.push(StepReport { what, outcome: Outcome::Declined });
@@ -622,7 +756,7 @@ mod tests {
     }
 
     fn cfg() -> Config {
-        Config { goal: "test".into(), allowed_apps: vec!["notepad".into()], confirm_risky: true, max_run_ms: None, max_replans: None, never_ask: false, never_touch: crate::screen::policy::default_excludes() }
+        Config { goal: "test".into(), allowed_apps: vec!["notepad".into()], confirm_risky: true, max_run_ms: None, max_replans: None, never_ask: false, never_touch: crate::screen::policy::default_excludes(), policy: None }
     }
 
     fn plan(json: &str) -> Vec<Step> {
@@ -947,4 +1081,101 @@ mod tests {
         assert!(matches!(step("[{\"action\":\"click\",\"id\":1}]").action, Action::Click { id: 1 }));
         let _ = Expect::default();
     }
+
+    // --- track:autonomy begin ---
+    use crate::control::auto::contract::Contract;
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct Rec {
+        seen: Mutex<Vec<String>>,
+        steps_left: Mutex<u32>,
+        stop: bool,
+    }
+
+    impl crate::control::auto::policy::Hooks for Rec {
+        fn before_step<'a>(&'a self) -> BoxFuture<'a, Result<(), HookStop>> {
+            Box::pin(async move {
+                if self.stop {
+                    return Err(HookStop::Stopped);
+                }
+                let mut n = self.steps_left.lock().unwrap();
+                if *n == 0 {
+                    return Err(HookStop::Budget("the step budget (2) is used up".into()));
+                }
+                *n -= 1;
+                Ok(())
+            })
+        }
+        fn step_started(&self, app: &str, what: &str) {
+            self.seen.lock().unwrap().push(format!("start {app} {what}"));
+        }
+        fn step_finished(&self, app: &str, what: &str, ok: bool, detail: &str) {
+            self.seen.lock().unwrap().push(format!("end {app} {what} {ok} {detail}"));
+        }
+        fn take_message(&self) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    fn job_cfg(level: Level, apps: &[&str], hooks: Option<Arc<Rec>>) -> Config {
+        let c = Contract { apps: apps.iter().map(|a| a.to_string()).collect(), ..Default::default() }.normalized();
+        let hooks: Option<Arc<dyn crate::control::auto::policy::Hooks>> = hooks.map(|h| h as Arc<dyn crate::control::auto::policy::Hooks>);
+        Config { allowed_apps: vec![], policy: Some(Policy { level, contract: Some(Arc::new(c)), never_touch: vec!["bank".into()], hooks }), ..cfg() }
+    }
+
+    #[tokio::test]
+    async fn a_payment_button_asks_even_when_the_cards_are_off() {
+        let r = Rig::new(vec![snap("Shop", vec![el(1, "Buy now", Kind::Button)])]);
+        let c = Config { never_ask: true, ..cfg() };
+        assert!(r.go(&c, plan("[{\"action\":\"click\",\"id\":1}]")).await.ok);
+        assert_eq!(r.approver.asked.lock().unwrap().len(), 1, "a payment is never skipped");
+    }
+
+    #[tokio::test]
+    async fn inside_the_contract_the_contract_level_asks_nothing_but_the_ask_level_does() {
+        let steps = "[{\"action\":\"close\",\"title\":\"Notes\"}]";
+        let r = Rig::new(vec![snap("W", vec![el(1, "x", Kind::Button)])]);
+        assert!(r.go(&job_cfg(Level::Contract, &["notepad"], None), plan("[{\"action\":\"key\",\"combo\":\"alt+f4\"}]")).await.ok);
+        assert!(r.approver.asked.lock().unwrap().is_empty());
+        let r = Rig::new(vec![snap("W", vec![el(1, "x", Kind::Button)])]);
+        assert!(r.go(&job_cfg(Level::Ask, &["notepad"], None), plan("[{\"action\":\"key\",\"combo\":\"alt+f4\"}]")).await.ok);
+        assert_eq!(r.approver.asked.lock().unwrap().len(), 1);
+        let _ = steps;
+    }
+
+    #[tokio::test]
+    async fn a_program_outside_the_contract_waits_for_an_answer_and_no_ends_the_run() {
+        let mut r = Rig::new(vec![snap("W", vec![el(1, "x", Kind::Button)])]);
+        r.approver = FakeApprover::new(false);
+        let rep = r.go(&job_cfg(Level::Contract, &["excel"], None), plan("[{\"action\":\"click\",\"id\":1}]")).await;
+        assert!(rep.declined && r.screen.log.lock().unwrap().is_empty());
+        assert!(r.approver.asked.lock().unwrap()[0].contains("outside the run contract"));
+    }
+
+    #[tokio::test]
+    async fn the_never_touch_list_and_never_delete_stop_the_plan_without_a_question() {
+        let mut shot = snap("Bank", vec![el(1, "Save", Kind::Button)]);
+        shot.app = "bank".into();
+        let r = Rig::new(vec![shot]);
+        let rep = r.go(&job_cfg(Level::Never, &["bank"], None), plan("[{\"action\":\"click\",\"id\":1}]")).await;
+        assert!(!rep.ok && (rep.summary.contains("never-touch") || rep.summary.contains("never-look-at")), "{rep:?}");
+        let r = Rig::new(vec![snap("W", vec![el(1, "Delete all", Kind::Button)])]);
+        let rep = r.go(&job_cfg(Level::Never, &["notepad"], None), plan("[{\"action\":\"click\",\"id\":1}]")).await;
+        assert!(rep.summary.contains("never delete") && r.screen.log.lock().unwrap().is_empty() && r.approver.asked.lock().unwrap().is_empty(), "{rep:?}");
+    }
+
+    #[tokio::test]
+    async fn hooks_see_every_step_and_a_spent_budget_or_stop_ends_the_run() {
+        let rec = Arc::new(Rec { steps_left: Mutex::new(2), ..Default::default() });
+        let r = Rig::new(vec![snap("W", vec![el(1, "x", Kind::Button)])]);
+        let rep = r.go(&job_cfg(Level::Contract, &["notepad"], Some(rec.clone())), plan("[{\"action\":\"scroll\",\"direction\":\"down\"},{\"action\":\"scroll\",\"direction\":\"down\"},{\"action\":\"scroll\",\"direction\":\"down\"}]")).await;
+        assert!(!rep.ok && rep.summary.contains("step budget"), "{rep:?}");
+        assert_eq!(rec.seen.lock().unwrap().iter().filter(|l| l.starts_with("end")).count(), 2);
+        let rec = Arc::new(Rec { stop: true, ..Default::default() });
+        let r = Rig::new(vec![snap("W", vec![])]);
+        let rep = r.go(&job_cfg(Level::Contract, &["notepad"], Some(rec)), plan("[{\"action\":\"scroll\",\"direction\":\"down\"}]")).await;
+        assert!(rep.stopped);
+    }
+    // --- track:autonomy end ---
 }

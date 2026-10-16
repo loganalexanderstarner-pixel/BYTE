@@ -35,7 +35,12 @@ export type RoutineStep =
   | { type: "volume"; percent: number }
   | { type: "doNotDisturb"; on: boolean }
   | { type: "openUrl"; url: string }
-  | { type: "runAutomation"; name: string };
+  | { type: "runAutomation"; name: string }
+  /* --- track:autonomy begin --- steps noted by "Watch me do this once" */
+  | { type: "clickElement"; window: string; name: string }
+  | { type: "pressKeys"; combo: string }
+  | { type: "typeText"; text: string };
+/* --- track:autonomy end --- */
 
 export interface Routine {
   id: string;
@@ -118,6 +123,11 @@ export const STEP_KINDS: { type: RoutineStep["type"]; label: string }[] = [
   { type: "doNotDisturb", label: "Notifications on or off" },
   { type: "openUrl", label: "Open a web address" },
   { type: "runAutomation", label: "Run an automation" },
+  /* --- track:autonomy begin --- */
+  { type: "clickElement", label: "Click a button in a window" },
+  { type: "pressKeys", label: "Press keys" },
+  { type: "typeText", label: "Type some text" },
+  /* --- track:autonomy end --- */
 ];
 
 /** A new, empty step of a kind. */
@@ -133,6 +143,14 @@ export function newStep(type: RoutineStep["type"]): RoutineStep {
       return { type, on: true };
     case "openUrl":
       return { type, url: "https://" };
+    /* --- track:autonomy begin --- */
+    case "clickElement":
+      return { type, window: "", name: "" };
+    case "pressKeys":
+      return { type, combo: "" };
+    case "typeText":
+      return { type, text: "" };
+    /* --- track:autonomy end --- */
   }
 }
 
@@ -151,6 +169,14 @@ export function stepLabel(s: RoutineStep): string {
       return `Open ${s.url || "…"}`;
     case "runAutomation":
       return `Run the automation "${s.name || "…"}"`;
+    /* --- track:autonomy begin --- */
+    case "clickElement":
+      return `Click “${s.name || "…"}” in ${s.window || "…"}`;
+    case "pressKeys":
+      return `Press ${s.combo || "…"}`;
+    case "typeText":
+      return `Type ${s.text.length} characters`;
+    /* --- track:autonomy end --- */
   }
 }
 
@@ -162,6 +188,9 @@ export function routineProblem(r: Routine): string | null {
   for (const [i, s] of r.steps.entries()) {
     if ((s.type === "openApp" || s.type === "closeApp" || s.type === "runAutomation") && !s.name.trim()) return `Step ${i + 1} needs a name.`;
     if (s.type === "openUrl" && !/^https?:\/\/\S+\.\S+/i.test(s.url.trim())) return `Step ${i + 1} needs a web address that starts with http:// or https://.`;
+    if (s.type === "clickElement" && (!s.window.trim() || !s.name.trim())) return `Step ${i + 1} needs a window and the name of a button.`;
+    if (s.type === "pressKeys" && !s.combo.trim()) return `Step ${i + 1} needs the keys to press.`;
+    if (s.type === "typeText" && !s.text) return `Step ${i + 1} needs some text.`;
     if (s.type === "volume" && (s.percent < 0 || s.percent > 100)) return `Step ${i + 1}: the volume is 0 to 100.`;
   }
   return null;

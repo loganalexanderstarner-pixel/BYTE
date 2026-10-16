@@ -138,6 +138,20 @@ export function RoutinesMenu({ settings }: { settings: Settings | null }) {
                 {s.type === "openUrl" && (
                   <input className="text-input grow" value={s.url} placeholder="https://" aria-label={`Step ${i + 1} address`} onChange={(e) => setStep(i, { ...s, url: e.target.value })} />
                 )}
+                {/* --- track:autonomy begin --- */}
+                {s.type === "clickElement" && (
+                  <>
+                    <input className="text-input grow" value={s.window} placeholder="Window title" aria-label={`Step ${i + 1} window`} onChange={(e) => setStep(i, { ...s, window: e.target.value })} />
+                    <input className="text-input grow" value={s.name} placeholder="Button name" aria-label={`Step ${i + 1} button`} onChange={(e) => setStep(i, { ...s, name: e.target.value })} />
+                  </>
+                )}
+                {s.type === "pressKeys" && (
+                  <input className="text-input grow" value={s.combo} placeholder="ctrl+s" aria-label={`Step ${i + 1} keys`} onChange={(e) => setStep(i, { ...s, combo: e.target.value })} />
+                )}
+                {s.type === "typeText" && (
+                  <input className="text-input grow" value={s.text} placeholder="Text to type" aria-label={`Step ${i + 1} text`} onChange={(e) => setStep(i, { ...s, text: e.target.value })} />
+                )}
+                {/* --- track:autonomy end --- */}
                 <button className="icon-btn" aria-label={`Remove step ${i + 1}`} onClick={() => setEditing({ ...editing, steps: editing.steps.filter((_, j) => j !== i) })}>
                   <X size={14} />
                 </button>

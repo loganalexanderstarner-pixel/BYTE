@@ -32,6 +32,14 @@ pub enum RStep {
     OpenUrl { url: String },
     /// One of the user's automations, by name.
     RunAutomation { name: String },
+    // --- track:autonomy begin --- steps made by "watch me do this once" (control/auto/recorder.rs)
+    /// Click the button or item with this name in the window whose title contains `window`.
+    ClickElement { window: String, name: String },
+    /// Press a key combination ("ctrl+s", "enter").
+    PressKeys { combo: String },
+    /// Type this text (only when the person chose to keep it).
+    TypeText { text: String },
+    // --- track:autonomy end ---
 }
 
 impl RStep {
@@ -44,6 +52,11 @@ impl RStep {
             RStep::DoNotDisturb { on: false } => "Turn notifications on".into(),
             RStep::OpenUrl { url } => format!("Open {url}"),
             RStep::RunAutomation { name } => format!("Run the automation \"{name}\""),
+            // --- track:autonomy begin ---
+            RStep::ClickElement { window, name } => format!("Click \"{name}\" in {window}"),
+            RStep::PressKeys { combo } => format!("Press {combo}"),
+            RStep::TypeText { text } => format!("Type {} characters", text.chars().count()),
+            // --- track:autonomy end ---
         }
     }
 
@@ -72,6 +85,23 @@ impl RStep {
             },
             RStep::RunAutomation { name } if name.trim().is_empty() || name.chars().count() > 80 => Err("an automation name is needed".into()),
             RStep::RunAutomation { .. } => Ok(()),
+            // --- track:autonomy begin ---
+            RStep::ClickElement { window, name } => {
+                if window.trim().is_empty() || name.trim().is_empty() || window.chars().count() > 200 || name.chars().count() > 200 {
+                    Err("a window and the name of a button are needed".into())
+                } else if super::uia::sensitive_name(name) {
+                    Err("BYTE does not click password or card fields".into())
+                } else {
+                    Ok(())
+                }
+            }
+            RStep::PressKeys { combo } => match super::actions::parse_combo(combo) {
+                Ok(_) if super::actions::risk(&super::actions::Action::Key { combo: combo.clone() }) == super::actions::Risk::Never => Err("BYTE refuses that key combination".into()),
+                Ok(_) => Ok(()),
+                Err(e) => Err(e.to_string()),
+            },
+            RStep::TypeText { text } => super::actions::validate(&super::actions::Action::Type { text: text.clone() }).map_err(|e| e.to_string()),
+            // --- track:autonomy end ---
         }
     }
 }
@@ -203,6 +233,24 @@ impl Doer for PcDoer<'_> {
                 let marker = self.app.map(|a| marker_file(a));
                 notifications(!*on, marker.as_deref())
             }
+            // --- track:autonomy begin ---
+            RStep::ClickElement { window, name } => {
+                let screen = super::real_screen();
+                screen.focus_window(window).map_err(|e| e.to_string())?;
+                std::thread::sleep(std::time::Duration::from_millis(400));
+                let shot = screen.snapshot().map_err(|e| e.to_string())?;
+                let el = shot.find_named(name).cloned().ok_or_else(|| format!("\"{name}\" is not in {window} now"))?;
+                if !el.enabled {
+                    return Err(format!("\"{name}\" is switched off"));
+                }
+                screen.click(&el).map_err(|e| e.to_string())
+            }
+            RStep::PressKeys { combo } => {
+                let c = super::actions::parse_combo(combo).map_err(|e| e.to_string())?;
+                super::real_input().key_combo(&c).map_err(|e| e.to_string())
+            }
+            RStep::TypeText { text } => super::real_input().type_text(text).map_err(|e| e.to_string()),
+            // --- track:autonomy end ---
             RStep::RunAutomation { name } => {
                 let app = self.app.ok_or("automations aren't available here")?;
                 let state = app.state::<AppState>();

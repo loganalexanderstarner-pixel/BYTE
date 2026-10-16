@@ -132,6 +132,9 @@ pub fn apply_shortcuts(app: &AppHandle, s: &Settings) {
     // --- track:voice begin --- the talk key (starts a listening turn without the phrase)
     crate::voicectl::register_talk(app, s, &[now.0, now.1]);
     // --- track:voice end ---
+    // --- track:autonomy begin --- the stop key of a running autonomous job
+    crate::control::auto::real::register_stop_key(app, s, &[now.0, now.1]);
+    // --- track:autonomy end ---
     if let Ok(mut c) = CURRENT.lock() {
         *c = now;
     }
@@ -150,6 +153,10 @@ pub fn pressed(app: &AppHandle, shortcut: &Shortcut) {
         toggle(app, None);
     } else if Some(id) == sel {
         crate::selection::pressed(app);
+    // --- track:autonomy begin ---
+    } else if crate::control::auto::real::is_stop_key(id) {
+        crate::control::auto::real::stop_now();
+    // --- track:autonomy end ---
     } else if crate::voicectl::is_talk(id) {
         crate::voicectl::talk_pressed(app); // track:voice
     }

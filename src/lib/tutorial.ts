@@ -6,6 +6,7 @@ import { CONNECT_TUTORIALS } from "./tutorial-connect";
 // --- track:found begin ---
 import { FOUND_TUTORIALS } from "./tutorial-found";
 // --- track:found end ---
+import { autonomyTutorials } from "./tutorial-autonomy"; // track:autonomy
 
 export type LinkKind =
   | { kind: "setting"; tab: string; label: string }
@@ -287,6 +288,7 @@ export const TUTORIALS: Tutorial[] = [
   // --- track:found begin ---
   ...FOUND_TUTORIALS,
   // --- track:found end ---
+  ...autonomyTutorials, // track:autonomy
 ];
 
 // ---------------------------------------------------------------- filtering

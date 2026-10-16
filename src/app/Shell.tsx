@@ -42,6 +42,7 @@ import { ControlBanner } from "../components/ControlBanner";
 import { FoundOverlays } from "../components/found/FoundOverlays";
 // --- track:found end ---
 /* --- track:control end --- */
+import { AutonomyCard } from "../components/chat/AutonomyCard"; // track:autonomy
 /* track:screen */ import { ReplayBadge } from "../components/ReplayBadge";
 
 // Panels opened on demand load on first use, so BYTE starts with less code to read.
@@ -731,6 +732,7 @@ export function Shell() {
         {/* --- track:found end --- */}
         {/* --- track:control begin --- */}
         {!kids && <ControlBanner />}
+        {!kids && <AutonomyCard />} {/* track:autonomy */}
         {/* --- track:control end --- */}
         {/* track:screen */}<ReplayBadge />
         {newVersion && !kids && (
