@@ -36,16 +36,20 @@
 <script>
   var inv = function (cmd) { try { return window.__TAURI_INTERNALS__.invoke(cmd); } catch (e) { return null; } };
   var paused = false;
-  document.getElementById("stop").onclick = function () { inv("auto_stop"); };
+  var recording = false;
+  document.getElementById("stop").onclick = function () { inv(recording ? "macro_stop" : "auto_stop"); };
   document.getElementById("pause").onclick = function () { inv(paused ? "auto_resume" : "auto_pause"); };
   window.setLive = function (v) {
     var box = document.getElementById("box");
     box.className = v.status || "running";
     paused = v.status === "paused";
+    recording = v.status === "recording";
+    document.getElementById("stop").textContent = recording ? "Finish recording" : "Stop";
+    document.getElementById("pause").style.display = recording ? "none" : "";
     document.getElementById("title").textContent = v.title || "";
     document.getElementById("stage").textContent = v.stagesTotal ? "Stage " + Math.max(v.stage, 1) + " of " + v.stagesTotal : "";
-    var now = v.status === "waiting" ? "Waiting for your answer" : v.status === "done" ? "Finished" : v.status === "stopped" ? "Stopped" : v.status === "failed" ? "Stopped: something did not finish" : (v.note && v.status === "paused") ? v.note : (v.now || "Starting");
-    document.getElementById("now").textContent = "Now: " + now;
+    var now = recording ? (v.now || "") : v.status === "waiting" ? "Waiting for your answer" : v.status === "done" ? "Finished" : v.status === "stopped" ? "Stopped" : v.status === "failed" ? "Stopped: something did not finish" : (v.note && v.status === "paused") ? v.note : (v.now || "Starting");
+    document.getElementById("now").textContent = (recording ? "" : "Now: ") + now;
     document.getElementById("next").textContent = v.next ? "Next: " + v.next : "";
     document.getElementById("fill").style.width = (v.percent || 0) + "%";
     document.getElementById("pause").textContent = paused ? "Resume" : "Pause";

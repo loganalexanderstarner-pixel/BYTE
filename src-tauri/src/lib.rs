@@ -422,6 +422,10 @@ pub fn run() {
             control::auto::real::auto_audit_clear,
             control::auto::real::auto_audit_export,
             control::auto::real::auto_stop_key_check,
+            control::auto::macrorec::macro_start,
+            control::auto::macrorec::macro_stop,
+            control::auto::macrorec::macro_cancel,
+            control::auto::macrorec::macro_active,
             // --- track:autonomy end ---
             // --- track:control end ---
             commands::engine_live,
