@@ -13,6 +13,7 @@ import { idOf, isImage, listOf, str, titleOf } from "../lib/cloudDocs";
 import { branchAt, switchVersion, versionsAt } from "../lib/branches";
 import { titleFrom } from "../lib/format";
 import { endBrowsing } from "../lib/agent";
+import { researchLive } from "../lib/researchLive"; // track:found
 import { isWindows } from "../lib/keys";
 import type {
   NoteInput,
@@ -1239,6 +1240,9 @@ export const useStore = create<State>((set, get) => {
 
     async send(text, opts) {
       const content = text.trim();
+      // --- track:found begin --- while a research job runs, "I'm back" (typed or spoken) ends it instead of becoming a message
+      if (content && researchLive.handle(content)) return;
+      // --- track:found end ---
       if (!content || get().generating) return;
       set({ voiceTurn: !!opts?.spoken, speakerTurn: opts?.speaker, moodTurn: opts?.mood });
       let convId = get().currentId;

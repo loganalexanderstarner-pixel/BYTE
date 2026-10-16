@@ -55,7 +55,9 @@ export function FoundBrowserToggles() {
       <label className="field">
         <span>
           Keep researching until I'm back
-          <small>After the first answer BYTE goes on with more searches and pages from new angles while you are away, and stops when you are back, at the time limit, or when you press Stop. Choose Unlimited for no time limit.</small>
+          <small>
+            BYTE keeps researching while you are away, and stops when you say “I'm back” (typed, spoken, or the button on the live card), when you press Stop, or at the time limit (Unlimited has none). On Windows it opens a visible Edge window with a separate profile and reads each page in its own new tab, so you can watch them appear. To control that window, Edge listens on a debugging port on this computer only (127.0.0.1, a random number); the port exists only while a job runs and is closed when it ends. When it ends BYTE writes the summary and leaves the pages open in a normal Edge window with no port.
+          </small>
         </span>
         <select
           value={settings?.browserResearchUntilBack ?? "off"}
@@ -68,6 +70,13 @@ export function FoundBrowserToggles() {
             </option>
           ))}
         </select>
+      </label>
+      <label className="field">
+        <span>
+          Close the tabs when I'm back
+          <small>When the research ends, close the pages instead of leaving them open for you. The links are still saved in the chat. Off by default.</small>
+        </span>
+        <input type="checkbox" checked={settings?.browserCloseTabsWhenBack ?? false} onChange={(e) => void update({ browserCloseTabsWhenBack: e.target.checked })} aria-label="Close the tabs when I'm back" />
       </label>
       <label className="field">
         <span>

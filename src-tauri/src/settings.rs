@@ -622,6 +622,8 @@ pub struct Settings {
     pub browser_own_edge: bool,
     /// A short summary of what BYTE did yesterday (counts and times only), in the briefing and in Settings (found/summary.rs).
     pub daily_summary: bool,
+    /// When a "keep researching" job ends, close its Edge tabs instead of leaving them for the person (off by default).
+    pub browser_close_tabs_when_back: bool,
     // --- track:found end ---
     // --- track:autonomy begin ---
     /// How much BYTE asks while controlling the PC: "ask" (risky steps), "contract" (only outside a run contract) or "never".
@@ -892,6 +894,7 @@ impl Default for Settings {
             browser_research_until_back: default_until_back(),
             browser_own_edge: false,
             daily_summary: false,
+            browser_close_tabs_when_back: false,
             // --- track:found end ---
             // --- track:autonomy begin ---
             control_autonomy: default_control_autonomy(),

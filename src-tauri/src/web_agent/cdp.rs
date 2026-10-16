@@ -57,6 +57,11 @@ pub fn parse_incoming(text: &str) -> Option<Incoming> {
     Some(Incoming::Event { method, params: v.get("params").cloned().unwrap_or(Value::Null) })
 }
 
+// --- track:found begin ---
+/// The `own_target` value of a connection in the live research tabs (cdp_tabs.rs): other pages are not closed.
+pub const ANY_TAB: &str = "*";
+// --- track:found end ---
+
 /// What BYTE does when the browser reports something (the websocket layer sends these back at once).
 /// `own_target`: the id of the one page BYTE drives. Every other page that opens is closed; documents and
 /// frames are checked against the site rules before they load (`Fetch.requestPaused`), and a main frame that
@@ -81,7 +86,9 @@ pub fn react(own_target: &str, method: &str, params: &Value) -> Vec<(String, Val
         "Target.targetCreated" => {
             let t = &params["targetInfo"];
             let tid = t["targetId"].as_str().unwrap_or("");
-            if t["type"] == "page" && !tid.is_empty() && tid != own_target {
+            // --- track:found begin --- live research tabs: `own_target` "*" means every tab BYTE opened belongs to the job, none is closed here
+            if t["type"] == "page" && !tid.is_empty() && tid != own_target && own_target != ANY_TAB {
+            // --- track:found end ---
                 vec![("Target.closeTarget".into(), json!({ "targetId": tid }))]
             } else {
                 Vec::new()
