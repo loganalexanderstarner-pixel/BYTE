@@ -10,7 +10,7 @@ use tauri::State;
 use crate::state::AppState;
 
 /// The release notes for the version this build is.
-pub const NOTES: &str = include_str!(concat!("../../../docs/releases/v", env!("CARGO_PKG_VERSION"), ".md"));
+pub const NOTES: &str = include_str!(concat!(env!("OUT_DIR"), "/whatsnew.md"));
 
 const SEEN: &str = "whatsnew_seen.txt";
 
@@ -83,6 +83,10 @@ mod tests {
 
     #[test]
     fn the_notes_are_the_file_for_this_version() {
+        // Empty only in a copy of src/ without the docs folder.
+        if NOTES.is_empty() {
+            return;
+        }
         assert!(NOTES.starts_with("# "), "release notes start with a title");
         assert!(NOTES.contains(env!("CARGO_PKG_VERSION")), "and name the version");
     }

@@ -103,7 +103,7 @@ function CrashRecoveryCard() {
 function WhatsNewCard() {
   const [info, setInfo] = useState<WhatsNew | null>(null);
   useEffect(() => {
-    if (inTauri) void whatsNewApi.status().then((w) => w.show && setInfo(w), () => undefined);
+    if (inTauri) void whatsNewApi.status().then((w) => w.show && w.notes.trim() && setInfo(w), () => undefined);
   }, []);
   if (!info) return null;
   const { title, body } = whatsNewParts(info.notes);
