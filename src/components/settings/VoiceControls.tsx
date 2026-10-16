@@ -26,6 +26,13 @@ export function VoiceControls() {
     <>
       <label className="field">
         <span>
+          Test log (for troubleshooting)
+          <small>While on, BYTE writes what “Hey BYTE” heard, whether it took it as the wake phrase and how long that took into its log, so a problem can be diagnosed. It records spoken words, so leave it off unless you are tracking a problem. “Prepare a report” in Backup and help includes it.</small>
+        </span>
+        <input type="checkbox" checked={settings.testLog ?? false} onChange={(e) => void update({ testLog: e.target.checked })} />
+      </label>
+      <label className="field">
+        <span>
           Show a small “listening” pill
           <small>A tiny dot at the top of the screen that shows when BYTE has heard “Hey BYTE” and is listening, thinking or speaking. It never takes focus and ignores clicks.</small>
         </span>

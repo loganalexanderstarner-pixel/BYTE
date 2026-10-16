@@ -261,6 +261,7 @@ pub fn run() {
             quick::apply_shortcuts(app.handle(), &settings_now);
             quick::apply_tray(app.handle(), settings_now.menu_bar_icon);
             wake::apply(app.handle(), settings_now.wake_word);
+            wake::set_test_log(settings_now.test_log);
             // --- track:voice begin ---
             voicectl::apply(app.handle(), &settings_now);
             // --- track:voice end ---

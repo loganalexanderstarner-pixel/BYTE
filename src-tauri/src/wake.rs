@@ -201,12 +201,30 @@ pub fn read_wav(path: &Path) -> Option<Vec<f32>> {
     None
 }
 
+static TEST_LOG: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The "Test log" switch (Settings > Voice): while on, what "Hey BYTE" heard is written to the log, with the verdict and the time it took.
+/// Off by default, because it records words that were spoken.
+pub fn set_test_log(on: bool) {
+    TEST_LOG.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub(crate) fn test_log_on() -> bool {
+    TEST_LOG.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// Whisper's verdict on one burst.
 async fn heard_wake(app: Option<&AppHandle>, models_dir: &Path, burst: &[f32]) -> Option<String> {
+    let started = std::time::Instant::now();
     match transcript(app, models_dir, burst).await {
         Ok(text) => {
-            log::debug!("wake burst: {text:?}");
-            wake_rest(&text)
+            let rest = wake_rest(&text);
+            if test_log_on() {
+                log::info!("[test] hey-byte heard {text:?}: {} ({} ms, burst {:.1} s)", if rest.is_some() { "WAKE PHRASE" } else { "no wake phrase" }, started.elapsed().as_millis(), burst.len() as f32 / 16000.0);
+            } else {
+                log::debug!("wake burst: {text:?}");
+            }
+            rest
         }
         Err(e) => {
             log::warn!("wake word: {e}");

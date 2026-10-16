@@ -606,6 +606,8 @@ pub struct Settings {
     /// After a stopped run, offer to save what the person did instead as a note.
     pub control_learn: bool,
     // --- track:accuracy end ---
+    /// Test log: record what "Hey BYTE" heard (words, verdict, timing) in the log, for troubleshooting. Off by default; device-local.
+    pub test_log: bool,
     // --- track:found begin --- all off by default, device-local (not in the profile sync)
     /// Laptop mode: on battery, pause "Hey BYTE" listening and the screen replay, and suggest a smaller model (found/power.rs).
     pub laptop_mode: bool,
@@ -888,6 +890,7 @@ impl Default for Settings {
             // --- track:control end ---
             // --- track:found begin ---
             laptop_mode: false,
+            test_log: false,
             approval_popup: true,
             approval_voice: false,
             browser_keep_pages: false,

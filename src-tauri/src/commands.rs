@@ -345,6 +345,7 @@ pub async fn settings_update(app: AppHandle, state: State<'_, AppState>, patch: 
     crate::quick::apply_tray(&app, next.menu_bar_icon);
     crate::system::set_placement(&next.memory_mode);
     crate::wake::apply(&app, next.wake_word);
+    crate::wake::set_test_log(next.test_log);
     // --- track:screen begin ---
     crate::screen::apply(&app, &next);
     // --- track:screen end ---

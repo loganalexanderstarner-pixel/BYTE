@@ -305,6 +305,8 @@ export interface Settings {
   /** Guided help: a how-to question about the window in front gets an offer to guide or do it. Looks at the screen; off by default. */
   guidedHelp?: boolean;
   /* --- track:control end --- */
+  /** Test log: record what Hey BYTE heard (words, verdict, timing) in the log for troubleshooting. Off by default. */
+  testLog?: boolean;
   /* --- track:found begin --- */
   /** Laptop mode: on battery, pause Hey BYTE listening and the screen replay and suggest a smaller model. Off by default. */
   laptopMode?: boolean;
