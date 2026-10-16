@@ -12,6 +12,7 @@
 //! kids mode; a window on the never-look-at list is never read; pictures are kept in memory only.
 
 pub mod ask;
+pub mod captions;
 pub mod dialogs;
 pub mod dictate;
 pub mod explain;
@@ -19,13 +20,16 @@ pub mod focus;
 pub mod game;
 pub mod ha;
 pub mod meeting;
+pub mod navigation;
 pub mod mic;
 pub mod page;
 pub mod popup;
+pub mod readaloud;
 pub mod recipes;
 pub mod region;
 pub mod smartpaste;
 pub mod tidy;
+pub mod wakeword;
 
 use crate::settings::Settings;
 
@@ -63,6 +67,7 @@ pub enum Hot {
     Explain,
     Dictate,
     Page,
+    Read,
 }
 
 /// The keys each hotkey needs, from the settings (a switched-off helper has none).
@@ -76,6 +81,9 @@ pub fn wanted(s: &Settings) -> Vec<(Hot, String)> {
     }
     if s.helper_dictate && dictate::supported() {
         v.push((Hot::Dictate, s.helper_dictate_keys.clone()));
+    }
+    if s.helper_read && readaloud::supported() {
+        v.push((Hot::Read, s.helper_read_keys.clone()));
     }
     if s.helper_page && region::supported() {
         v.push((Hot::Page, s.helper_page_keys.clone()));
@@ -121,15 +129,24 @@ pub fn pressed(app: &AppHandle, hot: Hot) {
         Hot::Explain => explain::start(app),
         Hot::Dictate => dictate::start(app),
         Hot::Page => page::read_url(app),
+        Hot::Read => readaloud::toggle(app),
     }
 }
 
 /// Called whenever settings change (and once at start): starts or stops the watchers.
 #[cfg(desktop)]
 pub fn apply(app: &AppHandle, s: &Settings) {
+    wakeword::set(&s.helper_wake_phrase);
     dialogs::apply(app, s.helper_dialogs);
     smartpaste::apply(app, s.helper_smart_paste);
     tidy::apply_watch(app, s.helper_tidy && tidy::supported() && !s.kids_mode);
+    let caps = s.helper_captions && captions::supported() && !s.kids_mode;
+    if CAPTIONS_ON.swap(caps, std::sync::atomic::Ordering::SeqCst) != caps {
+        if !caps {
+            captions::stop(app);
+        }
+        refresh_menu(app);
+    }
     let game = s.helper_game && game_supported() && !s.kids_mode;
     if GAME_ON.swap(game, std::sync::atomic::Ordering::SeqCst) != game {
         refresh_menu(app);
@@ -150,6 +167,18 @@ pub fn apply(app: &AppHandle, s: &Settings) {
     if PAGE_ON.swap(page, std::sync::atomic::Ordering::SeqCst) != page {
         refresh_menu(app);
     }
+}
+
+/// The tray menu offers live captions.
+#[cfg(desktop)]
+static CAPTIONS_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[cfg(desktop)]
+pub fn set_captions_menu(app: &AppHandle, listening: bool) {
+    if let Some(tray) = app.tray_by_id("byte") {
+        let _ = tray.set_tooltip(Some(if listening { "BYTE: live captions on" } else { "BYTE" }));
+    }
+    refresh_menu(app);
 }
 
 /// The tray menu offers the game companion.
@@ -222,6 +251,14 @@ pub fn tray_items(app: &AppHandle) -> tauri::Result<Vec<tauri::menu::MenuItem<ta
     if PAGE_ON.load(std::sync::atomic::Ordering::SeqCst) {
         v.push(MenuItem::with_id(app, "helper_page", "Look at this page and help", true, None::<&str>)?);
     }
+    if CAPTIONS_ON.load(std::sync::atomic::Ordering::SeqCst) {
+        if captions::listening() {
+            v.push(MenuItem::with_id(app, "helper_captions_recap", "What did they just say?", true, None::<&str>)?);
+            v.push(MenuItem::with_id(app, "helper_captions_stop", "Stop live captions", true, None::<&str>)?);
+        } else {
+            v.push(MenuItem::with_id(app, "helper_captions_start", "Start live captions", true, None::<&str>)?);
+        }
+    }
     if GAME_ON.load(std::sync::atomic::Ordering::SeqCst) {
         v.push(MenuItem::with_id(app, "helper_game_review", "Review my last play", true, None::<&str>)?);
         v.push(MenuItem::with_id(app, "helper_game_advise", "How is my game going?", true, None::<&str>)?);
@@ -253,6 +290,18 @@ pub fn tray_event(app: &AppHandle, id: &str) -> bool {
         "helper_dialog" => {
             let app = app.clone();
             tauri::async_runtime::spawn(async move { dialogs::explain_pending(&app).await });
+            true
+        }
+        "helper_captions_start" => {
+            captions::start(app);
+            true
+        }
+        "helper_captions_stop" => {
+            captions::stop(app);
+            true
+        }
+        "helper_captions_recap" => {
+            captions::recap(app);
             true
         }
         "helper_game_review" => {
@@ -304,7 +353,7 @@ mod tests {
     #[test]
     fn every_helper_is_off_by_default_and_the_default_choice_is_local() {
         let s = Settings::default();
-        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate && !s.helper_page && !s.helper_meeting && !s.helper_focus && !s.helper_tidy && !s.helper_recipes && !s.helper_ha && s.helper_ha_url.is_empty() && !s.helper_game);
+        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate && !s.helper_page && !s.helper_meeting && !s.helper_focus && !s.helper_tidy && !s.helper_recipes && !s.helper_ha && s.helper_ha_url.is_empty() && !s.helper_game && !s.helper_nav && !s.helper_read && !s.helper_captions);
         assert_eq!(s.helper_ask_where, "local");
         assert!(wanted(&s).is_empty());
     }
@@ -323,7 +372,7 @@ mod tests {
     #[test]
     fn the_default_keys_are_real_shortcuts_and_differ_from_the_others() {
         let s = Settings::default();
-        for k in [&s.helper_region_keys, &s.helper_explain_keys, &s.helper_dictate_keys, &s.helper_page_keys] {
+        for k in [&s.helper_region_keys, &s.helper_explain_keys, &s.helper_dictate_keys, &s.helper_page_keys, &s.helper_read_keys] {
             assert!(crate::quick::parse_keys(k).is_ok(), "{k}");
         }
         assert_ne!(s.helper_region_keys, s.helper_explain_keys);
@@ -337,7 +386,7 @@ mod tests {
 
     #[test]
     fn settings_are_not_in_the_profile_sync_list() {
-        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys", "helperPage", "helperPageKeys", "helperMeeting", "helperMeetingMinutes", "helperFocus", "helperFocusMinutes", "helperFocusBreak", "helperFocusSpeak", "helperTidy", "helperRecipes", "helperHa", "helperHaUrl", "helperGame"] {
+        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys", "helperPage", "helperPageKeys", "helperMeeting", "helperMeetingMinutes", "helperFocus", "helperFocusMinutes", "helperFocusBreak", "helperFocusSpeak", "helperTidy", "helperRecipes", "helperHa", "helperHaUrl", "helperGame", "helperNav", "helperRead", "helperReadKeys", "helperReadSpeed", "helperCaptions", "helperWakePhrase"] {
             assert!(!crate::profile_sync::KEYS.iter().any(|(_, setting)| *setting == k), "{k}");
         }
     }

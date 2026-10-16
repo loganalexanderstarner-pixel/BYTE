@@ -7,8 +7,8 @@ export const ASK_WHERE: { id: "local" | "cloud" | "auto"; label: string }[] = [
   { id: "cloud", label: "Cloud" },
 ];
 
-type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate" | "helperPage" | "helperMeeting" | "helperFocus" | "helperTidy" | "helperRecipes" | "helperHa" | "helperGame";
-type KeyName = "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys";
+type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate" | "helperPage" | "helperMeeting" | "helperFocus" | "helperTidy" | "helperRecipes" | "helperHa" | "helperGame" | "helperNav" | "helperRead" | "helperCaptions";
+type KeyName = "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys" | "helperReadKeys";
 
 export interface HelperRow {
   key: Flag;
@@ -92,7 +92,46 @@ const ROWS: HelperRow[] = [
     text: "In the tray menu: \"Review my last play\" (looks back over the last seconds of the replay) and \"How is my game going?\". Both run on this computer and work without internet. Review needs \"Remember the last seconds\" above.",
     windowsOnly: true,
   },
+  {
+    key: "helperNav",
+    title: "Voice navigation",
+    text: "An accessibility mode: say \"go back\", \"scroll to the bottom\", \"next tab\", \"click Send\" and BYTE does it in the program in front, without the mouse. It uses PC control, so PC control must be on too; every step is logged, Stop works, and risky buttons still ask first.",
+    windowsOnly: true,
+  },
+  {
+    key: "helperRead",
+    title: "Read aloud with highlighting",
+    text: "Select text in any app and press the shortcut: BYTE reads it in a small window that highlights the sentence being spoken, at the speed you pick. Press the shortcut again to stop. Uses one of BYTE's downloaded voices.",
+    keys: "helperReadKeys",
+  },
+  {
+    key: "helperCaptions",
+    title: "Live captions",
+    text: "Right-click BYTE's tray icon and choose \"Start live captions\": BYTE listens to the sound this computer plays, writes captions in a small window, and \"What did they just say?\" turns the last 30 seconds into words. The sound stays in memory only. Needs a speech model.",
+    windowsOnly: true,
+  },
 ];
+
+export const READ_SPEEDS: { id: "slow" | "normal" | "fast"; label: string }[] = [
+  { id: "slow", label: "Slow" },
+  { id: "normal", label: "Normal" },
+  { id: "fast", label: "Fast" },
+];
+
+const COMMON = ["hey", "okay", "hello", "the", "and", "you", "that", "this", "what", "yes", "stop", "play", "start", "computer play", "hey you"];
+
+/** Why a wake phrase can't be used (the same rules as the app's), or null. Empty means "Hey BYTE". */
+export function wakePhraseProblem(phrase: string): string | null {
+  if (!phrase.trim()) return null;
+  if (/[^\p{L} '-]/u.test(phrase)) return "Use only letters and spaces.";
+  const words = phrase.toLowerCase().split(/\s+/).map((w) => w.replace(/[^\p{L}\p{N}]/gu, "")).filter(Boolean);
+  const letters = words.join("").length;
+  if (words.length === 0 || words.length > 3) return "Use one to three words.";
+  if (letters < 6) return "That is too short (6 letters at least), so it would trigger by accident.";
+  if (letters > 30) return "That is too long to say.";
+  if (COMMON.includes(words.join(" "))) return "That is too common a word: it would trigger all the time.";
+  return null;
+}
 
 /** Lengths offered for a count of minutes; 0 is "No limit". */
 export const MINUTES: number[] = [30, 60, 120, 240, 0];
@@ -114,12 +153,12 @@ export function helperRows(windows: boolean): HelperRow[] {
   return ROWS.filter((r) => windows || !r.windowsOnly);
 }
 
-export function defaultHelperKeys(windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string; helperPageKeys: string } {
-  return windows ? { helperRegionKeys: "Control+Alt+KeyR", helperExplainKeys: "Control+Alt+KeyE", helperDictateKeys: "Control+Alt+KeyD", helperPageKeys: "Control+Alt+KeyU" } : { helperRegionKeys: "Alt+Super+KeyR", helperExplainKeys: "Alt+Super+KeyE", helperDictateKeys: "Alt+Super+KeyD", helperPageKeys: "Alt+Super+KeyU" };
+export function defaultHelperKeys(windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string; helperPageKeys: string; helperReadKeys: string } {
+  return windows ? { helperRegionKeys: "Control+Alt+KeyR", helperExplainKeys: "Control+Alt+KeyE", helperDictateKeys: "Control+Alt+KeyD", helperPageKeys: "Control+Alt+KeyU", helperReadKeys: "Control+Alt+KeyL" } : { helperRegionKeys: "Alt+Super+KeyR", helperExplainKeys: "Alt+Super+KeyE", helperDictateKeys: "Alt+Super+KeyD", helperPageKeys: "Alt+Super+KeyU", helperReadKeys: "Alt+Super+KeyL" };
 }
 
 /** The keys in use: the saved ones, else the defaults. */
-export function helperKeys(s: Pick<Partial<Settings>, "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys">, windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string; helperPageKeys: string } {
+export function helperKeys(s: Pick<Partial<Settings>, "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys" | "helperReadKeys">, windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string; helperPageKeys: string; helperReadKeys: string } {
   const d = defaultHelperKeys(windows);
-  return { helperRegionKeys: s.helperRegionKeys || d.helperRegionKeys, helperExplainKeys: s.helperExplainKeys || d.helperExplainKeys, helperDictateKeys: s.helperDictateKeys || d.helperDictateKeys, helperPageKeys: s.helperPageKeys || d.helperPageKeys };
+  return { helperRegionKeys: s.helperRegionKeys || d.helperRegionKeys, helperExplainKeys: s.helperExplainKeys || d.helperExplainKeys, helperDictateKeys: s.helperDictateKeys || d.helperDictateKeys, helperPageKeys: s.helperPageKeys || d.helperPageKeys, helperReadKeys: s.helperReadKeys || d.helperReadKeys };
 }

@@ -5,7 +5,7 @@ import { helperKeys, helperRows, minutesLabel, ASK_WHERE, MINUTES } from "../../
 import { isPcOs, prettyKeys } from "../../lib/keys";
 import { useStore } from "../../state/store";
 import { KeyRecorder } from "./KeyboardSection";
-import { FocusOptions, HomeAssistantOptions, RecipeOptions } from "./HelperExtras";
+import { FocusOptions, HomeAssistantOptions, ReadOptions, RecipeOptions, WakePhrase } from "./HelperExtras";
 
 /** Settings → Control and screen → Everyday helpers: small things BYTE does anywhere on the computer. Every one is off until switched on. */
 export function HelperSettings() {
@@ -49,6 +49,7 @@ export function HelperSettings() {
             </span>
             <input type="checkbox" aria-label={r.title} checked={!!settings[r.key]} onChange={(e) => void guard(update({ [r.key]: e.target.checked }))} />
           </label>
+          {r.key === "helperRead" && settings.helperRead && <ReadOptions settings={settings} update={update} />}
           {r.key === "helperFocus" && settings.helperFocus && <FocusOptions settings={settings} update={update} />}
           {r.key === "helperHa" && settings.helperHa && <HomeAssistantOptions settings={settings} update={update} />}
           {r.key === "helperRecipes" && settings.helperRecipes && <RecipeOptions />}
@@ -70,6 +71,7 @@ export function HelperSettings() {
           )}
         </div>
       ))}
+      <WakePhrase settings={settings} update={update} />
     </div>
   );
 }

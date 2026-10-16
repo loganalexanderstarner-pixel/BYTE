@@ -116,6 +116,11 @@ pub fn is_wake(text: &str) -> bool {
 /// The words said after the wake phrase in the same breath ("Hey BYTE, what's the weather" -> "what's the weather"; empty when only
 /// the phrase was said). None when the phrase isn't in the text.
 pub fn wake_rest(text: &str) -> Option<String> {
+    // --- track:helpers begin --- a wake phrase of the person's own replaces "Hey BYTE" (helpers/wakeword.rs)
+    if let Some(custom) = crate::helpers::wakeword::current() {
+        return crate::helpers::wakeword::custom_rest(text, &custom);
+    }
+    // --- track:helpers end ---
     // Words keep their punctuation for the answer; matching looks only at letters and digits.
     let original: Vec<&str> = text.split_whitespace().collect();
     let words: Vec<String> = original.iter().map(|w| w.to_lowercase().chars().filter(|c| c.is_alphanumeric()).collect()).collect();
@@ -214,7 +219,7 @@ async fn transcript(app: Option<&AppHandle>, models_dir: &Path, burst: &[f32]) -
     // A path with no open handle: on Windows another program (whisper) cannot open a file this process still holds.
     let tmp = tempfile::Builder::new().prefix("byte-wake").suffix(".wav").tempfile()?.into_temp_path();
     write_wav(&tmp, &padded(burst))?;
-    crate::voice::transcribe_short(app, models_dir, &tmp, "Hey BYTE").await
+    crate::voice::transcribe_short(app, models_dir, &tmp, &crate::helpers::wakeword::prompt()).await // track:helpers
 }
 
 /// Quiet around a burst: whisper.cpp ignores audio shorter than a second, and "Hey BYTE" is about that long.

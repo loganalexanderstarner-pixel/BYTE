@@ -11,6 +11,7 @@
   #card { box-sizing: border-box; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; max-height: 100vh; display: flex; flex-direction: column; }
   h1 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em; }
   #body { white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; max-height: 340px; }
+  mark { background: var(--accent); color: #fff; border-radius: 3px; padding: 0 1px; }
   #busy { display: none; margin-top: 6px; color: var(--muted); }
   #q { display: none; width: 100%; box-sizing: border-box; margin-top: 8px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--btn); color: var(--fg); font: inherit; }
   #buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
@@ -46,7 +47,19 @@
     current = p;
     clearTimeout(hideTimer);
     document.getElementById("title").textContent = p.title || "";
-    document.getElementById("body").textContent = p.body || "";
+    var bodyEl = document.getElementById("body");
+    bodyEl.textContent = "";
+    if (p.mark && p.body) {
+      var chars = Array.from(p.body);
+      var a = document.createTextNode(chars.slice(0, p.mark[0]).join(""));
+      var m = document.createElement("mark");
+      m.textContent = chars.slice(p.mark[0], p.mark[1]).join("");
+      var z = document.createTextNode(chars.slice(p.mark[1]).join(""));
+      bodyEl.appendChild(a); bodyEl.appendChild(m); bodyEl.appendChild(z);
+      setTimeout(function () { m.scrollIntoView({ block: "nearest" }); }, 10);
+    } else {
+      bodyEl.textContent = p.body || "";
+    }
     var busy = document.getElementById("busy");
     busy.style.display = p.busy ? "block" : "none";
     busy.className = p.busy ? "on" : "";

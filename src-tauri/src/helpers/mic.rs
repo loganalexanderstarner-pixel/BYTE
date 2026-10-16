@@ -92,6 +92,26 @@ impl Buffer {
     pub fn clear(&mut self) {
         self.data.clear();
     }
+
+    /// Every sample ever pushed (kept or dropped): an absolute position in the stream.
+    pub fn total(&self) -> usize {
+        self.dropped + self.data.len()
+    }
+
+    /// The samples from absolute position `from` on (those already dropped are gone), and the position now.
+    pub fn since(&self, from: usize) -> (Vec<i16>, usize) {
+        let skip = from.saturating_sub(self.dropped).min(self.data.len());
+        (self.data.iter().skip(skip).copied().collect(), self.total())
+    }
+}
+
+/// Is this stretch of sound too quiet to hold speech? (Root mean square under about 0.5 % of full scale.)
+pub fn is_quiet(samples: &[i16]) -> bool {
+    if samples.is_empty() {
+        return true;
+    }
+    let sum: f64 = samples.iter().map(|&s| f64::from(s) * f64::from(s)).sum();
+    (sum / samples.len() as f64).sqrt() < 160.0
 }
 
 /// Where the sound comes from.
@@ -177,6 +197,15 @@ impl Recording {
         self.buf.lock().map(|b| b.tail(seconds * RATE)).unwrap_or_default()
     }
 
+    /// New sound since absolute position `from` (see `Buffer::since`), and the position now.
+    pub fn since(&self, from: usize) -> (Vec<i16>, usize) {
+        self.buf.lock().map(|b| b.since(from)).unwrap_or_default()
+    }
+
+    pub fn total(&self) -> usize {
+        self.buf.lock().map(|b| b.total()).unwrap_or(0)
+    }
+
     /// Closes the stream and returns everything kept.
     pub fn finish(self) -> Vec<i16> {
         let _ = self.stop.send(());
@@ -201,6 +230,28 @@ mod tests {
         assert!(t.iter().all(|&s| s == 8191));
         assert_eq!(b.copy().len(), RATE * 2);
         assert_eq!(b.dropped, RATE);
+    }
+
+    #[test]
+    fn since_gives_only_the_new_sound_even_after_old_sound_was_dropped() {
+        let mut b = Buffer::new(Some(100));
+        b.push(&vec![0.1; 60]);
+        let (a, t1) = b.since(0);
+        assert_eq!((a.len(), t1), (60, 60));
+        b.push(&vec![0.2; 80]);
+        let (new, t2) = b.since(t1);
+        assert_eq!((new.len(), t2), (80, 140));
+        assert!(new.iter().all(|&s| s == 6553));
+        // Asking from before what was kept returns what is left.
+        let (old, _) = b.since(0);
+        assert_eq!(old.len(), 100);
+    }
+
+    #[test]
+    fn quiet_sound_is_told_from_speech_level_sound() {
+        assert!(is_quiet(&[]));
+        assert!(is_quiet(&vec![50; 1000]));
+        assert!(!is_quiet(&vec![3000, -3000, 3000, -3000]));
     }
 
     #[test]

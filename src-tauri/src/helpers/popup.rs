@@ -24,12 +24,14 @@ pub enum Kind {
     Focus,
     Tidy,
     Game,
+    Read,
+    Captions,
 }
 
 impl Kind {
     pub fn label(self) -> &'static str {
         match self {
-            Kind::Explain | Kind::Dialog | Kind::Paste | Kind::Page | Kind::Meeting | Kind::Tidy | Kind::Game => "helperpop-x",
+            Kind::Explain | Kind::Dialog | Kind::Paste | Kind::Page | Kind::Meeting | Kind::Tidy | Kind::Game | Kind::Read | Kind::Captions => "helperpop-x",
             Kind::Region | Kind::Focus => "helperpop-r",
         }
     }
@@ -61,6 +63,8 @@ pub struct Payload {
     pub busy: bool,
     /// Milliseconds after which it hides itself (0 = stays until closed).
     pub auto_hide: u32,
+    /// A stretch of the text (start, end in characters) to highlight, and keep in view.
+    pub mark: Option<[usize; 2]>,
 }
 
 static CURRENT: Mutex<Option<(Kind, Payload)>> = Mutex::new(None);
@@ -219,6 +223,8 @@ pub async fn helper_popup_click(app: tauri::AppHandle, id: String, text: Option<
         Kind::Paste => super::smartpaste::clicked(&app, &id).await,
         Kind::Page => super::page::clicked(&app, &id).await,
         Kind::Meeting => super::meeting::clicked(&app, &id).await,
+        Kind::Read => super::readaloud::clicked(&app, &id).await,
+        Kind::Captions => super::captions::clicked(&app, &id).await,
         Kind::Game => super::game::clicked(&app, &id).await,
         Kind::Tidy => super::tidy::clicked(&app, &id).await,
         Kind::Focus => super::focus::clicked(&app, &id, text.unwrap_or_default()).await,

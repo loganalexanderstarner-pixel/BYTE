@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 
 import { errorText } from "../../lib/api";
-import { BREAK_MINUTES, FOCUS_MINUTES, breakLabel, minutesLabel } from "../../lib/helpers";
+import { BREAK_MINUTES, FOCUS_MINUTES, READ_SPEEDS, breakLabel, minutesLabel, wakePhraseProblem } from "../../lib/helpers";
 import type { Settings } from "../../lib/types";
 import { useStore } from "../../state/store";
 
@@ -121,6 +121,45 @@ export function RecipeOptions() {
         </div>
       )}
       {note && <small role="status" style={{ display: "block", marginTop: 6 }}>{note}</small>}
+    </div>
+  );
+}
+
+/** Reading speed for read aloud. */
+export function ReadOptions({ settings, update }: { settings: Settings; update: Update }) {
+  const speed = settings.helperReadSpeed ?? "normal";
+  return (
+    <div className="field">
+      <span>Reading speed</span>
+      <select aria-label="Reading speed" value={speed} onChange={(e) => void update({ helperReadSpeed: e.target.value as "slow" | "normal" | "fast" })}>
+        {READ_SPEEDS.map((o) => (
+          <option key={o.id} value={o.id}>{o.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/** A wake phrase of your own. */
+export function WakePhrase({ settings, update }: { settings: Settings; update: Update }) {
+  const [text, setText] = useState(settings.helperWakePhrase ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const save = () => {
+    const problem = wakePhraseProblem(text);
+    setError(problem);
+    if (!problem) void update({ helperWakePhrase: text.trim() });
+  };
+  return (
+    <div className="field" style={{ display: "block" }}>
+      <span>
+        Your own wake phrase
+        <small>
+          Say this instead of “Hey BYTE” (one to three words, 6 letters or more, like “hey jarvis”). Leave it empty for “Hey BYTE”. BYTE finds it in what the speech model heard, so
+          a longer, unusual phrase works better than a short common word, and it is less sure than “Hey BYTE”: expect some misses and the odd false trigger.
+        </small>
+      </span>
+      <input aria-label="Your own wake phrase" style={{ width: "100%", marginTop: 6 }} value={text} placeholder="Hey BYTE" onChange={(e) => setText(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === "Enter" && save()} />
+      {error && <small className="error" role="alert">{error}</small>}
     </div>
   );
 }

@@ -246,6 +246,23 @@ pub struct Settings {
     /// Game companion: "Review my last play" and "How is my game going?" in the tray menu (local only).
     #[serde(default)]
     pub helper_game: bool,
+    /// Voice navigation (accessibility): "go back", "next tab", "click Send" (needs PC control).
+    #[serde(default)]
+    pub helper_nav: bool,
+    /// Read aloud with follow-along highlighting (selected text, a shortcut).
+    #[serde(default)]
+    pub helper_read: bool,
+    #[serde(default = "crate::helpers::readaloud::default_keys")]
+    pub helper_read_keys: String,
+    /// "slow", "normal" or "fast".
+    #[serde(default = "crate::helpers::readaloud::default_speed")]
+    pub helper_read_speed: String,
+    /// Live captions and "what did they just say" (the sound the computer plays; last 30 s, memory only).
+    #[serde(default)]
+    pub helper_captions: bool,
+    /// Your own wake phrase instead of "Hey BYTE" (empty = "Hey BYTE").
+    #[serde(default)]
+    pub helper_wake_phrase: String,
     // --- track:helpers end ---
     /// The writing studio (✍️): rewrite, expand, shorten, tone, grammar.
     #[serde(default = "yes")]
@@ -634,6 +651,12 @@ impl Default for Settings {
             helper_ha: false,
             helper_ha_url: String::new(),
             helper_game: false,
+            helper_nav: false,
+            helper_read: false,
+            helper_read_keys: crate::helpers::readaloud::default_keys(),
+            helper_read_speed: crate::helpers::readaloud::default_speed(),
+            helper_captions: false,
+            helper_wake_phrase: String::new(),
             // --- track:helpers end ---
             writing_enabled: true,
             writing_style: String::new(),
@@ -793,6 +816,10 @@ impl Settings {
         if !matches!(next.helper_ask_where.as_str(), "local" | "cloud" | "auto") {
             next.helper_ask_where = crate::helpers::default_ask_where();
         }
+        if !matches!(next.helper_read_speed.as_str(), "slow" | "normal" | "fast") {
+            next.helper_read_speed = crate::helpers::readaloud::default_speed();
+        }
+        next.helper_wake_phrase = if next.helper_wake_phrase.trim().is_empty() { String::new() } else { crate::helpers::wakeword::valid(&next.helper_wake_phrase).unwrap_or_default() };
         if !crate::helpers::dictate::valid_keys(&next.helper_dictate_keys) {
             next.helper_dictate_keys = crate::helpers::dictate::default_keys();
         }

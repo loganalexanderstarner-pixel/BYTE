@@ -131,4 +131,40 @@ export const HELPER_TUTORIALS: Tutorial[] = [
       },
     ],
   },
+  {
+    id: "pc-helpers-voice",
+    title: "Voice helpers",
+    promise: "Move around by voice, have text read aloud with highlighting, caption what you hear, pick your own wake phrase",
+    minutes: 4,
+    icon: "mic",
+    offByDefault: true,
+    os: "windows",
+    steps: [
+      {
+        id: "nav",
+        title: "Move around by voice",
+        body: ["Turn on **Voice navigation** (PC control must be on too). Say \"go back\", \"scroll to the bottom\", \"next tab\" or \"click Send\".", "Every step is logged, Stop works, and a risky button still asks first."],
+        example: "Hey BYTE, go back.",
+        links: [S("control", "Open Control and screen"), H("voice-helpers", "Read about voice helpers")],
+      },
+      {
+        id: "read",
+        title: "Read aloud with highlighting",
+        body: ["Turn on **Read aloud**. Select some text, press the shortcut, and watch the sentence being spoken light up. Pick Slow, Normal or Fast. Press the shortcut again to stop."],
+        ifStuck: "If nothing is said, download one of BYTE's voices first (Settings → Voice and Hey BYTE).",
+      },
+      {
+        id: "captions",
+        title: "Captions and what they just said",
+        body: ["Turn on **Live captions**, then choose **Start live captions** in the tray menu. BYTE writes what this computer is playing, and **What did they just say?** turns the last 30 seconds into words. Only memory is used."],
+        ifStuck: "Captions need a speech model (Settings → Models → Voice). A smaller model lags less.",
+      },
+      {
+        id: "wake",
+        title: "Your own wake phrase",
+        body: ["Type a phrase of your own under **Your own wake phrase**, like \"hey jarvis\". Leave it empty for \"Hey BYTE\". A longer, unusual phrase works better than a short common word."],
+        links: [S("voice", "Open Voice and Hey BYTE")],
+      },
+    ],
+  },
 ];

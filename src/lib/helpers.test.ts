@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { ASK_WHERE, BREAK_MINUTES, FOCUS_MINUTES, MINUTES, breakLabel, defaultHelperKeys, helperKeys, helperRows, minutesLabel } from "./helpers";
+import { ASK_WHERE, READ_SPEEDS, wakePhraseProblem, BREAK_MINUTES, FOCUS_MINUTES, MINUTES, breakLabel, defaultHelperKeys, helperKeys, helperRows, minutesLabel } from "./helpers";
 
 describe("helper settings rows", () => {
   it("has a row for each helper with its own switch, and Windows-only ones hide elsewhere", () => {
-    expect(helperRows(true).map((r) => r.key)).toEqual(["helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperDictate", "helperPage", "helperMeeting", "helperFocus", "helperTidy", "helperRecipes", "helperHa", "helperGame"]);
-    expect(helperRows(false).map((r) => r.key)).toEqual(["helperExplain", "helperSmartPaste", "helperTidy", "helperHa"]);
+    expect(helperRows(true).map((r) => r.key)).toEqual([
+      "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperDictate", "helperPage", "helperMeeting", "helperFocus",
+      "helperTidy", "helperRecipes", "helperHa", "helperGame", "helperNav", "helperRead", "helperCaptions",
+    ]);
+    expect(helperRows(false).map((r) => r.key)).toEqual(["helperExplain", "helperSmartPaste", "helperTidy", "helperHa", "helperRead"]);
   });
 
   it("offers Local first and as the only default, then Auto and Cloud", () => {
@@ -33,5 +36,16 @@ describe("helper settings rows", () => {
     expect(BREAK_MINUTES).toContain(0);
     expect(breakLabel(0)).toBe("No reminders");
     expect(breakLabel(50)).toBe("50 minutes");
+  });
+
+  it("checks a custom wake phrase the way the app does", () => {
+    expect(wakePhraseProblem("")).toBeNull();
+    expect(wakePhraseProblem("Hey Jarvis")).toBeNull();
+    expect(wakePhraseProblem("hey")).toContain("too short");
+    expect(wakePhraseProblem("okay")).not.toBeNull();
+    expect(wakePhraseProblem("one two three four")).toContain("one to three");
+    expect(wakePhraseProblem("hey 123")).toContain("letters");
+    expect(wakePhraseProblem("a".repeat(31))).toContain("too long");
+    expect(READ_SPEEDS.map((s) => s.id)).toEqual(["slow", "normal", "fast"]);
   });
 });

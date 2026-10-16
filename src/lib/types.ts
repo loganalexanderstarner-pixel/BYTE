@@ -90,6 +90,12 @@ export interface Settings {
   helperHa?: boolean;
   helperHaUrl?: string;
   helperGame?: boolean;
+  helperNav?: boolean;
+  helperRead?: boolean;
+  helperReadKeys?: string;
+  helperReadSpeed?: "slow" | "normal" | "fast";
+  helperCaptions?: boolean;
+  helperWakePhrase?: string;
   /* --- track:helpers end --- */
   /** The writing studio (✍️). */
   writingEnabled?: boolean;
