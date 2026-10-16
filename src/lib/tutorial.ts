@@ -2,6 +2,7 @@
 // Pure data and helpers (no React): the screen is components/help/Tutorial.tsx.
 import type { Os } from "./platform";
 import { ACCURACY_TUTORIALS } from "./tutorial-accuracy"; // track:accuracy
+import { CONNECT_TUTORIALS } from "./tutorial-connect";
 
 export type LinkKind =
   | { kind: "setting"; tab: string; label: string }
@@ -279,6 +280,7 @@ export const TUTORIALS: Tutorial[] = [
     ],
   },
   ...ACCURACY_TUTORIALS, // track:accuracy
+  ...CONNECT_TUTORIALS, // track:connect
 ];
 
 // ---------------------------------------------------------------- filtering

@@ -33,6 +33,9 @@ import { UpdateRow } from "../update/UpdateRow";
 import { customThemes, ThemeEditor } from "./ThemeEditor";
 import type { CustomTheme } from "../../lib/customTheme";
 import { ConnectorsTab } from "./ConnectorsTab";
+/* --- track:connect begin --- */
+import { ConnectSettings } from "./ConnectSettings";
+/* --- track:connect end --- */
 /* --- track:control begin --- */
 import { ControlSettings } from "./ControlSettings";
 import { PlanningSettings } from "./PlanningSettings"; // track:accuracy
@@ -118,6 +121,9 @@ function GroupBody({ group, about = true }: { group: SettingsGroup; about?: bool
           <ScreenSettings />
           <BrowserSettings />
           <ConnectorsTab />
+          {/* --- track:connect begin --- */}
+          <ConnectSettings />
+          {/* --- track:connect end --- */}
         </>
       )}
       {group === "privacy" && (

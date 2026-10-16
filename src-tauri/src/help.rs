@@ -26,6 +26,14 @@ const SOURCES: &[&str] = &[
     include_str!("../../src/help/21-gaming-and-model-memory.md"),
     include_str!("../../src/help/22-commands-or-conversation.md"),
     include_str!("../../src/help/23-guided-help.md"),
+    // --- track:connect begin ---
+    include_str!("../../src/help/60-chat-apps-and-email.md"),
+    include_str!("../../src/help/61-discord.md"),
+    include_str!("../../src/help/62-telegram.md"),
+    include_str!("../../src/help/63-slack-and-email.md"),
+    include_str!("../../src/help/64-jobs-and-triggers.md"),
+    include_str!("../../src/help/65-morning-digest.md"),
+    // --- track:connect end ---
 ];
 
 /// The articles as the reader on this machine should see them (Mac steps on a Mac, Windows steps
