@@ -114,6 +114,10 @@ pub struct Config {
     pub max_replans: Option<u32>,
     /// The person turned the approval cards off: nothing asks first (refused things, like running a program file, stay refused).
     pub never_ask: bool,
+    // --- track:found begin ---
+    /// The shared "never touch" list (the same list the screen features use): programs and window titles BYTE never operates.
+    pub never_touch: Vec<String>,
+    // --- track:found end ---
 }
 
 pub struct Env<'a> {
@@ -159,6 +163,9 @@ pub struct Report {
 enum Fail {
     /// A step failed even after a retry: worth re-planning.
     Step(String),
+    // --- track:found begin --- the window or program is on the never-touch list: the run ends, nothing is re-planned
+    Refused(String),
+    // --- track:found end ---
     /// The person said no: the run ends, nothing is re-planned.
     Declined,
     Stopped,
@@ -311,10 +318,36 @@ impl Run<'_, '_> {
         }
     }
 
+    // --- track:found begin ---
+    /// Refuses a step that would touch a window or program on the never-touch list (or BYTE's own window).
+    async fn never_touch_ok(&self, step: &Step) -> Result<(), Fail> {
+        let list = &self.cfg.never_touch;
+        let check = |app: &str, title: &str| crate::control::guide::allowed(app, title, list).map_err(Fail::Refused);
+        match &step.action {
+            Action::Open { target } => {
+                let name = match actions::classify_target(target) {
+                    Ok(Target::Program(p)) => p,
+                    _ => target.clone(),
+                };
+                check(&app_key(&name), "")
+            }
+            Action::Focus { title } | Action::Close { title } => check("", title),
+            Action::Wait { .. } | Action::Power { .. } => Ok(()),
+            _ => match self.snap().await {
+                Ok(s) => check(&s.app, &s.title),
+                Err(_) => Ok(()),
+            },
+        }
+    }
+    // --- track:found end ---
+
     async fn one(&mut self, step: &Step) -> Result<(), Fail> {
         if self.stopped() {
             return Err(Fail::Stopped);
         }
+        // --- track:found begin --- the never-touch list, before anything else is asked or done
+        self.never_touch_ok(step).await?;
+        // --- track:found end ---
         // Programs: the allowed list. Opening names one; anything else acts on the one in front.
         match &step.action {
             Action::Open { target } => {
@@ -439,6 +472,13 @@ pub async fn run(env: &Env<'_>, cfg: &Config, steps: Vec<Step>) -> Report {
                 reports.push(StepReport { what, outcome: Outcome::Stopped });
                 return finish(false, true, false, replans, reports, "Stopped.".into());
             }
+            // --- track:found begin ---
+            Err(Fail::Refused(why)) => {
+                env.log.record(&what, false, &why);
+                reports.push(StepReport { what, outcome: Outcome::Failed(why.clone()) });
+                return finish(false, false, false, replans, reports, why);
+            }
+            // --- track:found end ---
             Err(Fail::Declined) => {
                 env.log.record(&what, false, "you said no");
                 reports.push(StepReport { what, outcome: Outcome::Declined });
@@ -582,11 +622,40 @@ mod tests {
     }
 
     fn cfg() -> Config {
-        Config { goal: "test".into(), allowed_apps: vec!["notepad".into()], confirm_risky: true, max_run_ms: None, max_replans: None, never_ask: false }
+        Config { goal: "test".into(), allowed_apps: vec!["notepad".into()], confirm_risky: true, max_run_ms: None, max_replans: None, never_ask: false, never_touch: crate::screen::policy::default_excludes() }
     }
 
     fn plan(json: &str) -> Vec<Step> {
         actions::parse_plan(json).unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_window_on_the_never_touch_list_is_refused_and_nothing_is_done_or_replanned() {
+        let r = Rig::new(vec![snap("Chase Online - Sign in", vec![el(1, "Sign in", Kind::Button)])]);
+        let rep = r.go(&cfg(), plan("[{\"action\":\"click\",\"id\":1},{\"action\":\"type\",\"text\":\"x\"}]")).await;
+        assert!(!rep.ok && !rep.declined, "{rep:?}");
+        assert!(rep.summary.contains("never-look-at"), "{}", rep.summary);
+        assert!(r.screen.log.lock().unwrap().is_empty() && r.input.log.lock().unwrap().is_empty(), "nothing was touched");
+        assert_eq!(r.replanner.requests.lock().unwrap().len(), 0, "a refusal is not re-planned");
+    }
+
+    #[tokio::test]
+    async fn opening_focusing_or_closing_a_listed_program_is_refused_too() {
+        for p in ["[{\"action\":\"open\",\"target\":\"bitwarden\"}]", "[{\"action\":\"focus\",\"title\":\"1Password\"}]", "[{\"action\":\"close\",\"title\":\"My Credit Union - Online Banking\"}]"] {
+            let r = Rig::new(vec![snap("W", vec![])]);
+            let rep = r.go(&cfg(), plan(p)).await;
+            assert!(!rep.ok, "{p}");
+            assert!(r.launcher.log.lock().unwrap().is_empty() && r.screen.log.lock().unwrap().is_empty(), "{p}");
+        }
+    }
+
+    #[tokio::test]
+    async fn the_person_can_add_to_the_list_and_ordinary_windows_still_work() {
+        let c = Config { never_touch: vec!["notepad".into()], ..cfg() };
+        let r = Rig::new(vec![snap("Untitled - Notepad", vec![el(1, "Text editor", Kind::Edit)])]);
+        assert!(!r.go(&c, plan("[{\"action\":\"click\",\"id\":1}]")).await.ok);
+        let r = Rig::new(vec![snap("Untitled - Notepad", vec![el(1, "Text editor", Kind::Edit)])]);
+        assert!(r.go(&Config { never_touch: vec![], ..cfg() }, plan("[{\"action\":\"click\",\"id\":1}]")).await.ok);
     }
 
     #[tokio::test]

@@ -1,3 +1,7 @@
+import { useEffect, useState } from "react";
+
+import { api, errorText } from "../../lib/api";
+import { cleanList } from "../settings/ScreenSettings";
 import { OWN_EDGE_WARNING, UNTIL_BACK_CHOICES } from "../../lib/found";
 import { useStore } from "../../state/store";
 
@@ -79,6 +83,41 @@ export function FoundBrowserToggles() {
           }}
         />
       </label>
+    </div>
+  );
+}
+
+/** Settings → Control and screen → Never touch: the one list used by PC control and by the screen features. */
+export function NeverTouchList() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    setText((settings?.screenExcludeApps ?? []).join("\n"));
+  }, [settings?.screenExcludeApps]);
+  const guard = (p: Promise<unknown>) => p.then(() => setError(null), (e) => setError(errorText(e)));
+  return (
+    <div className="section" id="never-touch">
+      <h4>Never touch</h4>
+      <div className="field" style={{ display: "block" }}>
+        <span>
+          Programs and windows BYTE leaves alone
+          <small>One per line: part of a program's name or of a window's title (any capitals). PC control will not click, type or open anything there, and the screen features will not look at it. The starting list holds password managers, banking and private browser windows. BYTE's own window is always left alone.</small>
+        </span>
+        <textarea
+          aria-label="Programs and windows BYTE never touches"
+          rows={6}
+          style={{ width: "100%", marginTop: 6 }}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => void guard(update({ screenExcludeApps: cleanList(text) }))}
+        />
+        <button className="btn sm" style={{ marginTop: 6 }} onClick={() => void api.screenDefaultExcludes().then((d) => guard(update({ screenExcludeApps: d })))}>
+          Reset to the starting list
+        </button>
+        {error && <small className="bad">{error}</small>}
+      </div>
     </div>
   );
 }

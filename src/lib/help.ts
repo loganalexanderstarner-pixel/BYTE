@@ -54,7 +54,7 @@ export const HELP_SECTIONS: { title: string; ids: string[] }[] = [
   { title: "Start here", ids: ["getting-started", "first-run-setup", "guided-help", "updates-and-uninstalling"] },
   { title: "Chat, research and documents", ids: ["modes-and-web", "files", "documents", "notes", "everyday-helpers", "everyday"] },
   { title: "Talking to BYTE", ids: ["voice", "hey-byte", "interrupting-calls-games", "shortcuts"] },
-  { title: "Controlling your PC", ids: ["mac-control", "pc-control", "approval-popup", "browser", "research-that-keeps-pages", "screen", "commands-or-conversation"] },
+  { title: "Controlling your PC", ids: ["mac-control", "pc-control", "approval-popup", "browser", "research-that-keeps-pages", "screen", "never-touch-list", "commands-or-conversation"] },
   { title: "Models and speed", ids: ["models", "gaming-and-model-memory", "laptop-mode"] },
   { title: "Account, privacy and style", ids: ["cloud", "privacy", "personality"] },
   { title: "Fixing problems", ids: ["safe-mode-and-crashes", "troubleshooting"] },

@@ -89,4 +89,17 @@ export const FOUND_TUTORIALS: Tutorial[] = [
       { id: "edge", title: "Your own Edge profile (strong warning)", body: ["BYTE normally uses a separate profile with none of your logins. You can choose to use your own Edge profile instead. Do that only if you understand that BYTE can then see the sites you are signed in to. It still asks before submitting or buying."], links: [H("research-that-keeps-pages", "Read about research that keeps its pages")] },
     ],
   },
+  {
+    id: "never-touch",
+    title: "The Never touch list",
+    os: "windows",
+    promise: "Keep password managers, banking and your own choices out of BYTE's reach",
+    minutes: 2,
+    icon: "shield",
+    steps: [
+      { id: "what", title: "One list for everything", body: ["The Never touch list is used by PC control, guided help and the screen features. Anything on it is not clicked, typed in, opened or looked at."], links: [S("control", "Open Control and screen")] },
+      { id: "defaults", title: "What starts on it", body: ["Password managers, banking sites and programs, private browser windows and BYTE's own window."] },
+      { id: "add", title: "Add your own", body: ["Add one line per program or window title, for example the name of a chat program. Reset to the starting list brings the defaults back."], ifStuck: "Words match whole words: chase matches Chase Online but not purchase." },
+    ],
+  },
 ];

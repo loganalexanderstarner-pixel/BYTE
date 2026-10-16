@@ -316,7 +316,7 @@ async fn run_steps(app: &AppHandle, settings: &crate::settings::Settings, steps:
     let replanner = ModelReplanner { app };
     let clock = executor::RealClock(std::time::Instant::now());
     let env = executor::Env { screen, input, launcher, approver: &approver, replanner: &replanner, log: activity_log(app), clock: &clock, stop: &STOP };
-    let cfg = executor::Config { goal: ctx.goal.clone(), allowed_apps: settings.control_allowed_apps.clone(), confirm_risky: settings.control_confirm_risky, max_run_ms: Some(executor::run_limit_ms(&settings.control_run_limit)), max_replans: Some(executor::replan_limit(&settings.control_max_replans)), never_ask: settings.control_never_ask };
+    let cfg = executor::Config { goal: ctx.goal.clone(), allowed_apps: settings.control_allowed_apps.clone(), confirm_risky: settings.control_confirm_risky, max_run_ms: Some(executor::run_limit_ms(&settings.control_run_limit)), max_replans: Some(executor::replan_limit(&settings.control_max_replans)), never_ask: settings.control_never_ask, never_touch: settings.screen_exclude_apps.clone() /* track:found */ };
     let report = executor::run(&env, &cfg, steps).await;
     watcher.abort();
     set_active(app, false, "");
