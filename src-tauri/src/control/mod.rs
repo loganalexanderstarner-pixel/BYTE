@@ -74,6 +74,7 @@ fn activity_log(app: &AppHandle) -> &'static log::FileLog {
 pub fn start(app: &AppHandle) {
     brain(app).reap_stale();
     routines::start(app.clone());
+    auto::real::start(app); // track:autonomy
 }
 
 pub fn kill_now(app: &AppHandle) {
@@ -183,7 +184,7 @@ pub fn describe_foreground() -> String {
     }
 }
 
-async fn describe_foreground_async() -> String {
+pub(crate) async fn describe_foreground_async() -> String {
     tokio::task::spawn_blocking(describe_foreground).await.unwrap_or_default()
 }
 
@@ -341,7 +342,7 @@ async fn run_steps(app: &AppHandle, settings: &crate::settings::Settings, steps:
 }
 
 /// The run itself. `job`: the policy of an autonomous job (contract, level, hooks); `None` for a run started from chat.
-async fn run_steps_with(app: &AppHandle, settings: &crate::settings::Settings, steps: Vec<Step>, goal: &str, cancel: &CancellationToken, approver: &dyn Approver, job: Option<auto::policy::Policy>) -> Report {
+pub(crate) async fn run_steps_with(app: &AppHandle, settings: &crate::settings::Settings, steps: Vec<Step>, goal: &str, cancel: &CancellationToken, approver: &dyn Approver, job: Option<auto::policy::Policy>) -> Report {
     STOP.store(false, Ordering::SeqCst);
     set_active(app, true, goal);
     let watcher = {
