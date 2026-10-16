@@ -152,14 +152,14 @@ pub async fn prepare(state: &AppState, request: &mut ChatRequest, on_event: &Cha
 
 // ------------------------------------------------------------------ ask and advisor
 
-struct Shot {
-    window: WindowInfo,
-    encoded: capture::Encoded,
-    text: String,
+pub(crate) struct Shot {
+    pub(crate) window: WindowInfo,
+    pub(crate) encoded: capture::Encoded,
+    pub(crate) text: String,
 }
 
 /// The blocking part: capture, shrink, encode, read the text. Runs on a worker thread (the capture objects stay on it).
-fn grab_and_read(excludes: Vec<String>) -> Result<Shot, CaptureError> {
+pub(crate) fn grab_and_read(excludes: Vec<String>) -> Result<Shot, CaptureError> {
     let mut src = capture::default_source();
     let (window, f) = capture::once(src.as_mut(), &excludes, false)?;
     drop(src);

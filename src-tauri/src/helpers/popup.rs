@@ -21,18 +21,21 @@ pub enum Kind {
     Paste,
     Page,
     Meeting,
+    Focus,
+    Tidy,
+    Game,
 }
 
 impl Kind {
     pub fn label(self) -> &'static str {
         match self {
-            Kind::Explain | Kind::Dialog | Kind::Paste | Kind::Page | Kind::Meeting => "helperpop-x",
-            Kind::Region => "helperpop-r",
+            Kind::Explain | Kind::Dialog | Kind::Paste | Kind::Page | Kind::Meeting | Kind::Tidy | Kind::Game => "helperpop-x",
+            Kind::Region | Kind::Focus => "helperpop-r",
         }
     }
     /// Only the popups with a box to type in may take the focus.
     pub fn focusable(self) -> bool {
-        matches!(self, Kind::Region)
+        matches!(self, Kind::Region | Kind::Focus)
     }
 }
 
@@ -61,6 +64,11 @@ pub struct Payload {
 }
 
 static CURRENT: Mutex<Option<(Kind, Payload)>> = Mutex::new(None);
+
+/// The text of the open popup.
+pub fn current_body() -> String {
+    CURRENT.lock().ok().and_then(|c| c.as_ref().map(|(_, p)| p.body.clone())).unwrap_or_default()
+}
 
 pub fn current_kind() -> Option<Kind> {
     CURRENT.lock().ok()?.as_ref().map(|(k, _)| *k)
@@ -211,6 +219,9 @@ pub async fn helper_popup_click(app: tauri::AppHandle, id: String, text: Option<
         Kind::Paste => super::smartpaste::clicked(&app, &id).await,
         Kind::Page => super::page::clicked(&app, &id).await,
         Kind::Meeting => super::meeting::clicked(&app, &id).await,
+        Kind::Game => super::game::clicked(&app, &id).await,
+        Kind::Tidy => super::tidy::clicked(&app, &id).await,
+        Kind::Focus => super::focus::clicked(&app, &id, text.unwrap_or_default()).await,
     }
     Ok(())
 }

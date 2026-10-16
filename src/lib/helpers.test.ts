@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { ASK_WHERE, MINUTES, defaultHelperKeys, helperKeys, helperRows, minutesLabel } from "./helpers";
+import { ASK_WHERE, BREAK_MINUTES, FOCUS_MINUTES, MINUTES, breakLabel, defaultHelperKeys, helperKeys, helperRows, minutesLabel } from "./helpers";
 
 describe("helper settings rows", () => {
   it("has a row for each helper with its own switch, and Windows-only ones hide elsewhere", () => {
-    expect(helperRows(true).map((r) => r.key)).toEqual(["helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperDictate", "helperPage", "helperMeeting"]);
-    expect(helperRows(false).map((r) => r.key)).toEqual(["helperExplain", "helperSmartPaste"]);
+    expect(helperRows(true).map((r) => r.key)).toEqual(["helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperDictate", "helperPage", "helperMeeting", "helperFocus", "helperTidy", "helperRecipes", "helperHa", "helperGame"]);
+    expect(helperRows(false).map((r) => r.key)).toEqual(["helperExplain", "helperSmartPaste", "helperTidy", "helperHa"]);
   });
 
   it("offers Local first and as the only default, then Auto and Cloud", () => {
@@ -29,5 +29,9 @@ describe("helper settings rows", () => {
     expect(minutesLabel(120)).toBe("2 hours");
     expect(minutesLabel(60)).toBe("1 hour");
     expect(minutesLabel(45)).toBe("45 minutes");
+    expect(FOCUS_MINUTES).toContain(0);
+    expect(BREAK_MINUTES).toContain(0);
+    expect(breakLabel(0)).toBe("No reminders");
+    expect(breakLabel(50)).toBe("50 minutes");
   });
 });

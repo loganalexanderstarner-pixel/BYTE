@@ -15,12 +15,17 @@ pub mod ask;
 pub mod dialogs;
 pub mod dictate;
 pub mod explain;
+pub mod focus;
+pub mod game;
+pub mod ha;
 pub mod meeting;
 pub mod mic;
 pub mod page;
 pub mod popup;
+pub mod recipes;
 pub mod region;
 pub mod smartpaste;
+pub mod tidy;
 
 use crate::settings::Settings;
 
@@ -124,6 +129,19 @@ pub fn pressed(app: &AppHandle, hot: Hot) {
 pub fn apply(app: &AppHandle, s: &Settings) {
     dialogs::apply(app, s.helper_dialogs);
     smartpaste::apply(app, s.helper_smart_paste);
+    tidy::apply_watch(app, s.helper_tidy && tidy::supported() && !s.kids_mode);
+    let game = s.helper_game && game_supported() && !s.kids_mode;
+    if GAME_ON.swap(game, std::sync::atomic::Ordering::SeqCst) != game {
+        refresh_menu(app);
+    }
+    let tidy_menu = s.helper_tidy && tidy::supported() && !s.kids_mode;
+    if TIDY_ON.swap(tidy_menu, std::sync::atomic::Ordering::SeqCst) != tidy_menu {
+        refresh_menu(app);
+    }
+    let focus = s.helper_focus && focus::supported() && !s.kids_mode;
+    if FOCUS_ON.swap(focus, std::sync::atomic::Ordering::SeqCst) != focus {
+        refresh_menu(app);
+    }
     let meet = s.helper_meeting && meeting::supported() && !s.kids_mode;
     if MEETING_ON.swap(meet, std::sync::atomic::Ordering::SeqCst) != meet {
         refresh_menu(app);
@@ -131,6 +149,43 @@ pub fn apply(app: &AppHandle, s: &Settings) {
     let page = s.helper_page && region::supported() && !s.kids_mode;
     if PAGE_ON.swap(page, std::sync::atomic::Ordering::SeqCst) != page {
         refresh_menu(app);
+    }
+}
+
+/// The tray menu offers the game companion.
+#[cfg(desktop)]
+static GAME_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn game_supported() -> bool {
+    crate::screen::supported()
+}
+
+/// The tray menu offers "Tidy my Downloads".
+#[cfg(desktop)]
+static TIDY_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The tray menu offers "Start a focus session".
+#[cfg(desktop)]
+static FOCUS_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[cfg(desktop)]
+pub fn set_focus_menu(app: &AppHandle, running: bool) {
+    if let Some(tray) = app.tray_by_id("byte") {
+        let _ = tray.set_tooltip(Some(if running { "BYTE: focus session" } else { "BYTE" }));
+    }
+    refresh_menu(app);
+}
+
+/// Says `text` aloud with BYTE's voice, unless a call is going on.
+#[cfg(desktop)]
+pub async fn speak(app: &AppHandle, text: &str) {
+    use tauri::Manager;
+    if crate::meeting::active() {
+        return;
+    }
+    let state = app.state::<crate::state::AppState>();
+    if let Err(e) = crate::speech::speech_say(app.clone(), state, text.to_string(), None).await {
+        log::info!("helper speech: {e}");
     }
 }
 
@@ -167,6 +222,20 @@ pub fn tray_items(app: &AppHandle) -> tauri::Result<Vec<tauri::menu::MenuItem<ta
     if PAGE_ON.load(std::sync::atomic::Ordering::SeqCst) {
         v.push(MenuItem::with_id(app, "helper_page", "Look at this page and help", true, None::<&str>)?);
     }
+    if GAME_ON.load(std::sync::atomic::Ordering::SeqCst) {
+        v.push(MenuItem::with_id(app, "helper_game_review", "Review my last play", true, None::<&str>)?);
+        v.push(MenuItem::with_id(app, "helper_game_advise", "How is my game going?", true, None::<&str>)?);
+    }
+    if TIDY_ON.load(std::sync::atomic::Ordering::SeqCst) {
+        v.push(MenuItem::with_id(app, "helper_tidy", "Tidy my Downloads", true, None::<&str>)?);
+    }
+    if FOCUS_ON.load(std::sync::atomic::Ordering::SeqCst) {
+        if focus::running() {
+            v.push(MenuItem::with_id(app, "helper_focus_end", "End the focus session", true, None::<&str>)?);
+        } else {
+            v.push(MenuItem::with_id(app, "helper_focus_start", "Start a focus session", true, None::<&str>)?);
+        }
+    }
     if MEETING_ON.load(std::sync::atomic::Ordering::SeqCst) {
         if meeting::recording() {
             v.push(MenuItem::with_id(app, "helper_meeting_stop", "Stop the meeting recording", true, None::<&str>)?);
@@ -184,6 +253,26 @@ pub fn tray_event(app: &AppHandle, id: &str) -> bool {
         "helper_dialog" => {
             let app = app.clone();
             tauri::async_runtime::spawn(async move { dialogs::explain_pending(&app).await });
+            true
+        }
+        "helper_game_review" => {
+            game::review(app);
+            true
+        }
+        "helper_game_advise" => {
+            game::advise(app);
+            true
+        }
+        "helper_tidy" => {
+            tidy::now(app);
+            true
+        }
+        "helper_focus_start" => {
+            focus::ask_plan(app);
+            true
+        }
+        "helper_focus_end" => {
+            focus::end(app);
             true
         }
         "helper_meeting_start" => {
@@ -215,7 +304,7 @@ mod tests {
     #[test]
     fn every_helper_is_off_by_default_and_the_default_choice_is_local() {
         let s = Settings::default();
-        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate && !s.helper_page && !s.helper_meeting);
+        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate && !s.helper_page && !s.helper_meeting && !s.helper_focus && !s.helper_tidy && !s.helper_recipes && !s.helper_ha && s.helper_ha_url.is_empty() && !s.helper_game);
         assert_eq!(s.helper_ask_where, "local");
         assert!(wanted(&s).is_empty());
     }
@@ -248,7 +337,7 @@ mod tests {
 
     #[test]
     fn settings_are_not_in_the_profile_sync_list() {
-        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys", "helperPage", "helperPageKeys", "helperMeeting", "helperMeetingMinutes"] {
+        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys", "helperPage", "helperPageKeys", "helperMeeting", "helperMeetingMinutes", "helperFocus", "helperFocusMinutes", "helperFocusBreak", "helperFocusSpeak", "helperTidy", "helperRecipes", "helperHa", "helperHaUrl", "helperGame"] {
             assert!(!crate::profile_sync::KEYS.iter().any(|(_, setting)| *setting == k), "{k}");
         }
     }

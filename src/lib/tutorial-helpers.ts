@@ -87,4 +87,48 @@ export const HELPER_TUTORIALS: Tutorial[] = [
       },
     ],
   },
+  {
+    id: "pc-helpers-home",
+    title: "Focus, tidy and home helpers",
+    promise: "Focus without interruptions, tidy Downloads, share routines, control lights by voice",
+    minutes: 4,
+    icon: "bolt",
+    offByDefault: true,
+    os: "windows",
+    steps: [
+      {
+        id: "focus",
+        title: "A focus session",
+        os: "windows",
+        body: ["Turn on **Focus mode**. Right-click BYTE's tray icon, choose **Start a focus session** and say what you will work on. BYTE turns notifications off, times the session and nudges you to take breaks. They come back when it ends.", "Length and break reminders both have a No limit choice."],
+        links: [S("control", "Open Control and screen")],
+      },
+      {
+        id: "tidy",
+        title: "Tidy your Downloads",
+        body: ["Turn on **Downloads tidy-up**. When files pile up, BYTE offers to sort them into folders inside Downloads. It never deletes anything, and **Undo** puts everything back."],
+        links: [H("focus-tidy-home", "Read about the helpers")],
+      },
+      {
+        id: "recipes",
+        title: "Share a routine",
+        os: "windows",
+        body: ["Turn on **Recipes**. Export a routine to a small file, or paste someone else's and read the review of every step before adding it. A recipe can never run a script."],
+      },
+      {
+        id: "home",
+        title: "Lights and plugs by voice",
+        body: ["Turn on **Home Assistant**, type its address, paste an access token and press **Test**. Then say \"turn on the kitchen light\". BYTE only changes lights, plugs, fans and switches."],
+        example: "Turn on the kitchen light.",
+        ifStuck: "If BYTE says it can't reach Home Assistant, check the address works in a browser on this computer.",
+      },
+      {
+        id: "game",
+        title: "Review your last play",
+        os: "windows",
+        body: ["With **Game companion** and **Remember the last seconds** on, choose **Review my last play** in the tray menu after a round. BYTE looks back over the last seconds and says what may have gone wrong. It runs on this computer and works without internet."],
+        links: [S("control", "Open Control and screen")],
+      },
+    ],
+  },
 ];

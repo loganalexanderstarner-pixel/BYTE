@@ -484,6 +484,13 @@ pub fn run() {
             helpers::popup::helper_popup_resize,
             helpers::region::helper_region_done,
             helpers::region::helper_region_cancel,
+            helpers::recipes::recipe_export,
+            helpers::recipes::recipe_review,
+            helpers::recipes::recipe_import,
+            helpers::ha::ha_token_saved,
+            helpers::ha::ha_set_token,
+            helpers::ha::ha_clear_token,
+            helpers::ha::ha_test,
             // --- track:helpers end ---
             tts::cloud_voices,
             tts::voices_status,

@@ -220,6 +220,32 @@ pub struct Settings {
     /// Longest meeting recording in minutes; 0 means no limit.
     #[serde(default = "crate::helpers::meeting::default_minutes")]
     pub helper_meeting_minutes: u32,
+    /// Focus mode: a timed session with notifications off (tray menu).
+    #[serde(default)]
+    pub helper_focus: bool,
+    /// Session length in minutes; 0 means no limit.
+    #[serde(default = "crate::helpers::focus::default_minutes")]
+    pub helper_focus_minutes: u32,
+    /// Minutes between break nudges; 0 means none.
+    #[serde(default = "crate::helpers::focus::default_break")]
+    pub helper_focus_break: u32,
+    /// Say the plan out loud when a session starts and ends.
+    #[serde(default = "yes")]
+    pub helper_focus_speak: bool,
+    /// Downloads tidy-up: offers to sort loose files into folders, with Undo.
+    #[serde(default)]
+    pub helper_tidy: bool,
+    /// Recipes: export a routine as a file, import one after a safety review.
+    #[serde(default)]
+    pub helper_recipes: bool,
+    /// Home Assistant (local): lights and plugs by voice. The access token is in the credential store, not here.
+    #[serde(default)]
+    pub helper_ha: bool,
+    #[serde(default)]
+    pub helper_ha_url: String,
+    /// Game companion: "Review my last play" and "How is my game going?" in the tray menu (local only).
+    #[serde(default)]
+    pub helper_game: bool,
     // --- track:helpers end ---
     /// The writing studio (✍️): rewrite, expand, shorten, tone, grammar.
     #[serde(default = "yes")]
@@ -599,6 +625,15 @@ impl Default for Settings {
             helper_page_keys: crate::helpers::page::default_keys(),
             helper_meeting: false,
             helper_meeting_minutes: crate::helpers::meeting::default_minutes(),
+            helper_focus: false,
+            helper_focus_minutes: crate::helpers::focus::default_minutes(),
+            helper_focus_break: crate::helpers::focus::default_break(),
+            helper_focus_speak: true,
+            helper_tidy: false,
+            helper_recipes: false,
+            helper_ha: false,
+            helper_ha_url: String::new(),
+            helper_game: false,
             // --- track:helpers end ---
             writing_enabled: true,
             writing_style: String::new(),

@@ -7,7 +7,7 @@ export const ASK_WHERE: { id: "local" | "cloud" | "auto"; label: string }[] = [
   { id: "cloud", label: "Cloud" },
 ];
 
-type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate" | "helperPage" | "helperMeeting";
+type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate" | "helperPage" | "helperMeeting" | "helperFocus" | "helperTidy" | "helperRecipes" | "helperHa" | "helperGame";
 type KeyName = "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys";
 
 export interface HelperRow {
@@ -64,10 +64,46 @@ const ROWS: HelperRow[] = [
     text: "Right-click BYTE's tray icon and choose \"Record a meeting\" (it records only when you click, and shows a popup while it does). BYTE keeps the sound in memory, and when you stop it writes a note with a summary, a to-do list and a transcript (with speaker labels if the speaker models are installed). Tell the others you are recording.",
     windowsOnly: true,
   },
+  {
+    key: "helperFocus",
+    title: "Focus mode",
+    text: "Right-click BYTE's tray icon and choose \"Start a focus session\": say what you will work on, and BYTE turns pop-up notifications off, says your plan out loud, times the session, nudges you to take breaks and tells you when time is up. Notifications come back when it ends, when BYTE restarts, or after 12 hours.",
+    windowsOnly: true,
+  },
+  {
+    key: "helperTidy",
+    title: "Downloads tidy-up",
+    text: "When loose files pile up in your Downloads folder, BYTE offers to sort them into folders inside it (Pictures, Documents, Installers, Archives, Music, Videos). Nothing is deleted, files still downloading are left alone, and there is an Undo.",
+  },
+  {
+    key: "helperRecipes",
+    title: "Recipes",
+    text: "Save a routine as a small file you can share, and add one from someone else after a safety review that shows every step. A recipe can only hold the same few steps routines have, and it never brings a schedule.",
+    windowsOnly: true,
+  },
+  {
+    key: "helperHa",
+    title: "Home Assistant",
+    text: "Say \"turn on the kitchen light\" or \"turn off the desk plug\" and BYTE asks your own Home Assistant on your home network. It only changes lights, plugs, fans and switches, never locks or alarms. The access token is kept in the system credential store.",
+  },
+  {
+    key: "helperGame",
+    title: "Game companion",
+    text: "In the tray menu: \"Review my last play\" (looks back over the last seconds of the replay) and \"How is my game going?\". Both run on this computer and work without internet. Review needs \"Remember the last seconds\" above.",
+    windowsOnly: true,
+  },
 ];
 
 /** Lengths offered for a count of minutes; 0 is "No limit". */
 export const MINUTES: number[] = [30, 60, 120, 240, 0];
+
+/** Focus session lengths and break gaps in minutes; 0 is "No limit" / "No reminders". */
+export const FOCUS_MINUTES: number[] = [15, 25, 45, 60, 90, 0];
+export const BREAK_MINUTES: number[] = [20, 30, 50, 90, 0];
+
+export function breakLabel(n: number): string {
+  return n === 0 ? "No reminders" : minutesLabel(n);
+}
 
 export function minutesLabel(n: number): string {
   return n === 0 ? "No limit" : n % 60 === 0 ? `${n / 60} hour${n === 60 ? "" : "s"}` : `${n} minutes`;

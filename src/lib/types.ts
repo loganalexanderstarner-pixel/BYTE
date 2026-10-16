@@ -81,6 +81,15 @@ export interface Settings {
   helperPageKeys?: string;
   helperMeeting?: boolean;
   helperMeetingMinutes?: number;
+  helperFocus?: boolean;
+  helperFocusMinutes?: number;
+  helperFocusBreak?: number;
+  helperFocusSpeak?: boolean;
+  helperTidy?: boolean;
+  helperRecipes?: boolean;
+  helperHa?: boolean;
+  helperHaUrl?: string;
+  helperGame?: boolean;
   /* --- track:helpers end --- */
   /** The writing studio (✍️). */
   writingEnabled?: boolean;

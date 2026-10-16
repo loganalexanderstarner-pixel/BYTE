@@ -223,7 +223,7 @@ fn now_secs() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
-fn marker_file(app: &AppHandle) -> PathBuf {
+pub(crate) fn marker_file(app: &AppHandle) -> PathBuf {
     app.state::<AppState>().paths.data.join(NOTIFY_MARKER)
 }
 
@@ -252,7 +252,7 @@ pub fn restore_notifications(path: &Path, always: bool, turn_on: &dyn Fn() -> Re
 
 /// Windows' own master switch for pop-up notifications (Settings → System → Notifications), set for this user. Turning them
 /// off is noted in `marker`, and BYTE turns them back on at its next start or after 12 hours, whichever comes first.
-fn notifications(on: bool, marker: Option<&Path>) -> Result<(), String> {
+pub(crate) fn notifications(on: bool, marker: Option<&Path>) -> Result<(), String> {
     set_toasts(on)?;
     if let Some(m) = marker {
         if on {
