@@ -1,5 +1,5 @@
 import { AppWindow, Check, Download, ExternalLink, FileText, FolderOpen, Image as ImageIcon, Send, ShieldAlert, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import { approveLabel, canOpen, fileSize } from "../../lib/agent";
 import { api, errorText } from "../../lib/api";
@@ -37,8 +37,13 @@ export function ApprovalCard({ card }: { card: Card }) {
     }
   };
   const Icon = card.action === "download" ? Download : card.action === "mac" ? Check : Send;
+  // A card that waits for a yes comes into view by itself, so its buttons are never hidden under the message box.
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (card.status === "waiting") box.current?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+  }, [card.id, card.status]);
   return (
-    <div className={`approval ${card.status}`} role="region" aria-label="Needs your OK">
+    <div ref={box} className={`approval ${card.status}`} role="region" aria-label="Needs your OK">
       <div className="approval-head">
         <ShieldAlert size={16} />
         <b>{card.title}</b>
