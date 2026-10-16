@@ -16,6 +16,7 @@ pub mod captions;
 pub mod dialogs;
 pub mod dictate;
 pub mod explain;
+pub mod explorer;
 pub mod focus;
 pub mod forms;
 pub mod game;
@@ -29,6 +30,7 @@ pub mod popup;
 pub mod readaloud;
 pub mod recipes;
 pub mod region;
+pub mod rewrite;
 pub mod smartpaste;
 pub mod tidy;
 pub mod wakeword;
@@ -70,6 +72,7 @@ pub enum Hot {
     Dictate,
     Page,
     Read,
+    Rewrite,
 }
 
 /// The keys each hotkey needs, from the settings (a switched-off helper has none).
@@ -83,6 +86,9 @@ pub fn wanted(s: &Settings) -> Vec<(Hot, String)> {
     }
     if s.helper_dictate && dictate::supported() {
         v.push((Hot::Dictate, s.helper_dictate_keys.clone()));
+    }
+    if s.helper_rewrite && rewrite::supported() {
+        v.push((Hot::Rewrite, s.helper_rewrite_keys.clone()));
     }
     if s.helper_read && readaloud::supported() {
         v.push((Hot::Read, s.helper_read_keys.clone()));
@@ -132,6 +138,7 @@ pub fn pressed(app: &AppHandle, hot: Hot) {
         Hot::Dictate => dictate::start(app),
         Hot::Page => page::read_url(app),
         Hot::Read => readaloud::toggle(app),
+        Hot::Rewrite => rewrite::start(app),
     }
 }
 
@@ -141,6 +148,7 @@ pub fn apply(app: &AppHandle, s: &Settings) {
     wakeword::set(&s.helper_wake_phrase);
     dialogs::apply(app, s.helper_dialogs);
     smartpaste::apply(app, s.helper_smart_paste);
+    explorer::apply(app, s.helper_explorer && explorer::supported() && !s.kids_mode);
     tidy::apply_watch(app, s.helper_tidy && tidy::supported() && !s.kids_mode);
     let tools = pagetools::any_on(s);
     if TOOLS_ON.swap(tools, std::sync::atomic::Ordering::SeqCst) != tools {
@@ -370,7 +378,7 @@ mod tests {
     #[test]
     fn every_helper_is_off_by_default_and_the_default_choice_is_local() {
         let s = Settings::default();
-        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate && !s.helper_page && !s.helper_meeting && !s.helper_focus && !s.helper_tidy && !s.helper_recipes && !s.helper_ha && s.helper_ha_url.is_empty() && !s.helper_game && !s.helper_nav && !s.helper_read && !s.helper_captions && !s.helper_pagetools && !s.helper_email && !s.helper_product && !s.helper_form);
+        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate && !s.helper_page && !s.helper_meeting && !s.helper_focus && !s.helper_tidy && !s.helper_recipes && !s.helper_ha && s.helper_ha_url.is_empty() && !s.helper_game && !s.helper_nav && !s.helper_read && !s.helper_captions && !s.helper_pagetools && !s.helper_email && !s.helper_product && !s.helper_form && !s.helper_rewrite && !s.helper_explorer);
         assert_eq!(s.helper_ask_where, "local");
         assert!(wanted(&s).is_empty());
     }
@@ -389,7 +397,7 @@ mod tests {
     #[test]
     fn the_default_keys_are_real_shortcuts_and_differ_from_the_others() {
         let s = Settings::default();
-        for k in [&s.helper_region_keys, &s.helper_explain_keys, &s.helper_dictate_keys, &s.helper_page_keys, &s.helper_read_keys] {
+        for k in [&s.helper_region_keys, &s.helper_explain_keys, &s.helper_dictate_keys, &s.helper_page_keys, &s.helper_read_keys, &s.helper_rewrite_keys] {
             assert!(crate::quick::parse_keys(k).is_ok(), "{k}");
         }
         assert_ne!(s.helper_region_keys, s.helper_explain_keys);
@@ -403,7 +411,7 @@ mod tests {
 
     #[test]
     fn settings_are_not_in_the_profile_sync_list() {
-        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys", "helperPage", "helperPageKeys", "helperMeeting", "helperMeetingMinutes", "helperFocus", "helperFocusMinutes", "helperFocusBreak", "helperFocusSpeak", "helperTidy", "helperRecipes", "helperHa", "helperHaUrl", "helperGame", "helperNav", "helperRead", "helperReadKeys", "helperReadSpeed", "helperCaptions", "helperWakePhrase", "helperPagetools", "helperEmail", "helperProduct", "helperForm"] {
+        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys", "helperPage", "helperPageKeys", "helperMeeting", "helperMeetingMinutes", "helperFocus", "helperFocusMinutes", "helperFocusBreak", "helperFocusSpeak", "helperTidy", "helperRecipes", "helperHa", "helperHaUrl", "helperGame", "helperNav", "helperRead", "helperReadKeys", "helperReadSpeed", "helperCaptions", "helperWakePhrase", "helperPagetools", "helperEmail", "helperProduct", "helperForm", "helperRewrite", "helperRewriteKeys", "helperExplorer"] {
             assert!(!crate::profile_sync::KEYS.iter().any(|(_, setting)| *setting == k), "{k}");
         }
     }

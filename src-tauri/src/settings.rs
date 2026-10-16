@@ -275,6 +275,14 @@ pub struct Settings {
     /// Form helper: fill name/email/phone/address boxes from a saved profile (needs PC control). Never passwords or cards.
     #[serde(default)]
     pub helper_form: bool,
+    /// Fix my writing in place, explain code, show maths steps, translate (selected text, a shortcut).
+    #[serde(default)]
+    pub helper_rewrite: bool,
+    #[serde(default = "crate::helpers::rewrite::default_keys")]
+    pub helper_rewrite_keys: String,
+    /// Explorer right-click "Ask BYTE" on files (adds a per-user entry under HKCU).
+    #[serde(default)]
+    pub helper_explorer: bool,
     // --- track:helpers end ---
     /// The writing studio (✍️): rewrite, expand, shorten, tone, grammar.
     #[serde(default = "yes")]
@@ -673,6 +681,9 @@ impl Default for Settings {
             helper_email: false,
             helper_product: false,
             helper_form: false,
+            helper_rewrite: false,
+            helper_rewrite_keys: crate::helpers::rewrite::default_keys(),
+            helper_explorer: false,
             // --- track:helpers end ---
             writing_enabled: true,
             writing_style: String::new(),

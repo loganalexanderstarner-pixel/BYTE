@@ -7,9 +7,9 @@ describe("helper settings rows", () => {
     expect(helperRows(true).map((r) => r.key)).toEqual([
       "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperDictate", "helperPage", "helperMeeting", "helperFocus",
       "helperTidy", "helperRecipes", "helperHa", "helperGame", "helperNav", "helperRead", "helperCaptions",
-      "helperPagetools", "helperEmail", "helperProduct", "helperForm",
+      "helperPagetools", "helperEmail", "helperProduct", "helperForm", "helperRewrite", "helperExplorer",
     ]);
-    expect(helperRows(false).map((r) => r.key)).toEqual(["helperExplain", "helperSmartPaste", "helperTidy", "helperHa", "helperRead"]);
+    expect(helperRows(false).map((r) => r.key)).toEqual(["helperExplain", "helperSmartPaste", "helperTidy", "helperHa", "helperRead", "helperRewrite"]);
   });
 
   it("offers Local first and as the only default, then Auto and Cloud", () => {

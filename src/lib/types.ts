@@ -100,6 +100,9 @@ export interface Settings {
   helperEmail?: boolean;
   helperProduct?: boolean;
   helperForm?: boolean;
+  helperRewrite?: boolean;
+  helperRewriteKeys?: string;
+  helperExplorer?: boolean;
   /* --- track:helpers end --- */
   /** The writing studio (✍️). */
   writingEnabled?: boolean;

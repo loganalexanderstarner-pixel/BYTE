@@ -7,8 +7,8 @@ export const ASK_WHERE: { id: "local" | "cloud" | "auto"; label: string }[] = [
   { id: "cloud", label: "Cloud" },
 ];
 
-type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate" | "helperPage" | "helperMeeting" | "helperFocus" | "helperTidy" | "helperRecipes" | "helperHa" | "helperGame" | "helperNav" | "helperRead" | "helperCaptions" | "helperPagetools" | "helperEmail" | "helperProduct" | "helperForm";
-type KeyName = "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys" | "helperReadKeys";
+type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate" | "helperPage" | "helperMeeting" | "helperFocus" | "helperTidy" | "helperRecipes" | "helperHa" | "helperGame" | "helperNav" | "helperRead" | "helperCaptions" | "helperPagetools" | "helperEmail" | "helperProduct" | "helperForm" | "helperRewrite" | "helperExplorer";
+type KeyName = "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys" | "helperReadKeys" | "helperRewriteKeys";
 
 export interface HelperRow {
   key: Flag;
@@ -134,6 +134,18 @@ const ROWS: HelperRow[] = [
     text: "Save your name, email, phone and address here once. On a form, choose \"Page tools\" > \"Fill this form\": BYTE shows what it will type and types it only after you agree (PC control must be on). It never fills passwords, card numbers or security codes, and never presses Submit.",
     windowsOnly: true,
   },
+  {
+    key: "helperRewrite",
+    title: "Fix my writing in place",
+    text: "Select text in any app and press the shortcut: fix mistakes, or make it friendlier, more formal, more confident or shorter, then \"Replace the selection\" puts the result back (you see it first). The same popup can explain selected code, show the steps for selected maths, or translate foreign text.",
+    keys: "helperRewriteKeys",
+  },
+  {
+    key: "helperExplorer",
+    title: "Explorer right-click: Ask BYTE",
+    text: "Adds \"Ask BYTE\" to the right-click menu of files for you only; choosing it opens the file attached in a new BYTE chat (nothing is sent until you send it). Turning this off removes the entry. Windows cannot take files dropped on a tray icon, so drop files on the BYTE window instead.",
+    windowsOnly: true,
+  },
 ];
 
 export const READ_SPEEDS: { id: "slow" | "normal" | "fast"; label: string }[] = [
@@ -177,12 +189,12 @@ export function helperRows(windows: boolean): HelperRow[] {
   return ROWS.filter((r) => windows || !r.windowsOnly);
 }
 
-export function defaultHelperKeys(windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string; helperPageKeys: string; helperReadKeys: string } {
-  return windows ? { helperRegionKeys: "Control+Alt+KeyR", helperExplainKeys: "Control+Alt+KeyE", helperDictateKeys: "Control+Alt+KeyD", helperPageKeys: "Control+Alt+KeyU", helperReadKeys: "Control+Alt+KeyL" } : { helperRegionKeys: "Alt+Super+KeyR", helperExplainKeys: "Alt+Super+KeyE", helperDictateKeys: "Alt+Super+KeyD", helperPageKeys: "Alt+Super+KeyU", helperReadKeys: "Alt+Super+KeyL" };
+export function defaultHelperKeys(windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string; helperPageKeys: string; helperReadKeys: string; helperRewriteKeys: string } {
+  return windows ? { helperRegionKeys: "Control+Alt+KeyR", helperExplainKeys: "Control+Alt+KeyE", helperDictateKeys: "Control+Alt+KeyD", helperPageKeys: "Control+Alt+KeyU", helperReadKeys: "Control+Alt+KeyL", helperRewriteKeys: "Control+Alt+KeyW" } : { helperRegionKeys: "Alt+Super+KeyR", helperExplainKeys: "Alt+Super+KeyE", helperDictateKeys: "Alt+Super+KeyD", helperPageKeys: "Alt+Super+KeyU", helperReadKeys: "Alt+Super+KeyL", helperRewriteKeys: "Alt+Super+KeyW" };
 }
 
 /** The keys in use: the saved ones, else the defaults. */
-export function helperKeys(s: Pick<Partial<Settings>, "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys" | "helperReadKeys">, windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string; helperPageKeys: string; helperReadKeys: string } {
+export function helperKeys(s: Pick<Partial<Settings>, "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys" | "helperReadKeys" | "helperRewriteKeys">, windows: boolean): { helperRegionKeys: string; helperExplainKeys: string; helperDictateKeys: string; helperPageKeys: string; helperReadKeys: string; helperRewriteKeys: string } {
   const d = defaultHelperKeys(windows);
-  return { helperRegionKeys: s.helperRegionKeys || d.helperRegionKeys, helperExplainKeys: s.helperExplainKeys || d.helperExplainKeys, helperDictateKeys: s.helperDictateKeys || d.helperDictateKeys, helperPageKeys: s.helperPageKeys || d.helperPageKeys, helperReadKeys: s.helperReadKeys || d.helperReadKeys };
+  return { helperRegionKeys: s.helperRegionKeys || d.helperRegionKeys, helperExplainKeys: s.helperExplainKeys || d.helperExplainKeys, helperDictateKeys: s.helperDictateKeys || d.helperDictateKeys, helperPageKeys: s.helperPageKeys || d.helperPageKeys, helperReadKeys: s.helperReadKeys || d.helperReadKeys, helperRewriteKeys: s.helperRewriteKeys || d.helperRewriteKeys };
 }

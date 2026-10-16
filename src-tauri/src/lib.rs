@@ -152,6 +152,11 @@ use crate::state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // --- track:helpers begin --- a launch from Explorer's right-click menu while BYTE is already running hands its file over and ends
+    if helpers::explorer::handoff_at_start() {
+        return;
+    }
+    // --- track:helpers end ---
     let app = tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()

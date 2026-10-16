@@ -205,4 +205,32 @@ export const HELPER_TUTORIALS: Tutorial[] = [
       },
     ],
   },
+  {
+    id: "pc-helpers-edit",
+    title: "Fix writing and Ask BYTE",
+    promise: "Fix or rephrase text where you wrote it, explain code or maths, and ask BYTE about a file from Explorer",
+    minutes: 3,
+    icon: "paperclip",
+    offByDefault: true,
+    os: "windows",
+    steps: [
+      {
+        id: "rewrite",
+        title: "Fix my writing in place",
+        body: ["Turn on **Fix my writing in place**. Select text in any app and press the shortcut. Choose **Fix mistakes**, a tone, or **Shorter**; read the result and choose **Replace the selection**. Nothing changes until you do."],
+        links: [S("control", "Open Control and screen"), H("writing-and-files", "Read about it")],
+      },
+      {
+        id: "explain",
+        title: "Code, maths and translation",
+        body: ["With the same popup, **Explain this code**, **Show the steps (maths)** and **Translate** give an answer you can copy, without changing your text."],
+        ifStuck: "In a terminal or code editor BYTE will not press keys for you: copy the text yourself and use the region helper.",
+      },
+      {
+        id: "explorer",
+        title: "Ask BYTE from Explorer",
+        body: ["Turn on **Explorer right-click: Ask BYTE**. Right-click any file and choose **Ask BYTE**: it opens attached in a new chat. Turn the switch off and the entry goes away."],
+      },
+    ],
+  },
 ];
