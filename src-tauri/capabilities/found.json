@@ -1,0 +1,6 @@
+{
+  "identifier": "found",
+  "description": "The small approval popup window",
+  "windows": ["approvalpop"],
+  "permissions": ["core:default"]
+}

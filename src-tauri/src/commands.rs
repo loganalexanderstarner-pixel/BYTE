@@ -311,6 +311,9 @@ pub async fn settings_update(app: AppHandle, state: State<'_, AppState>, patch: 
     if patch.get("kidsMode").is_some() || patch.get("kidsPin").is_some() {
         return Err(AppError::msg("Kids mode is turned on and off with its PIN."));
     }
+    // --- track:found begin ---
+    crate::found::safe::check_patch(&patch)?;
+    // --- track:found end ---
     let mut s = state.settings.lock().await;
     if s.kids_mode && !crate::kids::harmless(&patch) {
         return Err(AppError::msg("Kids mode is on: settings can't be changed. A grown-up can turn it off with the PIN."));
@@ -348,6 +351,11 @@ pub async fn settings_update(app: AppHandle, state: State<'_, AppState>, patch: 
     // --- track:voice begin ---
     crate::voicectl::apply(&app, &next);
     // --- track:voice end ---
+    // --- track:found begin --- laptop mode holds listening and the replay off while on battery
+    if next.laptop_mode {
+        crate::found::power::reapply(&app, &next);
+    }
+    // --- track:found end ---
     Ok(next)
 }
 
@@ -953,6 +961,9 @@ pub async fn profile_switch(app: AppHandle, state: State<'_, AppState>, id: Stri
     for e in state.extras.all().await {
         e.stop().await;
     }
+    // --- track:found begin ---
+    crate::found::crash::clean_exit();
+    // --- track:found end ---
     app.restart();
 }
 

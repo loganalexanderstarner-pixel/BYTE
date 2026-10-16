@@ -34,7 +34,6 @@ export function ScreenSettings() {
   const update = useStore((s) => s.updateSettings);
   const [info, setInfo] = useState<ScreenInfo | null>(null);
   const [live, setLive] = useState<ScreenRecording | undefined>();
-  const [excludes, setExcludes] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
   const refresh = () => void api.screenStatus().then((i) => { setInfo(i); setLive(i.status); }, () => undefined);
@@ -45,9 +44,6 @@ export function ScreenSettings() {
     void api.onScreenRecording((s) => { setLive(s); refresh(); }).then((u) => (off = u));
     return () => off?.();
   }, []);
-  useEffect(() => {
-    setExcludes((settings?.screenExcludeApps ?? []).join("\n"));
-  }, [settings?.screenExcludeApps]);
 
   if (!inTauri || !info?.supported) return null;
   const seconds = settings?.replaySeconds ?? 30;
@@ -121,23 +117,9 @@ export function ScreenSettings() {
         <input type="checkbox" aria-label="Read it to me" checked={!!settings?.readIt} onChange={(e) => void guard(update({ readIt: e.target.checked }))} />
       </label>
 
-      <div className="field" style={{ display: "block" }}>
-        <span>
-          Never look at
-          <small>One per line: part of a program's name or of a window's title (any capitals). BYTE's own window is always skipped.</small>
-        </span>
-        <textarea
-          aria-label="Programs and windows BYTE never looks at"
-          rows={6}
-          style={{ width: "100%", marginTop: 6 }}
-          value={excludes}
-          onChange={(e) => setExcludes(e.target.value)}
-          onBlur={() => void guard(update({ screenExcludeApps: cleanList(excludes) }))}
-        />
-        <button className="btn sm" style={{ marginTop: 6 }} onClick={() => void api.screenDefaultExcludes().then((d) => guard(update({ screenExcludeApps: d })))}>
-          Reset to the default list
-        </button>
-      </div>
+      {/* --- track:found begin --- one list for the screen features and PC control: see "Never touch" above */}
+      <p className="muted">The programs and windows BYTE never looks at are the same ones it never operates: edit them in Never touch (in Control, above).</p>
+      {/* --- track:found end --- */}
     </div>
   );
 }

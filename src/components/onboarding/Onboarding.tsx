@@ -28,10 +28,17 @@ import type { ModelStatus, VariantStatus } from "../../lib/types";
 import { useStore } from "../../state/store";
 import { DownloadProgress, FitPill } from "../models/ModelCard";
 import { CloudKeySteps } from "../settings/CloudKeySteps";
-import { platformKeys as K } from "../../lib/keys";
+import { platformKeys as K, isWindows } from "../../lib/keys";
+// --- track:found begin ---
+import { controlApi, sizeText, type CapableModel } from "../../lib/control";
+import { controlOffer, featurePatch, featuresFor, offerBytes, type FirstRunId } from "../../lib/firstRun";
+import { FirstRunFeatures } from "./FirstRunFeatures";
+// --- track:found end ---
 import { cpuName, graphicsLabel, hardwareNote, isPc, machine, osText } from "../../lib/platform";
 
-const STEPS = 5;
+const STEPS = 6;
+/** Which dot of the progress row a step is on (the cloud step shares the download's place; the feature questions come before the tips). */
+const DOT: Record<number, number> = { 0: 0, 1: 1, 2: 2, 3: 3, 5: 3, 6: 4, 4: 5 };
 
 /** Part of the model runs on the CPU instead of the graphics card. */
 const spills = (v: VariantStatus) => (v.fit.cpuMoeLayers ?? 0) > 0 || v.fit.gpuLayers != null;
@@ -89,6 +96,16 @@ export function Onboarding() {
   const setWorkspace = useStore((s) => s.setWorkspace);
   const refreshCloud = useStore((s) => s.refreshCloud);
 
+  // --- track:found begin --- the PC-control model offered with the chat model, and the feature questions
+  const [offer, setOffer] = useState<CapableModel | null>(null);
+  const [withControl, setWithControl] = useState(false);
+  const [ticked, setTicked] = useState<FirstRunId[]>([]);
+  useEffect(() => {
+    if (!isWindows()) return;
+    controlApi.status().then((st) => st.supported && setOffer(controlOffer(st.models)), () => undefined);
+  }, []);
+  // --- track:found end ---
+
   const connectCloud = async () => {
     setError(null);
     setConnecting(true);
@@ -99,7 +116,7 @@ export function Onboarding() {
       await refreshCloud();
       await setWorkspace("cloud");
       setViaCloud(true);
-      setStep(4);
+      setStep(6);
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -141,7 +158,7 @@ export function Onboarding() {
   // Move on automatically once the download completes.
   useEffect(() => {
     if (step === 3 && installed) {
-      const t = setTimeout(() => setStep(4), 900);
+      const t = setTimeout(() => setStep(6), 900);
       return () => clearTimeout(t);
     }
   }, [step, installed]);
@@ -151,6 +168,9 @@ export function Onboarding() {
     setError(null);
     try {
       if (!chosen?.installed) await api.modelDownload(choice);
+      // --- track:found begin ---
+      if (withControl && offer?.downloadKey && !offer.installedKey) await api.modelDownload(offer.downloadKey).catch(() => undefined);
+      // --- track:found end ---
       setStep(3);
     } catch (e) {
       setError(errorText(e));
@@ -166,6 +186,9 @@ export function Onboarding() {
         onboardingComplete: true,
         ...(local ? { activeModel: choice } : {}),
         userName: name.trim() || null,
+        // --- track:found begin --- only what was ticked; a skipped question leaves the saved setting alone
+        ...featurePatch(ticked, withControl && offer ? (offer.installedKey ?? offer.downloadKey) : null),
+        // --- track:found end ---
       });
       if (local) void api.modelActivate(choice).catch(() => {});
     } catch (e) {
@@ -375,6 +398,21 @@ export function Onboarding() {
                     {error}
                   </div>
                 )}
+                {/* --- track:found begin --- */}
+                {offer && (
+                  <label className="field control-offer" style={{ marginTop: 12 }}>
+                    <span>
+                      Also download the model that plans PC control: {offer.name} ({sizeText(offer.downloadBytes)})
+                      <small>
+                        A small helper model that works out the clicks for "open Notepad". Ticking this only downloads it. PC control stays off until you turn it on in a later question.
+                        {offer.installedKey ? " It is already on this PC." : ""}
+                        {chosen && !chosen.installed && !offer.installedKey ? ` Together with the chat model: ${bytes(chosen.sizeBytes + offer.downloadBytes)}.` : ""}
+                      </small>
+                    </span>
+                    <input type="checkbox" checked={withControl} onChange={(e) => setWithControl(e.target.checked)} aria-label={`Also download ${offer.name}`} />
+                  </label>
+                )}
+                {/* --- track:found end --- */}
                 <button
                   className={`model-card selectable cloud-choice ${options.length === 0 || (system && system.totalRamBytes < 12 * 2 ** 30) ? "suggested" : ""}`}
                   onClick={() => {
@@ -403,7 +441,7 @@ export function Onboarding() {
                   >
                     {chosen?.installed
                       ? "Continue"
-                      : `Download ${chosen ? bytes(chosen.sizeBytes) : ""}`}
+                      : `Download ${chosen ? bytes(chosen.sizeBytes + (withControl ? offerBytes(offer) : 0)) : ""}`}
                   </button>
                 </div>
               </>
@@ -472,7 +510,7 @@ export function Onboarding() {
                       )}
                     <button
                       className="btn lg primary"
-                      onClick={() => setStep(4)}
+                      onClick={() => setStep(6)}
                       disabled={!installed}
                     >
                       Continue
@@ -542,6 +580,27 @@ export function Onboarding() {
                 </div>
               </>
             )}
+
+            {/* --- track:found begin --- */}
+            {step === 6 && (
+              <>
+                <FirstRunFeatures
+                  features={featuresFor(isWindows(), device === "phone")}
+                  ticked={ticked}
+                  onChange={setTicked}
+                  controlModel={withControl && offer ? offer.name : null}
+                />
+                <div className="onb-actions">
+                  <button className="btn ghost" onClick={() => setStep(viaCloud ? 5 : 3)}>
+                    Back
+                  </button>
+                  <button className="btn lg primary" onClick={() => setStep(4)}>
+                    {ticked.length ? "Continue" : "Continue with all of these off"}
+                  </button>
+                </div>
+              </>
+            )}
+            {/* --- track:found end --- */}
 
             {step === 4 && (
               <>
@@ -623,7 +682,7 @@ export function Onboarding() {
                 <div className="onb-actions">
                   <button
                     className="btn ghost"
-                    onClick={() => setStep(viaCloud ? 5 : 3)}
+                    onClick={() => setStep(6)}
                   >
                     Back
                   </button>
@@ -639,10 +698,10 @@ export function Onboarding() {
       </div>
       <div
         className="steps"
-        aria-label={`Step ${Math.min(step, STEPS - 1) + 1} of ${STEPS}`}
+        aria-label={`Step ${(DOT[step] ?? 0) + 1} of ${STEPS}`}
       >
         {Array.from({ length: STEPS }, (_, i) => (
-          <i key={i} className={i <= step ? "on" : ""} />
+          <i key={i} className={i <= (DOT[step] ?? 0) ? "on" : ""} />
         ))}
       </div>
     </div>

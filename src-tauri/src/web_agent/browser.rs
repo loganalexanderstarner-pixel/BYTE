@@ -54,6 +54,10 @@ pub struct TauriBrowser {
     /// The person pressed Stop in the strip or closed the visible window.
     stop: Arc<std::sync::atomic::AtomicBool>,
     // --- track:browser end ---
+    // --- track:found begin ---
+    /// "Keep the pages BYTE opened for me": the visible window stays open after the answer (found/research.rs).
+    keep: std::sync::atomic::AtomicBool,
+    // --- track:found end ---
 }
 
 // --- track:browser begin ---
@@ -161,7 +165,7 @@ impl TauriBrowser {
                 close_stop.store(true, Ordering::SeqCst);
             }
         });
-        Ok(TauriBrowser { win, pending, loads, popup, seq: AtomicU64::new(0), stop })
+        Ok(TauriBrowser { win, pending, loads, popup, seq: AtomicU64::new(0), stop, keep: std::sync::atomic::AtomicBool::new(false) })
     }
 
     /// Waits until the page loads started so far have finished (or time runs out).
@@ -183,8 +187,24 @@ impl TauriBrowser {
     }
 }
 
+impl TauriBrowser {
+    // --- track:found begin ---
+    /// The visible window is left open when the answer ends.
+    pub fn keep_open(&self) {
+        self.keep.store(true, Ordering::SeqCst);
+    }
+    // --- track:found end ---
+}
+
 impl Drop for TauriBrowser {
     fn drop(&mut self) {
+        // --- track:found begin --- kept: tell the person it is theirs now (the next answer closes it and starts a fresh one)
+        if self.keep.load(Ordering::SeqCst) && self.win.is_visible().unwrap_or(false) && !self.stop.load(Ordering::SeqCst) {
+            let _ = self.win.set_title("BYTE opened these pages: close this window when you are done");
+            let _ = self.win.eval("window.__byteStripDone && window.__byteStripDone()");
+            return;
+        }
+        // --- track:found end ---
         // The private session (cookies, storage) goes with the window.
         let _ = self.win.destroy();
     }

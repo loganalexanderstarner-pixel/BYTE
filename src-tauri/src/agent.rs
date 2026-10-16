@@ -448,6 +448,26 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
         }
     }
     let weather_done = weather_done || places_done;
+    // --- track:found begin --- "summarise what you read": open the pages kept in this chat again
+    if turn.web && session.is_none() && crate::found::research::summarise_request(&question) && crate::found::research::opts(turn.app).await.keep_pages {
+        let hist: Vec<(String, String)> = turn.history.iter().map(|m| (m.role.clone(), m.content.clone())).collect();
+        for (i, (_, url)) in crate::found::research::kept_pages(&hist).into_iter().take(6).enumerate() {
+            let call_id = format!("byte_kept_{i}");
+            let args = json!({ "url": url });
+            send(ChatEvent::ToolCall { id: call_id.clone(), name: tools::READ_PAGE.into(), args: args.clone() })?;
+            let out = tokio::select! {
+                o = tools::run(&ctx, &mut book, tools::READ_PAGE, &args) => o,
+                _ = cancel.cancelled() => return Err(AppError::Cancelled),
+            };
+            send(ChatEvent::ToolResult { id: call_id.clone(), ok: out.ok, summary: out.summary.clone() })?;
+            push_tool_exchange(&mut messages, &call_id, tools::READ_PAGE, &args, out.content);
+            used_tools = true;
+        }
+        if !book.sources.is_empty() {
+            send(ChatEvent::Sources { sources: book.sources.clone() })?;
+        }
+    }
+    // --- track:found end ---
 
     // Questions about the user's own files ("what does my lease say…"): BYTE
     // searches the knowledge base first, like the forced web search below.
@@ -498,7 +518,13 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
             used_tools = true;
         } else if let Some(r) = &research {
             // --- track:browser begin --- "research X": open several sources one after another, keep the list, answer from notes
-            let notes = crate::browserroutes::research(&turn, &r.topic, s, &mut book, &cancel, &send).await?;
+            let mut notes = crate::browserroutes::research(&turn, &r.topic, s, &mut book, &cancel, &send).await?;
+            // --- track:found begin --- "keep researching until I'm back" (off by default)
+            let kept = crate::found::research::opts(turn.app).await;
+            if kept.until_back != crate::found::research::Limit::Off {
+                notes.push_str(&crate::found::research::continue_research(&turn, &r.topic, kept.until_back, &crate::found::research::SystemIdle, s, &mut book, &cancel, &send).await?);
+            }
+            // --- track:found end ---
             push_tool_exchange(&mut messages, "byte_research_notes", "research_pages", &json!({ "topic": r.topic }), notes);
             used_tools = true;
             // --- track:browser end ---
@@ -786,6 +812,14 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
             }
         }
     }
+    // --- track:found begin --- the pages BYTE opened, as links in the chat (when "keep the pages" is on)
+    if session.is_some() && research.is_some() && crate::found::research::opts(turn.app).await.keep_pages {
+        let footer = crate::found::research::pages_footer(&book.sources);
+        if !footer.is_empty() {
+            send(ChatEvent::Content { delta: footer })?;
+        }
+    }
+    // --- track:found end ---
     if session.take().is_some() {
         // Dropping the session closes the browser (and its private data).
         send(ChatEvent::Browsing { active: false })?;
@@ -946,9 +980,12 @@ async fn open_session(app: &tauri::AppHandle, cfg: &crate::browserroutes::Cfg) -
     let dir = downloads.map(|d| d.join("BYTE")).map_err(|e| AppError::msg(format!("couldn't find the Downloads folder: {e}")))?;
     // --- track:browser begin --- the person's Edge/Chrome (own profile folder) when they chose that, else BYTE's private window (shown when "Watch BYTE browse" is on)
     let real: Option<Box<dyn crate::web_agent::Browser>> = if cfg.drive_real {
-        let profile = app.path().app_data_dir().map(|d| d.join(crate::web_agent::cdp_browser::PROFILE_NAME));
+        // --- track:found begin --- the person's own Edge profile, only when they chose that (Settings, with its warning)
+        let own = crate::found::research::use_own_edge(app).await;
+        let profile = if own { crate::web_agent::cdp_browser::own_profile_dir().ok_or(tauri::Error::UnknownPath) } else { app.path().app_data_dir().map(|d| d.join(crate::web_agent::cdp_browser::PROFILE_NAME)) };
+        // --- track:found end ---
         match profile {
-            Ok(p) => match crate::web_agent::cdp_browser::launch(&p).await {
+            Ok(p) => match crate::web_agent::cdp_browser::launch_in(&p, own).await {
                 Ok(b) => Some(Box::new(b)),
                 Err(e) => {
                     log::warn!("couldn't drive Edge/Chrome, using BYTE's own private browser instead: {e}");
@@ -962,7 +999,15 @@ async fn open_session(app: &tauri::AppHandle, cfg: &crate::browserroutes::Cfg) -
     };
     let browser: Box<dyn crate::web_agent::Browser> = match real {
         Some(b) => b,
-        None => Box::new(crate::web_agent::browser::TauriBrowser::start_with(app, cfg.visible)?),
+        None => {
+            let b = crate::web_agent::browser::TauriBrowser::start_with(app, cfg.visible)?;
+            // --- track:found begin ---
+            if cfg.visible && crate::found::research::opts(Some(app)).await.keep_pages {
+                b.keep_open();
+            }
+            // --- track:found end ---
+            Box::new(b)
+        }
     };
     Ok(crate::web_agent::Session::new(browser, dir).with_max_steps(cfg.max_steps))
     // --- track:browser end ---

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Foundations
+
+- First-run setup offers the PC-control model with the chat model and asks once about each optional feature (`onboarding/FirstRunFeatures.tsx`, `lib/firstRun.ts`).
+- `found/` (Rust): safe mode (`--safe`, forced-off keys held in memory, the settings file keeps the saved values), crash recovery (marker file, panic hook, `crash-last.txt`), "what's new" from `docs/releases/v<version>.md`, "Remove BYTE's data", laptop mode (`GetSystemPowerStatus` behind a trait), the approval popup (`public/approval.html`, Ctrl+Alt+Y/N, spoken yes/no), research that keeps its pages, and the daily summary.
+- Windows uninstaller hook (`src-tauri/windows/hooks.nsh`) removes the startup entry (not during an update).
+- One Never touch list (`screenExcludeApps`) now also guards the PC-control executor.
+- `docs/PRIVACY.md`, help articles 30-37 and matching tutorial lessons.
+
 ## 0.12.6 — Texting from BYTE, and a Messages inbox
 
 - `macctl.rs`: `MessageSend` replaces `MessageDraft` (MESSAGE_SEND: into the known chat id, else iMessage, else SMS;

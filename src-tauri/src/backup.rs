@@ -380,6 +380,9 @@ async fn restart(app: &AppHandle, state: &AppState) -> AppResult<()> {
     for e in state.extras.all().await {
         e.stop().await;
     }
+    // --- track:found begin ---
+    crate::found::crash::clean_exit();
+    // --- track:found end ---
     app.restart();
 }
 

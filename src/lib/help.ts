@@ -51,16 +51,16 @@ export function linkTarget(href: string): { kind: "help"; id: string } | { kind:
 
 /** The help list is grouped by what someone needs; an article not named here lands in "More". */
 export const HELP_SECTIONS: { title: string; ids: string[] }[] = [
-  { title: "Start here", ids: ["getting-started", "guided-help"] },
+  { title: "Start here", ids: ["getting-started", "first-run-setup", "guided-help", "updates-and-uninstalling"] },
   { title: "Chat, research and documents", ids: ["modes-and-web", "files", "documents", "notes", "everyday-helpers", "everyday"] },
   { title: "Talking to BYTE", ids: ["voice", "hey-byte", "interrupting-calls-games", "shortcuts"] },
-  { title: "Controlling your PC", ids: ["mac-control", "pc-control", "browser", "screen", "commands-or-conversation", "planning-accuracy"] },
-  { title: "Models and speed", ids: ["models", "gaming-and-model-memory"] },
-  { title: "Account, privacy and style", ids: ["cloud", "privacy", "personality"] },
+  { title: "Controlling your PC", ids: ["mac-control", "pc-control", "approval-popup", "browser", "research-that-keeps-pages", "screen", "never-touch-list", "commands-or-conversation", "planning-accuracy"] },
+  { title: "Models and speed", ids: ["models", "gaming-and-model-memory", "laptop-mode"] },
+  { title: "Account, privacy and style", ids: ["cloud", "privacy", "what-byte-did", "personality"] },
   // --- track:connect begin ---
   { title: "Chat apps, email and jobs", ids: ["chat-apps-and-email", "discord", "telegram", "slack-and-email", "jobs-and-triggers", "morning-digest"] },
   // --- track:connect end ---
-  { title: "Fixing problems", ids: ["troubleshooting"] },
+  { title: "Fixing problems", ids: ["safe-mode-and-crashes", "troubleshooting"] },
 ];
 
 /** The articles in the order of HELP_SECTIONS, each section with its articles (empty sections left out). */

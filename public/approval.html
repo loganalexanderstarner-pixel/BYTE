@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>BYTE needs a yes or no</title>
+<style>
+  html, body { margin: 0; background: transparent; overflow: hidden; font: 13px "Segoe UI", system-ui, sans-serif; user-select: none; color: #e8ecf4; }
+  #card { box-sizing: border-box; margin: 4px; padding: 12px 14px; height: calc(100vh - 8px); border-radius: 12px; background: rgba(14, 16, 24, 0.96);
+    border: 1px solid #4aa8ff; box-shadow: 0 0 14px rgba(0, 0, 0, 0.55); display: flex; flex-direction: column; gap: 6px; }
+  #head { font-weight: 600; font-size: 12px; color: #aab2c3; display: flex; justify-content: space-between; }
+  #title { font-weight: 600; font-size: 14px; line-height: 1.25; max-height: 3.8em; overflow: hidden; }
+  #lines { color: #c9d0de; font-size: 12px; line-height: 1.35; overflow: hidden; flex: 1; }
+  #lines div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #buttons { display: flex; gap: 8px; align-items: center; }
+  button { font: inherit; font-weight: 600; border: 0; border-radius: 8px; padding: 7px 14px; cursor: pointer; color: #0b0e16; background: #3ddc97; }
+  button.no { background: #3a4152; color: #e8ecf4; }
+  button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  #extra { display: contents; }
+  #hint { margin-left: auto; font-size: 11px; color: #8a93a6; }
+</style>
+</head>
+<body>
+<div id="card" role="alertdialog" aria-labelledby="title" aria-describedby="lines">
+  <div id="head"><span>BYTE needs a yes or no</span><span id="left"></span></div>
+  <div id="title"></div>
+  <div id="lines"></div>
+  <div id="buttons">
+    <button id="yes" type="button">Do it</button>
+    <button id="no" type="button" class="no">Don't</button>
+    <span id="extra"></span>
+    <span id="hint">Ctrl+Alt+Y / Ctrl+Alt+N</span>
+  </div>
+</div>
+<script>
+  var state = null;
+  function invoke(cmd, args) { return window.__TAURI_INTERNALS__.invoke(cmd, args); }
+  function answer(ok) { if (state) invoke("agent_approve", { id: state.id, ok: ok }); }
+  function draw() {
+    if (!state) return;
+    document.getElementById("title").textContent = state.title;
+    var lines = document.getElementById("lines");
+    lines.textContent = "";
+    state.lines.forEach(function (l) { var d = document.createElement("div"); d.textContent = l; lines.appendChild(d); });
+    document.getElementById("left").textContent = (state.more ? state.more + " more waiting · " : "") + state.secondsLeft + " s, then no";
+  }
+  window.refresh = function () { invoke("approval_pop_state").then(function (s) { state = s; draw(); }); };
+  document.getElementById("yes").onclick = function () { answer(true); };
+  document.getElementById("no").onclick = function () { answer(false); };
+  // When the window has the keyboard (it never takes it by itself): Y and N.
+  document.addEventListener("keydown", function (e) {
+    var k = e.key.toLowerCase();
+    if (k === "y") answer(true); else if (k === "n" || k === "escape") answer(false);
+  });
+  setInterval(function () { if (state && state.secondsLeft > 0) { state.secondsLeft -= 1; draw(); } }, 1000);
+  window.refresh();
+</script>
+</body>
+</html>

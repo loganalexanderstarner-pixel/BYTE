@@ -47,7 +47,10 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(paths: Paths) -> Self {
-        let settings = Settings::load(&paths.settings_file);
+        let mut settings = Settings::load(&paths.settings_file);
+        // --- track:found begin --- safe mode holds the optional features off for this run (found/safe.rs)
+        crate::found::safe::apply(&mut settings);
+        // --- track:found end ---
         #[cfg(target_os = "android")]
         crate::cloud::keychain::set_android_dir(paths.root.clone());
         AppState {

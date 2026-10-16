@@ -263,6 +263,22 @@ export interface Settings {
   /** Guided help: a how-to question about the window in front gets an offer to guide or do it. Looks at the screen; off by default. */
   guidedHelp?: boolean;
   /* --- track:control end --- */
+  /* --- track:found begin --- */
+  /** Laptop mode: on battery, pause Hey BYTE listening and the screen replay and suggest a smaller model. Off by default. */
+  laptopMode?: boolean;
+  /** A small always-on-top popup for an approval while BYTE's window is not in front (on by default). */
+  approvalPopup?: boolean;
+  /** Speak the approval question and accept a spoken yes or no (needs Hey BYTE; off by default). */
+  approvalVoice?: boolean;
+  /** Keep the visible BYTE browsing window open after a task, and list the pages as links in the chat (off by default). */
+  browserKeepPages?: boolean;
+  /** Keep researching until the person is back: off, a time limit, or unlimited. */
+  browserResearchUntilBack?: "off" | "15m" | "1h" | "3h" | "8h" | "unlimited";
+  /** Drive the person's own Edge profile instead of BYTE's separate one (strong warning; off by default). */
+  browserOwnEdge?: boolean;
+  /** A short summary of what BYTE did yesterday (counts and times only) in the briefing and Settings. Off by default. */
+  dailySummary?: boolean;
+  /* --- track:found end --- */
 }
 
 export type Workspace = "local" | "cloud" | "both";

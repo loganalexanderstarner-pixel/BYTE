@@ -139,6 +139,11 @@ pub fn apply_shortcuts(app: &AppHandle, s: &Settings) {
 
 /// A global shortcut was pressed.
 pub fn pressed(app: &AppHandle, shortcut: &Shortcut) {
+    // --- track:found begin --- Ctrl+Alt+Y / N while an approval popup is up
+    if crate::found::approval::pressed(app, shortcut) {
+        return;
+    }
+    // --- track:found end ---
     let (quick, sel) = CURRENT.lock().map(|c| *c).unwrap_or((None, None));
     let id = shortcut.id();
     if Some(id) == quick {

@@ -322,7 +322,11 @@ pub async fn run(turn: &Turn<'_>, cancel: &CancellationToken, send: Emit<'_>) ->
         send(ChatEvent::ToolCall { id: id.clone(), name: name.clone(), args: json!({ "query": summary, "what": summary, "app": "BYTE" }) })?;
         send(ChatEvent::ToolResult { id, ok, summary })?;
     }
-    Ok(Some((book, compose(&parts, !topics.is_empty()))))
+    // --- track:found begin --- "what BYTE did yesterday" (off by default)
+    let did = crate::found::summary::briefing_for(&state);
+    let notes = compose(&parts, !topics.is_empty());
+    Ok(Some((book, if did.is_empty() { notes } else { format!("{notes}\n\n{did}") })))
+    // --- track:found end ---
 }
 
 /// Puts it together with nobody watching (the scheduled briefing).
@@ -339,7 +343,12 @@ pub async fn write(state: &AppState) -> Answer {
             merge_events(&mut parts, evs);
         }
     }
-    Answer { content: compose(&parts, !topics.is_empty()), sources: serde_json::to_value(&book.sources).unwrap_or(json!([])), error: None }
+    // --- track:found begin ---
+    let did = crate::found::summary::briefing_for(state);
+    let content = compose(&parts, !topics.is_empty());
+    let content = if did.is_empty() { content } else { format!("{content}\n\n{did}") };
+    // --- track:found end ---
+    Answer { content, sources: serde_json::to_value(&book.sources).unwrap_or(json!([])), error: None }
 }
 
 #[cfg(test)]

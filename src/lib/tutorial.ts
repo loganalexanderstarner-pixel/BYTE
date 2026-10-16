@@ -3,6 +3,9 @@
 import type { Os } from "./platform";
 import { ACCURACY_TUTORIALS } from "./tutorial-accuracy"; // track:accuracy
 import { CONNECT_TUTORIALS } from "./tutorial-connect";
+// --- track:found begin ---
+import { FOUND_TUTORIALS } from "./tutorial-found";
+// --- track:found end ---
 
 export type LinkKind =
   | { kind: "setting"; tab: string; label: string }
@@ -281,6 +284,9 @@ export const TUTORIALS: Tutorial[] = [
   },
   ...ACCURACY_TUTORIALS, // track:accuracy
   ...CONNECT_TUTORIALS, // track:connect
+  // --- track:found begin ---
+  ...FOUND_TUTORIALS,
+  // --- track:found end ---
 ];
 
 // ---------------------------------------------------------------- filtering

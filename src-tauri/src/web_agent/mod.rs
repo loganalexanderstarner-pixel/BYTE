@@ -253,6 +253,9 @@ pub(crate) async fn ask(ask: ApprovalAsk, wait: Duration, cancel: &CancellationT
     }
     let id = ask.id.clone();
     let rx = wait_for(&id);
+    // --- track:found begin --- the on-screen popup (and the spoken question) for this approval; closes when this returns
+    let _popup = crate::found::approval::open(&ask, wait);
+    // --- track:found end ---
     send(ChatEvent::Approval(ask))?;
     let ok = tokio::select! {
         r = rx => r.unwrap_or(false),
@@ -618,6 +621,12 @@ impl Session {
     pub fn max_steps(&self) -> usize {
         self.max_steps
     }
+
+    // --- track:found begin --- "keep researching until I'm back" gives each extra round its own steps
+    pub fn extend_steps(&mut self, n: usize) {
+        self.max_steps = self.max_steps.saturating_add(n);
+    }
+    // --- track:found end ---
 
     /// The page as last read: (title, address, text).
     pub fn last_page(&self) -> Option<(String, String, String)> {

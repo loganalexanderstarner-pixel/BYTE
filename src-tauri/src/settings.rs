@@ -493,6 +493,23 @@ pub struct Settings {
     /// After a stopped run, offer to save what the person did instead as a note.
     pub control_learn: bool,
     // --- track:accuracy end ---
+    // --- track:found begin --- all off by default, device-local (not in the profile sync)
+    /// Laptop mode: on battery, pause "Hey BYTE" listening and the screen replay, and suggest a smaller model (found/power.rs).
+    pub laptop_mode: bool,
+    /// Show a small always-on-top popup for an approval when BYTE's window is not in front (found/approval.rs).
+    pub approval_popup: bool,
+    /// Also speak the approval question and accept a spoken yes or no (needs Hey BYTE on). Off by default.
+    pub approval_voice: bool,
+    /// Keep the visible BYTE browsing window open after a task and list the pages in the chat as links (found/research.rs).
+    pub browser_keep_pages: bool,
+    /// "Keep researching until I'm back": "off" (default), "15m", "1h", "3h", "8h" or "unlimited".
+    #[serde(default = "default_until_back")]
+    pub browser_research_until_back: String,
+    /// Drive the person's own Edge profile instead of BYTE's separate one (strong warning, off by default).
+    pub browser_own_edge: bool,
+    /// A short summary of what BYTE did yesterday (counts and times only), in the briefing and in Settings (found/summary.rs).
+    pub daily_summary: bool,
+    // --- track:found end ---
 }
 
 fn valid_theme(t: &serde_json::Value) -> bool {
@@ -505,6 +522,12 @@ fn valid_theme(t: &serde_json::Value) -> bool {
     let name_ok = t["name"].as_str().is_some_and(|n| !n.trim().is_empty() && n.chars().count() <= 40);
     name_ok && ["bg", "panel", "border", "text", "accent"].iter().all(|k| hex(&t["colors"][*k]))
 }
+
+// --- track:found begin ---
+fn default_until_back() -> String {
+    "off".into()
+}
+// --- track:found end ---
 
 fn default_motion() -> String {
     "auto".into()
@@ -680,6 +703,15 @@ impl Default for Settings {
             control_learn: false,
             // --- track:accuracy end ---
             // --- track:control end ---
+            // --- track:found begin ---
+            laptop_mode: false,
+            approval_popup: true,
+            approval_voice: false,
+            browser_keep_pages: false,
+            browser_research_until_back: default_until_back(),
+            browser_own_edge: false,
+            daily_summary: false,
+            // --- track:found end ---
         }
     }
 }
@@ -699,7 +731,9 @@ impl Settings {
     /// half-written settings file behind.
     pub fn save(&self, path: &Path) -> AppResult<()> {
         let tmp = path.with_extension("json.tmp");
-        std::fs::write(&tmp, serde_json::to_vec_pretty(self)?)?;
+        // --- track:found begin --- in safe mode the file keeps what the person saved (found/safe.rs)
+        std::fs::write(&tmp, serde_json::to_vec_pretty(&crate::found::safe::for_disk(self)?)?)?;
+        // --- track:found end ---
         std::fs::rename(&tmp, path)?;
         Ok(())
     }
