@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 
 import { errorText } from "../../lib/api";
-import { BREAK_MINUTES, FOCUS_MINUTES, READ_SPEEDS, breakLabel, minutesLabel, wakePhraseProblem } from "../../lib/helpers";
+import { BREAK_MINUTES, FOCUS_MINUTES, READ_SPEEDS, SCREENMEM_DAYS, SCREENMEM_EVERY, breakLabel, keepLabel, minutesLabel, wakePhraseProblem } from "../../lib/helpers";
 import type { Settings } from "../../lib/types";
 import { useStore } from "../../state/store";
 
@@ -191,5 +191,82 @@ export function FormProfile() {
       <button className="btn sm" style={{ marginTop: 6 }} onClick={() => void save()}>Save details</button>
       {note && <small role="status" style={{ display: "block" }}>{note}</small>}
     </div>
+  );
+}
+
+interface Hit {
+  id: number;
+  at: number;
+  program: string;
+  title: string;
+  snippet: string;
+}
+
+/** Searchable memory of the screen: how often, how long, extra exclusions, search, and the clear buttons. */
+export function ScreenMemory({ settings, update }: { settings: Settings; update: Update }) {
+  const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<Hit[] | null>(null);
+  const [count, setCount] = useState<number | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [exclude, setExclude] = useState((settings.helperScreenmemExclude ?? []).join("\n"));
+  const every = settings.helperScreenmemEvery ?? 3;
+  const days = settings.helperScreenmemDays ?? 14;
+  const refresh = () => void invoke<number>("screenmem_count").then(setCount, () => undefined);
+  useEffect(refresh, []);
+  const fail = (e: unknown) => setNote(errorText(e));
+  return (
+    <>
+      <div className="field">
+        <span>How often it looks<small>Only while you are at the computer.</small></span>
+        <select aria-label="How often the screen memory looks" value={every} onChange={(e) => void update({ helperScreenmemEvery: Number(e.target.value) })}>
+          {[...new Set([...SCREENMEM_EVERY, every])].sort((a, b) => a - b).map((n) => (
+            <option key={n} value={n}>{n === 1 ? "Every minute" : `Every ${n} minutes`}</option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <span>How long it keeps things<small>Older text is deleted by itself.</small></span>
+        <select aria-label="How long the screen memory keeps text" value={days} onChange={(e) => void update({ helperScreenmemDays: Number(e.target.value) })}>
+          {[...new Set([...SCREENMEM_DAYS, days])].map((n) => (
+            <option key={n} value={n}>{keepLabel(n)}</option>
+          ))}
+        </select>
+      </div>
+      <div className="field" style={{ display: "block" }}>
+        <span>Never remember<small>One per line: part of a program's name or a window's title. This is on top of your never-look-at list.</small></span>
+        <textarea aria-label="Programs and windows the screen memory never reads" rows={3} style={{ width: "100%", marginTop: 6 }} value={exclude} onChange={(e) => setExclude(e.target.value)} onBlur={() => void update({ helperScreenmemExclude: exclude.split(/\r?\n|,/).map((x) => x.trim()).filter(Boolean) })} />
+      </div>
+      <div className="field" style={{ display: "block" }}>
+        <span>Search what was on my screen<small>{count === null ? "" : `${count} saved look${count === 1 ? "" : "s"} (text only).`}</small></span>
+        <div className="row" style={{ gap: 6, marginTop: 6 }}>
+          <input aria-label="Search my screen history" style={{ flex: 1 }} value={query} placeholder="solar panels" onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void invoke<Hit[]>("screenmem_search", { query }).then(setHits, fail)} />
+          <button className="btn sm" onClick={() => void invoke<Hit[]>("screenmem_search", { query }).then(setHits, fail)}>Search</button>
+        </div>
+        {hits && hits.length === 0 && <small>Nothing found.</small>}
+        {hits && hits.length > 0 && (
+          <ul aria-label="Matches">
+            {hits.map((h) => (
+              <li key={h.id}>
+                <strong>{h.title || h.program}</strong> <small>({h.program}, {new Date(h.at).toLocaleString()})</small>
+                <br />
+                <small>{h.snippet}</small>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+          <button className="btn sm" onClick={() => void invoke<number>("screenmem_forget_hour").then((n) => { setNote(`Forgot ${n} look${n === 1 ? "" : "s"} from the last hour.`); refresh(); setHits(null); }, fail)}>Forget the last hour</button>
+          <button
+            className="btn sm"
+            onClick={() => {
+              if (window.confirm("Delete everything BYTE remembers about your screen? This can't be undone.")) void invoke("screenmem_clear").then(() => { setNote("Everything was deleted."); refresh(); setHits(null); }, fail);
+            }}
+          >
+            Clear everything
+          </button>
+        </div>
+        {note && <small role="status" style={{ display: "block" }}>{note}</small>}
+      </div>
+    </>
   );
 }

@@ -31,6 +31,7 @@ pub mod readaloud;
 pub mod recipes;
 pub mod region;
 pub mod rewrite;
+pub mod screenmem;
 pub mod smartpaste;
 pub mod tidy;
 pub mod wakeword;
@@ -148,6 +149,7 @@ pub fn apply(app: &AppHandle, s: &Settings) {
     wakeword::set(&s.helper_wake_phrase);
     dialogs::apply(app, s.helper_dialogs);
     smartpaste::apply(app, s.helper_smart_paste);
+    screenmem::apply(app, s.helper_screenmem && screenmem::supported() && !s.kids_mode);
     explorer::apply(app, s.helper_explorer && explorer::supported() && !s.kids_mode);
     tidy::apply_watch(app, s.helper_tidy && tidy::supported() && !s.kids_mode);
     let tools = pagetools::any_on(s);
@@ -186,6 +188,13 @@ pub fn apply(app: &AppHandle, s: &Settings) {
 /// The tray menu offers "Page tools".
 #[cfg(desktop)]
 static TOOLS_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[cfg(desktop)]
+pub fn set_screenmem_tooltip(app: &AppHandle, on: bool) {
+    if let Some(tray) = app.tray_by_id("byte") {
+        let _ = tray.set_tooltip(Some(if on { "BYTE: remembering the text on your screen (no pictures)" } else { "BYTE" }));
+    }
+}
 
 /// The tray menu offers live captions.
 #[cfg(desktop)]
@@ -378,7 +387,7 @@ mod tests {
     #[test]
     fn every_helper_is_off_by_default_and_the_default_choice_is_local() {
         let s = Settings::default();
-        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate && !s.helper_page && !s.helper_meeting && !s.helper_focus && !s.helper_tidy && !s.helper_recipes && !s.helper_ha && s.helper_ha_url.is_empty() && !s.helper_game && !s.helper_nav && !s.helper_read && !s.helper_captions && !s.helper_pagetools && !s.helper_email && !s.helper_product && !s.helper_form && !s.helper_rewrite && !s.helper_explorer);
+        assert!(!s.helper_region && !s.helper_explain && !s.helper_dialogs && !s.helper_smart_paste && !s.helper_dictate && !s.helper_page && !s.helper_meeting && !s.helper_focus && !s.helper_tidy && !s.helper_recipes && !s.helper_ha && s.helper_ha_url.is_empty() && !s.helper_game && !s.helper_nav && !s.helper_read && !s.helper_captions && !s.helper_pagetools && !s.helper_email && !s.helper_product && !s.helper_form && !s.helper_rewrite && !s.helper_explorer && !s.helper_screenmem);
         assert_eq!(s.helper_ask_where, "local");
         assert!(wanted(&s).is_empty());
     }
@@ -411,7 +420,7 @@ mod tests {
 
     #[test]
     fn settings_are_not_in_the_profile_sync_list() {
-        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys", "helperPage", "helperPageKeys", "helperMeeting", "helperMeetingMinutes", "helperFocus", "helperFocusMinutes", "helperFocusBreak", "helperFocusSpeak", "helperTidy", "helperRecipes", "helperHa", "helperHaUrl", "helperGame", "helperNav", "helperRead", "helperReadKeys", "helperReadSpeed", "helperCaptions", "helperWakePhrase", "helperPagetools", "helperEmail", "helperProduct", "helperForm", "helperRewrite", "helperRewriteKeys", "helperExplorer"] {
+        for k in ["helperAskWhere", "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperRegionKeys", "helperExplainKeys", "helperDictate", "helperDictateKeys", "helperPage", "helperPageKeys", "helperMeeting", "helperMeetingMinutes", "helperFocus", "helperFocusMinutes", "helperFocusBreak", "helperFocusSpeak", "helperTidy", "helperRecipes", "helperHa", "helperHaUrl", "helperGame", "helperNav", "helperRead", "helperReadKeys", "helperReadSpeed", "helperCaptions", "helperWakePhrase", "helperPagetools", "helperEmail", "helperProduct", "helperForm", "helperRewrite", "helperRewriteKeys", "helperExplorer", "helperScreenmem", "helperScreenmemEvery", "helperScreenmemDays", "helperScreenmemExclude"] {
             assert!(!crate::profile_sync::KEYS.iter().any(|(_, setting)| *setting == k), "{k}");
         }
     }

@@ -7,7 +7,7 @@ export const ASK_WHERE: { id: "local" | "cloud" | "auto"; label: string }[] = [
   { id: "cloud", label: "Cloud" },
 ];
 
-type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate" | "helperPage" | "helperMeeting" | "helperFocus" | "helperTidy" | "helperRecipes" | "helperHa" | "helperGame" | "helperNav" | "helperRead" | "helperCaptions" | "helperPagetools" | "helperEmail" | "helperProduct" | "helperForm" | "helperRewrite" | "helperExplorer";
+type Flag = "helperRegion" | "helperExplain" | "helperDialogs" | "helperSmartPaste" | "helperDictate" | "helperPage" | "helperMeeting" | "helperFocus" | "helperTidy" | "helperRecipes" | "helperHa" | "helperGame" | "helperNav" | "helperRead" | "helperCaptions" | "helperPagetools" | "helperEmail" | "helperProduct" | "helperForm" | "helperRewrite" | "helperExplorer" | "helperScreenmem";
 type KeyName = "helperRegionKeys" | "helperExplainKeys" | "helperDictateKeys" | "helperPageKeys" | "helperReadKeys" | "helperRewriteKeys";
 
 export interface HelperRow {
@@ -146,7 +146,21 @@ const ROWS: HelperRow[] = [
     text: "Adds \"Ask BYTE\" to the right-click menu of files for you only; choosing it opens the file attached in a new BYTE chat (nothing is sent until you send it). Turning this off removes the entry. Windows cannot take files dropped on a tray icon, so drop files on the BYTE window instead.",
     windowsOnly: true,
   },
+  {
+    key: "helperScreenmem",
+    title: "Searchable memory of my screen",
+    text: "The most careful helper, so it is last and off until you turn it on. Every few minutes BYTE reads the words of the window in front and keeps only those words (never a picture) on this computer, so you can search \"what was I reading about X?\". Windows on your never-look-at list, password managers, banks, private windows, games and times you are away are skipped; card numbers and keys are blanked. It never leaves this computer and uses no model. You can clear everything at any time.",
+    windowsOnly: true,
+  },
 ];
+
+/** How often it looks, in minutes, and how long it keeps, in days (0 = until you clear it). */
+export const SCREENMEM_EVERY: number[] = [1, 3, 5, 10, 30];
+export const SCREENMEM_DAYS: number[] = [1, 7, 14, 30, 90, 0];
+
+export function keepLabel(days: number): string {
+  return days === 0 ? "Until I clear it" : days === 1 ? "1 day" : `${days} days`;
+}
 
 export const READ_SPEEDS: { id: "slow" | "normal" | "fast"; label: string }[] = [
   { id: "slow", label: "Slow" },

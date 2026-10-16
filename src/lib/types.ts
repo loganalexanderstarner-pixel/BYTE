@@ -103,6 +103,10 @@ export interface Settings {
   helperRewrite?: boolean;
   helperRewriteKeys?: string;
   helperExplorer?: boolean;
+  helperScreenmem?: boolean;
+  helperScreenmemEvery?: number;
+  helperScreenmemDays?: number;
+  helperScreenmemExclude?: string[];
   /* --- track:helpers end --- */
   /** The writing studio (✍️). */
   writingEnabled?: boolean;

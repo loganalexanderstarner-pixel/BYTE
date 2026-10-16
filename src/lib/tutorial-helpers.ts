@@ -233,4 +233,32 @@ export const HELPER_TUTORIALS: Tutorial[] = [
       },
     ],
   },
+  {
+    id: "pc-helpers-memory",
+    title: "Memory of my screen",
+    promise: "Search what you were reading earlier, with full control over what is kept",
+    minutes: 3,
+    icon: "screen",
+    offByDefault: true,
+    os: "windows",
+    steps: [
+      {
+        id: "on",
+        title: "What it is, and turning it on",
+        body: ["Turn on **Searchable memory of my screen** only if you want it. Every few minutes BYTE keeps the **words** of the window in front (never a picture), on this computer only, with no model involved.", "It skips password managers, banks, private windows, games and anything on your never-look-at lists."],
+        links: [S("control", "Open Control and screen"), H("screen-memory", "Read about it")],
+      },
+      {
+        id: "search",
+        title: "Search it",
+        body: ["Type in the search box under the switch, or ask BYTE: \"What was I looking at about solar panels?\" It lists the matches with the time and the window."],
+        example: "What was I looking at about the flight number?",
+      },
+      {
+        id: "clear",
+        title: "Stay in control",
+        body: ["Choose how long it keeps things (or Until I clear it). **Forget the last hour** and **Clear everything** delete text at once. Turning the switch off stops it immediately."],
+      },
+    ],
+  },
 ];

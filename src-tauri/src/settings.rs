@@ -283,6 +283,18 @@ pub struct Settings {
     /// Explorer right-click "Ask BYTE" on files (adds a per-user entry under HKCU).
     #[serde(default)]
     pub helper_explorer: bool,
+    /// Searchable memory of what was on screen: text only, local only, off by default.
+    #[serde(default)]
+    pub helper_screenmem: bool,
+    /// Minutes between looks.
+    #[serde(default = "crate::helpers::screenmem::default_every")]
+    pub helper_screenmem_every: u32,
+    /// Days kept; 0 means until cleared.
+    #[serde(default = "crate::helpers::screenmem::default_days")]
+    pub helper_screenmem_days: u32,
+    /// Programs and window titles this memory never reads (on top of the never-look-at list).
+    #[serde(default)]
+    pub helper_screenmem_exclude: Vec<String>,
     // --- track:helpers end ---
     /// The writing studio (✍️): rewrite, expand, shorten, tone, grammar.
     #[serde(default = "yes")]
@@ -684,6 +696,10 @@ impl Default for Settings {
             helper_rewrite: false,
             helper_rewrite_keys: crate::helpers::rewrite::default_keys(),
             helper_explorer: false,
+            helper_screenmem: false,
+            helper_screenmem_every: crate::helpers::screenmem::default_every(),
+            helper_screenmem_days: crate::helpers::screenmem::default_days(),
+            helper_screenmem_exclude: Vec::new(),
             // --- track:helpers end ---
             writing_enabled: true,
             writing_style: String::new(),
@@ -847,6 +863,7 @@ impl Settings {
             next.helper_read_speed = crate::helpers::readaloud::default_speed();
         }
         next.helper_wake_phrase = if next.helper_wake_phrase.trim().is_empty() { String::new() } else { crate::helpers::wakeword::valid(&next.helper_wake_phrase).unwrap_or_default() };
+        next.helper_screenmem_every = next.helper_screenmem_every.clamp(1, 120);
         if !crate::helpers::dictate::valid_keys(&next.helper_dictate_keys) {
             next.helper_dictate_keys = crate::helpers::dictate::default_keys();
         }

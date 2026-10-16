@@ -57,6 +57,7 @@ All of this is off until you switch it on in Settings, and you can do it by voic
 - **Browser control:** research and fill in pages in a visible window or your own browser, with site rules you set.
 - **Screen questions and a rolling replay:** ask about what is on screen or what just happened in a game. Nothing is sent without your say-so, and a badge shows when it is recording.
 - **Everyday helpers (Windows first):** a region screenshot you drag with a box, "Explain this" for selected text, an error-window helper and a smart copy toast. Each is its own switch, off by default, and answers on your computer unless you choose Cloud.
+- **More everyday helpers (Windows first, each its own switch):** read aloud with highlighting, dictate anywhere, live captions, meeting notes, focus mode, Downloads tidy-up, page tools, fix my writing in place, Explorer "Ask BYTE", Home Assistant lights by voice, and a searchable (text only, local only) memory of your screen.
 - **Guided help:** "Show me as I go" highlights where to click; "Do it for me" does it with your approval.
 - **Routines, system status and backup:** voice routines you add or remove, "how's my PC", and saving and restoring your settings and chats.
 

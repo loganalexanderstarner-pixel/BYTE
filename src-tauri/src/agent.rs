@@ -839,6 +839,9 @@ async fn specialist(
         if let Some(found) = crate::helpers::navigation::try_route(turn, q, cancel, send).await? {
             return Ok(Some(found));
         }
+        if let Some(found) = crate::helpers::screenmem::try_route(turn, q, send).await? {
+            return Ok(Some(found));
+        }
     }
     // --- track:helpers end ---
     Ok(if act && turn.modules.automations && turn.app.is_some() && !writing_only && crate::automations::applies(q) {

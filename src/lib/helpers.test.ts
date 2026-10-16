@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { ASK_WHERE, READ_SPEEDS, wakePhraseProblem, BREAK_MINUTES, FOCUS_MINUTES, MINUTES, breakLabel, defaultHelperKeys, helperKeys, helperRows, minutesLabel } from "./helpers";
+import { ASK_WHERE, SCREENMEM_DAYS, keepLabel, READ_SPEEDS, wakePhraseProblem, BREAK_MINUTES, FOCUS_MINUTES, MINUTES, breakLabel, defaultHelperKeys, helperKeys, helperRows, minutesLabel } from "./helpers";
 
 describe("helper settings rows", () => {
   it("has a row for each helper with its own switch, and Windows-only ones hide elsewhere", () => {
     expect(helperRows(true).map((r) => r.key)).toEqual([
       "helperRegion", "helperExplain", "helperDialogs", "helperSmartPaste", "helperDictate", "helperPage", "helperMeeting", "helperFocus",
       "helperTidy", "helperRecipes", "helperHa", "helperGame", "helperNav", "helperRead", "helperCaptions",
-      "helperPagetools", "helperEmail", "helperProduct", "helperForm", "helperRewrite", "helperExplorer",
+      "helperPagetools", "helperEmail", "helperProduct", "helperForm", "helperRewrite", "helperExplorer", "helperScreenmem",
     ]);
     expect(helperRows(false).map((r) => r.key)).toEqual(["helperExplain", "helperSmartPaste", "helperTidy", "helperHa", "helperRead", "helperRewrite"]);
   });
@@ -48,5 +48,12 @@ describe("helper settings rows", () => {
     expect(wakePhraseProblem("hey 123")).toContain("letters");
     expect(wakePhraseProblem("a".repeat(31))).toContain("too long");
     expect(READ_SPEEDS.map((s) => s.id)).toEqual(["slow", "normal", "fast"]);
+  });
+
+  it("the screen memory keeps for a chosen time with an until-cleared choice", () => {
+    expect(SCREENMEM_DAYS).toContain(0);
+    expect(keepLabel(0)).toBe("Until I clear it");
+    expect(keepLabel(1)).toBe("1 day");
+    expect(keepLabel(14)).toBe("14 days");
   });
 });

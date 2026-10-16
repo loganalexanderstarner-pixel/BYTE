@@ -498,6 +498,10 @@ pub fn run() {
             helpers::ha::ha_test,
             helpers::forms::form_profile_get,
             helpers::forms::form_profile_set,
+            helpers::screenmem::screenmem_search,
+            helpers::screenmem::screenmem_count,
+            helpers::screenmem::screenmem_clear,
+            helpers::screenmem::screenmem_forget_hour,
             // --- track:helpers end ---
             tts::cloud_voices,
             tts::voices_status,
