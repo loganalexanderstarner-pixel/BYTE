@@ -54,6 +54,7 @@ Say "Hey BYTE" and ask. It answers right away in a short, natural voice, can be 
 All of this is off until you switch it on in Settings, and you can do it by voice or by typing:
 
 - **PC control:** open and use apps, change settings, find files and show them in File Explorer, with an approval step and run limits you choose.
+- **Autonomous mode (Windows, off by default):** give BYTE a list of jobs and a run contract (programs, folders, people, time/step/message budgets, never delete, never spend); it works stage by stage with a live view, a stop key, an audit trail and a written morning report. Also: "Approve and don't ask again" rules and "Watch me do this once" to record a routine.
 - **Browser control:** research and fill in pages in a visible window or your own browser, with site rules you set.
 - **Screen questions and a rolling replay:** ask about what is on screen or what just happened in a game. Nothing is sent without your say-so, and a badge shows when it is recording.
 - **Guided help:** "Show me as I go" highlights where to click; "Do it for me" does it with your approval.

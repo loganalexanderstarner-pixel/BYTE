@@ -55,6 +55,7 @@ export const HELP_SECTIONS: { title: string; ids: string[] }[] = [
   { title: "Chat, research and documents", ids: ["modes-and-web", "files", "documents", "notes", "everyday-helpers", "everyday"] },
   { title: "Talking to BYTE", ids: ["voice", "hey-byte", "interrupting-calls-games", "shortcuts"] },
   { title: "Controlling your PC", ids: ["mac-control", "pc-control", "browser", "screen", "commands-or-conversation"] },
+  { title: "Autonomous mode and jobs", ids: ["autonomous-mode", "approve-and-dont-ask-again", "watch-me-do-this-once"] }, // track:autonomy
   { title: "Models and speed", ids: ["models", "gaming-and-model-memory"] },
   { title: "Account, privacy and style", ids: ["cloud", "privacy", "personality"] },
   { title: "Fixing problems", ids: ["troubleshooting"] },

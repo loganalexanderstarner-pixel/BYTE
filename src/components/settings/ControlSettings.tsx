@@ -9,6 +9,12 @@ import { isWindows } from "../../lib/keys";
 import type { Settings } from "../../lib/types";
 import { useStore } from "../../state/store";
 import { RoutinesMenu } from "./RoutinesMenu";
+/* --- track:autonomy begin --- */
+import { AutonomyLevelRow } from "./AutonomyLevelRow";
+import { AutonomousPanel } from "./AutonomousPanel";
+import { MacroRecorderPanel } from "./MacroRecorderPanel";
+import { AuditPanel } from "./AuditPanel";
+/* --- track:autonomy end --- */
 
 /** Settings → Features → PC control (Windows): what BYTE may do on this PC by voice, with which model, and what it did. */
 export function ControlSettings({ settings }: { settings: Settings | null }) {
@@ -163,25 +169,9 @@ export function ControlSettings({ settings }: { settings: Settings | null }) {
             </span>
             <input type="checkbox" checked={settings?.controlConfirmRisky ?? true} onChange={(e) => void update({ controlConfirmRisky: e.target.checked })} aria-label="Ask before risky steps" />
           </label>
-          <label className="field">
-            <span>
-              Never ask, just do it
-              <small>
-                Turns off every approval card for PC control, including shutting down, closing windows and opening files and links. Choose this only when you trust the
-                model that is doing the controlling. BYTE still refuses to run program files (.exe, scripts, installers) and a few dangerous key combinations, never
-                runs in private chats, and the Stop button always works.
-              </small>
-            </span>
-            <input
-              type="checkbox"
-              checked={settings?.controlNeverAsk ?? false}
-              onChange={(e) => {
-                if (e.target.checked && !window.confirm("Turn off every approval card for PC control? BYTE will shut down, close windows and open files and links without asking. Program files are still refused, and Stop always works.")) return;
-                void update({ controlNeverAsk: e.target.checked });
-              }}
-              aria-label="Never ask, just do it"
-            />
-          </label>
+          {/* --- track:autonomy begin --- */}
+          <AutonomyLevelRow settings={settings} />
+          {/* --- track:autonomy end --- */}
 
           <div className="field" style={{ display: "block" }}>
             <span>
@@ -323,6 +313,11 @@ export function ControlSettings({ settings }: { settings: Settings | null }) {
       )}
 
       <RoutinesMenu settings={settings} />
+      {/* --- track:autonomy begin --- */}
+      <MacroRecorderPanel settings={settings} />
+      <AutonomousPanel settings={settings} />
+      <AuditPanel />
+      {/* --- track:autonomy end --- */}
 
       <div className="field" style={{ display: "block" }}>
         <span>

@@ -39,6 +39,7 @@ import { TimersPanel } from "../components/TimersPanel";
 /* --- track:control begin --- */
 import { ControlBanner } from "../components/ControlBanner";
 /* --- track:control end --- */
+import { AutonomyCard } from "../components/chat/AutonomyCard"; // track:autonomy
 /* track:screen */ import { ReplayBadge } from "../components/ReplayBadge";
 
 // Panels opened on demand load on first use, so BYTE starts with less code to read.
@@ -725,6 +726,7 @@ export function Shell() {
         {!kids && <TimersPanel />}
         {/* --- track:control begin --- */}
         {!kids && <ControlBanner />}
+        {!kids && <AutonomyCard />} {/* track:autonomy */}
         {/* --- track:control end --- */}
         {/* track:screen */}<ReplayBadge />
         {newVersion && !kids && (

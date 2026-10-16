@@ -249,6 +249,20 @@ export interface Settings {
   /** Guided help: a how-to question about the window in front gets an offer to guide or do it. Looks at the screen; off by default. */
   guidedHelp?: boolean;
   /* --- track:control end --- */
+  /* --- track:autonomy begin --- */
+  /** How much BYTE asks: "ask" (risky steps), "contract" (only outside a run contract), "never". */
+  controlAutonomy?: "ask" | "contract" | "never";
+  autoMode?: boolean;
+  autoAccepted?: boolean;
+  autoStopKey?: string;
+  autoPauseOnInput?: boolean;
+  autoKeepAwake?: boolean;
+  autoNotify?: boolean;
+  autoSpeakReport?: boolean;
+  /** Stages in one job: "10" | "25" | "50" | "unlimited". */
+  autoMaxStages?: "10" | "25" | "50" | "unlimited";
+  macroRecorder?: boolean;
+  /* --- track:autonomy end --- */
 }
 
 export type Workspace = "local" | "cloud" | "both";
