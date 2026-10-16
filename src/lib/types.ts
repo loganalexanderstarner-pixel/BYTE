@@ -256,6 +256,12 @@ export interface Settings {
   approvalPopup?: boolean;
   /** Speak the approval question and accept a spoken yes or no (needs Hey BYTE; off by default). */
   approvalVoice?: boolean;
+  /** Keep the visible BYTE browsing window open after a task, and list the pages as links in the chat (off by default). */
+  browserKeepPages?: boolean;
+  /** Keep researching until the person is back: off, a time limit, or unlimited. */
+  browserResearchUntilBack?: "off" | "15m" | "1h" | "3h" | "8h" | "unlimited";
+  /** Drive the person's own Edge profile instead of BYTE's separate one (strong warning; off by default). */
+  browserOwnEdge?: boolean;
   /* --- track:found end --- */
 }
 

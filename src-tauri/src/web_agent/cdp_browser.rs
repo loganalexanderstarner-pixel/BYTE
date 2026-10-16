@@ -160,7 +160,23 @@ struct ChildGuard(#[allow(dead_code)] tokio::process::Child);
 
 /// Starts Edge/Chrome with BYTE's own profile and connects to its first tab.
 pub async fn launch(profile: &Path) -> AppResult<CdpBrowser<super::cdp_ws::WsTransport>> {
-    if !is_safe_profile_dir(profile) {
+    launch_in(profile, false).await
+}
+
+// --- track:found begin ---
+/// Edge's own profile folder (what the person uses every day), for the opt-in "use my own Edge profile". None off Windows.
+pub fn own_profile_dir() -> Option<PathBuf> {
+    if !cfg!(windows) {
+        return None;
+    }
+    std::env::var_os("LocalAppData").map(|b| PathBuf::from(b).join("Microsoft/Edge/User Data"))
+}
+// --- track:found end ---
+
+/// `own`: the folder is the person's own browser profile (never without their explicit opt-in). Newer Edge versions refuse remote control of
+/// their everyday profile; then this fails with the usual "didn't open its debugging port" message and BYTE falls back to its own profile.
+pub async fn launch_in(profile: &Path, own: bool) -> AppResult<CdpBrowser<super::cdp_ws::WsTransport>> {
+    if !own && !is_safe_profile_dir(profile) {
         return Err(AppError::msg("BYTE will only use its own browser profile folder"));
     }
     let exe = find_browser().ok_or_else(|| AppError::msg("Edge or Chrome isn't installed (looked in the usual places)"))?;

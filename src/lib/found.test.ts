@@ -55,3 +55,17 @@ describe("laptop mode", () => {
     expect(batteryBadgeText({ onBattery: true, laptopMode: false, paused: [] })).toBe("");
   });
 });
+
+import { OWN_EDGE_WARNING, UNTIL_BACK_CHOICES } from "./found";
+
+describe("browser research choices", () => {
+  it("has an Unlimited choice and starts at Off", () => {
+    expect(UNTIL_BACK_CHOICES[0].value).toBe("off");
+    expect(UNTIL_BACK_CHOICES.some((c) => c.value === "unlimited")).toBe(true);
+    expect(new Set(UNTIL_BACK_CHOICES.map((c) => c.value)).size).toBe(UNTIL_BACK_CHOICES.length);
+  });
+  it("warns plainly about the own-profile choice", () => {
+    expect(OWN_EDGE_WARNING).toMatch(/everyday profile/);
+    expect(OWN_EDGE_WARNING).toMatch(/never types passwords/);
+  });
+});

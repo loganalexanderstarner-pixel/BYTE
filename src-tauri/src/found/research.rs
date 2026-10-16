@@ -187,6 +187,13 @@ pub async fn opts(app: Option<&tauri::AppHandle>) -> Opts {
     }
 }
 
+/// The opt-in "use my own Edge profile" (never in a private chat).
+pub async fn use_own_edge(app: &tauri::AppHandle) -> bool {
+    use tauri::Manager;
+    let private = crate::browserroutes::PRIVATE.try_with(|p| *p).unwrap_or(false);
+    !private && app.state::<crate::state::AppState>().settings.lock().await.browser_own_edge
+}
+
 /// Most pages from the extra rounds that go into the notes for the model (the rest are still listed as links).
 const MAX_EXTRA_NOTES: usize = 8;
 

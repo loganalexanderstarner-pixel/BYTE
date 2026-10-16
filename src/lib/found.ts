@@ -115,3 +115,17 @@ export function batteryBadgeText(p: PowerStatus): string {
   if (!p.laptopMode || !p.onBattery) return "";
   return p.paused.length ? `On battery: ${p.paused.join(" and ")} paused` : "On battery";
 }
+
+/** The choices for "keep researching until I'm back". Unlimited is one of them. */
+export const UNTIL_BACK_CHOICES: { value: NonNullable<import("./types").Settings["browserResearchUntilBack"]>; label: string }[] = [
+  { value: "off", label: "Off" },
+  { value: "15m", label: "15 minutes" },
+  { value: "1h", label: "1 hour" },
+  { value: "3h", label: "3 hours" },
+  { value: "8h", label: "8 hours" },
+  { value: "unlimited", label: "Unlimited" },
+];
+
+export const OWN_EDGE_WARNING =
+  "Use your own Edge profile?\n\nBYTE would open Edge with YOUR everyday profile: the sites you are signed in to, your saved logins and your history. Pages BYTE opens can use those sign-ins, and what BYTE reads there is visible to BYTE.\n\n" +
+  "BYTE still asks before it submits, buys, sends, deletes or downloads anything, never types passwords or card numbers, and blocks banking sites. Close Edge first. Newer Edge versions may refuse to be controlled this way; BYTE then uses its own separate profile instead.\n\nTurn this on only if you understand this.";
