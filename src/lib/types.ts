@@ -320,6 +320,8 @@ export interface Settings {
   browserOwnEdge?: boolean;
   /** A short summary of what BYTE did yesterday (counts and times only) in the briefing and Settings. Off by default. */
   dailySummary?: boolean;
+  /** When a keep-researching job ends, close its Edge tabs instead of leaving them open (off by default). */
+  browserCloseTabsWhenBack?: boolean;
   /* --- track:found end --- */
   /* --- track:autonomy begin --- */
   /** How much BYTE asks: "ask" (risky steps), "contract" (only outside a run contract), "never". */

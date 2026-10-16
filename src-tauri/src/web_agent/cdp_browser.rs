@@ -173,16 +173,26 @@ pub fn own_profile_dir() -> Option<PathBuf> {
 }
 // --- track:found end ---
 
-/// `own`: the folder is the person's own browser profile (never without their explicit opt-in). Newer Edge versions refuse remote control of
-/// their everyday profile; then this fails with the usual "didn't open its debugging port" message and BYTE falls back to its own profile.
-pub async fn launch_in(profile: &Path, own: bool) -> AppResult<CdpBrowser<super::cdp_ws::WsTransport>> {
+// --- track:found begin --- the start-up, shared by the single-page mode and the live research tabs (cdp_tabs.rs)
+/// A started browser: the process, its debugging port (127.0.0.1 only), the program and the address of its first tab.
+pub struct Started {
+    pub child: tokio::process::Child,
+    pub port: u16,
+    pub exe: PathBuf,
+    pub page_path: String,
+    /// The `Browser` line of `/json/version`, already checked to be Chrome or Edge.
+    pub product: String,
+}
+
+/// Starts the program with a debugging port and waits for it to answer. `own`: the folder is the person's own browser profile.
+pub async fn start_browser(profile: &Path, own: bool) -> AppResult<Started> {
     if !own && !is_safe_profile_dir(profile) {
         return Err(AppError::msg("BYTE will only use its own browser profile folder"));
     }
     let exe = find_browser().ok_or_else(|| AppError::msg("Edge or Chrome isn't installed (looked in the usual places)"))?;
     std::fs::create_dir_all(profile)?;
     let port = free_port()?;
-    let child = tokio::process::Command::new(&exe)
+    let mut child = tokio::process::Command::new(&exe)
         .args(launch_args(port, profile))
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
@@ -190,7 +200,6 @@ pub async fn launch_in(profile: &Path, own: bool) -> AppResult<CdpBrowser<super:
         .kill_on_drop(true)
         .spawn()
         .map_err(|e| AppError::msg(format!("couldn't start the browser: {e}")))?;
-    let mut child = child;
     // Wait until it answers on its debugging port, and only trust a Chromium that says so.
     let mut path = None;
     for _ in 0..100 {
@@ -206,14 +215,22 @@ pub async fn launch_in(profile: &Path, own: bool) -> AppResult<CdpBrowser<super:
             }
         }
     }
-    let path = path.ok_or_else(|| AppError::msg("the browser didn't open its debugging port in time (a copy that is already open on BYTE's profile folder can swallow the start)"))?;
-    let guard = ChildGuard(child);
+    let page_path = path.ok_or_else(|| AppError::msg("the browser didn't open its debugging port in time (a copy that is already open on BYTE's profile folder can swallow the start)"))?;
     let version = super::cdp_ws::http_get_json(port, "/json/version").await?;
-    let product = version["Browser"].as_str().unwrap_or("");
+    let product = version["Browser"].as_str().unwrap_or("").to_string();
     if !(product.starts_with("Chrome/") || product.starts_with("Edg/") || product.starts_with("HeadlessChrome/")) {
         return Err(AppError::msg("what answered on the debugging port isn't Edge or Chrome"));
     }
-    let ws = super::cdp_ws::WsTransport::connect(port, &path).await?;
+    Ok(Started { child, port, exe, page_path, product })
+}
+// --- track:found end ---
+
+/// `own`: the folder is the person's own browser profile (never without their explicit opt-in). Newer Edge versions refuse remote control of
+/// their everyday profile; then this fails with the usual "didn't open its debugging port" message and BYTE falls back to its own profile.
+pub async fn launch_in(profile: &Path, own: bool) -> AppResult<CdpBrowser<super::cdp_ws::WsTransport>> {
+    let Started { child, port, page_path, .. } = start_browser(profile, own).await?;
+    let guard = ChildGuard(child);
+    let ws = super::cdp_ws::WsTransport::connect(port, &page_path).await?;
     let b = CdpBrowser::new(ws, Timing::REAL, Some(Box::new(guard)));
     b.init().await;
     Ok(b)

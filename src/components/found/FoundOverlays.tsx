@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { errorText, inTauri } from "../../lib/api";
 import { listen } from "@tauri-apps/api/event";
+import { liveLine, researchLive, type LiveResearch } from "../../lib/researchLive";
 import { useStore } from "../../state/store";
 import { renderMarkdown } from "../../lib/markdown";
 import { batteryBadgeText, crashApi, crashCardText, foundApi, powerApi, smallerModel, type PowerStatus, safeBannerText, whatsNewApi, whatsNewParts, type CrashFound, type SafeStatus, type WhatsNew } from "../../lib/found";
@@ -168,6 +169,27 @@ function BatteryBadge() {
   );
 }
 
+/** While a "keep researching" job runs: what it is doing, the "I'm back" button and Stop. */
+function LiveResearchCard() {
+  const [l, setL] = useState<LiveResearch | null>(null);
+  const stop = useStore((s) => s.stop);
+  useEffect(() => {
+    return researchLive.watch(setL);
+  }, []);
+  if (!l) return null;
+  return (
+    <div className="banner live-research" role="status" aria-live="polite" style={{ flexWrap: "wrap" }}>
+      <span className="grow">{liveLine(l)} Say or type “I'm back” when you are.</span>
+      <button className="btn sm primary" onClick={() => void researchLive.back()}>
+        I'm back
+      </button>
+      <button className="btn sm" onClick={() => stop()}>
+        Stop
+      </button>
+    </div>
+  );
+}
+
 /** Everything the foundations track shows over the app: one mount point in the shell. */
 export function FoundOverlays() {
   return (
@@ -176,6 +198,7 @@ export function FoundOverlays() {
       <CrashRecoveryCard />
       <WhatsNewCard />
       <BatteryBadge />
+      <LiveResearchCard />
     </>
   );
 }

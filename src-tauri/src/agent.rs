@@ -339,7 +339,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     // --- track:browser end ---
     let mut session = match turn.app {
         // A phone has no second (hidden) browser window, so "go to … and …" is answered with search and page reading.
-        Some(app) if !cfg!(mobile) && turn.web && turn.agent && (turn.task == Some(Task::Browse) || crate::web_agent::wants_web_agent(&question) || research.is_some()) => Some(open_session(app, &bcfg).await?),
+        Some(app) if !cfg!(mobile) && turn.web && turn.agent && (turn.task == Some(Task::Browse) || crate::web_agent::wants_web_agent(&question) || research.is_some()) => Some(open_session(app, &bcfg, research.is_some()).await?),
         _ => None,
     };
     let mut specs = match &session {
@@ -522,7 +522,7 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
             // --- track:found begin --- "keep researching until I'm back" (off by default)
             let kept = crate::found::research::opts(turn.app).await;
             if kept.until_back != crate::found::research::Limit::Off {
-                notes.push_str(&crate::found::research::continue_research(&turn, &r.topic, kept.until_back, &crate::found::research::SystemIdle, s, &mut book, &cancel, &send).await?);
+                notes.push_str(&crate::found::research::continue_research(&turn, &r.topic, kept, &crate::found::research::SystemIdle, s, &mut book, &cancel, &send).await?);
             }
             // --- track:found end ---
             push_tool_exchange(&mut messages, "byte_research_notes", "research_pages", &json!({ "topic": r.topic }), notes);
@@ -990,12 +990,32 @@ the answer from these notes (cite them as [n]; no need to search again):\n\n{}",
 }
 
 /// Opens the web agent's browser; files go to Downloads/BYTE.
-async fn open_session(app: &tauri::AppHandle, cfg: &crate::browserroutes::Cfg) -> AppResult<crate::web_agent::Session> {
+async fn open_session(app: &tauri::AppHandle, cfg: &crate::browserroutes::Cfg, research: bool) -> AppResult<crate::web_agent::Session> {
     use tauri::Manager;
     let downloads = app.path().download_dir().or_else(|_| app.path().home_dir().map(|h| h.join("Downloads")));
     let dir = downloads.map(|d| d.join("BYTE")).map_err(|e| AppError::msg(format!("couldn't find the Downloads folder: {e}")))?;
     // --- track:browser begin --- the person's Edge/Chrome (own profile folder) when they chose that, else BYTE's private window (shown when "Watch BYTE browse" is on)
-    let real: Option<Box<dyn crate::web_agent::Browser>> = if cfg.drive_real {
+    // --- track:found begin --- a research job that runs "until I'm back": a visible Edge with a real tab per page, port open only for the job
+    let live: Option<Box<dyn crate::web_agent::Browser>> = if research && cfg!(windows) && crate::found::research::opts(Some(app)).await.until_back != crate::found::research::Limit::Off {
+        let own = crate::found::research::use_own_edge(app).await;
+        let profile = if own { crate::web_agent::cdp_browser::own_profile_dir().ok_or(tauri::Error::UnknownPath) } else { app.path().app_data_dir().map(|d| d.join(crate::web_agent::cdp_browser::PROFILE_NAME)) };
+        match profile {
+            Ok(p) => match crate::web_agent::cdp_tabs::launch(&p, own).await {
+                Ok(b) => Some(Box::new(b)),
+                Err(e) => {
+                    log::warn!("couldn't start the live research tabs, using the usual browser instead: {e}");
+                    None
+                }
+            },
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
+    // --- track:found end ---
+    let real: Option<Box<dyn crate::web_agent::Browser>> = if live.is_some() {
+        live
+    } else if cfg.drive_real {
         // --- track:found begin --- the person's own Edge profile, only when they chose that (Settings, with its warning)
         let own = crate::found::research::use_own_edge(app).await;
         let profile = if own { crate::web_agent::cdp_browser::own_profile_dir().ok_or(tauri::Error::UnknownPath) } else { app.path().app_data_dir().map(|d| d.join(crate::web_agent::cdp_browser::PROFILE_NAME)) };

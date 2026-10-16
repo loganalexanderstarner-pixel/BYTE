@@ -192,7 +192,17 @@ pub struct WsTransport {
 impl WsTransport {
     /// Connects to `ws://127.0.0.1:<port><path>` (the page address the browser itself reported).
     pub async fn connect(port: u16, path: &str) -> AppResult<WsTransport> {
-        let own_target = path.rsplit('/').next().unwrap_or("").to_string();
+        Self::connect_as(port, path, None).await
+    }
+
+    // --- track:found begin --- a tab of the live research job: other pages are left alone (`cdp::ANY_TAB`)
+    pub async fn connect_tab(port: u16, path: &str) -> AppResult<WsTransport> {
+        Self::connect_as(port, path, Some(super::cdp::ANY_TAB)).await
+    }
+    // --- track:found end ---
+
+    async fn connect_as(port: u16, path: &str, own: Option<&str>) -> AppResult<WsTransport> {
+        let own_target = own.map(str::to_string).unwrap_or_else(|| path.rsplit('/').next().unwrap_or("").to_string());
         let mut s = tokio::time::timeout(Duration::from_secs(5), TcpStream::connect(("127.0.0.1", port))).await.map_err(|_| AppError::msg("couldn't connect to the browser"))??;
         use base64::Engine;
         let key = base64::engine::general_purpose::STANDARD.encode(random_bytes::<16>());

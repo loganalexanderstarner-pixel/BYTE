@@ -41,7 +41,7 @@ All of these are off until you switch them on.
 | **Guided help** | Reads the front window while a guide runs and rings each button in turn, or does it for you | Not kept |
 | **Browser** | Opens pages in a window you can watch and reads them. Follows your site lists. Blocks banking sites. Asks before it submits, buys, sends, deletes or downloads | Address and kind of step in the activity log |
 | **Keep the pages BYTE opened** | Leaves the browsing window open and adds the list of pages to the chat as links | The links are saved in that chat |
-| **Keep researching until I'm back** | Goes on searching and reading more pages while you are away; stops when you are back, at the limit you chose, or on Stop | Same as the browser |
+| **Keep researching until I'm back** | Goes on searching and reading more pages in a visible Edge window, one new tab per page, until you say "I'm back", press Stop, or the limit you chose ends. Edge's debugging port (127.0.0.1 only, random number) is open only while the job runs | Same as the browser |
 | **Use my own Edge profile** | Lets the browser feature use your everyday Edge with your sign-ins, instead of BYTE's separate profile. Strong warning, off by default | Same as the browser |
 | **Laptop mode** | Asks the system whether you are on battery, to pause listening and the replay | Nothing |
 | **Daily "what BYTE did" summary** | Counts and times from BYTE's own activity logs | Built on your device |

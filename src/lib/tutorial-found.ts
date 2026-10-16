@@ -85,7 +85,8 @@ export const FOUND_TUTORIALS: Tutorial[] = [
     steps: [
       { id: "keep", title: "Keep the pages (off by default)", body: ["Turn on Keep the pages BYTE opened for me, together with Watch BYTE browse. BYTE's window stays open after the task and the chat gets a list of the pages as links."], links: [S("control", "Open Control and screen")] },
       { id: "summarise", title: "Summarise what you read", body: ["Later, in the same chat, ask BYTE to summarise what it read. It opens the saved links again and answers from them."], example: "Summarise what you read." },
-      { id: "away", title: "Keep researching until I'm back (off by default)", body: ["Choose a time limit, or Unlimited. BYTE goes on with more searches while you are away and stops when you are back, at the limit, or when you press Stop."] },
+      { id: "away", title: "Keep researching until I'm back (off by default)", body: ["Choose a time limit, or Unlimited. BYTE opens a visible Edge window and reads each page in its own new tab, so you can watch them appear.", "It stops when you say I'm back, press Stop, or the time runs out. A live card has an I'm back button."], example: "I'm back" },
+      { id: "after", title: "When you come back", body: ["Say or type I'm back, or press the button. BYTE writes the summary and leaves the pages open in a normal Edge window. Turn on Close the tabs when I'm back to close them instead.", "The debugging port Edge needs for this is open only while the job runs."] },
       { id: "edge", title: "Your own Edge profile (strong warning)", body: ["BYTE normally uses a separate profile with none of your logins. You can choose to use your own Edge profile instead. Do that only if you understand that BYTE can then see the sites you are signed in to. It still asks before submitting or buying."], links: [H("research-that-keeps-pages", "Read about research that keeps its pages")] },
     ],
   },

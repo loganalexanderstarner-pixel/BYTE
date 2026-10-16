@@ -15,6 +15,9 @@ pub mod browser;
 // --- track:browser begin --- the real-browser mode (DevTools protocol)
 pub mod cdp;
 pub mod cdp_browser;
+// --- track:found begin ---
+pub mod cdp_tabs;
+// --- track:found end ---
 pub mod cdp_ws;
 // --- track:browser end ---
 #[cfg(target_os = "macos")]
@@ -190,6 +193,17 @@ pub trait Browser: Send + Sync {
         false
     }
     // --- track:browser end ---
+    // --- track:found begin --- the live research job in real tabs (cdp_tabs.rs)
+    /// True for the browser that opens each page in a new real tab for a research job.
+    fn live_tabs(&self) -> bool {
+        false
+    }
+    /// The job is over: detach the controller and close the debugging port. `close_tabs`: also close the pages; otherwise they are
+    /// reopened in a normal window without any debugging port.
+    fn finish_job(&self, _close_tabs: bool) -> BoxFuture<'_, ()> {
+        Box::pin(async {})
+    }
+    // --- track:found end ---
     /// Saves the current page as a PDF, picture or web archive (macOS).
     fn capture(&self, kind: Capture) -> BoxFuture<'_, AppResult<Vec<u8>>>;
 }
@@ -621,6 +635,16 @@ impl Session {
     pub fn max_steps(&self) -> usize {
         self.max_steps
     }
+
+    // --- track:found begin --- live research tabs
+    pub fn live_tabs(&self) -> bool {
+        self.browser.live_tabs()
+    }
+
+    pub async fn finish_job(&self, close_tabs: bool) {
+        self.browser.finish_job(close_tabs).await
+    }
+    // --- track:found end ---
 
     // --- track:found begin --- "keep researching until I'm back" gives each extra round its own steps
     pub fn extend_steps(&mut self, n: usize) {
