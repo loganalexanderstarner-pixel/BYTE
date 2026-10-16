@@ -202,11 +202,11 @@ mod tests {
 
     #[test]
     fn the_windows_uninstaller_removes_the_startup_entry_but_not_during_an_update() {
+        // The hook file sits next to src/; a copy of only src/ (the Windows test sync) has no such file.
+        let Ok(hooks) = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/windows/hooks.nsh")) else { return };
         let Ok(text) = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tauri.windows.conf.json")) else { return };
         let conf: serde_json::Value = serde_json::from_str(&text).unwrap();
         assert_eq!(conf["bundle"]["windows"]["nsis"]["installerHooks"], "./windows/hooks.nsh");
-        // The hook file sits next to src/; a copy of only src/ (the Windows test sync) has no such file.
-        let Ok(hooks) = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/windows/hooks.nsh")) else { return };
         assert!(hooks.contains("NSIS_HOOK_POSTUNINSTALL") && hooks.contains("DeleteRegValue HKCU") && hooks.contains("\\Run\" \"BYTE\""));
         assert!(hooks.contains("$UpdateMode <> 1"), "an update must keep the startup entry");
     }
