@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde::Serialize;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::error::{AppError, AppResult};
 use crate::models::{self, ModelFile, Variant};
@@ -395,6 +395,26 @@ pub async fn voice_download(app: AppHandle, state: State<'_, AppState>, id: Stri
     let d = dir(&state.paths.models);
     std::fs::create_dir_all(&d)?;
     state.downloads.start(app, state.net.clone(), d, REPO.into(), variant(m), key(m)).await
+}
+
+/// "Hey BYTE" checks short bursts on the small English model; with only a big one installed it would run that on the processor for
+/// every burst (about 3 s each). When the small one is missing, fetch it in the background (about 148 MB, once).
+pub fn ensure_wake_model(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let state = app.state::<AppState>();
+        let Some(m) = find("base-en") else { return };
+        let d = dir(&state.paths.models);
+        if installed(&d, m) {
+            return;
+        }
+        log::info!("Hey BYTE: fetching the small speech model for quick wake checks");
+        if std::fs::create_dir_all(&d).is_ok() {
+            if let Err(e) = state.downloads.start(app.clone(), state.net.clone(), d, REPO.into(), variant(m), key(m)).await {
+                log::warn!("Hey BYTE: could not fetch the small speech model: {e}");
+            }
+        }
+    });
 }
 
 #[tauri::command]
