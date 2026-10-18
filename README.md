@@ -49,7 +49,7 @@ Every feature is a module you can turn off, and anything that listens, looks at 
 
 ### Hey BYTE (Windows, with Mac and Android following)
 
-Say "Hey BYTE" and ask. It answers right away in a short, natural voice, can be interrupted by talking over it, and follows the person who said the wake phrase. It also handles timers, notes, "where did I leave off", translation, reading aloud and spoken download notices. Talk styles: Casual, Direct, Unhinged and Auto. It stays quiet during calls and games, and is never on in private chats or kids mode.
+Say "Hey BYTE" and ask. It answers right away in a short, natural voice, can be interrupted by talking over it (with ordinary speakers too: on Windows BYTE removes its own voice from the microphone using a copy of what the speakers play, and "Hey BYTE" works while it speaks), and follows the person who said the wake phrase. It also handles timers, notes, "where did I leave off", translation, reading aloud and spoken download notices. Talk styles: Casual, Direct, Unhinged and Auto. It stays quiet during calls and games, and is never on in private chats or kids mode.
 
 ### Controlling the PC (Windows)
 

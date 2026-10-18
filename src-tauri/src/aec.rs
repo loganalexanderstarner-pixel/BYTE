@@ -12,8 +12,8 @@
 //! 3. `stats`: counters for the Test log (overruns, stream errors, restarts, reference gaps).
 //!
 //! The Windows loopback (`loopback`) captures the default output device through WASAPI via cpal (an input stream built on an
-//! output device is a loopback capture there). See STATUS notes in docs/HEY-BYTE-ASSISTANT.md for why this route was picked over the
-//! Windows echo-cancelling capture effect and the Voice Capture DSP.
+//! output device is a loopback capture there). It was chosen over the Windows echo-cancelling capture effect and the Voice Capture DSP
+//! because it needs no new Windows bindings, gives the reference with exact timing, and keeps one code path for the offline tests.
 
 #![cfg_attr(not(any(target_os = "macos", windows)), allow(dead_code))]
 
