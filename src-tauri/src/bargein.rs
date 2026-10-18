@@ -29,7 +29,7 @@ pub const FRAME: usize = RATE * 30 / 1000;
 /// Sustained speech this long ducks BYTE's volume at once.
 pub const DUCK_MS: u32 = 300;
 /// Sustained speech this long stops BYTE.
-pub const STOP_MS: u32 = 450;
+pub const STOP_MS: u32 = 390;
 /// Quiet this long inside a stretch of speech (between words) does not end it.
 pub const GAP_MS: u32 = 90;
 /// BYTE's volume while ducked (share of normal).
@@ -39,8 +39,10 @@ pub const HEADPHONES_MIN: f32 = 0.008;
 pub const HEADPHONES_FLOOR_X: f32 = 3.0;
 /// Speakers mode: stricter. The frame must also be this share of the echo level the canceller predicts.
 pub const SPEAKERS_MIN: f32 = 0.02;
-pub const SPEAKERS_FLOOR_X: f32 = 4.0;
+pub const SPEAKERS_FLOOR_X: f32 = 2.5;
 pub const SPEAKERS_ECHO_SHARE: f32 = 0.5;
+/// The speech threshold sits this many times above the echo the room measurably leaves behind (never below 0.2 or above `SPEAKERS_ECHO_SHARE` of the predicted echo).
+pub const ECHO_SAFETY: f32 = 1.8;
 /// How much audio before the stop is handed to the next turn (so that its first words are not lost): 1.5 s.
 pub const SEED_MS: usize = 1500;
 
@@ -157,6 +159,10 @@ impl Detector {
 
 /// The running side: the canceller, the detector and a short memory of what was said, fed by the wake listener's loop.
 pub struct Barge {
+    source: Box<dyn crate::aec::ReferenceSource>,
+    /// Speech bursts in the cleaned signal while BYTE talks: the listener checks them for the wake phrase (a spoken "Hey BYTE" over BYTE).
+    wake_vad: crate::wake::Vad,
+    bursts: Vec<Vec<f32>>,
     canceller: EchoCanceller,
     det: Detector,
     ring: VecDeque<f32>,
@@ -167,17 +173,38 @@ pub struct Barge {
 
 impl Default for Barge {
     fn default() -> Self {
-        Barge { canceller: EchoCanceller::new(), det: Detector::new(Mode::Headphones), ring: VecDeque::new(), generation: 0, active: false, mode: Mode::Headphones }
+        Barge::with_source(Box::new(crate::aec::LiveSource::default()))
     }
 }
 
 impl Barge {
+    pub fn with_source(source: Box<dyn crate::aec::ReferenceSource>) -> Self {
+        Barge {
+            source,
+            wake_vad: crate::wake::Vad::default(),
+            bursts: vec![],
+            canceller: EchoCanceller::new(),
+            det: Detector::new(Mode::Headphones),
+            ring: VecDeque::new(),
+            generation: 0,
+            active: false,
+            mode: Mode::Headphones,
+        }
+    }
+
+    /// The speech bursts heard in the cleaned signal since the last call (to be checked for the wake phrase).
+    pub fn take_bursts(&mut self) -> Vec<Vec<f32>> {
+        std::mem::take(&mut self.bursts)
+    }
+
     /// BYTE is not speaking (any more): everything goes back to normal.
     pub fn idle(&mut self) {
         if self.active {
             self.active = false;
             self.det.reset();
             self.ring.clear();
+            self.bursts.clear();
+            self.wake_vad = crate::wake::Vad::default();
             echo::set_duck(1.0);
         }
     }
@@ -200,13 +227,18 @@ impl Barge {
                 tlog(|| "no decision: the speaker reference was not recorded in time".into());
                 return None;
             }
-            let (reference, gen) = echo::tap_reference(mic_pos, mic.len());
+            let Some((reference, gen)) = self.source.reference(mic_pos, mic.len()) else {
+                tlog(|| "no decision: there is no speaker reference".into());
+                return None;
+            };
             if gen != self.generation {
                 self.generation = gen;
                 self.canceller.begin_session();
             }
             let r = self.canceller.process(mic, &reference);
-            (r, self.canceller.echo_rms(), self.canceller.ready())
+            // The leftover echo is judged by what this room really leaves (measured), not by a fixed share of the predicted echo.
+            let share = (ECHO_SAFETY * self.canceller.leftover_share()).clamp(0.2, SPEAKERS_ECHO_SHARE);
+            (r, self.canceller.echo_rms() * share / SPEAKERS_ECHO_SHARE, self.canceller.settled())
         } else {
             (mic.to_vec(), 0.0, true)
         };
@@ -217,13 +249,21 @@ impl Barge {
         }
         // Until the canceller knows the delay its output is still the raw microphone, full of BYTE's own voice: no decisions yet.
         if !usable {
-            tlog(|| "no decision yet: the echo canceller is still finding the delay".into());
+            tlog(|| "no decision yet: the echo canceller is still finding the delay and learning the room".into());
             return None;
         }
         tlog(|| {
             let r = (residual.iter().map(|v| v * v).sum::<f32>() / residual.len().max(1) as f32).sqrt();
             format!("mode {:?}: voice level {:.4}, BYTE's own echo {:.4}, needs above {:.4}", self.mode, r, echo_rms, self.det.threshold(echo_rms))
         });
+        // The same burst detector as the idle listener, on the cleaned signal: "Hey BYTE" said over BYTE ends in a burst the listener checks.
+        // Only chunks that stand out from the leftover echo go in, so the echo that is left over is never sent for a wake check.
+        let level = (residual.iter().map(|v| v * v).sum::<f32>() / residual.len().max(1) as f32).sqrt();
+        if level > self.det.threshold(echo_rms) {
+            self.bursts.extend(self.wake_vad.feed(&residual));
+        } else {
+            self.bursts.extend(self.wake_vad.feed(&vec![0.0; residual.len()]));
+        }
         for a in self.det.feed(&residual, echo_rms) {
             match a {
                 Action::Duck => {
@@ -295,12 +335,12 @@ mod tests {
     fn sustained_speech_ducks_then_stops() {
         let mut d = Detector::new(Mode::Headphones);
         let mut audio = quiet(300);
-        audio.extend(tone(700, 0.2));
+        audio.extend(tone(600, 0.2));
         assert_eq!(run(&mut d, &audio, 0.0), vec![Action::Duck, Action::Stop]);
     }
 
     #[test]
-    fn timing_is_about_300_and_450_ms() {
+    fn timing_is_about_300_and_390_ms() {
         let mut d = Detector::new(Mode::Headphones);
         // 240 ms of speech: nothing yet.
         assert!(run(&mut d, &tone(240, 0.2), 0.0).is_empty());
@@ -316,8 +356,8 @@ mod tests {
         let mut audio = tone(150, 0.2);
         audio.extend(quiet(500));
         assert!(run(&mut d, &audio, 0.0).is_empty());
-        // 360 ms of speech ducks, then it stops: the volume comes back.
-        let mut audio = tone(360, 0.2);
+        // 330 ms of speech ducks, then it stops: the volume comes back.
+        let mut audio = tone(330, 0.2);
         audio.extend(quiet(400));
         assert_eq!(run(&mut d, &audio, 0.0), vec![Action::Duck, Action::Restore]);
     }

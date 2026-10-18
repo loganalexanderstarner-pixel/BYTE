@@ -209,6 +209,9 @@ export interface Settings {
   voiceFocus?: "off" | "normal" | "strict";
   talkHotkey?: string;
   /* --- track:voice end --- */
+  /* --- track:aec begin --- */
+  aecLoopback?: boolean;
+  /* --- track:aec end --- */
   /** Where the model's weights live: "auto" | "gpu" (graphics memory only) | "gpuRam" (graphics + system memory) | "cpu" (processor only). */
   memoryMode?: "auto" | "gpu" | "gpuRam" | "cpu";
   /** Show the Quick Ask window when "Hey BYTE" is heard (off: nothing on screen, BYTE just answers out loud). */

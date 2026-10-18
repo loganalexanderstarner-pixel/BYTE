@@ -97,6 +97,11 @@ mod voicectl;
 mod voicefocus;
 mod wakecheck;
 // --- track:voice end ---
+// --- track:aec begin ---
+mod aec;
+#[cfg(test)]
+mod aec_tests;
+// --- track:aec end ---
 mod voice;
 mod quality;
 mod research;

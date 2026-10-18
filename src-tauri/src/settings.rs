@@ -471,6 +471,12 @@ pub struct Settings {
     #[serde(default)]
     pub talk_hotkey: String,
     // --- track:voice end ---
+    // --- track:aec begin ---
+    /// Talking over BYTE on speakers (Windows): take what the speakers play from the sound card's own loopback instead of BYTE's playback
+    /// tap, so the echo is cancelled with an exact reference (also what other programs play). Off until the owner turns it on.
+    #[serde(default)]
+    pub aec_loopback: bool,
+    // --- track:aec end ---
     /// Where the model's weights live: "auto", "gpu" (graphics memory only), "gpuRam" (graphics + system memory) or "cpu" (processor only).
     /// (see system::Placement)
     /// Show the Quick Ask window when "Hey BYTE" is heard. Off: BYTE listens and answers out loud with nothing on screen.
@@ -833,6 +839,7 @@ impl Default for Settings {
             voice_focus: default_voice_focus(),
             talk_hotkey: String::new(),
             // --- track:voice end ---
+            aec_loopback: false, // track:aec
             wake_show_window: default_wake_show_window(),
             memory_mode: default_memory_mode(),
             hey_byte_engine: default_hey_engine(),

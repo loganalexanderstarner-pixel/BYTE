@@ -18,32 +18,33 @@ use std::sync::Mutex;
 
 pub const RATE: usize = 16_000;
 /// Adaptive filter length: 32 ms of room response after the direct sound.
-pub const TAPS: usize = 512;
+pub const TAPS: usize = 1024;
 /// The filter starts this far (samples) before the estimated delay, so a delay that is a little off still falls inside it.
 pub const PRE: usize = 128;
 /// The longest delay between "played" and "heard" that is searched for: 300 ms.
 pub const MAX_DELAY: usize = RATE * 3 / 10;
-/// Block-NLMS step size (one step per 10 ms block, normalized by the block's input energy): larger converges faster and leaves more
-/// noise behind; much above 60 becomes unstable for a coloured reference.
-pub const MU: f32 = 30.0;
+/// NLMS step size per sample (0..2 is stable): larger converges faster and leaves more noise behind.
+pub const MU: f32 = 1.0;
+/// Pre-whitening coefficient for the adaptation (first-order difference).
+pub const WHITEN: f32 = 0.9;
 /// How much audio the delay estimate looks at: 0.5 s.
 pub const ESTIMATE_WINDOW: usize = RATE / 2;
 /// The delay is re-checked this often while it runs: 1 s.
 pub const REESTIMATE_EVERY: usize = RATE;
 /// A new delay estimate replaces the old one only when it differs by more than this (samples).
 pub const DELAY_JUMP: usize = 48;
-/// The correlation peak (0..1) a delay estimate needs to be trusted.
-pub const MIN_CORRELATION: f32 = 0.15;
+/// How sharp the delay peak (0..1, from peak-to-sidelobe ratio: 0.4 is about 5x the rest) a delay estimate needs to be trusted.
+pub const MIN_CORRELATION: f32 = 0.4;
 /// Double talk before the filter has converged: the microphone is this many times louder than the reference (rms) over a block. Loose on
 /// purpose: a real microphone often hears the echo louder than the digital reference, so a tight ratio would never let the filter learn.
 pub const GEIGEL: f32 = 3.0;
 /// Double talk, once the filter has converged: the microphone is this many times louder than the echo the filter predicts.
-pub const NEAR_END_OVER_ECHO: f32 = 1.8;
+pub const NEAR_END_OVER_ECHO: f32 = 2.5;
 /// After a block that looked like double talk the filter stays frozen this long (samples).
-pub const FREEZE_HANG: usize = RATE * 15 / 100;
-/// Double talk, learned: the leftover is this many times (plus `ERR_ABS`) what echo-only blocks left.
-pub const ERR_JUMP: f32 = 3.0;
-pub const ERR_ABS: f32 = 0.004;
+pub const FREEZE_HANG: usize = RATE * 5 / 100;
+/// Double talk, learned: the leftover, as a share of the microphone level, is this many times (plus `ERR_ABS`) what echo-only blocks left.
+pub const ERR_JUMP: f32 = 1.8;
+pub const ERR_ABS: f32 = 0.12;
 /// How fast a frozen filter accepts a new leftover level as normal (share per 10 ms block).
 pub const FLOOR_CREEP: f32 = 0.002;
 const BLOCK: usize = 160;
@@ -56,12 +57,55 @@ fn rms(x: &[f32]) -> f32 {
     (x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32).sqrt()
 }
 
-fn decimate4(x: &[f32]) -> Vec<f32> {
-    x.chunks_exact(4).map(|c| c.iter().sum::<f32>() / 4.0).collect()
+/// In-place radix-2 FFT (`inverse` also scales). `re.len()` must be a power of two.
+fn fft(re: &mut [f32], im: &mut [f32], inverse: bool) {
+    let n = re.len();
+    let mut j = 0;
+    for i in 1..n {
+        let mut bit = n >> 1;
+        while j & bit != 0 {
+            j ^= bit;
+            bit >>= 1;
+        }
+        j ^= bit;
+        if i < j {
+            re.swap(i, j);
+            im.swap(i, j);
+        }
+    }
+    let mut len = 2;
+    while len <= n {
+        let ang = 2.0 * std::f64::consts::PI / len as f64 * if inverse { 1.0 } else { -1.0 };
+        let (wr, wi) = (ang.cos() as f32, ang.sin() as f32);
+        for start in (0..n).step_by(len) {
+            let (mut cr, mut ci) = (1.0f32, 0.0f32);
+            for k in 0..len / 2 {
+                let (a, b) = (start + k, start + k + len / 2);
+                let (tr, ti) = (re[b] * cr - im[b] * ci, re[b] * ci + im[b] * cr);
+                re[b] = re[a] - tr;
+                im[b] = im[a] - ti;
+                re[a] += tr;
+                im[a] += ti;
+                let nr = cr * wr - ci * wi;
+                ci = cr * wi + ci * wr;
+                cr = nr;
+            }
+        }
+        len <<= 1;
+    }
+    if inverse {
+        let inv = 1.0 / n as f32;
+        re.iter_mut().for_each(|v| *v *= inv);
+        im.iter_mut().for_each(|v| *v *= inv);
+    }
 }
 
-/// How many samples later the reference shows up in the microphone, and how strong that match is (0..1). `reference[i]` and `mic[i]` are
-/// the same moment on the two streams. None when nothing matches well enough (silence, or no echo).
+/// How many samples later the reference shows up in the microphone, and how sure that is (0..1). `reference[i]` and `mic[i]` are the
+/// same moment on the two streams. None when nothing matches well enough (silence, or no echo).
+///
+/// Generalised cross-correlation with phase transform (GCC-PHAT): every frequency counts equally, so the voiced, periodic, coloured
+/// sound of speech (whose plain correlation has a peak at every pitch period, and which a room's reverb smears) still gives one sharp
+/// peak at the true delay. Plain normalised correlation wandered between pitch periods on a voice and kept resetting the filter.
 pub fn estimate_delay(reference: &[f32], mic: &[f32], max_delay: usize) -> Option<(usize, f32)> {
     let len = reference.len().min(mic.len());
     if len < 2 * max_delay.min(len / 2).max(64) {
@@ -71,39 +115,56 @@ pub fn estimate_delay(reference: &[f32], mic: &[f32], max_delay: usize) -> Optio
     if rms(reference) < 1e-3 || rms(mic) < 1e-4 {
         return None;
     }
-    let corr = |r: &[f32], m: &[f32], d: usize| -> f32 {
-        if d >= m.len() {
-            return 0.0;
-        }
-        let (mm, rr) = (&m[d..], &r[..m.len() - d]);
-        let (mut xy, mut xx, mut yy) = (0f32, 0f32, 0f32);
-        for (a, b) in mm.iter().zip(rr) {
-            xy += a * b;
-            xx += a * a;
-            yy += b * b;
-        }
-        xy / (xx * yy).sqrt().max(1e-9)
+    let size = (2 * len).next_power_of_two();
+    let load = |x: &[f32]| {
+        let mut re = vec![0f32; size];
+        re[..x.len()].copy_from_slice(x);
+        (re, vec![0f32; size])
     };
-    // Coarse: every 4th sample's average.
-    let (r4, m4) = (decimate4(reference), decimate4(mic));
-    let mut best = (0usize, f32::MIN);
-    for d in 0..=(max_delay / 4) {
-        let c = corr(&r4, &m4, d);
-        if c > best.1 {
-            best = (d, c);
+    let ((mut mr, mut mi), (mut rr, mut ri)) = (load(mic), load(reference));
+    fft(&mut mr, &mut mi, false);
+    fft(&mut rr, &mut ri, false);
+    // Only the speech band: below it is rumble, above it is hiss.
+    let bin = |hz: f32| (hz / RATE as f32 * size as f32) as usize;
+    let (lo, hi) = (bin(150.0), bin(4500.0));
+    let (mut cr, mut ci) = (vec![0f32; size], vec![0f32; size]);
+    let mut peak_mag = 0f32;
+    for k in lo..=hi {
+        // mic * conj(reference)
+        let (a, b) = (mr[k] * rr[k] + mi[k] * ri[k], mi[k] * rr[k] - mr[k] * ri[k]);
+        peak_mag = peak_mag.max((a * a + b * b).sqrt());
+    }
+    for k in lo..=hi {
+        let (a, b) = (mr[k] * rr[k] + mi[k] * ri[k], mi[k] * rr[k] - mr[k] * ri[k]);
+        // Bins with almost no energy would only add noise at full weight.
+        let mag = (a * a + b * b).sqrt().max(peak_mag * 1e-3);
+        cr[k] = a / mag;
+        ci[k] = b / mag;
+        // Real signal: mirror.
+        cr[size - k] = cr[k];
+        ci[size - k] = -ci[k];
+    }
+    fft(&mut cr, &mut ci, true);
+    let max_delay = max_delay.min(size / 2 - 1);
+    let (mut best, mut best_v) = (0usize, f32::MIN);
+    for d in 0..=max_delay {
+        if cr[d] > best_v {
+            best = d;
+            best_v = cr[d];
         }
     }
-    // Fine: around the coarse peak, at the full rate.
-    let centre = best.0 * 4;
-    let (lo, hi) = (centre.saturating_sub(6), (centre + 6).min(max_delay));
-    let mut fine = (centre, f32::MIN);
-    for d in lo..=hi {
-        let c = corr(reference, mic, d);
-        if c > fine.1 {
-            fine = (d, c);
+    // How far the peak stands above the rest of the correlation (peak-to-sidelobe), outside the peak's own neighbourhood.
+    let (mut sum, mut count) = (0f32, 0f32);
+    for d in 0..=max_delay {
+        if d.abs_diff(best) > 24 {
+            sum += cr[d] * cr[d];
+            count += 1.0;
         }
     }
-    (fine.1 >= MIN_CORRELATION).then_some(fine)
+    let side = (sum / count.max(1.0)).sqrt().max(1e-9);
+    let psr = best_v / side;
+    let strength = (psr / (psr + 8.0)).clamp(0.0, 1.0);
+    (best_v > 0.0 && strength >= MIN_CORRELATION).then_some((best, strength))
 }
 
 /// Subtracts what BYTE plays from what the microphone hears.
@@ -111,9 +172,20 @@ pub struct EchoCanceller {
     w: Vec<f32>,
     /// Reference and microphone since the session began, with `PAD` zeros in front so every filter position is valid.
     refs: Vec<f32>,
+    /// The reference pre-whitened (first difference), for the update.
+    refsw: Vec<f32>,
     mics: Vec<f32>,
     /// The delay in use (samples), once found.
     delay: Option<usize>,
+    /// The filter has once removed at least 6 dB of the echo since the delay was found: only then is what is left trusted as "not BYTE".
+    settled: bool,
+    /// Blocks seen and blocks in which the filter was allowed to learn (for the Test log).
+    pub blocks: u64,
+    pub adapted: u64,
+    pub near_end_blocks: u64,
+    pub odd_blocks: u64,
+    /// A different delay seen once, waiting for a second sighting.
+    candidate: Option<usize>,
     since_estimate: usize,
     frozen: usize,
     /// Smoothed levels, to tell whether the filter has converged and how loud the echo it predicts is.
@@ -129,7 +201,7 @@ const PAD: usize = MAX_DELAY + TAPS + PRE;
 
 impl Default for EchoCanceller {
     fn default() -> Self {
-        EchoCanceller { w: vec![0.0; TAPS], refs: vec![0.0; PAD], mics: vec![0.0; PAD], delay: None, since_estimate: 0, frozen: 0, mic_level: 0.0, err_level: 0.0, echo_level: 0.0, err_floor: 0.0, last_err: 0.0 }
+        EchoCanceller { w: vec![0.0; TAPS], refs: vec![0.0; PAD], refsw: vec![0.0; PAD], mics: vec![0.0; PAD], delay: None, candidate: None, settled: false, blocks: 0, adapted: 0, near_end_blocks: 0, odd_blocks: 0, since_estimate: 0, frozen: 0, mic_level: 0.0, err_level: 0.0, echo_level: 0.0, err_floor: 0.0, last_err: 0.0 }
     }
 }
 
@@ -141,6 +213,7 @@ impl EchoCanceller {
     /// A new stretch of speech starts. The learned filter is kept (the room did not change); the stream positions begin again.
     pub fn begin_session(&mut self) {
         self.refs = vec![0.0; PAD];
+        self.refsw = vec![0.0; PAD];
         self.mics = vec![0.0; PAD];
         self.since_estimate = 0;
         self.frozen = 0;
@@ -149,6 +222,17 @@ impl EchoCanceller {
     /// The delay in use, in samples (None until it has been found).
     pub fn delay(&self) -> Option<usize> {
         self.delay
+    }
+
+    /// How much of the echo is left after cancelling, as a share of the microphone level in blocks with only BYTE's voice (0.18 = about
+    /// 15 dB removed). 1.0 until measured.
+    pub fn leftover_share(&self) -> f32 {
+        if self.err_floor > 0.0 { self.err_floor.clamp(0.01, 1.0) } else { 1.0 }
+    }
+
+    /// Whether the filter has learned the room well enough (about 6 dB removed) for the leftover to be judged.
+    pub fn settled(&self) -> bool {
+        self.settled
     }
 
     /// Whether a delay is known, so that the output is actually cleaned.
@@ -165,7 +249,11 @@ impl EchoCanceller {
     pub fn process(&mut self, mic: &[f32], reference: &[f32]) -> Vec<f32> {
         let n = mic.len().min(reference.len());
         let base = self.refs.len();
-        self.refs.extend_from_slice(&reference[..n]);
+        for &r in &reference[..n] {
+            let prev = *self.refs.last().unwrap_or(&0.0);
+            self.refsw.push(if r.is_finite() { r - WHITEN * if prev.is_finite() { prev } else { 0.0 } } else { 0.0 });
+            self.refs.push(r);
+        }
         self.mics.extend_from_slice(&mic[..n]);
         self.since_estimate += n;
         self.maybe_estimate();
@@ -191,9 +279,20 @@ impl EchoCanceller {
         if let Some((d, _)) = estimate_delay(&self.refs[from..], &self.mics[from..], MAX_DELAY) {
             let jump = self.delay.map_or(usize::MAX, |old| old.abs_diff(d));
             if jump > DELAY_JUMP {
-                self.delay = Some(d);
-                self.w.iter_mut().for_each(|x| *x = 0.0);
-                self.err_floor = 0.0;
+                // The first delay is taken at once; a change of a known delay (which throws away what the filter learned) has to be
+                // seen twice in a row, so one odd estimate does not undo seconds of learning.
+                let confirmed = self.delay.is_none() || self.candidate.is_some_and(|c| c.abs_diff(d) <= DELAY_JUMP / 2);
+                if confirmed {
+                    self.delay = Some(d);
+                    self.settled = false;
+                    self.candidate = None;
+                    self.w.iter_mut().for_each(|x| *x = 0.0);
+                    self.err_floor = 0.0;
+                } else {
+                    self.candidate = Some(d);
+                }
+            } else {
+                self.candidate = None;
             }
         }
     }
@@ -222,8 +321,8 @@ impl EchoCanceller {
                 }
                 energy_sum += energy;
                 let x = &self.refs[p + 1 - TAPS..=p];
-                // w[i] belongs to the reference i samples before p.
-                let y: f32 = self.w.iter().zip(x.iter().rev()).map(|(w, x)| w * x).sum();
+                // w[j] belongs to the reference sample TAPS-1-j before p (time order, so both slices run forward).
+                let y: f32 = self.w.iter().zip(x).map(|(w, x)| w * x).sum();
                 let m = self.mics[start + k];
                 let e = m - y;
                 // A bad sample (NaN/inf from a broken device) must not poison the filter: pass the microphone through.
@@ -239,26 +338,46 @@ impl EchoCanceller {
             // Double talk: the microphone is louder than the reference could explain, or (converged) the leftover jumped.
             let converged = self.mic_level > 1e-4 && self.err_level < self.mic_level * 0.5;
             let near_end = mic_block_rms > GEIGEL * ref_block_rms.max(1e-4) + 1e-3
-                || (converged && mic_block_rms > NEAR_END_OVER_ECHO * echo_now.max(1e-4) + 2e-3);
-            let odd = converged && self.err_floor > 0.0 && block_err > ERR_JUMP * self.err_floor + ERR_ABS;
+                || (converged && mic_block_rms > NEAR_END_OVER_ECHO * echo_now.max(1e-4) + 4e-3);
+            // Judged as a share of the microphone level: speech rises and falls by 20 dB from syllable to syllable, and so does the leftover.
+            let ratio = block_err / mic_block_rms.max(1e-4);
+            let odd = converged && self.err_floor > 0.0 && ratio > ERR_JUMP * self.err_floor + ERR_ABS;
             if near_end || odd {
                 self.frozen = FREEZE_HANG;
             }
             let adapt = self.frozen == 0 && ref_block_rms > 1e-3;
+            if adapt && converged && !near_end && !odd {
+                self.settled = true;
+            }
             self.frozen = self.frozen.saturating_sub(len);
-            // Pass 2: one normalized step for the whole block.
+            self.blocks += 1;
+            self.adapted += adapt as u64;
+            self.near_end_blocks += near_end as u64;
+            self.odd_blocks += odd as u64;
+            // Pass 2: sample by sample normalized LMS on pre-whitened signals. (The earlier block step added the gradients of 160 samples
+            // that are strongly correlated in voiced speech, so the effective step was ~160 times larger than meant and the filter blew
+            // up on a real voice while behaving on noise. A per-sample step below 2 is stable for any signal.) Pre-whitening takes the
+            // slope out of speech, which makes plain NLMS converge several times faster.
             if adapt {
-                let mut grad = vec![0f32; TAPS];
+                let first = start - lag;
+                let mut en: f32 = self.refsw[first + 1 - TAPS..=first].iter().map(|v| v * v).sum();
                 for k in 0..len {
                     let p = start + k - lag;
-                    let x = &self.refs[p + 1 - TAPS..=p];
-                    for (g, x) in grad.iter_mut().zip(x.iter().rev()) {
-                        *g += es[k] * x;
+                    if k > 0 {
+                        let (add, drop) = (self.refsw[p], self.refsw[p - TAPS]);
+                        en = (en + add * add - drop * drop).max(0.0);
                     }
-                }
-                let step = MU / (energy_sum + EPS * TAPS as f32 * len as f32);
-                for (w, g) in self.w.iter_mut().zip(&grad) {
-                    *w += step * g;
+                    let mw = self.mics[start + k] - WHITEN * self.mics[start + k - 1];
+                    let x = &self.refsw[p + 1 - TAPS..=p];
+                    let dot: f32 = self.w.iter().zip(x).map(|(w, x)| w * x).sum();
+                    let ew = mw - dot;
+                    if !ew.is_finite() {
+                        continue;
+                    }
+                    let step = MU * ew / (en + EPS * TAPS as f32);
+                    for (w, x) in self.w.iter_mut().zip(x) {
+                        *w += step * x;
+                    }
                 }
                 if self.w.iter().any(|w| !w.is_finite()) {
                     self.w.iter_mut().for_each(|w| *w = 0.0);
@@ -274,12 +393,12 @@ impl EchoCanceller {
             self.last_err = block_err;
             if converged {
                 self.err_floor = if self.err_floor == 0.0 {
-                    block_err
+                    ratio
                 } else if self.frozen == 0 && !odd {
-                    self.err_floor * 0.95 + block_err * 0.05
+                    self.err_floor * 0.95 + ratio * 0.05
                 } else {
                     // Frozen for long: slowly accept the new level, so a changed room does not freeze the filter for good.
-                    self.err_floor + FLOOR_CREEP * (block_err - self.err_floor)
+                    self.err_floor + FLOOR_CREEP * (ratio - self.err_floor)
                 };
             }
             done += len;
@@ -292,6 +411,7 @@ impl EchoCanceller {
         if self.refs.len() > keep * 2 {
             let cut = self.refs.len() - keep;
             self.refs.drain(..cut);
+            self.refsw.drain(..cut);
             self.mics.drain(..cut);
         }
     }
