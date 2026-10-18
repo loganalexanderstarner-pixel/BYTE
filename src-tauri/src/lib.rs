@@ -102,6 +102,9 @@ mod aec;
 #[cfg(test)]
 mod aec_tests;
 // --- track:aec end ---
+// --- track:wakemodel begin ---
+mod wakemodel;
+// --- track:wakemodel end ---
 mod voice;
 mod quality;
 mod research;

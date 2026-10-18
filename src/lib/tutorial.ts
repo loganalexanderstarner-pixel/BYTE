@@ -11,6 +11,7 @@ import { autonomyTutorials } from "./tutorial-autonomy"; // track:autonomy
 import { HELPER_TUTORIALS } from "./tutorial-helpers";
 // --- track:helpers end ---
 import { AEC_TUTORIALS } from "./tutorial-aec"; // track:aec
+import { WAKEMODEL_TUTORIALS } from "./tutorial-wakemodel"; // track:wakemodel
 
 export type LinkKind =
   | { kind: "setting"; tab: string; label: string }
@@ -296,6 +297,7 @@ export const TUTORIALS: Tutorial[] = [
 ];
 TUTORIALS.push(...HELPER_TUTORIALS); // track:helpers
 TUTORIALS.push(...AEC_TUTORIALS); // track:aec
+TUTORIALS.push(...WAKEMODEL_TUTORIALS); // track:wakemodel
 
 // ---------------------------------------------------------------- filtering
 

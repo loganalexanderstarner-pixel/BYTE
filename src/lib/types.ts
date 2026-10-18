@@ -206,6 +206,9 @@ export interface Settings {
   wakeChime?: "system" | "soft" | "off";
   waitUntilDone?: boolean;
   bargeIn?: "off" | "headphones" | "speakers";
+  // --- track:wakemodel begin ---
+  wakeDetector?: "quick" | "careful";
+  // --- track:wakemodel end ---
   voiceFocus?: "off" | "normal" | "strict";
   talkHotkey?: string;
   /* --- track:voice end --- */

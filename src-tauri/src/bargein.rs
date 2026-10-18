@@ -242,6 +242,7 @@ impl Barge {
         } else {
             (mic.to_vec(), 0.0, true)
         };
+        crate::wakemodel::offer_residual(&residual, usable); // track:wakemodel (the quick "Hey BYTE" detector also listens while BYTE speaks)
         self.ring.extend(residual.iter().copied());
         let keep = RATE * SEED_MS / 1000;
         while self.ring.len() > keep {
