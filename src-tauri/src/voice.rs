@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde::Serialize;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::error::{AppError, AppResult};
 use crate::models::{self, ModelFile, Variant};
@@ -397,6 +397,26 @@ pub async fn voice_download(app: AppHandle, state: State<'_, AppState>, id: Stri
     state.downloads.start(app, state.net.clone(), d, REPO.into(), variant(m), key(m)).await
 }
 
+/// "Hey BYTE" checks short bursts on the small English model; with only a big one installed it would run that on the processor for
+/// every burst (about 3 s each). When the small one is missing, fetch it in the background (about 148 MB, once).
+pub fn ensure_wake_model(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let state = app.state::<AppState>();
+        let Some(m) = find("base-en") else { return };
+        let d = dir(&state.paths.models);
+        if installed(&d, m) {
+            return;
+        }
+        log::info!("Hey BYTE: fetching the small speech model for quick wake checks");
+        if std::fs::create_dir_all(&d).is_ok() {
+            if let Err(e) = state.downloads.start(app.clone(), state.net.clone(), d, REPO.into(), variant(m), key(m)).await {
+                log::warn!("Hey BYTE: could not fetch the small speech model: {e}");
+            }
+        }
+    });
+}
+
 #[tauri::command]
 pub async fn voice_delete(state: State<'_, AppState>, id: String) -> AppResult<()> {
     let m = find(&id).ok_or_else(|| AppError::msg("Unknown speech model."))?;
@@ -429,7 +449,12 @@ pub async fn voice_transcribe_smart(app: AppHandle, state: State<'_, AppState>, 
     if !private && engine != "local" {
         if let Ok(client) = state.cloud_client().await {
             match tokio::time::timeout(std::time::Duration::from_secs(6), crate::cloud::voice::transcribe(&client, &wav_base64)).await {
-                Ok(Ok(h)) if !h.text.is_empty() => return Ok(h),
+                Ok(Ok(h)) if !h.text.is_empty() => {
+                    if crate::wake::test_log_on() {
+                        log::info!("[test] spoken turn heard (cloud): {:?}", h.text);
+                    }
+                    return Ok(h);
+                }
                 Ok(Ok(_)) => {} // nothing heard: the PC's own ear gets a try
                 Ok(Err(e)) => log::info!("cloud listening unavailable: {}", AppError::from(e)),
                 Err(_) => log::info!("cloud listening took too long"),
@@ -437,6 +462,9 @@ pub async fn voice_transcribe_smart(app: AppHandle, state: State<'_, AppState>, 
         }
     }
     let text = voice_transcribe(app, state, wav_base64).await?;
+    if crate::wake::test_log_on() {
+        log::info!("[test] spoken turn heard (this PC): {text:?}");
+    }
     Ok(crate::cloud::voice::Heard { text, source: "pc".into(), ..Default::default() })
 }
 

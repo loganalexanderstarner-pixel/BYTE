@@ -520,7 +520,7 @@ fn on_wake(app: &AppHandle, rest: String, show_window: bool, quiet: bool) {
     let skip_ms = if quiet { 0 } else { crate::voicectl::play_chime() };
     // Only the phrase was said: the next thing heard is the question (after the chime, which would otherwise count as speech).
     if rest.trim().len() <= 1 {
-        begin_capture(10_000, skip_ms);
+        begin_capture(15_000, skip_ms);
     } else {
         crate::voicectl::set_thinking(true);
     }
@@ -696,6 +696,7 @@ pub fn apply(app: &AppHandle, on: bool) {
     {
         if on {
             crate::quick::preload(app);
+            crate::voice::ensure_wake_model(app);
             listen::start(app.clone());
         } else {
             listen::stop();

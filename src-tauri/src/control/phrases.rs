@@ -135,7 +135,24 @@ fn program_words(rest: &str) -> Option<String> {
     if words.is_empty() || words.len() > 3 || words.iter().any(|w| matches!(*w, "and" | "then" | "to" | "with" | "for" | "in" | "on" | "at" | "from" | "settings")) || NOT_PROGRAM.contains(&r) {
         return None;
     }
-    Some(r.to_string())
+    Some(program_alias(r))
+}
+
+/// The name Windows starts a program by, for names people say differently ("microsoft edge" is `msedge`).
+fn program_alias(said: &str) -> String {
+    match said.to_lowercase().as_str() {
+        "microsoft edge" | "edge" | "ms edge" => "msedge",
+        "google chrome" | "chrome" => "chrome",
+        "file explorer" | "explorer" | "files" | "windows explorer" => "explorer",
+        "task manager" => "taskmgr",
+        "word" | "microsoft word" => "winword",
+        "excel" | "microsoft excel" => "excel",
+        "powerpoint" | "microsoft powerpoint" => "powerpnt",
+        "outlook" | "microsoft outlook" => "outlook",
+        "snipping tool" => "snippingtool",
+        other => return other.to_string(),
+    }
+    .to_string()
 }
 
 /// "open notepad" -> open; "switch to chrome" -> focus; "close notepad" -> close; "scroll down"; "press ctrl s"; "type hello".
