@@ -449,7 +449,12 @@ pub async fn voice_transcribe_smart(app: AppHandle, state: State<'_, AppState>, 
     if !private && engine != "local" {
         if let Ok(client) = state.cloud_client().await {
             match tokio::time::timeout(std::time::Duration::from_secs(6), crate::cloud::voice::transcribe(&client, &wav_base64)).await {
-                Ok(Ok(h)) if !h.text.is_empty() => return Ok(h),
+                Ok(Ok(h)) if !h.text.is_empty() => {
+                    if crate::wake::test_log_on() {
+                        log::info!("[test] spoken turn heard (cloud): {:?}", h.text);
+                    }
+                    return Ok(h);
+                }
                 Ok(Ok(_)) => {} // nothing heard: the PC's own ear gets a try
                 Ok(Err(e)) => log::info!("cloud listening unavailable: {}", AppError::from(e)),
                 Err(_) => log::info!("cloud listening took too long"),
@@ -457,6 +462,9 @@ pub async fn voice_transcribe_smart(app: AppHandle, state: State<'_, AppState>, 
         }
     }
     let text = voice_transcribe(app, state, wav_base64).await?;
+    if crate::wake::test_log_on() {
+        log::info!("[test] spoken turn heard (this PC): {text:?}");
+    }
     Ok(crate::cloud::voice::Heard { text, source: "pc".into(), ..Default::default() })
 }
 
