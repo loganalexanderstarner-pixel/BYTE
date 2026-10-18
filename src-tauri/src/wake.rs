@@ -448,6 +448,9 @@ fn capture_feed(app: &AppHandle, chunk: &[f32]) {
         Err(_) => None,
     };
     let Some((audio, was_more, left)) = finished else { return };
+    if test_log_on() {
+        log::info!("[test] timing: question captured, {:.1} s of audio{}", audio.len() as f32 / RATE as f32, if was_more { " (the short extra listen)" } else { "" });
+    }
     let b64 = |a: &[f32]| base64::engine::general_purpose::STANDARD.encode(wav_bytes(a));
     // --- track:voice begin --- focus on one voice: another voice's turn is ignored (or, when voices were allowed by name, the page asks the cloud who it was).
     if !audio.is_empty() {

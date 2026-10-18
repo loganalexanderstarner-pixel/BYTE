@@ -70,9 +70,14 @@ where
 /// there, nothing was said, the caller may ask the normal chat. After the first word an error is not recoverable, so a stream
 /// that breaks part-way is reported as `Other`.
 pub async fn ask(client: &CloudClient, body: &Value, mut on_delta: impl FnMut(String) -> bool) -> CloudResult<bool> {
+    let started = std::time::Instant::now();
     let mut r = client.post_stream("/api/voice/ask", body).await?;
+    if crate::wake::test_log_on() {
+        log::info!("[test] timing: the cloud answered the request after {} ms (waiting for the first words)", started.elapsed().as_millis());
+    }
     let mut buf = String::new();
     let mut spoke = false;
+    let mut first_logged = false;
     loop {
         let chunk = match r.chunk().await {
             Ok(Some(c)) => c,
@@ -85,6 +90,10 @@ pub async fn ask(client: &CloudClient, body: &Value, mut on_delta: impl FnMut(St
                 })
             }
         };
+        if !first_logged && crate::wake::test_log_on() {
+            first_logged = true;
+            log::info!("[test] timing: first answer data {} ms after asking", started.elapsed().as_millis());
+        }
         buf.push_str(&String::from_utf8_lossy(&chunk));
         while let Some(i) = buf.find('\n') {
             let line: String = buf.drain(..=i).collect();

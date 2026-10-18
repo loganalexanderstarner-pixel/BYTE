@@ -445,13 +445,14 @@ pub async fn voice_transcribe(app: AppHandle, state: State<'_, AppState>, wav_ba
 /// leaves this PC.
 #[tauri::command]
 pub async fn voice_transcribe_smart(app: AppHandle, state: State<'_, AppState>, wav_base64: String, private: bool) -> AppResult<crate::cloud::voice::Heard> {
+    let timing_started = std::time::Instant::now();
     let engine = state.settings.lock().await.hey_byte_engine.clone();
     if !private && engine != "local" {
         if let Ok(client) = state.cloud_client().await {
             match tokio::time::timeout(std::time::Duration::from_secs(6), crate::cloud::voice::transcribe(&client, &wav_base64)).await {
                 Ok(Ok(h)) if !h.text.is_empty() => {
                     if crate::wake::test_log_on() {
-                        log::info!("[test] spoken turn heard (cloud): {:?}", h.text);
+                        log::info!("[test] spoken turn heard (cloud): {:?} ({} ms to turn it into text)", h.text, timing_started.elapsed().as_millis());
                     }
                     return Ok(h);
                 }
@@ -463,7 +464,7 @@ pub async fn voice_transcribe_smart(app: AppHandle, state: State<'_, AppState>, 
     }
     let text = voice_transcribe(app, state, wav_base64).await?;
     if crate::wake::test_log_on() {
-        log::info!("[test] spoken turn heard (this PC): {text:?}");
+        log::info!("[test] spoken turn heard (this PC): {text:?} ({} ms to turn it into text)", timing_started.elapsed().as_millis());
     }
     Ok(crate::cloud::voice::Heard { text, source: "pc".into(), ..Default::default() })
 }
