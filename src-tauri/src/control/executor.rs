@@ -246,6 +246,12 @@ impl Run<'_, '_> {
         if outside.is_none() && (self.cfg.allowed_apps.iter().any(|a| app_key(a) == k) || self.approved_apps.contains(&k)) {
             return Ok(true);
         }
+        // "Never ask, just do it" (and the Never level) also covers the first-time permission for a program. The never-touch list and the
+        // refused programs were already checked before this point, so they still hold.
+        if outside.is_none() && self.cfg.never_ask {
+            self.approved_apps.push(k);
+            return Ok(true);
+        }
         let mut fields = vec![("Program".into(), k.clone()), ("Why".into(), self.cfg.goal.clone())];
         let (title, key) = match &outside {
             Some(w) => {
@@ -843,6 +849,14 @@ mod tests {
             assert_eq!(r.approver.asked.lock().unwrap().len(), 1, "{p} must ask");
         }
         assert!(actions::parse_plan("[{\"action\":\"open\",\"target\":\"cmd\"}]").is_err());
+    }
+
+    #[tokio::test]
+    async fn never_ask_also_skips_the_first_time_permission_for_a_program() {
+        let r = Rig::new(vec![snap("W", vec![])]);
+        let c = Config { never_ask: true, allowed_apps: vec![], ..cfg() };
+        let rep = r.go(&c, plan("[{\"action\":\"open\",\"target\":\"spotify\"}]")).await;
+        assert!(rep.ok && r.approver.asked.lock().unwrap().is_empty(), "{rep:?}");
     }
 
     #[tokio::test]
