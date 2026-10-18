@@ -197,6 +197,7 @@ impl Barge {
         let (residual, echo_rms, usable) = if mode == Mode::Speakers {
             // A reference that stopped being recorded cannot be subtracted: no decisions from the raw microphone.
             if echo::tap_overflowed() {
+                tlog(|| "no decision: the speaker reference was not recorded in time".into());
                 return None;
             }
             let (reference, gen) = echo::tap_reference(mic_pos, mic.len());
@@ -216,13 +217,26 @@ impl Barge {
         }
         // Until the canceller knows the delay its output is still the raw microphone, full of BYTE's own voice: no decisions yet.
         if !usable {
+            tlog(|| "no decision yet: the echo canceller is still finding the delay".into());
             return None;
         }
+        tlog(|| {
+            let r = (residual.iter().map(|v| v * v).sum::<f32>() / residual.len().max(1) as f32).sqrt();
+            format!("mode {:?}: voice level {:.4}, BYTE's own echo {:.4}, needs above {:.4}", self.mode, r, echo_rms, self.det.threshold(echo_rms))
+        });
         for a in self.det.feed(&residual, echo_rms) {
             match a {
-                Action::Duck => echo::set_duck(DUCK_GAIN),
+                Action::Duck => {
+                    if crate::wake::test_log_on() {
+                        log::info!("[test] interrupt: someone is talking over BYTE, turning it down");
+                    }
+                    echo::set_duck(DUCK_GAIN)
+                }
                 Action::Restore => echo::set_duck(1.0),
                 Action::Stop => {
+                    if crate::wake::test_log_on() {
+                        log::info!("[test] interrupt: stopping BYTE, listening");
+                    }
                     echo::set_duck(1.0);
                     let seed: Vec<f32> = self.ring.iter().copied().collect();
                     self.ring.clear();
@@ -235,6 +249,23 @@ impl Barge {
 }
 
 pub const BARGE_EVENT: &str = "wake://barge";
+
+/// A Test-log line about the interrupt logic, at most one a second (the logic runs many times a second while BYTE talks).
+fn tlog(msg: impl FnOnce() -> String) {
+    use std::sync::Mutex;
+    use std::time::{Duration, Instant};
+    static LAST: Mutex<Option<Instant>> = Mutex::new(None);
+    if !crate::wake::test_log_on() {
+        return;
+    }
+    if let Ok(mut last) = LAST.lock() {
+        if last.is_some_and(|t| t.elapsed() < Duration::from_secs(1)) {
+            return;
+        }
+        *last = Some(Instant::now());
+        log::info!("[test] interrupt: {}", msg());
+    }
+}
 
 /// The person interrupted: BYTE stops, the UI is told, and the next turn is cut out of the stream starting with the interruption.
 pub fn interrupted(app: &AppHandle, seed: &[f32]) {
