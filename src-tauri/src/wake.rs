@@ -14,7 +14,7 @@
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::error::AppResult;
 
@@ -212,6 +212,48 @@ pub fn set_test_log(on: bool) {
 pub(crate) fn test_log_on() -> bool {
     TEST_LOG.load(std::sync::atomic::Ordering::Relaxed)
 }
+
+// --- track:aec begin ---
+/// The running capture began with the words that interrupted BYTE (bargein.rs); its audio is checked for the wake phrase when it ends.
+static BARGE_TURN: AtomicBool = AtomicBool::new(false);
+
+/// The first seconds of an interrupting turn, checked for the wake phrase. When it is there, the whole turn is read again so that the
+/// words after the phrase come out (the phrase itself is dropped). None when the turn does not start with the phrase.
+async fn interrupt_turn_wake(app: &AppHandle, models: &Path, audio: &[f32]) -> Option<String> {
+    let head = &audio[..audio.len().min(RATE as usize * 2)];
+    heard_wake(Some(app), models, head).await?;
+    let started = std::time::Instant::now();
+    let rest = match transcript(Some(app), models, audio).await {
+        Ok(t) => wake_rest(&t),
+        Err(_) => None,
+    };
+    if test_log_on() {
+        log::info!("[test] interrupt: the turn that stopped BYTE started with the wake phrase, words after it: {:?} ({} ms)", rest, started.elapsed().as_millis());
+    }
+    rest
+}
+
+/// "Hey BYTE" was said over BYTE: BYTE stops, and the words after the phrase (or the next thing said) are the new turn.
+pub async fn on_wake_interrupt(app: &AppHandle, rest: String) {
+    crate::tts::stop();
+    crate::echo::set_duck(1.0);
+    let _ = app.emit(crate::speech::DONE_EVENT, ());
+    BARGE_TURN.store(false, Ordering::SeqCst);
+    if let Ok(mut c) = CAPTURE.lock() {
+        *c = None;
+    }
+    if rest.trim().len() <= 1 {
+        // Only the phrase: the page cuts its own speech and listens (the words that follow are the question).
+        let _ = app.emit_to(crate::quick::LABEL, crate::bargein::BARGE_EVENT, ());
+    }
+    let (show, quiet) = {
+        let state = app.state::<crate::state::AppState>();
+        let st = state.settings.lock().await;
+        (st.wake_show_window, crate::gamepolicy::current(st.game_aware, &st.hey_byte_engine, true).quiet)
+    };
+    on_wake(app, rest, show, quiet);
+}
+// --- track:aec end ---
 
 /// Whisper's verdict on one burst.
 async fn heard_wake(app: Option<&AppHandle>, models_dir: &Path, burst: &[f32]) -> Option<String> {
@@ -451,6 +493,24 @@ fn capture_feed(app: &AppHandle, chunk: &[f32]) {
     if test_log_on() {
         log::info!("[test] timing: question captured, {:.1} s of audio{}", audio.len() as f32 / RATE as f32, if was_more { " (the short extra listen)" } else { "" });
     }
+    // --- track:aec begin --- a turn that began as an interruption of BYTE may start with "Hey BYTE": check, and strip the phrase.
+    if !was_more && !audio.is_empty() && BARGE_TURN.swap(false, Ordering::SeqCst) {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let models = app.state::<crate::state::AppState>().paths.models.clone();
+            match interrupt_turn_wake(&app, &models, &audio).await {
+                Some(rest) => on_wake_interrupt(&app, rest).await,
+                None => deliver_utterance(&app, audio, was_more, left),
+            }
+        });
+        return;
+    }
+    // --- track:aec end ---
+    deliver_utterance(app, audio, was_more, left);
+}
+
+fn deliver_utterance(app: &AppHandle, audio: Vec<f32>, was_more: bool, left: usize) {
+    use base64::Engine;
     let b64 = |a: &[f32]| base64::engine::general_purpose::STANDARD.encode(wav_bytes(a));
     // --- track:voice begin --- focus on one voice: another voice's turn is ignored (or, when voices were allowed by name, the page asks the cloud who it was).
     if !audio.is_empty() {
@@ -496,6 +556,7 @@ pub fn talk_now(app: &AppHandle, show_window: bool) {
 
 /// A capture that begins with audio already heard (the words that interrupted BYTE, see bargein.rs).
 pub fn begin_capture_seeded(wait_ms: u64, seed: &[f32]) {
+    BARGE_TURN.store(true, Ordering::SeqCst); // track:aec
     let mut cap = Capture::new(wait_ms, 0);
     let _ = cap.feed(seed);
     if let Ok(mut c) = CAPTURE.lock() {
@@ -583,33 +644,24 @@ mod listen {
         }
         super::watch_meeting(app.clone()); // track:lead
         std::thread::spawn(move || {
-            let (tx, rx) = mpsc::channel::<Vec<f32>>();
+            // The audio callback only converts and writes into this lock-free ring (aec.rs); this thread reads. No allocation, lock or
+            // wait on the audio thread: that was what the "buffer underrun or overrun" warnings came from.
+            let ring = crate::aec::Ring::new(RATE as usize * 4); // track:aec
+            let failed = std::sync::Arc::new(AtomicBool::new(false)); // track:aec
             // The stream lives on this thread (it isn't Send) until Stop.
-            let stream = (|| {
-                let dev = cpal::default_host().default_input_device()?;
-                let cfg = dev.default_input_config().ok()?;
-                let (rate, channels) = (cfg.sample_rate(), cfg.channels() as usize);
-                let s = dev
-                    .build_input_stream(
-                        cfg.into(),
-                        move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                            let mono: Vec<f32> = data.chunks(channels.max(1)).map(|c| c.iter().sum::<f32>() / c.len() as f32).collect();
-                            let _ = tx.send(downsample(&mono, rate));
-                        },
-                        |e| log::warn!("wake word mic: {e}"),
-                        None,
-                    )
-                    .ok()?;
-                s.play().ok()?;
-                Some(s)
-            })();
-            let Some(_stream) = stream else {
+            let Some(first) = open_mic(&ring, &failed) else {
                 log::warn!("wake word: no microphone");
                 if let Ok(mut s) = STOP.lock() {
                     *s = None;
                 }
                 return;
             };
+            let mut stream = Some(first); // track:aec
+            let mut last_data = std::time::Instant::now(); // track:aec
+            let mut next_retry = std::time::Instant::now(); // track:aec
+            let mut loopback = crate::aec::LoopbackControl::default(); // track:aec
+            let mut stats_seen = [0u64; 8]; // track:aec
+            let mut stats_at = std::time::Instant::now(); // track:aec
             let models = app.state::<crate::state::AppState>().paths.models.clone();
             let mut vad = Vad::default();
             let busy = std::sync::Arc::new(AtomicBool::new(false));
@@ -618,7 +670,38 @@ mod listen {
                 if stop_rx.try_recv().is_ok() {
                     break;
                 }
-                let Ok(chunk) = rx.recv_timeout(std::time::Duration::from_millis(200)) else { continue };
+                // --- track:aec begin ---
+                if stats_at.elapsed() > std::time::Duration::from_secs(5) {
+                    stats_at = std::time::Instant::now();
+                    crate::aec::log_stats_if_changed(&mut stats_seen);
+                    loopback.sync(crate::bargein::mode() == crate::bargein::Mode::Speakers);
+                }
+                let mut chunk: Vec<f32> = Vec::new();
+                ring.pop_into(&mut chunk, usize::MAX);
+                if chunk.is_empty() {
+                    // The stream reported an error, or has delivered nothing for 3 s (a device that was unplugged or switched): rebuild it.
+                    let stalled = last_data.elapsed() > std::time::Duration::from_secs(3);
+                    if (failed.load(Ordering::Relaxed) || stalled) && std::time::Instant::now() >= next_retry {
+                        drop(stream.take());
+                        crate::aec::stats::MIC_RESTARTS.fetch_add(1, Ordering::Relaxed);
+                        failed.store(false, Ordering::Relaxed);
+                        match open_mic(&ring, &failed) {
+                            Some(s) => {
+                                stream = Some(s);
+                                last_data = std::time::Instant::now();
+                            }
+                            None => {
+                                crate::aec::stats::MIC_ERRORS.fetch_add(1, Ordering::Relaxed);
+                                next_retry = std::time::Instant::now() + std::time::Duration::from_secs(3);
+                            }
+                        }
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(8));
+                    continue;
+                }
+                last_data = std::time::Instant::now();
+                crate::aec::stats::MIC_OVERRUNS.store(ring.dropped(), Ordering::Relaxed);
+                // --- track:aec end ---
                 let mic_pos = crate::echo::advance_mic(chunk.len()); // track:voice
                 if capturing() {
                     capture_feed(&app, &chunk);
@@ -642,6 +725,11 @@ mod listen {
                             crate::bargein::interrupted(&app, &seed);
                         }
                     }
+                    // --- track:aec begin --- "Hey BYTE" said over BYTE (in the cleaned signal) stops it and starts the new turn.
+                    for burst in barge.take_bursts() {
+                        check_burst(&app, &models, &busy, burst, true);
+                    }
+                    // --- track:aec end ---
                     vad = Vad::default();
                     continue;
                 }
@@ -652,33 +740,78 @@ mod listen {
                     continue;
                 }
                 for burst in vad.feed(&chunk) {
-                    // --- track:voice begin --- (cheap pre-check: whisper only runs on bursts that could be the phrase)
-                    if !worth_checking(&burst) || cooldown_holds(&burst) {
-                        continue;
-                    }
-                    // --- track:voice end ---
-                    // One check at a time; bursts while whisper is busy are skipped.
-                    if busy.swap(true, Ordering::SeqCst) {
-                        continue;
-                    }
-                    let (app, models, busy) = (app.clone(), models.clone(), busy.clone());
-                    tauri::async_runtime::spawn(async move {
-                        if let Some(rest) = heard_wake(Some(&app), &models, &burst).await {
-                            crate::voicefocus::begin(&burst); // track:voice (voiceprint of the wake burst, memory only)
-                            let (show, quiet) = {
-                                let state = app.state::<crate::state::AppState>();
-                                let st = state.settings.lock().await;
-                                (st.wake_show_window, crate::gamepolicy::current(st.game_aware, &st.hey_byte_engine, true).quiet)
-                            };
-                            on_wake(&app, rest, show, quiet);
-                        } else {
-                            cooldown_remember(&burst); // track:voice
-                        }
-                        busy.store(false, Ordering::SeqCst);
-                    });
+                    check_burst(&app, &models, &busy, burst, false);
                 }
             }
         });
+    }
+
+    /// Checks one speech burst for the wake phrase (one check at a time; bursts while whisper is busy are skipped). `over_byte`: the burst
+    /// was heard while BYTE spoke, so a hit also stops BYTE.
+    fn check_burst(app: &AppHandle, models: &std::path::Path, busy: &std::sync::Arc<AtomicBool>, burst: Vec<f32>, over_byte: bool) {
+        // --- track:voice begin --- (cheap pre-check: whisper only runs on bursts that could be the phrase)
+        if !worth_checking(&burst) || cooldown_holds(&burst) {
+            return;
+        }
+        // --- track:voice end ---
+        // Over BYTE's own voice some of the echo that is left over looks like speech: at most one check every 4 s there.
+        if over_byte {
+            static LAST_OVER: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+            if let Ok(mut last) = LAST_OVER.lock() {
+                if last.is_some_and(|t| t.elapsed() < std::time::Duration::from_secs(4)) {
+                    return;
+                }
+                *last = Some(std::time::Instant::now());
+            }
+        }
+        if busy.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        let (app, models, busy) = (app.clone(), models.to_path_buf(), busy.clone());
+        tauri::async_runtime::spawn(async move {
+            if let Some(rest) = heard_wake(Some(&app), &models, &burst).await {
+                crate::voicefocus::begin(&burst); // track:voice (voiceprint of the wake burst, memory only)
+                if over_byte {
+                    if crate::wake::test_log_on() {
+                        log::info!("[test] interrupt: \"Hey BYTE\" heard over BYTE, stopping it");
+                    }
+                    on_wake_interrupt(&app, rest).await;
+                } else {
+                    let (show, quiet) = {
+                        let state = app.state::<crate::state::AppState>();
+                        let st = state.settings.lock().await;
+                        (st.wake_show_window, crate::gamepolicy::current(st.game_aware, &st.hey_byte_engine, true).quiet)
+                    };
+                    on_wake(&app, rest, show, quiet);
+                }
+            } else {
+                cooldown_remember(&burst); // track:voice
+            }
+            busy.store(false, Ordering::SeqCst);
+        });
+    }
+
+    /// Opens the default microphone; its callback feeds `ring` (16 kHz mono) and flags `failed` on a stream error.
+    fn open_mic(ring: &std::sync::Arc<crate::aec::Ring>, failed: &std::sync::Arc<AtomicBool>) -> Option<cpal::Stream> {
+        let dev = cpal::default_host().default_input_device()?;
+        let cfg = dev.default_input_config().ok()?;
+        let (rate, channels) = (cfg.sample_rate(), cfg.channels() as usize);
+        let mut feeder = crate::aec::Feeder::new(rate, channels, ring.clone(), &crate::aec::stats::MIC_DROPPED);
+        let failed = failed.clone();
+        let s = dev
+            .build_input_stream(
+                cfg.into(),
+                move |data: &[f32], _: &cpal::InputCallbackInfo| feeder.feed(data),
+                move |e| {
+                    crate::aec::stats::MIC_ERRORS.fetch_add(1, Ordering::Relaxed);
+                    failed.store(true, Ordering::Relaxed);
+                    log::warn!("wake word mic: {e}");
+                },
+                None,
+            )
+            .ok()?;
+        s.play().ok()?;
+        Some(s)
     }
 
     pub fn stop() {

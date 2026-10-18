@@ -87,6 +87,7 @@ pub fn apply(app: &AppHandle, s: &Settings) {
         *c = s.wake_chime.clone();
     }
     crate::bargein::set_mode(&s.barge_in);
+    crate::aec::set_wanted(s.aec_loopback); // track:aec
     crate::voicefocus::set_mode(&s.voice_focus);
     #[cfg(any(target_os = "macos", windows))]
     start_poller(app);

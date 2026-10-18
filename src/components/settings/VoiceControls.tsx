@@ -81,6 +81,20 @@ export function VoiceControls() {
           <option value="off">Off</option>
         </select>
       </label>
+      {/* --- track:aec begin --- */}
+      {currentOs() === "windows" && (settings.bargeIn ?? "off") === "speakers" && (
+        <label className="field">
+          <span>
+            Use the sound card's own copy of what the speakers play
+            <small>
+              With speakers, BYTE removes its own voice (and any music) from the microphone using an exact copy of what Windows sends to the speakers, so you can talk over it and say “Hey BYTE” while it speaks. Off: BYTE
+              uses its own playback only, which cannot see other programs and is less exact. The microphone is still the only thing recorded; nothing is saved.
+            </small>
+          </span>
+          <input type="checkbox" checked={settings.aecLoopback ?? false} onChange={(e) => void update({ aecLoopback: e.target.checked })} />
+        </label>
+      )}
+      {/* --- track:aec end --- */}
       <label className="field">
         <span>
           Focus on one voice
