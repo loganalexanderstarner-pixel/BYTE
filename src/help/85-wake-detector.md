@@ -13,6 +13,9 @@ This isn't available on Linux yet, so there is nothing to set up here. See the o
 
 The detector never wakes BYTE on its own. A guess costs one extra check by the speech model; the speech model keeps the final say.
 
+## Which one to use
+BYTE starts on **Careful**, because the detector has so far only been tried on computer-made voices. Try **Quick** for a day: if BYTE answers the first time you say "Hey BYTE" and your fan stays quiet, keep it. If you ever have to say it twice, switch back.
+
 ## Also while BYTE is talking
 With Quick on and **Talking over BYTE** set to **Speakers**, the detector listens to what is left of the microphone after BYTE's own voice is taken out. If it hears "Hey BYTE" there, the speech model checks it, and if it agrees BYTE stops talking and listens. This depends on the echo canceller; see [Interrupting BYTE, calls and games](help:interrupting-calls-games). With headphones or when talking over BYTE is off, nothing changes.
 
