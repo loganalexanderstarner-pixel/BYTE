@@ -4,8 +4,8 @@
 //! one lets the listener skip Whisper for all the speech that is not the phrase. The detector alone never wakes BYTE.
 //!
 //! How it works: 16 kHz audio -> 40 log-mel bands every 10 ms (own FFT, no audio library) -> a causal network of six dilated depthwise
-//! blocks (17 k weights, see scripts/wakemodel/train.py, embedded from assets/wakemodel.bin) -> one score per frame. The network is
-//! computed one new frame at a time, so the cost is about 1.7 million multiply-adds per second of audio. This file uses only `std`.
+//! blocks (63 k weights, see scripts/wakemodel/train.py, embedded from assets/wakemodel.bin as 16-bit numbers, 123 KB) -> one score per frame. The network is
+//! computed one new frame at a time, so the cost is about 6 million multiply-adds per second of audio (2.5 ms of one core per second of audio in a release build). This file uses only `std`.
 //!
 //! The maths of the features is the same as scripts/wakemodel/feats.py; `golden` in the tests compares both against numbers the
 //! training scripts wrote.
@@ -529,6 +529,49 @@ mod tests {
         offer_residual(&[0.1; 160], false);
         assert!(take_residual().is_empty());
         set_mode("careful");
+    }
+
+    /// Real speech from voices the network never trained on (assets/wakemodel_fixture.*, see scripts/wakemodel/make_fixture.py):
+    /// three phrases, one ordinary sentence and "hey siri". Each phrase must lift the score above the gate near its end, the others not.
+    #[test]
+    fn spots_the_phrase_in_held_out_speech_and_not_other_speech() {
+        let meta: serde_json::Value = serde_json::from_str(include_str!("../assets/wakemodel_fixture.json")).unwrap();
+        let mu = include_bytes!("../assets/wakemodel_fixture.mu");
+        let audio: Vec<f32> = mu
+            .iter()
+            .map(|&b| {
+                let y = (b as f32 - 128.0) / 127.0;
+                y.signum() * (256f32.powf(y.abs()) - 1.0) / 255.0
+            })
+            .collect();
+        assert_eq!(audio.len() as u64, meta["samples"].as_u64().unwrap());
+        let mut d = Detector::new().unwrap();
+        // Highest smoothed score of every 10 ms step.
+        let mut peaks = vec![];
+        for c in audio.chunks(HOP) {
+            d.feed(c);
+            peaks.push(d.take_peak());
+        }
+        let gate = d.threshold() * 0.5;
+        let best = |from: usize, to: usize| peaks[(from / HOP).min(peaks.len())..(to / HOP).min(peaks.len())].iter().cloned().fold(0.0f32, f32::max);
+        for end in meta["phrase_ends"].as_array().unwrap() {
+            let end = end.as_u64().unwrap() as usize;
+            let top = best(end.saturating_sub(RATE * 3 / 10), end + RATE * 9 / 10);
+            assert!(top >= gate, "phrase ending at {:.2} s scored only {top:.2} (gate {gate:.2})", end as f32 / RATE as f32);
+        }
+        for span in meta["spans"].as_array().unwrap() {
+            if span[0] == "phrase" {
+                continue;
+            }
+            let (from, to) = (span[1].as_u64().unwrap() as usize, span[2].as_u64().unwrap() as usize);
+            let top = best(from, to + RATE / 2);
+            assert!(top < gate, "{} at {:.2} s scored {top:.2} (gate {gate:.2})", span[0], from as f32 / RATE as f32);
+        }
+        // And whole-stream: the detector fires (score at or above the threshold) at least once for these three phrases.
+        let mut d = Detector::new().unwrap();
+        let fired: usize = audio.chunks(1600).filter_map(|c| d.feed(c)).count();
+        eprintln!("wakemodel fixture: {fired} candidates for 3 phrases");
+        assert!(fired >= 1);
     }
 
     /// Time per second of audio (debug build: an upper bound; the release build is much faster).

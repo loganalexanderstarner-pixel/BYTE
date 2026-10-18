@@ -47,11 +47,19 @@ class Net(nn.Module):
 
 
 def load(data, split):
-    X, Y, K = [], [], []
-    for f in sorted(glob.glob(os.path.join(data, f"streams_{split}_*.npz"))):
+    files = sorted(glob.glob(os.path.join(data, f"streams_{split}_*.npz")))
+    n = sum(np.load(f)["kinds"].shape[0] for f in files)
+    first = np.load(files[0])
+    X = np.empty((n,) + first["X"].shape[1:], np.float16)
+    Y = np.empty((n,) + first["Y"].shape[1:], np.int8)
+    K = np.empty(n, first["kinds"].dtype)
+    at = 0
+    for f in files:                      # one file in memory at a time
         z = np.load(f)
-        X.append(z["X"]); Y.append(z["Y"]); K.append(z["kinds"])
-    return np.concatenate(X), np.concatenate(Y), np.concatenate(K)
+        m = z["kinds"].shape[0]
+        X[at:at + m], Y[at:at + m], K[at:at + m] = z["X"], z["Y"], z["kinds"]
+        at += m
+    return X, Y, K
 
 
 def triggers(scores, thr, smooth=3, refractory=150, start=100):
