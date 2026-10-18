@@ -67,6 +67,21 @@ export function VoiceControls() {
         </span>
         <input type="checkbox" checked={settings.waitUntilDone ?? true} onChange={(e) => void update({ waitUntilDone: e.target.checked })} />
       </label>
+      {/* --- track:wakemodel begin --- */}
+      <label className="field">
+        <span>
+          Wake word detector
+          <small>
+            Quick: a tiny detector listens to every moment of sound, also while BYTE talks, and only when it thinks it heard “Hey BYTE” does the speech model confirm it. It saves processor time and reacts sooner. Careful: the speech
+            model listens to every burst of speech, as before. It was trained on computer-made voices, so Careful is the safe choice if Quick misses you. A wake phrase of your own always uses Careful.
+          </small>
+        </span>
+        <select value={settings.wakeDetector ?? "careful"} onChange={(e) => void update({ wakeDetector: e.target.value as "quick" | "careful" })} aria-label="Wake word detector">
+          <option value="quick">Quick (new)</option>
+          <option value="careful">Careful (speech model only)</option>
+        </select>
+      </label>
+      {/* --- track:wakemodel end --- */}
       <label className="field">
         <span>
           Talking over BYTE

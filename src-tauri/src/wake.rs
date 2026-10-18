@@ -424,6 +424,129 @@ pub fn meeting_quiet() -> bool {
 }
 // --- track:voice end ---
 
+// --- track:wakemodel begin ---
+#[allow(dead_code)] // the Windows and Mac listener uses it; Linux only builds it for the tests
+/// The quick detector's part of the listener (wakemodel.rs). Whisper still confirms everything; this only decides which bursts it looks at.
+struct QuickStage {
+    det: Option<crate::wakemodel::Detector>,
+    /// The stream had a gap (paused, a turn being captured, a call): the detector starts again before the next audio.
+    gapped: bool,
+    /// (when, highest smoothed score) of the chunks that scored above the weak level.
+    seen: std::collections::VecDeque<(std::time::Instant, f32)>,
+    /// A candidate was found while BYTE spoke; the confirmation audio is handed out once per candidate.
+    was_active: bool,
+}
+
+/// A burst whose best score is at least this fraction of the threshold is still looked at by whisper.
+const WEAK: f32 = 0.5;
+
+impl QuickStage {
+    fn new() -> Self {
+        QuickStage { det: crate::wakemodel::Detector::new(), gapped: true, seen: Default::default(), was_active: false }
+    }
+
+    /// Quick is on, the model loaded, and the phrase is "Hey BYTE" (a phrase of your own always uses whisper alone).
+    fn active(&self) -> bool {
+        self.det.is_some() && crate::wakemodel::quick_on() && crate::helpers::wakeword::current().is_none()
+    }
+
+    fn gap(&mut self) {
+        self.gapped = true;
+    }
+
+    fn start(&mut self) -> bool {
+        if !self.active() {
+            self.was_active = false;
+            return false;
+        }
+        if self.gapped || !self.was_active {
+            if let Some(d) = self.det.as_mut() {
+                d.reset();
+            }
+            self.gapped = false;
+            self.seen.clear();
+        }
+        self.was_active = true;
+        true
+    }
+
+    /// Ordinary listening: feed the chunk.
+    fn listen(&mut self, chunk: &[f32]) {
+        if !self.start() {
+            return;
+        }
+        let Some(d) = self.det.as_mut() else { return };
+        let started = std::time::Instant::now();
+        let cand = d.feed(chunk);
+        let peak = d.take_peak();
+        let now = std::time::Instant::now();
+        if peak >= d.threshold() * WEAK {
+            self.seen.push_back((now, peak));
+        }
+        while self.seen.front().is_some_and(|(t, _)| now.duration_since(*t).as_secs_f32() > 6.0) {
+            self.seen.pop_front();
+        }
+        if let Some(c) = cand {
+            if test_log_on() {
+                log::info!("[test] detector: score {:.2} (needs {:.2}) -> candidate, whisper will confirm ({:.1} ms for this chunk)", c.score, d.threshold(), started.elapsed().as_secs_f32() * 1000.0);
+            }
+        }
+    }
+
+    /// BYTE is speaking and the echo canceller handed over what is left of the microphone: feed it. Some(audio) = a candidate, to confirm.
+    fn while_speaking(&mut self, residual: &[f32]) -> Option<Vec<f32>> {
+        if !self.start() || residual.is_empty() {
+            return None;
+        }
+        let d = self.det.as_mut()?;
+        let cand = d.feed(residual)?;
+        if test_log_on() {
+            log::info!("[test] detector: score {:.2} while BYTE speaks -> candidate, whisper will confirm", cand.score);
+        }
+        Some(d.recent_audio(2.0))
+    }
+
+    /// BYTE stopped speaking: the audio before and after is not one stream.
+    fn speech_over(&mut self) {
+        if self.was_active {
+            self.gapped = true;
+        }
+    }
+
+    /// For a finished speech burst: Some(true) whisper checks it, Some(false) it is skipped, None the detector is not in use.
+    fn verdict(&mut self, burst: &[f32]) -> Option<bool> {
+        if !self.active() || self.gapped {
+            return None;
+        }
+        let d = self.det.as_ref()?;
+        let secs = burst.len() as f32 / RATE as f32 + 0.4;
+        let now = std::time::Instant::now();
+        let best = self.seen.iter().filter(|(t, _)| now.duration_since(*t).as_secs_f32() <= secs).map(|(_, p)| *p).fold(0.0f32, f32::max);
+        let go = best >= d.threshold() * WEAK;
+        if test_log_on() {
+            log::info!("[test] detector: burst {:.1} s, best score {:.2} (needs {:.2}) -> {}", burst.len() as f32 / RATE as f32, best, d.threshold(), if go { "whisper checks it" } else { "skipped, whisper not run" });
+        }
+        Some(go)
+    }
+}
+
+/// The phrase was confirmed while BYTE was speaking: BYTE stops talking and the turn starts, as when the phrase is said in silence.
+#[allow(dead_code)] // only the Windows and Mac listener calls it
+async fn wake_over_speech(app: &AppHandle, audio: &[f32], rest: String) {
+    use tauri::Manager;
+    crate::tts::stop();
+    crate::echo::set_duck(1.0);
+    let _ = app.emit(crate::speech::DONE_EVENT, ());
+    crate::voicefocus::begin(audio);
+    let (show, quiet) = {
+        let state = app.state::<crate::state::AppState>();
+        let st = state.settings.lock().await;
+        (st.wake_show_window, crate::gamepolicy::current(st.game_aware, &st.hey_byte_engine, true).quiet)
+    };
+    on_wake(app, rest, show, quiet);
+}
+// --- track:wakemodel end ---
+
 /// A turn is being cut out of the stream right now (for the listening indicator).
 pub fn capturing_now() -> bool {
     // The short extra listen after a turn ("wait until I'm done") is not listening for a question: the pill stays on "thinking".
@@ -611,6 +734,7 @@ mod listen {
             let mut vad = Vad::default();
             let busy = std::sync::Arc::new(AtomicBool::new(false));
             let mut barge = crate::bargein::Barge::default(); // track:voice
+            let mut quick = QuickStage::new(); // track:wakemodel
             loop {
                 if stop_rx.try_recv().is_ok() {
                     break;
@@ -620,12 +744,14 @@ mod listen {
                 if capturing() {
                     capture_feed(&app, &chunk);
                     vad = Vad::default();
+                    quick.gap(); // track:wakemodel
                     continue;
                 }
                 // --- track:lead begin ---
                 // A call is going on (meeting.rs, checked twice in a row by `watch_meeting`): "Hey BYTE" stays off so BYTE does not answer the room.
                 if MEETING_QUIET.load(Ordering::Relaxed) {
                     vad = Vad::default();
+                    quick.gap(); // track:wakemodel
                     continue;
                 }
                 // --- track:lead end ---
@@ -639,21 +765,45 @@ mod listen {
                             crate::bargein::interrupted(&app, &seed);
                         }
                     }
+                    // --- track:wakemodel begin --- "Hey BYTE" over BYTE's own voice: the quick detector listens to what is left after echo cancelling.
+                    if let Some(audio) = quick.while_speaking(&crate::wakemodel::take_residual()) {
+                        if !busy.swap(true, Ordering::SeqCst) {
+                            let (app, models, busy) = (app.clone(), models.clone(), busy.clone());
+                            tauri::async_runtime::spawn(async move {
+                                if let Some(rest) = heard_wake(Some(&app), &models, &audio).await {
+                                    wake_over_speech(&app, &audio, rest).await;
+                                }
+                                busy.store(false, Ordering::SeqCst);
+                            });
+                        }
+                    }
+                    // --- track:wakemodel end ---
                     vad = Vad::default();
                     continue;
                 }
                 barge.idle();
+                quick.speech_over(); // track:wakemodel
                 // --- track:voice end ---
                 if PAUSED.load(Ordering::Relaxed) || crate::speech::speaking() {
                     vad = Vad::default();
+                    quick.gap(); // track:wakemodel
                     continue;
                 }
+                quick.listen(&chunk); // track:wakemodel (every frame goes through the quick detector when it is on)
                 for burst in vad.feed(&chunk) {
-                    // --- track:voice begin --- (cheap pre-check: whisper only runs on bursts that could be the phrase)
-                    if !worth_checking(&burst) || cooldown_holds(&burst) {
-                        continue;
-                    }
-                    // --- track:voice end ---
+                    // --- track:wakemodel begin --- Quick: only bursts the detector found plausible go to whisper (it picks them, so the cheap pre-check and the cooldown are not needed).
+                    match quick.verdict(&burst) {
+                        Some(true) => {}
+                        Some(false) => continue,
+                        None => {
+                            // --- track:wakemodel end ---
+                            // --- track:voice begin --- (cheap pre-check: whisper only runs on bursts that could be the phrase)
+                            if !worth_checking(&burst) || cooldown_holds(&burst) {
+                                continue;
+                            }
+                            // --- track:voice end ---
+                        } // track:wakemodel
+                    } // track:wakemodel
                     // One check at a time; bursts while whisper is busy are skipped.
                     if busy.swap(true, Ordering::SeqCst) {
                         continue;

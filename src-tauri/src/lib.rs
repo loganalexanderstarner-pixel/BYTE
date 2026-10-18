@@ -97,6 +97,9 @@ mod voicectl;
 mod voicefocus;
 mod wakecheck;
 // --- track:voice end ---
+// --- track:wakemodel begin ---
+mod wakemodel;
+// --- track:wakemodel end ---
 mod voice;
 mod quality;
 mod research;
