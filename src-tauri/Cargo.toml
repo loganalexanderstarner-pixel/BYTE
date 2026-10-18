@@ -1,6 +1,6 @@
 [package]
 name = "byte"
-version = "0.12.6-win.11"
+version = "0.12.6-win.12"
 description = "BYTE — a local-first AI assistant for Apple Silicon Macs"
 authors = ["Logan Starner"]
 edition = "2021"
