@@ -26,6 +26,17 @@ export function VoiceControls() {
     <>
       <label className="field">
         <span>
+          After BYTE answers “Hey BYTE”
+          <small>Like a smart speaker: BYTE answers, listens a few seconds for one follow-up, then stops until you say “Hey BYTE” again. Choose “Keep listening” to carry on a conversation until you say “thanks”, or “Stop right away” for no follow-up.</small>
+        </span>
+        <select value={settings.heyByteFollowUp ?? "once"} onChange={(e) => void update({ heyByteFollowUp: e.target.value as "off" | "once" | "chain" })}>
+          <option value="once">One short follow-up</option>
+          <option value="chain">Keep listening until I say thanks</option>
+          <option value="off">Stop right away</option>
+        </select>
+      </label>
+      <label className="field">
+        <span>
           Test log (for troubleshooting)
           <small>While on, BYTE writes what “Hey BYTE” heard, whether it took it as the wake phrase and how long that took into its log, so a problem can be diagnosed. It records spoken words, so leave it off unless you are tracking a problem. “Prepare a report” in Backup and help includes it.</small>
         </span>
