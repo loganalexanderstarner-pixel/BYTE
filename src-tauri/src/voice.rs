@@ -405,7 +405,8 @@ pub fn ensure_wake_model(app: &AppHandle) {
         let state = app.state::<AppState>();
         let Some(m) = find("base-en") else { return };
         let d = dir(&state.paths.models);
-        if installed(&d, m) {
+        // `installed` adds the voice folder itself: give it the models folder.
+        if installed(&state.paths.models, m) {
             return;
         }
         log::info!("Hey BYTE: fetching the small speech model for quick wake checks");
