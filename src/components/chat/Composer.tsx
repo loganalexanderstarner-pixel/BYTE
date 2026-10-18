@@ -80,6 +80,12 @@ export function Composer() {
   const wakeTurn = useRef(false);
   const lastWake = useRef(0);
   const followUp = useRef(false);
+  const fromFollowUp = useRef(false); // this turn came from the follow-up window
+  // Alexa-like: one short follow-up after an answer, then stop ("chain" keeps listening until you say thanks; "off" never follows up).
+  const followUpAllowed = (alreadyFollowUp: boolean): boolean => {
+    const mode = useStore.getState().settings?.heyByteFollowUp ?? "once";
+    return mode === "chain" || (mode === "once" && !alreadyFollowUp);
+  };
   /* --- track:voice begin --- */
   // "Wait until I'm done": an unfinished sentence gets about one more second (wake.rs keeps listening; lib/turnJoin.ts decides).
   const joiner = useRef(new TurnJoiner());
@@ -115,7 +121,8 @@ export function Composer() {
       joinTimer.current = null;
       const sendIt = () => {
         if (isDone(act.text)) return;
-        followUp.current = true;
+        followUp.current = followUpAllowed(fromFollowUp.current);
+        fromFollowUp.current = false;
         void useStore.getState().send(act.text, { spoken: true, speaker: joinMeta.current.speaker, mood: joinMeta.current.mood });
       };
       if (focusCommand(act.text, sendIt)) return;
@@ -158,12 +165,13 @@ export function Composer() {
     if (followUp.current && !talk && !busy && !speakingId && lastAnswer) {
       followUp.current = false;
       if (!lastAnswer.ok) return;
+      fromFollowUp.current = true;
       wakeTurn.current = true;
       joiner.current.reset(); // track:voice
       // Listen in BYTE's own mic stream (no second microphone to open); the turn comes back as `onWakeUtterance`.
       setTimeout(() => {
         mic.current?.listening();
-        void api.wakeListen(8000).catch(() => void mic.current?.start({ auto: true, waitMs: 8000 }));
+        void api.wakeListen(6000).catch(() => void mic.current?.start({ auto: true, waitMs: 6000 }));
       }, 250);
     }
   }, [talk, busy, speakingId, lastAnswer]);
@@ -193,7 +201,8 @@ export function Composer() {
       if (rest.trim().length > 1) {
         const sendRest = () => {
           wakeTurn.current = false;
-          followUp.current = true;
+          fromFollowUp.current = false;
+          followUp.current = followUpAllowed(false);
           void useStore.getState().send(rest.trim(), { spoken: true });
         };
         if (focusCommand(rest, sendRest)) return;

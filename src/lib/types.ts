@@ -307,6 +307,8 @@ export interface Settings {
   /* --- track:control end --- */
   /** Test log: record what Hey BYTE heard (words, verdict, timing) in the log for troubleshooting. Off by default. */
   testLog?: boolean;
+  /** After a Hey BYTE answer: no follow-up, one short follow-up (default) or keep listening until you say thanks. */
+  heyByteFollowUp?: "off" | "once" | "chain";
   /* --- track:found begin --- */
   /** Laptop mode: on battery, pause Hey BYTE listening and the screen replay and suggest a smaller model. Off by default. */
   laptopMode?: boolean;
