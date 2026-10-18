@@ -124,10 +124,16 @@ pub fn streams(voice: &str) -> bool {
 /// (the person interrupted). `tone` is optional plain words about the moment ("the person sounds tired, be gentle").
 pub async fn stream(client: &CloudClient, text: &str, voice: &str, style: &str, speed: f32, tone: &str, mut on_pcm: impl FnMut(&[u8]) -> bool) -> CloudResult<()> {
     let body = json!({ "text": text, "voice": voice, "style": style, "speed": speed, "stream": true, "tone": tone });
+    let started = std::time::Instant::now();
     let mut r = client.post_stream("/api/tts", &body).await?;
+    let mut first = true;
     loop {
         match r.chunk().await {
             Ok(Some(c)) => {
+                if first && crate::wake::test_log_on() {
+                    log::info!("[test] timing: first audio from the cloud voice {} ms after asking ({} characters)", started.elapsed().as_millis(), text.chars().count());
+                }
+                first = false;
                 if !on_pcm(&c) {
                     return Ok(());
                 }
