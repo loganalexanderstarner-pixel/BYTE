@@ -519,6 +519,10 @@ impl QuickStage {
             return None;
         }
         let d = self.det.as_ref()?;
+        // The first seconds after a (re)start are not trusted: the running mean and the network's memory are still settling.
+        if d.frames_seen() < 250 {
+            return None;
+        }
         let secs = burst.len() as f32 / RATE as f32 + 0.4;
         let now = std::time::Instant::now();
         let best = self.seen.iter().filter(|(t, _)| now.duration_since(*t).as_secs_f32() <= secs).map(|(_, p)| *p).fold(0.0f32, f32::max);
@@ -1045,5 +1049,68 @@ mod tests {
         eprintln!("Good morning → {heard:?}");
         assert!(!heard.iter().any(|t| is_wake(t)), "heard it in Good morning: {heard:?}");
     }
+
+    // --- track:wakemodel begin ---
+    fn quiet_noise(secs: f32) -> Vec<f32> {
+        (0..(secs * 16000.0) as usize).map(|i| ((i * 7919 % 1000) as f32 / 1000.0 - 0.5) * 0.004).collect()
+    }
+
+    #[test]
+    fn quick_stage_leaves_everything_to_whisper_when_off() {
+        let _g = crate::echo::tests_lock();
+        crate::wakemodel::set_mode("careful");
+        let mut q = QuickStage::new();
+        q.listen(&quiet_noise(1.0));
+        assert_eq!(q.verdict(&speech(1.0)), None);
+        assert!(q.seen.is_empty());
+    }
+
+    #[test]
+    fn quick_stage_skips_bursts_without_a_candidate_and_passes_those_with_one() {
+        let _g = crate::echo::tests_lock();
+        crate::wakemodel::set_mode("quick");
+        let mut q = QuickStage::new();
+        q.listen(&quiet_noise(3.0));
+        // Nothing plausible was heard: whisper is not run (and in the first 2.5 s after a start the old path decides).
+        let mut fresh = QuickStage::new();
+        fresh.listen(&quiet_noise(1.0));
+        assert_eq!(fresh.verdict(&speech(1.0)), None);
+        assert_eq!(q.verdict(&speech(1.0)), Some(false));
+        // A candidate score during the burst: whisper checks it.
+        let thr = q.det.as_ref().unwrap().threshold();
+        q.seen.push_back((std::time::Instant::now(), thr * 0.9));
+        assert_eq!(q.verdict(&speech(1.0)), Some(true));
+        // A weak hint below the half-threshold level does not count.
+        q.seen.clear();
+        q.seen.push_back((std::time::Instant::now(), thr * 0.2));
+        assert_eq!(q.verdict(&speech(1.0)), Some(false));
+        // A gap in the stream (a turn was captured): the detector is not trusted until it has restarted.
+        q.gap();
+        assert_eq!(q.verdict(&speech(1.0)), None);
+        crate::wakemodel::set_mode("careful");
+    }
+
+    #[test]
+    fn quick_stage_old_candidates_do_not_carry_over_to_a_later_burst() {
+        let _g = crate::echo::tests_lock();
+        crate::wakemodel::set_mode("quick");
+        let mut q = QuickStage::new();
+        q.listen(&quiet_noise(3.0));
+        let thr = q.det.as_ref().unwrap().threshold();
+        q.seen.push_back((std::time::Instant::now() - std::time::Duration::from_secs(5), thr));
+        assert_eq!(q.verdict(&speech(1.0)), Some(false));
+        crate::wakemodel::set_mode("careful");
+    }
+
+    #[test]
+    fn quick_stage_is_idle_while_speaking_without_a_residual() {
+        let _g = crate::echo::tests_lock();
+        crate::wakemodel::set_mode("quick");
+        let mut q = QuickStage::new();
+        assert!(q.while_speaking(&[]).is_none());
+        assert!(q.while_speaking(&quiet_noise(1.0)).is_none());
+        crate::wakemodel::set_mode("careful");
+    }
+    // --- track:wakemodel end ---
 }
 

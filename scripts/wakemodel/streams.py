@@ -26,7 +26,7 @@ def rir(rng):
 
 
 def speed(x, rng):
-    f = rng.uniform(0.88, 1.12)
+    f = rng.uniform(0.9, 1.1)
     fr = Fraction(f).limit_denominator(24)
     return resample_poly(x, fr.numerator, fr.denominator).astype(np.float32)
 
@@ -158,6 +158,7 @@ def make_stream(rng, pool, kind):
             # the phrase is level_set together with the rest; keep as is
             pass
     x = voice
+    over_byte, rel_db = 0.0, 0.0
     # BYTE speaking over everything: a loud long sentence through a speaker path
     if rng.random() < 0.3 or kind == "bg" and rng.random() < 0.5:
         key = "neg"
@@ -172,7 +173,9 @@ def make_stream(rng, pool, kind):
             pos += len(c) + int(rng.uniform(0.1, 0.6) * SR)
         ref = speaker_path(ref, rng)
         base = vol_db if kind != "bg" else rng.uniform(-35, -12)
-        x = x + level_set(ref, base + rng.uniform(-12, 6))
+        rel_db = rng.uniform(-12, 6)
+        over_byte = 1.0
+        x = x + level_set(ref, base + rel_db)
     # background noise
     n, nk = noise(rng, LEN, [c[1] for c in pool["neg"][:200]])
     if kind == "bg" or rng.random() < 0.15:
@@ -182,6 +185,7 @@ def make_stream(rng, pool, kind):
         if rng.random() < 0.2:
             nl = vol_db - rng.uniform(-6, 4)  # loud background (TV right next to the person)
     x = x + level_set(n, nl)
+    snr = vol_db - nl if kind != "bg" else 99.0
     x = x + 1e-4 * rng.standard_normal(LEN).astype(np.float32)  # mic self-noise
     if rng.random() < 0.15:  # a gain stage that clips
         x = np.clip(x * rng.uniform(2, 8), -1, 1)
@@ -193,7 +197,7 @@ def make_stream(rng, pool, kind):
     f = feats.features(x)
     lab = label[:len(f)].astype(np.int8).copy()
     lab[:IGNORE_FIRST] = -1
-    return f.astype(np.float16), lab, x
+    return f.astype(np.float16), lab, np.array([over_byte, rel_db, snr], np.float32)
 
 
 def _job(args):
@@ -202,11 +206,11 @@ def _job(args):
     if pool is None:
         pool = _POOL[pool_path] = pickle.load(open(pool_path, "rb"))
     rng = np.random.default_rng(seed)
-    X, Y = [], []
+    X, Y, M = [], [], []
     for k in kinds:
-        f, l, _ = make_stream(rng, pool, k)
-        X.append(f); Y.append(l)
-    return np.stack(X), np.stack(Y)
+        f, l, m = make_stream(rng, pool, k)
+        X.append(f); Y.append(l); M.append(m)
+    return np.stack(X), np.stack(Y), np.stack(M)
 
 
 _POOL = {}
@@ -219,13 +223,13 @@ def build_set(pool_path, n, seed, mix=(0.45, 0.25, 0.15, 0.15), jobs=10, per_job
     chunks = [(seed * 100003 + i, pool_path, kinds[i * per_job:(i + 1) * per_job]) for i in range((n + per_job - 1) // per_job)]
     with Pool(jobs) as p:
         res = p.map(_job, chunks)
-    return np.concatenate([r[0] for r in res]), np.concatenate([r[1] for r in res]), kinds
+    return np.concatenate([r[0] for r in res]), np.concatenate([r[1] for r in res]), kinds, np.concatenate([r[2] for r in res])
 
 
 if __name__ == "__main__":
     data = sys.argv[1]
     split, n, seed = sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
     mix = (0.45, 0.25, 0.15, 0.15) if split == "train" else (0.25, 0.25, 0.25, 0.25)
-    X, Y, kinds = build_set(os.path.join(data, f"clips_{'train' if split == 'train' else 'test'}.pkl"), n, seed, mix, jobs=int(os.environ.get("JOBS", "10")))
-    np.savez(os.path.join(data, f"streams_{split}_{seed}.npz"), X=X, Y=Y, kinds=kinds)
+    X, Y, kinds, meta = build_set(os.path.join(data, f"clips_{'train' if split == 'train' else 'test'}.pkl"), n, seed, mix, jobs=int(os.environ.get("JOBS", "10")))
+    np.savez(os.path.join(data, f"streams_{split}_{seed}.npz"), X=X, Y=Y, kinds=kinds, meta=meta)
     print(split, X.shape, "pos frames", int((Y == 1).sum()), "streams by kind", {k: int((kinds == k).sum()) for k in ("pos", "neg", "hard", "bg")})

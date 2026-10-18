@@ -178,11 +178,41 @@ struct Weights {
     head_b: f32,
 }
 
+/// A 16-bit float (IEEE half) as a 32-bit one.
+fn half_to_f32(h: u16) -> f32 {
+    let (sign, exp, frac) = ((h >> 15) as u32, ((h >> 10) & 0x1f) as u32, (h & 0x3ff) as u32);
+    let bits = if exp == 0 {
+        if frac == 0 {
+            sign << 31
+        } else {
+            // A subnormal half: normalise it.
+            let mut e = 127 - 15 + 1;
+            let mut f = frac;
+            while f & 0x400 == 0 {
+                f <<= 1;
+                e -= 1;
+            }
+            (sign << 31) | (e << 23) | ((f & 0x3ff) << 13)
+        }
+    } else if exp == 31 {
+        (sign << 31) | 0x7f80_0000 | (frac << 13)
+    } else {
+        (sign << 31) | ((exp + 127 - 15) << 23) | (frac << 13)
+    };
+    f32::from_bits(bits)
+}
+
 fn parse(bytes: &[u8]) -> Option<Weights> {
     let u32at = |o: usize| bytes.get(o..o + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]));
-    if bytes.get(..4)? != b"BYWM" || u32at(4)? != 1 {
+    if bytes.get(..4)? != b"BYWM" {
         return None;
     }
+    // Version 1: 32-bit float weights. Version 2: 16-bit float weights.
+    let width = match u32at(4)? {
+        1 => 4,
+        2 => 2,
+        _ => return None,
+    };
     let (c, nb, nmel) = (u32at(8)? as usize, u32at(12)? as usize, u32at(16)? as usize);
     let thr = f32::from_bits(u32at(20)?);
     if nmel != NMEL || c == 0 || c > 512 || nb > 16 {
@@ -191,15 +221,23 @@ fn parse(bytes: &[u8]) -> Option<Weights> {
     let mut at = 24;
     let dil: Vec<usize> = (0..nb).map(|i| u32at(at + 4 * i).map(|v| v as usize)).collect::<Option<_>>()?;
     at += 4 * nb;
-    let total = (bytes.len() - at) / 4;
     let want = c * NMEL + c + nb * (3 * c + c * c + c) + c + 1;
-    if total != want || (bytes.len() - at) % 4 != 0 {
+    if bytes.len() - at != want * width {
         return None;
     }
     let mut pos = at;
     let mut take = |n: usize| -> Vec<f32> {
-        let v = (0..n).map(|i| f32::from_bits(u32::from_le_bytes([bytes[pos + 4 * i], bytes[pos + 4 * i + 1], bytes[pos + 4 * i + 2], bytes[pos + 4 * i + 3]]))).collect();
-        pos += 4 * n;
+        let v = (0..n)
+            .map(|i| {
+                let o = pos + width * i;
+                if width == 4 {
+                    f32::from_bits(u32::from_le_bytes([bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]]))
+                } else {
+                    half_to_f32(u16::from_le_bytes([bytes[o], bytes[o + 1]]))
+                }
+            })
+            .collect();
+        pos += width * n;
         v
     };
     let inp_w = take(c * NMEL);
@@ -276,6 +314,11 @@ impl Detector {
 
     pub fn threshold(&self) -> f32 {
         self.thr
+    }
+
+    /// 10 ms frames handled since the start or the last reset.
+    pub fn frames_seen(&self) -> u64 {
+        self.frames
     }
 
     /// The last `secs` seconds of audio fed so far (for the Whisper confirmation of a candidate).
@@ -409,9 +452,19 @@ mod tests {
     #[test]
     fn the_embedded_model_loads_and_is_small() {
         let w = weights().expect("model parses");
-        assert_eq!(w.blocks.len(), 6);
+        assert!(w.blocks.len() >= 6);
         assert!(WEIGHTS.len() < 400_000, "weights are {} bytes", WEIGHTS.len());
         assert!(w.thr > 0.2 && w.thr < 0.99);
+    }
+
+    #[test]
+    fn half_floats_convert_exactly() {
+        assert_eq!(half_to_f32(0x3c00), 1.0);
+        assert_eq!(half_to_f32(0xc000), -2.0);
+        assert_eq!(half_to_f32(0x0000), 0.0);
+        assert_eq!(half_to_f32(0x3555), 0.333251953125);
+        assert_eq!(half_to_f32(0x0001), 2f32.powi(-24)); // smallest subnormal
+        assert!(half_to_f32(0x7c00).is_infinite());
     }
 
     #[test]

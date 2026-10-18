@@ -4,7 +4,7 @@
 Model: 1x1 conv 40->C, then 6 residual blocks (causal depthwise conv k=3 with dilations 1,2,4,8,16,32 + 1x1 conv + batch norm + ReLU), then a
 linear head -> one score per 10 ms frame. Receptive field 1.27 s. Batch norm is folded into the weights at export.
 
-Usage: python train.py DATA_DIR OUT.bin [epochs]
+Usage: python train.py DATA_DIR OUT.bin [epochs]   (env WM_C = width, default 64; WM_THR = threshold written into the file)
 """
 import sys, os, json, struct, glob, time
 import numpy as np
@@ -13,8 +13,9 @@ sys.path.insert(0, os.path.dirname(__file__))
 import feats
 
 C = int(os.environ.get("WM_C", "64"))
-DIL = [1, 2, 4, 8, 16, 32]
+DIL = [int(v) for v in os.environ.get("WM_DIL", "1,2,4,8,16,32").split(",")]
 torch.set_num_threads(int(os.environ.get("TORCH_THREADS", "8")))
+DEV = torch.device("cuda" if torch.cuda.is_available() and os.environ.get("WM_CPU") != "1" else "cpu")
 
 
 class Block(nn.Module):
@@ -66,9 +67,10 @@ def triggers(scores, thr, smooth=3, refractory=150, start=100):
 @torch.no_grad()
 def predict(net, X, bs=128):
     net.eval()
+    dev = next(net.parameters()).device
     out = []
     for i in range(0, len(X), bs):
-        out.append(torch.sigmoid(net(torch.from_numpy(X[i:i + bs].astype(np.float32)))).numpy())
+        out.append(torch.sigmoid(net(torch.from_numpy(X[i:i + bs].astype(np.float32)).to(dev))).cpu().numpy())
     return np.concatenate(out)
 
 
@@ -87,9 +89,9 @@ def evaluate(net, X, Y, K, thrs):
             if k == "pos":
                 n_pos += 1
                 te = np.where(Y[i] == 1)[0]
-                lo, hi = te.min() - 1, te.max() + 25
+                lo, hi = te.min() - 30, te.max() + 60   # a hit anywhere in the last syllable or just after counts: the burst goes to whisper
                 tp += any(lo <= t <= hi for t in tr)
-                fa["pos_other"] += sum(1 for t in tr if not (lo - 3 <= t <= hi + 3))
+                fa["pos_other"] += sum(1 for t in tr if not (lo <= t <= hi))
             else:
                 fa[k] += len(tr)
         res[thr] = dict(tpr=tp / max(n_pos, 1), n_pos=n_pos, **fa)
@@ -106,7 +108,7 @@ def fold(conv_w, bn, conv_b=None):
 
 
 def export(net, path, thr):
-    net.eval()
+    net.eval().cpu()
     parts = []
     w, b = fold(net.inp.weight, net.bn0)
     parts += [w[:, :, 0].reshape(-1), b]
@@ -117,14 +119,21 @@ def export(net, path, thr):
         b = b + (w[:, :, 0] @ blk.dw.bias.detach())
         parts += [dw.t().reshape(-1), w[:, :, 0].reshape(-1), b]
     parts += [net.head.weight.detach().reshape(-1), net.head.bias.detach().reshape(-1)]
-    flat = torch.cat([p.float() for p in parts]).numpy().astype("<f4")
-    hdr = b"BYWM" + struct.pack("<IIIIf", 1, C, len(DIL), feats.NMEL, thr) + struct.pack("<%dI" % len(DIL), *DIL)
+    flat = torch.cat([p.float() for p in parts]).numpy()
+    # version 2: weights as 16-bit floats (half the size, the error is far below what the scores need); version 1: 32-bit floats
+    half = os.environ.get("WM_F32") != "1"
+    flat = flat.astype("<f2" if half else "<f4")
+    hdr = b"BYWM" + struct.pack("<IIIIf", 2 if half else 1, C, len(DIL), feats.NMEL, thr) + struct.pack("<%dI" % len(DIL), *DIL)
     open(path, "wb").write(hdr + flat.tobytes())
     return len(hdr) + flat.nbytes
 
 
 def main():
     data, out = sys.argv[1], sys.argv[2]
+    if len(sys.argv) > 3 and sys.argv[3] == "export":      # python train.py DATA OUT.bin export THRESHOLD: re-export OUT.bin.pt with another threshold
+        net = Net(); net.load_state_dict(torch.load(out + ".pt", map_location="cpu"))
+        print("exported", out, export(net, out, float(sys.argv[4])), "bytes")
+        return
     epochs = int(sys.argv[3]) if len(sys.argv) > 3 else 30
     torch.manual_seed(0); np.random.seed(0)
     X, Y, K = load(data, "train")
@@ -134,12 +143,12 @@ def main():
     nv = max(200, n // 20)
     Xv, Yv, Kv = X[-nv:], Y[-nv:], K[-nv:]
     X, Y = X[:-nv], Y[:-nv]
-    net = Net()
-    print("params", sum(p.numel() for p in net.parameters()), flush=True)
+    net = Net().to(DEV)
+    print(DEV, "params", sum(p.numel() for p in net.parameters()), flush=True)
     opt = torch.optim.AdamW(net.parameters(), 3e-3, weight_decay=1e-3)
     bs = 64
     steps = epochs * (len(X) // bs)
-    sched = torch.optim.lr_scheduler.OneCycleLR(opt, 4e-3, total_steps=steps)
+    sched = torch.optim.lr_scheduler.OneCycleLR(opt, 3e-3, total_steps=steps)
     t0 = time.time()
     for ep in range(epochs):
         net.train()
@@ -147,9 +156,15 @@ def main():
         tot = 0
         for i in range(0, len(perm) - bs + 1, bs):
             idx = np.sort(perm[i:i + bs])
-            xb = torch.from_numpy(X[idx].astype(np.float32))
-            xb = xb + 0.1 * torch.randn(xb.shape[0], 1, xb.shape[2]) + 0.05 * torch.randn_like(xb)   # level offset + feature noise
-            yb = torch.from_numpy(Y[idx].astype(np.float32))
+            xb = torch.from_numpy(X[idx].astype(np.float32)).to(DEV)
+            xb = xb + 0.1 * torch.randn(xb.shape[0], 1, xb.shape[2], device=DEV) + 0.05 * torch.randn_like(xb)   # level offset + feature noise
+            # SpecAugment-style: a few mel bands blanked, a short stretch of time blanked (not every sample)
+            for b in range(xb.shape[0]):
+                if np.random.rand() < 0.5:
+                    f0 = np.random.randint(0, feats.NMEL - 4); xb[b, :, f0:f0 + np.random.randint(1, 5)] = 0
+                if np.random.rand() < 0.3:
+                    m0 = np.random.randint(100, xb.shape[1] - 12); xb[b, m0:m0 + np.random.randint(2, 10)] = 0
+            yb = torch.from_numpy(Y[idx].astype(np.float32)).to(DEV)
             logit = net(xb)
             mask = (yb >= 0).float()
             w = mask * (1 + 9 * (yb == 1).float())
@@ -159,7 +174,7 @@ def main():
         if ep % 3 == 2 or ep == epochs - 1:
             r, hrs = evaluate(net, Xv, Yv, Kv, [0.6])
             print(f"epoch {ep + 1} loss {tot / (len(perm) // bs):.4f} val {r[0.6]} {time.time() - t0:.0f}s", flush=True)
-    torch.save(net.state_dict(), out + ".pt")
+    net.cpu(); torch.save(net.state_dict(), out + ".pt"); net.to(DEV)
     thrs = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
     res, hrs = evaluate(net, Xt, Yt, Kt, thrs)
     # Hours of audio that is "not the phrase": ordinary speech, the non-phrase part of the positive streams, look-alikes, noise.

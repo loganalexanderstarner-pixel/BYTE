@@ -30,9 +30,34 @@ COMMANDS = ["what is the weather", "what time is it", "turn off the lights", "se
             "add milk to my shopping list", "how long is the drive to work", "write an email to john", "summarize this page", "what should I make for dinner",
             "turn the volume down", "stop", "never mind", "can you help me with something", "search for a good pizza place"]
 BOOKS = {"train": ["pp.txt", "alice.txt", "holmes.txt", "dracula.txt"], "test": ["frank.txt"]}
-# Voices: libritts has 904 speakers; the first 650 train, the last 200 are held out. Two single-speaker voices are held out too.
-TRAIN_VOICES = ["en_US-lessac-medium", "en_US-ryan-medium", "en_US-amy-medium", "en_US-joe-medium", "en_US-kristin-medium", "en_GB-jenny_dioco-medium"]
+# Voices. Multi-speaker voices give their first 85% of speakers to training and the rest to the test split; the two single-speaker voices
+# below are held out completely (a British and a northern English male voice nobody trained on).
 TEST_VOICES = ["en_GB-alan-medium", "en_GB-northern_english_male-medium"]
+SINGLE_TRAIN = ["en_US-lessac-medium", "en_US-ryan-medium", "en_US-amy-medium", "en_US-joe-medium", "en_US-kristin-medium", "en_GB-jenny_dioco-medium",
+                "en_US-hfc_male-medium", "en_US-hfc_female-medium", "en_US-john-medium", "en_US-norman-medium", "en_US-bryce-medium", "en_US-sam-medium",
+                "en_GB-alba-medium", "en_GB-semaine-medium", "en_GB-southern_english_female-low", "en_US-kathleen-low", "en_US-danny-low"]
+MULTI = {"en_US-libritts_r-medium": 3, "en_GB-vctk-medium": 3, "en_US-l2arctic-medium": 2, "en_US-arctic-medium": 2, "en_GB-aru-medium": 1}   # voice -> weight
+
+
+def n_speakers(voice):
+    import json
+    return json.load(open(os.path.join(VOICE_DIR, voice + ".onnx.json")))["num_speakers"]
+
+
+def voice_table(split):
+    out = []
+    if split == "train":
+        out += [(v, None) for v in SINGLE_TRAIN if os.path.exists(os.path.join(VOICE_DIR, v + ".onnx"))]
+    else:
+        out += [(v, None) for v in TEST_VOICES]
+    for v, w in MULTI.items():
+        if not os.path.exists(os.path.join(VOICE_DIR, v + ".onnx")):
+            continue
+        n = n_speakers(v)
+        cut = int(n * 0.85)
+        ids = list(range(0, cut)) if split == "train" else list(range(cut, n))
+        out += [(v, ids)] * w
+    return out
 
 
 def sentences(book_files, n, rng):
@@ -80,7 +105,7 @@ def work(job):
     out = []
     for kind, text in items:
         sid = rng.choice(speakers) if speakers else None
-        cfg = SynthesisConfig(speaker_id=sid, length_scale=rng.uniform(0.75, 1.35), noise_scale=rng.uniform(0.4, 0.9), noise_w_scale=rng.uniform(0.4, 1.0),
+        cfg = SynthesisConfig(speaker_id=sid, length_scale=rng.uniform(0.85, 1.7) if kind == "pos" else rng.uniform(0.8, 1.4), noise_scale=rng.uniform(0.4, 0.9), noise_w_scale=rng.uniform(0.4, 1.0),
                               normalize_audio=True, volume=1.0)
         try:
             ch = [c.audio_float_array for c in v.synthesize(text, cfg)]
@@ -99,19 +124,17 @@ def work(job):
 
 def build(split, n_pos, n_cmd, n_hard, n_sent):
     rng = random.Random(1 if split == "train" else 2)
-    if split == "train":
-        voices = [(v, None) for v in TRAIN_VOICES] + [("en_US-libritts_r-medium", list(range(0, 650)))]
-    else:
-        voices = [(v, None) for v in TEST_VOICES] + [("en_US-libritts_r-medium", list(range(700, 904)))]
+    voices = voice_table(split)
     sents = sentences(BOOKS[split], n_sent, rng)
     items = ([("pos", rng.choice(POS_PHRASES)) for _ in range(n_pos)] + [("cmd", rng.choice(COMMANDS)) for _ in range(n_cmd)] +
              [("hard", rng.choice(HARD_NEG)) for _ in range(n_hard)] + [("neg", s) for s in sents])
     rng.shuffle(items)
     # Spread over voices with extra weight on the multi-speaker one, in chunks so the pool stays busy.
+    r2 = random.Random(77)
     jobs = []
-    chunk = 150
+    chunk = 60
     for i in range(0, len(items), chunk):
-        voice, spk = voices[(i // chunk) % len(voices)] if (i // chunk) % 3 else voices[-1]
+        voice, spk = voices[r2.randrange(len(voices))]
         jobs.append((voice, spk, items[i:i + chunk], 1000 * (i // chunk) + (0 if split == "train" else 7)))
     res = []
     with Pool(int(os.environ.get("JOBS", "10"))) as p:
@@ -125,4 +148,4 @@ def build(split, n_pos, n_cmd, n_hard, n_sent):
 if __name__ == "__main__":
     os.environ.setdefault("OMP_NUM_THREADS", "1")
     build("test", 600, 200, 500, 1300)
-    build("train", 7000, 800, 3500, 9000)
+    build("train", 8000, 800, 3500, 6000)
