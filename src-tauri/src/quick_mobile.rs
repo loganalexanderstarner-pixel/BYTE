@@ -46,3 +46,21 @@ pub fn quick_open(app: AppHandle, conversation_id: Option<String>) {
     crate::background::show_main(&app);
     let _ = app.emit_to("main", "quick://open", conversation_id);
 }
+
+/// Shortcuts do not exist on a phone: the shared code that checks a key name gets a refusal and a name to print.
+#[derive(Clone, Copy)]
+pub struct Shortcut(u32);
+
+impl Shortcut {
+    pub fn id(&self) -> u32 {
+        self.0
+    }
+}
+
+pub fn parse_keys(_keys: &str) -> Result<Shortcut, String> {
+    Err("Shortcut keys are not available on a phone.".into())
+}
+
+pub fn pretty(keys: &str) -> String {
+    keys.to_string()
+}
