@@ -2,6 +2,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 
 import type { LongAsk, Outline } from "./writing";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 import type { DocEvent, DocKind, DocOutline, DocSpec } from "./docs/spec";
 
@@ -109,6 +110,9 @@ export interface GamePolicy { engine: "local" | "cloud"; quiet: boolean; heavyOk
 // --- track:connect begin ---
 import type { ActivityEntry, AutoJob, ChannelInfo, ConnectorKind, ConnectorPatch, ConnectStatus, JobRun } from "./connect";
 // --- track:connect end ---
+
+/** Listens for an event sent to this window only: a plain `listen` also hears events sent to other windows, so every window would act on them. */
+const listenHere = <T = unknown>(event: string, cb: (e: { payload: T }) => void): Promise<UnlistenFn> => getCurrentWebviewWindow().listen<T>(event, cb);
 
 export const api = {
   // --- track:connect begin ---
@@ -355,18 +359,18 @@ export const api = {
   /** The turn that followed "Hey BYTE": base64 WAV, or null when nothing was said. */
   /* --- track:voice begin --- */
   /** What was said in the extra second after a turn ("wait until I'm done"): audio (base64 WAV) or null. */
-  onWakeMore: (cb: (wavBase64: string | null) => void): Promise<UnlistenFn> => listen<string | null>("wake://more", (e) => cb(e.payload ?? null)),
+  onWakeMore: (cb: (wavBase64: string | null) => void): Promise<UnlistenFn> => listenHere<string | null>("wake://more", (e) => cb(e.payload ?? null)),
   /** Focus on one voice: "everyone" or { alsoListenTo: { name } } (voicefocus.rs). */
   voiceFocusCommand: (command: "everyone" | { alsoListenTo: { name: string } }) => invoke<void>("voice_focus_command", { command }),
   /** Why the talk key could not be registered ("" = fine). */
   talkKeyStatus: () => invoke<string>("talk_key_status"),
   voiceFocusConfirmed: () => invoke<void>("voice_focus_confirmed"),
   /** A turn from a voice other than the focused one, when voices were allowed by name: the page decides (base64 WAV). */
-  onWakeOther: (cb: (wavBase64: string) => void): Promise<UnlistenFn> => listen<string>("wake://utterance-other", (e) => cb(e.payload)),
+  onWakeOther: (cb: (wavBase64: string) => void): Promise<UnlistenFn> => listenHere<string>("wake://utterance-other", (e) => cb(e.payload)),
   /** The person talked over BYTE (barge-in): BYTE stopped and the next turn is being captured. */
-  onWakeBarge: (cb: () => void): Promise<UnlistenFn> => listen("wake://barge", () => cb()),
+  onWakeBarge: (cb: () => void): Promise<UnlistenFn> => listenHere("wake://barge", () => cb()),
   /* --- track:voice end --- */
-  onWakeUtterance: (cb: (wavBase64: string | null) => void): Promise<UnlistenFn> => listen<string | null>("wake://utterance", (e) => cb(e.payload ?? null)),
+  onWakeUtterance: (cb: (wavBase64: string | null) => void): Promise<UnlistenFn> => listenHere<string | null>("wake://utterance", (e) => cb(e.payload ?? null)),
   /** A spoken turn turned into text: on the BYTE cloud when the answer comes from there (and the chat isn't private), else on this PC. */
   voiceTranscribeSmart: (wavBase64: string, isPrivate: boolean) => invoke<Heard>("voice_transcribe_smart", { wavBase64, private: isPrivate }),
   /** The voices BYTE has been taught (needs BYTE Cloud). */
@@ -405,7 +409,7 @@ export const api = {
   timersList: () => invoke<RunningTimer[]>("timers_list"),
   timersCancel: (id: number) => invoke<boolean>("timers_cancel", { id }),
   onTimerDone: (cb: (t: TimerDone) => void): Promise<UnlistenFn> => listen<TimerDone>("timer://done", (e) => cb(e.payload)),
-  onWakeHeard: (cb: (rest: string) => void): Promise<UnlistenFn> => listen<string>("wake://heard", (e) => cb(typeof e.payload === "string" ? e.payload : "")),
+  onWakeHeard: (cb: (rest: string) => void): Promise<UnlistenFn> => listenHere<string>("wake://heard", (e) => cb(typeof e.payload === "string" ? e.payload : "")),
   // Speaker labels (speakers.rs) and the video helper (media.rs).
   speakersStatus: () => invoke<SpeakersStatus>("speakers_status"),
   speakersDownload: () => invoke<void>("speakers_download"),

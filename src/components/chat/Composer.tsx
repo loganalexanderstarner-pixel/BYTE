@@ -190,7 +190,9 @@ export function Composer() {
     }
   }, [talk, busy, speakingId, lastAnswer, setTalk]);
   useEffect(() => {
-    if (!inTauri) return;
+    // wake.rs sends its events to the Quick Ask window (the main window on a phone) but every window hears them: only that one acts,
+    // or each window would turn the same words into text and ask the same question.
+    if (!inTauri || getCurrentWebview().label !== (/android/i.test(navigator.userAgent) ? "main" : "quick")) return;
     const off = api.onWakeHeard((rest) => {
       // The window stays hidden now, so it keeps its chat between phrases: a new chat after a few quiet minutes, the same one for follow-ups.
       if (Date.now() - lastWake.current > 5 * 60_000) useStore.getState().newChat();

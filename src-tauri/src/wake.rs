@@ -12,7 +12,7 @@
 #![cfg_attr(not(target_os = "macos"), allow(dead_code))]
 
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -345,6 +345,8 @@ pub struct Capture {
     last_loud: usize,
     /// The short extra listen after a turn ("wait until I'm done"): its result is `wake://more`, not the turn.
     more: bool,
+    /// What was heard right after the wake phrase, before this capture began: it comes first, and is not part of the chime skip.
+    seed: Vec<f32>,
 }
 
 pub enum Heard {
@@ -365,6 +367,7 @@ impl Capture {
             started: None,
             last_loud: 0,
             more: false,
+            seed: vec![],
         }
     }
 
@@ -374,6 +377,22 @@ impl Capture {
     }
 
     pub fn feed(&mut self, samples: &[f32]) -> Heard {
+        if !self.seed.is_empty() {
+            let seed = std::mem::take(&mut self.seed);
+            let skip = std::mem::take(&mut self.skip);
+            let first = self.feed_samples(&seed, 0);
+            self.skip = skip;
+            if let Heard::Done(a) = first {
+                return Heard::Done(a);
+            }
+        }
+        let skip = self.skip;
+        self.skip = 0;
+        self.feed_samples(samples, skip)
+    }
+
+    fn feed_samples(&mut self, samples: &[f32], skip: usize) -> Heard {
+        self.skip = skip;
         let mut input = samples;
         if self.skip > 0 {
             let n = self.skip.min(input.len());
@@ -429,9 +448,47 @@ impl Capture {
 static CAPTURE: std::sync::Mutex<Option<Capture>> = std::sync::Mutex::new(None);
 
 /// The next thing said is the question (sent to the Quick Ask window as `wake://utterance`).
+/// The last few seconds of what the microphone heard, with a running count of samples: when "Hey BYTE" is confirmed (the check takes a
+/// moment), what the person said right after the phrase was already heard and is handed to the question instead of being lost.
+static TAIL: std::sync::Mutex<(std::collections::VecDeque<f32>, u64)> = std::sync::Mutex::new((std::collections::VecDeque::new(), 0));
+/// The value of the running count when the burst that held the phrase was handed over for checking.
+static BURST_AT: AtomicU64 = AtomicU64::new(0);
+const TAIL_MAX: usize = RATE as usize * 6;
+
+fn tail_push(chunk: &[f32]) {
+    if let Ok(mut t) = TAIL.lock() {
+        t.0.extend(chunk.iter().copied());
+        let over = t.0.len().saturating_sub(TAIL_MAX);
+        t.0.drain(..over);
+        t.1 += chunk.len() as u64;
+    }
+}
+
+fn tail_mark() {
+    if let Ok(t) = TAIL.lock() {
+        BURST_AT.store(t.1, Ordering::SeqCst);
+    }
+}
+
+/// What was heard since the last marked burst (at most 5 s of it).
+fn tail_since_mark() -> Vec<f32> {
+    let Ok(t) = TAIL.lock() else { return Vec::new() };
+    let n = (t.1.saturating_sub(BURST_AT.load(Ordering::SeqCst)) as usize).min(t.0.len()).min(RATE as usize * 5);
+    t.0.iter().skip(t.0.len() - n).copied().collect()
+}
+
 pub fn begin_capture(wait_ms: u64, skip_ms: u64) {
     if let Ok(mut c) = CAPTURE.lock() {
         *c = Some(Capture::new(wait_ms, skip_ms));
+    }
+}
+
+/// Like `begin_capture`, but what was heard right after the phrase (before the capture could start) comes first.
+fn begin_capture_after_phrase(wait_ms: u64, skip_ms: u64) {
+    let mut cap = Capture::new(wait_ms, skip_ms);
+    cap.seed = tail_since_mark();
+    if let Ok(mut c) = CAPTURE.lock() {
+        *c = Some(cap);
     }
 }
 
@@ -797,7 +854,7 @@ fn on_wake(app: &AppHandle, rest: String, show_window: bool, quiet: bool) {
     let skip_ms = if quiet { 0 } else { crate::voicectl::play_chime() };
     // Only the phrase was said: the next thing heard is the question (after the chime, which would otherwise count as speech).
     if rest.trim().len() <= 1 {
-        begin_capture(15_000, skip_ms);
+        begin_capture_after_phrase(15_000, skip_ms);
     } else {
         crate::voicectl::set_thinking(true);
     }
@@ -921,6 +978,7 @@ mod listen {
                 crate::aec::stats::MIC_OVERRUNS.store(ring.dropped(), Ordering::Relaxed);
                 // --- track:aec end ---
                 let mic_pos = crate::echo::advance_mic(chunk.len()); // track:voice
+                tail_push(&chunk);
                 if capturing() {
                     capture_feed(&app, &chunk);
                     vad = Vad::default();
@@ -976,6 +1034,9 @@ mod listen {
                 }
                 quick.listen(&chunk); // track:wakemodel (every frame goes through the quick detector when it is on)
                 for burst in vad.feed(&chunk) {
+                    if !busy.load(Ordering::SeqCst) {
+                        tail_mark(); // (not while a check runs: that burst is the question, which the seed must keep)
+                    }
                     match quick.verdict(&burst) { // track:wakemodel (Quick: only bursts the detector found plausible go on)
                         Some(false) => continue,
                         _ => check_burst(&app, &models, &busy, burst, false),
@@ -1108,6 +1169,19 @@ mod tests {
             }
         }
         None
+    }
+
+    #[test]
+    fn words_said_right_after_the_phrase_are_kept_and_the_chime_skip_comes_after_them() {
+        let mut cap = Capture::new(10_000, 300);
+        let mut seed = speech(1.5);
+        seed.extend(vec![0.0; RATE as usize * 2]);
+        cap.seed = seed;
+        let got = match cap.feed(&vec![0.0; 1600]) {
+            Heard::Done(a) => a,
+            Heard::Pending => panic!("the words in the seed should end the turn"),
+        };
+        assert!(got.len() >= RATE as usize);
     }
 
     #[test]
