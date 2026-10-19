@@ -41,3 +41,5 @@ vendor/windows-runtime/
 
 # Generated in the Windows release job when a signing key exists
 src-tauri/tauri.updater.conf.json
+.venv
+__pycache__/

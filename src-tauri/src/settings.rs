@@ -471,6 +471,18 @@ pub struct Settings {
     #[serde(default)]
     pub talk_hotkey: String,
     // --- track:voice end ---
+    // --- track:aec begin ---
+    /// Talking over BYTE on speakers (Windows): take what the speakers play from the sound card's own loopback instead of BYTE's playback
+    /// tap, so the echo is cancelled with an exact reference (also what other programs play). Off until the owner turns it on.
+    #[serde(default)]
+    pub aec_loopback: bool,
+    // --- track:aec end ---
+    // --- track:wakemodel begin ---
+    /// Who spots "Hey BYTE" first: "quick" (a tiny detector hears every moment of audio and Whisper only confirms its guesses) or
+    /// "careful" (Whisper listens to every speech burst, as before). A phrase of your own always uses careful (wakemodel.rs).
+    #[serde(default = "default_wake_detector")]
+    pub wake_detector: String,
+    // --- track:wakemodel end ---
     /// Where the model's weights live: "auto", "gpu" (graphics memory only), "gpuRam" (graphics + system memory) or "cpu" (processor only).
     /// (see system::Placement)
     /// Show the Quick Ask window when "Hey BYTE" is heard. Off: BYTE listens and answers out loud with nothing on screen.
@@ -833,6 +845,10 @@ impl Default for Settings {
             voice_focus: default_voice_focus(),
             talk_hotkey: String::new(),
             // --- track:voice end ---
+            aec_loopback: false, // track:aec
+            // --- track:wakemodel begin ---
+            wake_detector: default_wake_detector(),
+            // --- track:wakemodel end ---
             wake_show_window: default_wake_show_window(),
             memory_mode: default_memory_mode(),
             hey_byte_engine: default_hey_engine(),
@@ -953,6 +969,11 @@ impl Settings {
         if !matches!(next.wake_chime.as_str(), "system" | "soft" | "off") {
             next.wake_chime = default_wake_chime();
         }
+        // --- track:wakemodel begin ---
+        if !matches!(next.wake_detector.as_str(), "quick" | "careful") {
+            next.wake_detector = default_wake_detector();
+        }
+        // --- track:wakemodel end ---
         if !matches!(next.barge_in.as_str(), "off" | "headphones" | "speakers") {
             next.barge_in = default_barge_in();
         }
@@ -1023,6 +1044,12 @@ fn default_true_voice() -> bool {
 fn default_wake_chime() -> String {
     "system".into()
 }
+// --- track:wakemodel begin ---
+fn default_wake_detector() -> String {
+    "careful".into()
+}
+// --- track:wakemodel end ---
+
 fn default_barge_in() -> String {
     crate::bargein::DEFAULT_MODE.into()
 }

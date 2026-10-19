@@ -67,6 +67,21 @@ export function VoiceControls() {
         </span>
         <input type="checkbox" checked={settings.waitUntilDone ?? true} onChange={(e) => void update({ waitUntilDone: e.target.checked })} />
       </label>
+      {/* --- track:wakemodel begin --- */}
+      <label className="field">
+        <span>
+          Wake word detector
+          <small>
+            Quick: a tiny detector listens to every moment of sound, also while BYTE talks, and only when it thinks it heard “Hey BYTE” does the speech model confirm it. It saves processor time and reacts sooner. Careful: the speech
+            model listens to every burst of speech, as before. It was trained on computer-made voices, so Careful is the safe choice if Quick misses you. A wake phrase of your own always uses Careful.
+          </small>
+        </span>
+        <select value={settings.wakeDetector ?? "careful"} onChange={(e) => void update({ wakeDetector: e.target.value as "quick" | "careful" })} aria-label="Wake word detector">
+          <option value="quick">Quick (new)</option>
+          <option value="careful">Careful (speech model only)</option>
+        </select>
+      </label>
+      {/* --- track:wakemodel end --- */}
       <label className="field">
         <span>
           Talking over BYTE
@@ -81,6 +96,20 @@ export function VoiceControls() {
           <option value="off">Off</option>
         </select>
       </label>
+      {/* --- track:aec begin --- */}
+      {currentOs() === "windows" && (settings.bargeIn ?? "off") === "speakers" && (
+        <label className="field">
+          <span>
+            Use the sound card's own copy of what the speakers play
+            <small>
+              With speakers, BYTE removes its own voice (and any music) from the microphone using an exact copy of what Windows sends to the speakers, so you can talk over it and say “Hey BYTE” while it speaks. Off: BYTE
+              uses its own playback only, which cannot see other programs and is less exact. The microphone is still the only thing recorded; nothing is saved.
+            </small>
+          </span>
+          <input type="checkbox" checked={settings.aecLoopback ?? false} onChange={(e) => void update({ aecLoopback: e.target.checked })} />
+        </label>
+      )}
+      {/* --- track:aec end --- */}
       <label className="field">
         <span>
           Focus on one voice

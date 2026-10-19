@@ -206,9 +206,15 @@ export interface Settings {
   wakeChime?: "system" | "soft" | "off";
   waitUntilDone?: boolean;
   bargeIn?: "off" | "headphones" | "speakers";
+  // --- track:wakemodel begin ---
+  wakeDetector?: "quick" | "careful";
+  // --- track:wakemodel end ---
   voiceFocus?: "off" | "normal" | "strict";
   talkHotkey?: string;
   /* --- track:voice end --- */
+  /* --- track:aec begin --- */
+  aecLoopback?: boolean;
+  /* --- track:aec end --- */
   /** Where the model's weights live: "auto" | "gpu" (graphics memory only) | "gpuRam" (graphics + system memory) | "cpu" (processor only). */
   memoryMode?: "auto" | "gpu" | "gpuRam" | "cpu";
   /** Show the Quick Ask window when "Hey BYTE" is heard (off: nothing on screen, BYTE just answers out loud). */
