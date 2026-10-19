@@ -6891,3 +6891,55 @@ kbd {
 .connect-log { list-style: none; padding: 0; margin: var(--space-2) 0 0; display: flex; flex-direction: column; gap: 3px; font-size: 0.88em; color: var(--text-2); }
 .connect-log li.bad { color: var(--danger, #c0392b); }
 /* --- track:connect end --- */
+
+/* Settings search: the suggestions under the box, like a search engine's type-ahead. */
+.settings-search {
+  position: relative;
+  margin: 0 var(--space-2) var(--space-2);
+}
+.settings-suggest {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: calc(100% + 2px);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.settings-suggest li {
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text-muted, inherit);
+}
+.settings-suggest li b {
+  color: var(--text);
+  font-weight: 600;
+}
+.settings-suggest li[aria-selected="true"] {
+  background: var(--surface-3);
+}
+
+.mic-meter {
+  display: inline-block;
+  width: 140px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  overflow: hidden;
+  vertical-align: middle;
+}
+.mic-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 90ms linear;
+}

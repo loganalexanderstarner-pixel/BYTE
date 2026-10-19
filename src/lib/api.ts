@@ -112,6 +112,9 @@ import type { ActivityEntry, AutoJob, ChannelInfo, ConnectorKind, ConnectorPatch
 // --- track:connect end ---
 
 /** Listens for an event sent to this window only: a plain `listen` also hears events sent to other windows, so every window would act on them. */
+export type AudioDevices = { inputs: string[]; outputs: string[]; defaultInput: string; defaultOutput: string };
+export type MicTestResult = { peak: number; heard: string; wake: boolean; opened: boolean };
+
 const listenHere = <T = unknown>(event: string, cb: (e: { payload: T }) => void): Promise<UnlistenFn> => getCurrentWebviewWindow().listen<T>(event, cb);
 
 export const api = {
@@ -364,6 +367,9 @@ export const api = {
   voiceFocusCommand: (command: "everyone" | { alsoListenTo: { name: string } }) => invoke<void>("voice_focus_command", { command }),
   /** Why the talk key could not be registered ("" = fine). */
   talkKeyStatus: () => invoke<string>("talk_key_status"),
+  audioDevices: () => invoke<AudioDevices>("audio_devices"),
+  micTest: () => invoke<MicTestResult>("mic_test"),
+  onMicLevel: (cb: (level: number) => void): Promise<UnlistenFn> => listen<number>("mic://level", (e) => cb(e.payload)),
   voiceFocusConfirmed: () => invoke<void>("voice_focus_confirmed"),
   /** A turn from a voice other than the focused one, when voices were allowed by name: the page decides (base64 WAV). */
   onWakeOther: (cb: (wavBase64: string) => void): Promise<UnlistenFn> => listenHere<string>("wake://utterance-other", (e) => cb(e.payload)),

@@ -471,6 +471,11 @@ pub struct Settings {
     #[serde(default)]
     pub talk_hotkey: String,
     // --- track:voice end ---
+    /// The microphone and the speakers BYTE's voice uses, by name; empty is the system's default (audiodev.rs).
+    #[serde(default)]
+    pub mic_device: String,
+    #[serde(default)]
+    pub speaker_device: String,
     // --- track:aec begin ---
     /// Talking over BYTE on speakers (Windows): take what the speakers play from the sound card's own loopback instead of BYTE's playback
     /// tap, so the echo is cancelled with an exact reference (also what other programs play). Off until the owner turns it on.
@@ -845,6 +850,8 @@ impl Default for Settings {
             voice_focus: default_voice_focus(),
             talk_hotkey: String::new(),
             // --- track:voice end ---
+            mic_device: String::new(),
+            speaker_device: String::new(),
             aec_loopback: false, // track:aec
             // --- track:wakemodel begin ---
             wake_detector: default_wake_detector(),

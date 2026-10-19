@@ -99,6 +99,7 @@ mod wakecheck;
 // --- track:voice end ---
 // --- track:aec begin ---
 mod aec;
+mod audiodev;
 #[cfg(test)]
 mod aec_tests;
 // --- track:aec end ---
@@ -579,6 +580,8 @@ pub fn run() {
             tts::tts_voice_delete,
             speech::speech_voices,
             wake::wake_pause,
+            audiodev::audio_devices,
+            wake::mic_test,
             wake::wake_ready,
             wake::wake_listen,
             // --- track:voice begin ---

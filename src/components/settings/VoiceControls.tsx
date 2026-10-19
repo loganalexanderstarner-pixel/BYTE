@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { api, inTauri } from "../../lib/api";
+import { api, inTauri, type AudioDevices, type MicTestResult } from "../../lib/api";
 import { useStore } from "../../state/store";
 import { currentOs, osText } from "../../lib/platform";
 
@@ -20,10 +20,47 @@ export function VoiceControls() {
   useEffect(() => {
     void checkKey();
   }, [settings?.wakeWord]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [devices, setDevices] = useState<AudioDevices | null>(null);
+  useEffect(() => {
+    if (inTauri) void api.audioDevices().then(setDevices, () => setDevices(null));
+  }, []);
   if (!settings?.wakeWord) return null;
   const suggested = "Ctrl+Alt+Space";
   return (
     <>
+      {devices && (devices.inputs.length > 0 || devices.outputs.length > 0) && (
+        <>
+          <label className="field">
+            <span>
+              Microphone
+              <small>Which microphone BYTE listens with. “System default” follows whatever Windows or macOS uses, which is right for almost everyone.</small>
+            </span>
+            <select value={settings.micDevice ?? ""} onChange={(e) => void update({ micDevice: e.target.value })} aria-label="Microphone">
+              <option value="">System default{devices.defaultInput ? ` (${devices.defaultInput})` : ""}</option>
+              {devices.inputs.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>
+              Speakers
+              <small>Where BYTE’s voice plays. “System default” follows your system’s choice.</small>
+            </span>
+            <select value={settings.speakerDevice ?? ""} onChange={(e) => void update({ speakerDevice: e.target.value })} aria-label="Speakers">
+              <option value="">System default{devices.defaultOutput ? ` (${devices.defaultOutput})` : ""}</option>
+              {devices.outputs.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <MicTest />
+        </>
+      )}
       <label className="field">
         <span>
           After BYTE answers “Hey BYTE”
@@ -147,5 +184,55 @@ export function VoiceControls() {
         {keyError && <small role="alert">{keyError}</small>}
       </label>
     </>
+  );
+}
+
+/** “Test my microphone”: five seconds of listening with a live level, then what BYTE heard and whether it would have woken. */
+function MicTest() {
+  const [phase, setPhase] = useState<"idle" | "listening" | "thinking">("idle");
+  const [level, setLevel] = useState(0);
+  const [result, setResult] = useState<MicTestResult | null>(null);
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    void api.onMicLevel((l) => setLevel(l)).then((u) => (off = u));
+    return () => off?.();
+  }, []);
+  const run = () => {
+    setResult(null);
+    setPhase("listening");
+    const timer = window.setTimeout(() => setPhase("thinking"), 5000);
+    void api
+      .micTest()
+      .then(setResult)
+      .catch(() => setResult({ peak: 0, heard: "", wake: false, opened: false }))
+      .finally(() => (window.clearTimeout(timer), setPhase("idle"), setLevel(0)));
+  };
+  const verdict = !result
+    ? ""
+    : !result.opened
+      ? "BYTE couldn’t open a microphone. Check that one is plugged in and that BYTE may use it (Windows Settings → Privacy → Microphone)."
+      : result.peak < 0.02
+        ? "BYTE heard nothing. Check the microphone above, its volume, and that it isn’t muted."
+        : result.wake
+          ? `Heard “${result.heard.trim()}”. That wakes BYTE.`
+          : result.heard.trim()
+            ? `Heard “${result.heard.trim()}”. That wouldn’t wake BYTE: say “Hey BYTE” a little clearer or closer.`
+            : "BYTE heard sound but no words. Move closer or turn the microphone up.";
+  return (
+    <div className="field">
+      <span>
+        Test my microphone
+        <small>Press the button and say “Hey BYTE”. BYTE listens for five seconds, then tells you what it heard. Nothing is kept.</small>
+      </span>
+      <span className="row">
+        <button type="button" onClick={run} disabled={phase !== "idle"}>
+          {phase === "listening" ? "Listening…" : phase === "thinking" ? "Working it out…" : "Test"}
+        </button>
+        <span className="mic-meter" aria-hidden="true">
+          <span style={{ width: `${Math.round(level * 100)}%` }} />
+        </span>
+      </span>
+      {verdict && <small role="status">{verdict}</small>}
+    </div>
   );
 }

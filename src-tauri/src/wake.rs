@@ -1111,7 +1111,7 @@ mod listen {
 
     /// Opens the default microphone; its callback feeds `ring` (16 kHz mono) and flags `failed` on a stream error.
     fn open_mic(ring: &std::sync::Arc<crate::aec::Ring>, failed: &std::sync::Arc<AtomicBool>) -> Option<cpal::Stream> {
-        let dev = cpal::default_host().default_input_device()?;
+        let dev = crate::audiodev::input()?;
         let cfg = dev.default_input_config().ok()?;
         let (rate, channels) = (cfg.sample_rate(), cfg.channels() as usize);
         let mut feeder = crate::aec::Feeder::new(rate, channels, ring.clone(), &crate::aec::stats::MIC_DROPPED);
@@ -1130,6 +1130,31 @@ mod listen {
             .ok()?;
         s.play().ok()?;
         Some(s)
+    }
+
+    /// Records `secs` seconds from the chosen microphone (a second stream next to the listener's), calling `level` about ten times a
+    /// second with the loudness (0 to 1). None when no microphone can be opened.
+    pub fn record(secs: f32, mut level: impl FnMut(f32)) -> Option<Vec<f32>> {
+        let ring = crate::aec::Ring::new(RATE as usize * 4);
+        let failed = std::sync::Arc::new(AtomicBool::new(false));
+        let stream = open_mic(&ring, &failed)?;
+        let started = std::time::Instant::now();
+        let mut all: Vec<f32> = Vec::new();
+        let mut since = 0usize;
+        while started.elapsed().as_secs_f32() < secs {
+            let mut chunk = Vec::new();
+            ring.pop_into(&mut chunk, usize::MAX);
+            since += chunk.len();
+            all.extend_from_slice(&chunk);
+            if since >= RATE as usize / 10 {
+                let tail = &all[all.len().saturating_sub(since)..];
+                level((rms(tail) * 6.0).min(1.0));
+                since = 0;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        drop(stream);
+        Some(all)
     }
 
     pub fn stop() {
@@ -1164,6 +1189,56 @@ pub fn apply(app: &AppHandle, on: bool) {
 #[tauri::command]
 pub fn wake_pause(paused: bool) {
     set_paused(paused);
+}
+
+/// What the microphone test found.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MicTest {
+    /// The loudest moment, 0 to 1.
+    pub peak: f32,
+    /// What was heard (empty when nothing was said).
+    pub heard: String,
+    /// Whether it counted as "Hey BYTE".
+    pub wake: bool,
+    /// False when no microphone could be opened.
+    pub opened: bool,
+}
+
+/// The test in Settings → Voice: listens for five seconds, shows the level as it goes (`mic://level`), then says what it heard and
+/// whether that would have woken BYTE. Nothing is kept: the sound is dropped when the answer is built.
+#[tauri::command]
+pub async fn mic_test(app: AppHandle) -> AppResult<MicTest> {
+    #[cfg(any(target_os = "macos", windows))]
+    {
+        use tauri::{Emitter, Manager};
+        let was_paused = PAUSED.swap(true, Ordering::SeqCst);
+        let handle = app.clone();
+        let audio = tauri::async_runtime::spawn_blocking(move || {
+            listen::record(5.0, |l| {
+                let _ = handle.emit("mic://level", l);
+            })
+        })
+        .await
+        .unwrap_or(None);
+        PAUSED.store(was_paused, Ordering::SeqCst);
+        let Some(audio) = audio else {
+            return Ok(MicTest { peak: 0.0, heard: String::new(), wake: false, opened: false });
+        };
+        let peak = audio.iter().fold(0f32, |m, v| m.max(v.abs())).min(1.0);
+        if peak < 0.02 {
+            return Ok(MicTest { peak, heard: String::new(), wake: false, opened: true });
+        }
+        let models = app.state::<crate::state::AppState>().paths.models.clone();
+        let heard = transcript_plain(Some(&app), &models, &audio).await.unwrap_or_default();
+        let wake = wake_rest(&heard).is_some();
+        Ok(MicTest { peak, heard, wake, opened: true })
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        let _ = app;
+        Ok(MicTest { peak: 0.0, heard: String::new(), wake: false, opened: false })
+    }
 }
 
 /// Whether "Hey BYTE" can work here (a Mac or a Windows PC, with a speech model).
