@@ -600,6 +600,92 @@ pub fn capturing_now() -> bool {
 }
 
 /// Feeds the stream to the running capture; when the turn is over, hands it to the window.
+/// Test hook: when the environment variable `BYTE_TEST_INJECT` names a folder, any 16 kHz mono 16-bit `.wav` put there is heard as if
+/// it came through the microphone, at real-time speed (the real microphone is ignored while it plays). It is how the whole spoken
+/// pipeline is tested on a PC with nobody speaking. Never set by the app itself; without the variable nothing here runs.
+mod test_inject {
+    use std::collections::VecDeque;
+    use std::path::PathBuf;
+    use std::sync::{Mutex, OnceLock};
+    use std::time::Instant;
+
+    struct State {
+        queue: VecDeque<f32>,
+        last: Instant,
+        polled: Instant,
+    }
+
+    fn dir() -> Option<&'static PathBuf> {
+        static DIR: OnceLock<Option<PathBuf>> = OnceLock::new();
+        DIR.get_or_init(|| std::env::var_os("BYTE_TEST_INJECT").map(PathBuf::from).filter(|p| p.is_dir())).as_ref()
+    }
+
+    /// The samples of a 16-bit PCM wav (mono; the first channel of anything else).
+    pub fn parse_wav(b: &[u8]) -> Option<Vec<f32>> {
+        if b.len() < 44 || &b[..4] != b"RIFF" || &b[8..12] != b"WAVE" {
+            return None;
+        }
+        let (mut i, mut channels) = (12, 1usize);
+        while i + 8 <= b.len() {
+            let size = u32::from_le_bytes(b[i + 4..i + 8].try_into().ok()?) as usize;
+            let body = i + 8;
+            match &b[i..i + 4] {
+                b"fmt " if body + 4 <= b.len() => channels = (u16::from_le_bytes(b[body + 2..body + 4].try_into().ok()?) as usize).max(1),
+                b"data" => {
+                    let end = (body + size).min(b.len());
+                    return Some(b[body..end].chunks_exact(2 * channels).map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 / 32768.0).collect());
+                }
+                _ => {}
+            }
+            i = body + size + (size & 1);
+        }
+        None
+    }
+
+    pub fn take() -> Option<Vec<f32>> {
+        let dir = dir()?;
+        static STATE: Mutex<Option<State>> = Mutex::new(None);
+        let mut guard = STATE.lock().ok()?;
+        let st = guard.get_or_insert_with(|| State { queue: VecDeque::new(), last: Instant::now(), polled: Instant::now() });
+        if st.queue.is_empty() && st.polled.elapsed().as_millis() > 300 {
+            st.polled = Instant::now();
+            if let Some(path) = std::fs::read_dir(dir).ok()?.flatten().map(|e| e.path()).find(|p| p.extension().is_some_and(|x| x == "wav")) {
+                if let Some(samples) = std::fs::read(&path).ok().and_then(|b| parse_wav(&b)) {
+                    log::info!("[test] injected {:.1} s of recorded voice from {}", samples.len() as f32 / 16000.0, path.display());
+                    st.queue.extend(samples);
+                    st.last = Instant::now();
+                }
+                let _ = std::fs::rename(&path, path.with_extension("played"));
+            }
+        }
+        if st.queue.is_empty() {
+            return None;
+        }
+        let n = ((st.last.elapsed().as_secs_f32() * 16000.0) as usize).min(3200);
+        if n < 160 {
+            return Some(Vec::new());
+        }
+        st.last = Instant::now();
+        Some(st.queue.drain(..n.min(st.queue.len())).collect())
+    }
+
+    #[cfg(test)]
+    mod tests {
+        #[test]
+        fn a_wav_is_read() {
+            let mut b = b"RIFF\0\0\0\0WAVEfmt ".to_vec();
+            b.extend_from_slice(&16u32.to_le_bytes());
+            b.extend_from_slice(&[1, 0, 1, 0, 0x80, 0x3e, 0, 0, 0, 0x7d, 0, 0, 2, 0, 16, 0]);
+            b.extend_from_slice(b"data");
+            b.extend_from_slice(&4u32.to_le_bytes());
+            b.extend_from_slice(&[0, 0x40, 0, 0xc0]);
+            let s = super::parse_wav(&b).unwrap();
+            assert_eq!(s, vec![0.5, -0.5]);
+            assert!(super::parse_wav(b"nope").is_none());
+        }
+    }
+}
+
 fn capture_feed(app: &AppHandle, chunk: &[f32]) {
     use base64::Engine;
     // (audio, was the extra listen, samples of the wait that were left)
@@ -806,6 +892,10 @@ mod listen {
                 }
                 let mut chunk: Vec<f32> = Vec::new();
                 ring.pop_into(&mut chunk, usize::MAX);
+                if let Some(injected) = test_inject::take() {
+                    chunk = injected; // a recorded voice stands in for the microphone (only when BYTE_TEST_INJECT names a folder)
+                    last_data = std::time::Instant::now();
+                }
                 if chunk.is_empty() {
                     // The stream reported an error, or has delivered nothing for 3 s (a device that was unplugged or switched): rebuild it.
                     let stalled = last_data.elapsed() > std::time::Duration::from_secs(3);
