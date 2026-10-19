@@ -208,6 +208,9 @@ export interface Settings {
   bargeIn?: "off" | "headphones" | "speakers";
   // --- track:wakemodel begin ---
   wakeDetector?: "quick" | "careful";
+  /** The microphone and speakers BYTE's voice uses, by name (empty: the system default). */
+  micDevice?: string;
+  speakerDevice?: string;
   // --- track:wakemodel end ---
   voiceFocus?: "off" | "normal" | "strict";
   talkHotkey?: string;

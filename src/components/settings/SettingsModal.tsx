@@ -1,5 +1,6 @@
 import { currentDevice, onDevice, ramLabel } from "../../lib/device";
 import { VoiceControls } from "./VoiceControls"; // track:voice
+import { fieldTitle, suggest } from "../../lib/settingsSuggest";
 import { ByteVoicesRow, SpeakerLabelsRow, SpeechRows, VideoHelperRow, VoiceProfilesRow, WakeRow } from "./VoiceExtras";
 import { VoiceModels } from "../chat/VoiceModels";
 import { KeyboardSection } from "./KeyboardSection";
@@ -164,6 +165,17 @@ export function SettingsModal() {
   const bodyRef = useRef<HTMLElement>(null);
   const group = groupOf(tab);
   const searching = query.trim().length > 0;
+  // Type-ahead under the search box: the names of the settings on the page(s) now mounted, matched to what was typed.
+  const [titles, setTitles] = useState<string[]>([]);
+  const [open, setOpen] = useState(false);
+  const [pick, setPick] = useState(0);
+  const options = open ? suggest(titles, query) : [];
+  const choose = (title: string) => {
+    setQuery(title);
+    setOpen(false);
+    setPick(0);
+    window.setTimeout(() => bodyRef.current?.querySelector<HTMLElement>(".field:not([hidden])")?.scrollIntoView({ block: "center", behavior: "smooth" }), 80);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && openSettings(null);
@@ -175,7 +187,15 @@ export function SettingsModal() {
   useEffect(() => {
     const body = bodyRef.current;
     if (!body) return;
-    const apply = () => filterSettings(body, query);
+    const collect = () => setTitles((old) => {
+      const all = Array.from(body.querySelectorAll(".field")).map(fieldTitle).filter(Boolean);
+      const next = Array.from(new Set([...old, ...all]));
+      return next.length === old.length ? old : next;
+    });
+    const apply = () => {
+      collect(); // (before the filter hides anything: the names of every mounted setting feed the type-ahead)
+      filterSettings(body, query);
+    };
     apply();
     if (!searching) return;
     const watcher = new MutationObserver(apply);
@@ -188,15 +208,43 @@ export function SettingsModal() {
       <div className="modal" role="dialog" aria-modal="true" aria-label="Settings">
         <nav className="modal-nav">
           <h2>Settings</h2>
-          <input
-            className="text-input"
-            type="search"
-            value={query}
-            placeholder="Search settings"
-            aria-label="Search settings"
-            onChange={(e) => setQuery(e.target.value)}
-            style={{ margin: "0 var(--space-2) var(--space-2)" }}
-          />
+          <div className="settings-search">
+            <input
+              className="text-input"
+              type="search"
+              value={query}
+              placeholder="Search settings"
+              aria-label="Search settings"
+              role="combobox"
+              aria-expanded={options.length > 0}
+              aria-controls="settings-suggestions"
+              autoComplete="off"
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setOpen(true);
+                setPick(0);
+              }}
+              onFocus={() => setOpen(true)}
+              onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+              onKeyDown={(e) => {
+                if (!options.length) return;
+                if (e.key === "ArrowDown") (e.preventDefault(), setPick((pick + 1) % options.length));
+                else if (e.key === "ArrowUp") (e.preventDefault(), setPick((pick + options.length - 1) % options.length));
+                else if (e.key === "Enter") (e.preventDefault(), choose(options[pick]));
+                else if (e.key === "Escape") (e.stopPropagation(), setOpen(false));
+              }}
+            />
+            {options.length > 0 && (
+              <ul className="settings-suggest" id="settings-suggestions" role="listbox">
+                {options.map((o, i) => (
+                  <li key={o} role="option" aria-selected={i === pick} onMouseDown={(e) => (e.preventDefault(), choose(o))} onMouseEnter={() => setPick(i)}>
+                    <b>{o.slice(0, query.trim().length)}</b>
+                    {o.slice(query.trim().length)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}

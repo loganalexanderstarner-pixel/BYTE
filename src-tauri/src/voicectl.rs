@@ -4,6 +4,7 @@
 
 #![cfg_attr(not(any(target_os = "macos", windows)), allow(dead_code))]
 
+use crate::platform_text::SeeThrough;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -88,6 +89,11 @@ pub fn apply(app: &AppHandle, s: &Settings) {
     }
     crate::bargein::set_mode(&s.barge_in);
     crate::aec::set_wanted(s.aec_loopback); // track:aec
+    // The microphone and speakers chosen for BYTE's voice; a changed microphone restarts the listener on the new one.
+    if crate::audiodev::set(&s.mic_device, &s.speaker_device) && s.wake_word {
+        crate::wake::apply(app, false);
+        crate::wake::apply(app, true);
+    }
     crate::wakemodel::set_mode(&s.wake_detector); // track:wakemodel
     crate::voicefocus::set_mode(&s.voice_focus);
     #[cfg(any(target_os = "macos", windows))]
@@ -144,7 +150,7 @@ fn pill(app: &AppHandle, phase: Phase) {
                 .title("BYTE listening")
                 .inner_size(230.0, 36.0)
                 .decorations(false)
-                .transparent(true)
+                .see_through()
                 .shadow(false)
                 .resizable(false)
                 .always_on_top(true)
@@ -320,7 +326,7 @@ fn system_chime() {
 fn soft_chime() {
     std::thread::spawn(|| {
         use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-        let Some(dev) = cpal::default_host().default_output_device() else { return };
+        let Some(dev) = crate::audiodev::output() else { return };
         let Ok(cfg) = dev.default_output_config() else { return };
         let (rate, channels) = (cfg.sample_rate(), cfg.channels() as usize);
         let samples = soft_chime_samples(rate);

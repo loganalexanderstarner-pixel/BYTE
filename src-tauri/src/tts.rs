@@ -560,7 +560,7 @@ fn start_output() {
         // so the stream is watched and built again, and a changed default device is followed.
         let broken = Arc::new(AtomicBool::new(false));
         let build = |broken: &Arc<AtomicBool>| {
-            let dev = cpal::default_host().default_output_device()?;
+            let dev = crate::audiodev::output()?;
             let cfg = dev.default_output_config().ok()?;
             let channels = cfg.channels() as usize;
             if let Ok(mut q) = queue().lock() {
@@ -614,7 +614,7 @@ fn start_output() {
             Some((s, name))
         };
         let current_default = || {
-            cpal::default_host().default_output_device().and_then(|d| d.description().map(|x| x.name().to_string()).ok()).unwrap_or_default()
+            crate::audiodev::output().and_then(|d| d.description().map(|x| x.name().to_string()).ok()).unwrap_or_default()
         };
         let mut stream: Option<(cpal::Stream, String)> = None;
         loop {

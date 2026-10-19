@@ -5,6 +5,7 @@
 //! The rules in `screen::policy` apply to every window under the box (not only the one in front): a password manager, a bank,
 //! a private browser window or anything on the never-look-at list under any part of the box means nothing is captured.
 
+use crate::platform_text::SeeThrough;
 use std::sync::Mutex;
 
 use crate::screen::policy::{self, WindowInfo};
@@ -176,7 +177,7 @@ mod flow {
         let built = WebviewWindowBuilder::new(app, OVERLAY, WebviewUrl::App("helper-region.html".into()))
             .title("BYTE region")
             .decorations(false)
-            .transparent(true)
+            .see_through()
             .shadow(false)
             .resizable(false)
             .always_on_top(true)

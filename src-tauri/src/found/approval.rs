@@ -10,6 +10,7 @@
 //! The popup is the window `approvalpop` (public/approval.html). A third button ("Approve and don't ask again") is added by
 //! another part later: the page has an empty `#extra` slot, and [`PopState`] has a place for the extra button's label.
 
+use crate::platform_text::SeeThrough;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -196,7 +197,7 @@ fn show(app: &AppHandle) {
         .title("BYTE needs a yes or no")
         .inner_size(WIDTH, HEIGHT)
         .decorations(false)
-        .transparent(true)
+        .see_through()
         .shadow(false)
         .resizable(false)
         .always_on_top(true)

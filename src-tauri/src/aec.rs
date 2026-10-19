@@ -368,7 +368,7 @@ mod loopback {
     /// Opens the default OUTPUT device as a capture stream. With WASAPI that is a loopback: it delivers exactly what is sent to the
     /// speakers, in the device's own format.
     pub fn open(failed: Arc<AtomicBool>) -> Option<(cpal::Stream, Arc<Ring>)> {
-        let dev = cpal::default_host().default_output_device()?;
+        let dev = crate::audiodev::output()?;
         let cfg = dev.default_output_config().ok()?;
         let (rate, channels) = (cfg.sample_rate(), cfg.channels() as usize);
         let ring = Ring::new(RATE * 2);
