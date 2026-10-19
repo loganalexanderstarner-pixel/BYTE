@@ -1052,7 +1052,7 @@ pub async fn download_variant(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn download_file(
+pub(crate) async fn download_file(
     client: &reqwest::Client,
     url: &str,
     models_dir: &Path,

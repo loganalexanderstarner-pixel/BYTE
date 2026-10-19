@@ -211,6 +211,17 @@ export interface Settings {
   /** The microphone and speakers BYTE's voice uses, by name (empty: the system default). */
   micDevice?: string;
   speakerDevice?: string;
+  // Image Studio (Windows)
+  imageStudio?: boolean;
+  imageRealPeople?: boolean;
+  imageHires?: boolean;
+  imageUpscale?: boolean;
+  imageUpscaler?: string;
+  imagePhotoFinish?: boolean;
+  imageFinishStrength?: number;
+  imagePlacement?: "auto" | "vram" | "ram";
+  imageKeep?: "all" | "saved" | "none";
+  imageStripInfo?: boolean;
   // --- track:wakemodel end ---
   voiceFocus?: "off" | "normal" | "strict";
   talkHotkey?: string;
@@ -1695,3 +1706,96 @@ export interface BrowserActivity {
   action: string;
 }
 /* --- track:browser end --- */
+
+export interface ImageFile {
+  role: string;
+  name: string;
+  repo: string;
+  size: number;
+  sha256: string;
+  url: string;
+}
+
+export type ImagePlacement = "vram" | "split" | "ram" | "toobig";
+
+/** One quantisation of an image model, with how it would fit this PC. */
+export interface ImageVariant {
+  quant: string;
+  bits: number;
+  qualityCost: number;
+  sizeBytes: number;
+  files: ImageFile[];
+  fit: { placement: ImagePlacement; needBytes: number; overflowBytes: number };
+  installed: boolean;
+}
+
+/** An image model in the Image Studio catalog (Windows). */
+export interface ImageModel {
+  id: string;
+  name: string;
+  family: string;
+  kind: string;
+  tags: string[];
+  /** Real-life looks it does well (portrait, landscape ...), for models tagged realism. */
+  looks: string[];
+  tagline: string;
+  strengths: string;
+  license: string;
+  commercialOk: boolean;
+  community: boolean;
+  mature: boolean;
+  quality: number;
+  steps: number;
+  overheadGb: number;
+  downloads: number;
+  source: string;
+  variants: ImageVariant[];
+  best: number;
+  totalBytes: number;
+  companions: ImageFile[];
+}
+
+export interface ImageRequest {
+  model: string;
+  quant: string;
+  prompt: string;
+  negative?: string;
+  width: number;
+  height: number;
+  steps?: number;
+  seed?: number;
+}
+
+/** A finished picture from Image Studio. */
+export interface ImageMade {
+  path: string;
+  /** A small JPEG as a data address, to show in the window. */
+  preview: string;
+  width: number;
+  height: number;
+  seed: number;
+  seconds: number;
+  notes: string[];
+}
+
+export interface ImageProgress {
+  phase: "loading" | "drawing" | "finishing" | "enlarging" | "polishing";
+  step: number;
+  total: number;
+}
+
+export interface ImageEngineOption {
+  id: string;
+  label: string;
+  note: string;
+  sizeBytes: number;
+  installed: boolean;
+}
+
+/** The picture engine (stable-diffusion.cpp) Image Studio draws with: downloaded on request. */
+export interface ImageEngine {
+  /** The engine in use: "cuda", "vulkan", "cpu", "custom", or "" when none is installed. */
+  active: string;
+  recommended: string;
+  options: ImageEngineOption[];
+}

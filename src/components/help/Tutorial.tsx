@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, AudioLines, Check, CheckCircle2, Clock, Compass, FolderSearch, Gamepad2, Globe, Hand, LifeBuoy, MessageSquare, Mic, Monitor, MousePointer2, Paperclip, Rocket, Save, Search, Shield, X, XCircle, Zap } from "lucide-react";
+import { ArrowLeft, ArrowRight, AudioLines, Check, CheckCircle2, Clock, Compass, FolderSearch, Gamepad2, Globe, Hand, LifeBuoy, MessageSquare, Mic, Monitor, MousePointer2, Image as ImageIcon, Paperclip, Rocket, Save, Search, Shield, X, XCircle, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 
 import { api, inTauri } from "../../lib/api";
@@ -28,7 +28,7 @@ import { useStore, type SettingsTab } from "../../state/store";
 
 const ICONS: Record<string, ComponentType<{ size?: number }>> = {
   rocket: Rocket, chat: MessageSquare, paperclip: Paperclip, globe: Globe, mic: Mic, wave: AudioLines, hand: Hand, bolt: Zap, clock: Clock,
-  pointer: MousePointer2, folder: FolderSearch, screen: Monitor, compass: Compass, game: Gamepad2, save: Save, shield: Shield, lifebuoy: LifeBuoy,
+  image: ImageIcon, pointer: MousePointer2, folder: FolderSearch, screen: Monitor, compass: Compass, game: Gamepad2, save: Save, shield: Shield, lifebuoy: LifeBuoy,
 };
 
 const BADGE = { done: "Done", progress: "In progress", new: "Not started" } as const;
@@ -69,7 +69,8 @@ function useChecks(): (id: CheckId) => boolean | null {
 }
 
 /** The tutorial: a home screen with one card per feature, and a short walkthrough for each. */
-export function Tutorial({ onClose }: { onClose: () => void }) {
+/** `autoStart`: begin the whole run at once (the first-run "show me around" button). Esc or Close leaves it any time. */
+export function Tutorial({ onClose, autoStart = false }: { onClose: () => void; autoStart?: boolean }) {
   const os = currentOs();
   const list = useMemo(() => tutorialsFor(os), [os]);
   const openSettings = useStore((s) => s.openSettings);
@@ -117,6 +118,10 @@ export function Tutorial({ onClose }: { onClose: () => void }) {
     const first = resumePoint(list, fresh);
     if (first) open(first, 0);
   };
+  useEffect(() => {
+    if (autoStart) startAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const stopRun = () => commit({ ...progress, all: { active: false, skipped: progress.all.skipped } });
   const goStep = (t: TutorialData, n: number) => {
     setStep(n);

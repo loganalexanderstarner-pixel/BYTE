@@ -17,7 +17,7 @@ export function HelpCenter() {
   const newChat = useStore((s) => s.newChat);
   const [query, setQuery] = useState("");
   const [id, setId] = useState<string>(start ?? "getting-started");
-  const [tutorial, setTutorial] = useState(start === "tutorial"); // track:house
+  const [tutorial, setTutorial] = useState(start === "tutorial" || start === "tutorial-all"); // track:house
   const body = useRef<HTMLDivElement>(null);
   const found = useMemo(() => searchHelp(query), [query]);
   const article = id === "ideas" ? null : (ARTICLES.find((a) => a.id === id) ?? ARTICLES[0]);
@@ -61,7 +61,7 @@ export function HelpCenter() {
           <button className="btn primary sm" onClick={() => setTutorial(true)}>
             Tutorial
           </button>
-          {tutorial && <Tutorial onClose={() => setTutorial(false)} />}
+          {tutorial && <Tutorial autoStart={start === "tutorial-all"} onClose={() => setTutorial(false)} />}
           <button className="icon-btn" onClick={onClose} aria-label="Close">
             <X size={16} />
           </button>

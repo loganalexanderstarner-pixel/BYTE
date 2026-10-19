@@ -212,7 +212,7 @@ export interface DownloadState {
 
 /* --- track:house begin --- */
 /** The groups Settings is organised into (the left list). */
-export type SettingsGroup = "general" | "models" | "voice" | "control" | "privacy" | "memory" | "cloud" | "backup";
+export type SettingsGroup = "general" | "models" | "voice" | "control" | "privacy" | "memory" | "cloud" | "backup" | "images";
 /** A group, or one of the older page names (they open the group they now live in). */
 export type SettingsTab = SettingsGroup | "knowledge" | "connectors" | "appearance" | "engine" | "about";
 /* --- track:house end --- */

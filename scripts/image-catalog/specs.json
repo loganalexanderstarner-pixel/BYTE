@@ -1,0 +1,1604 @@
+[
+ {
+  "repo": "abenzerps/Qwen-Image-2.1-Uncensored-Quantized",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored-Quantized",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 2739572,
+  "tagline": "A community version of Qwen-Image 2.1 by abenzerps.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (abenzerps/Qwen-Image-2.1-Uncensored-Quantized) for what it changes."
+ },
+ {
+  "repo": "AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Turbo-Uncensored",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 407270,
+  "tagline": "A community version of Qwen-Image 2.1 by AtomicChat.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "leejet/Qwen-Image-2.1-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 183190,
+  "tagline": "A community version of Qwen-Image 2.1 by leejet.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (leejet/Qwen-Image-2.1-GGUF) for what it changes."
+ },
+ {
+  "repo": "DogukanUrker/Qwen-Image-2.1-Turbo-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Turbo",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 162502,
+  "tagline": "A community version of Qwen-Image 2.1 by DogukanUrker.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (DogukanUrker/Qwen-Image-2.1-Turbo-GGUF) for what it changes."
+ },
+ {
+  "repo": "AtomicChat/Qwen-Image-2.1-Turbo-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Turbo",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 153961,
+  "tagline": "A community version of Qwen-Image 2.1 by AtomicChat.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (AtomicChat/Qwen-Image-2.1-Turbo-GGUF) for what it changes."
+ },
+ {
+  "repo": "Abiray/Qwen-Image-2.1-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 106275,
+  "tagline": "A community version of Qwen-Image 2.1 by Abiray.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Abiray/Qwen-Image-2.1-GGUF) for what it changes."
+ },
+ {
+  "repo": "leejet/Z-Image-Turbo-GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image-Turbo",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 96823,
+  "tagline": "A community version of Z-Image by leejet.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (leejet/Z-Image-Turbo-GGUF) for what it changes."
+ },
+ {
+  "repo": "Abiray/Qwen-Image-2.1-viggle-4-steps-turbo-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-viggle-4-steps-turbo",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 81612,
+  "tagline": "A community version of Qwen-Image 2.1 by Abiray.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Abiray/Qwen-Image-2.1-viggle-4-steps-turbo-GGUF) for what it changes."
+ },
+ {
+  "repo": "KasugaiSakura/Qwen-Image-2.1-Uncensored-Abenzerps-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored-Abenzerps",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 65665,
+  "tagline": "A community version of Qwen-Image 2.1 by KasugaiSakura.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (KasugaiSakura/Qwen-Image-2.1-Uncensored-Abenzerps-GGUF) for what it changes."
+ },
+ {
+  "repo": "lesliemore/z-image-turbo-nsfw-v2-GGUF",
+  "family": "Z-Image",
+  "name": "z-image-turbo-nsfw-v2",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 64347,
+  "tagline": "A community version of Z-Image by lesliemore.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (lesliemore/z-image-turbo-nsfw-v2-GGUF) for what it changes."
+ },
+ {
+  "repo": "0xSojalSec/Qwen-Image-2.1-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 63949,
+  "tagline": "A community version of Qwen-Image 2.1 by 0xSojalSec.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (0xSojalSec/Qwen-Image-2.1-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "jayn7/Z-Image-Turbo-GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image-Turbo",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 49309,
+  "tagline": "A community version of Z-Image by jayn7.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (jayn7/Z-Image-Turbo-GGUF) for what it changes."
+ },
+ {
+  "repo": "unsloth/FLUX.1-dev-GGUF",
+  "family": "FLUX.1",
+  "name": "FLUX.1-dev",
+  "tags": [],
+  "dl": 41915,
+  "tagline": "A community version of FLUX.1 by unsloth.",
+  "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (unsloth/FLUX.1-dev-GGUF) for what it changes."
+ },
+ {
+  "repo": "duyntnet/Chroma-GGUF-All-Versions",
+  "family": "Chroma",
+  "name": "Chroma-All-Versions",
+  "tags": [],
+  "dl": 40426,
+  "tagline": "A community version of Chroma by duyntnet.",
+  "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (duyntnet/Chroma-GGUF-All-Versions) for what it changes."
+ },
+ {
+  "repo": "chfm/Qwen-Image-2.1-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 36177,
+  "tagline": "A community version of Qwen-Image 2.1 by chfm.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (chfm/Qwen-Image-2.1-GGUF) for what it changes."
+ },
+ {
+  "repo": "silveroxides/Chroma1-HD-GGUF",
+  "family": "Chroma",
+  "name": "Chroma1-HD",
+  "tags": [],
+  "dl": 35788,
+  "tagline": "A community version of Chroma by silveroxides.",
+  "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (silveroxides/Chroma1-HD-GGUF) for what it changes."
+ },
+ {
+  "repo": "unsloth/FLUX.1-schnell-GGUF",
+  "family": "FLUX.1",
+  "name": "FLUX.1-schnell",
+  "tags": [
+   "fast"
+  ],
+  "dl": 35469,
+  "tagline": "A community version of FLUX.1 by unsloth.",
+  "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (unsloth/FLUX.1-schnell-GGUF) for what it changes."
+ },
+ {
+  "repo": "realrebelai/Qwen-Image-2.1_GGUFs",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1 GGUFs",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 33352,
+  "tagline": "A community version of Qwen-Image 2.1 by realrebelai.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (realrebelai/Qwen-Image-2.1_GGUFs) for what it changes."
+ },
+ {
+  "repo": "AlperKTS/Qwen-Image-2.1-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 31239,
+  "tagline": "A community version of Qwen-Image 2.1 by AlperKTS.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (AlperKTS/Qwen-Image-2.1-GGUF) for what it changes."
+ },
+ {
+  "repo": "Abiray/Qwen-Image-2.1-Turbo-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Turbo",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 30592,
+  "tagline": "A community version of Qwen-Image 2.1 by Abiray.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Abiray/Qwen-Image-2.1-Turbo-GGUF) for what it changes."
+ },
+ {
+  "repo": "dgflash/FLUX.1-dev-4bit-gguf",
+  "family": "FLUX.1",
+  "name": "FLUX.1-dev-4bit",
+  "tags": [],
+  "dl": 27357,
+  "tagline": "A community version of FLUX.1 by dgflash.",
+  "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (dgflash/FLUX.1-dev-4bit-gguf) for what it changes."
+ },
+ {
+  "repo": "webmp3/Sakura-Qwen-Image-2.1-Turbo-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Sakura-Qwen-Image-2.1-Turbo-Uncensored",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 27134,
+  "tagline": "A community version of Qwen-Image 2.1 by webmp3.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (webmp3/Sakura-Qwen-Image-2.1-Turbo-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "mozophe/Qwen-Image-2.1-PE-MTP-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-PE-MTP",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 23670,
+  "tagline": "A community version of Qwen-Image 2.1 by mozophe.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (mozophe/Qwen-Image-2.1-PE-MTP-GGUF) for what it changes."
+ },
+ {
+  "repo": "gimly13/z-image-cyberrealistic-v9-gguf",
+  "family": "Z-Image",
+  "name": "z-image-cyberrealistic-v9",
+  "tags": [
+   "realism"
+  ],
+  "dl": 22804,
+  "tagline": "A community version of Z-Image by gimly13.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (gimly13/z-image-cyberrealistic-v9-gguf) for what it changes."
+ },
+ {
+  "repo": "TechnoBaptist/Qwen-Image-2.1-Turbo-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Turbo-Uncensored",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 22512,
+  "tagline": "A community version of Qwen-Image 2.1 by TechnoBaptist.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (TechnoBaptist/Qwen-Image-2.1-Turbo-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "t8star/flux.1-dev-abliterated-V2-GGUF",
+  "family": "FLUX.1",
+  "name": "flux.1-dev-abliterated-V2",
+  "tags": [],
+  "dl": 21848,
+  "tagline": "A community version of FLUX.1 by t8star.",
+  "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (t8star/flux.1-dev-abliterated-V2-GGUF) for what it changes."
+ },
+ {
+  "repo": "second-state/stable-diffusion-3.5-medium-GGUF",
+  "family": "Stable Diffusion 3.5",
+  "name": "stable-diffusion-3.5-medium",
+  "tags": [
+   "text"
+  ],
+  "dl": 21496,
+  "tagline": "A community version of Stable Diffusion 3.5 by second-state.",
+  "strengths": "A community-made version based on Stable Diffusion 3.5. Not tested by us: see its description on Hugging Face (second-state/stable-diffusion-3.5-medium-GGUF) for what it changes."
+ },
+ {
+  "repo": "pottokao/Qwen-Image-2.1-DiT-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-DiT",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 15882,
+  "tagline": "A community version of Qwen-Image 2.1 by pottokao.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (pottokao/Qwen-Image-2.1-DiT-GGUF) for what it changes."
+ },
+ {
+  "repo": "gguf-org/z-image-gguf",
+  "family": "Z-Image",
+  "name": "z-image",
+  "tags": [
+   "realism"
+  ],
+  "dl": 14046,
+  "tagline": "A community version of Z-Image by gguf-org.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (gguf-org/z-image-gguf) for what it changes."
+ },
+ {
+  "repo": "calcuis/sd3.5-large-gguf",
+  "family": "Stable Diffusion 3.5",
+  "name": "sd3.5-large",
+  "tags": [
+   "text"
+  ],
+  "dl": 9817,
+  "tagline": "A community version of Stable Diffusion 3.5 by calcuis.",
+  "strengths": "A community-made version based on Stable Diffusion 3.5. Not tested by us: see its description on Hugging Face (calcuis/sd3.5-large-gguf) for what it changes."
+ },
+ {
+  "repo": "Abiray/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 9337,
+  "tagline": "A community version of Qwen-Image 2.1 by Abiray.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Abiray/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-GGUF) for what it changes."
+ },
+ {
+  "repo": "gguf-org/qwen-image-2.1-gguf",
+  "family": "Qwen-Image 2.1",
+  "name": "qwen-image-2.1",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 8563,
+  "tagline": "A community version of Qwen-Image 2.1 by gguf-org.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (gguf-org/qwen-image-2.1-gguf) for what it changes."
+ },
+ {
+  "repo": "BigDannyPt/Z-Image-Turbo-GGUF-Collection",
+  "family": "Z-Image",
+  "name": "Z-Image-Turbo-Collection",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 8055,
+  "tagline": "A community version of Z-Image by BigDannyPt.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (BigDannyPt/Z-Image-Turbo-GGUF-Collection) for what it changes."
+ },
+ {
+  "repo": "abenzerps/Qwen-Image-2.1-Turbo-Quantized",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Turbo-Quantized",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 7895,
+  "tagline": "A community version of Qwen-Image 2.1 by abenzerps.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (abenzerps/Qwen-Image-2.1-Turbo-Quantized) for what it changes."
+ },
+ {
+  "repo": "realrebelai/Viggle_Qwen-Image-2.1-Turbo_GGUFs",
+  "family": "Qwen-Image 2.1",
+  "name": "Viggle Qwen-Image-2.1-Turbo GGUFs",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 7810,
+  "tagline": "A community version of Qwen-Image 2.1 by realrebelai.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (realrebelai/Viggle_Qwen-Image-2.1-Turbo_GGUFs) for what it changes."
+ },
+ {
+  "repo": "LuffyTheFox/Qwen-Image-2.1-Uncensored-Genesis-BF16-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored-Genesis-BF16",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 7537,
+  "tagline": "A community version of Qwen-Image 2.1 by LuffyTheFox.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (LuffyTheFox/Qwen-Image-2.1-Uncensored-Genesis-BF16-GGUF) for what it changes."
+ },
+ {
+  "repo": "calcuis/flux1-gguf",
+  "family": "FLUX.1",
+  "name": "flux1",
+  "tags": [],
+  "dl": 6764,
+  "tagline": "A community version of FLUX.1 by calcuis.",
+  "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (calcuis/flux1-gguf) for what it changes."
+ },
+ {
+  "repo": "molbal/Qwen-Image-2.1-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 6542,
+  "tagline": "A community version of Qwen-Image 2.1 by molbal.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (molbal/Qwen-Image-2.1-GGUF) for what it changes."
+ },
+ {
+  "repo": "lllyasviel/FLUX.1-schnell-gguf",
+  "family": "FLUX.1",
+  "name": "FLUX.1-schnell",
+  "tags": [
+   "fast"
+  ],
+  "dl": 6204,
+  "tagline": "A community version of FLUX.1 by lllyasviel.",
+  "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (lllyasviel/FLUX.1-schnell-gguf) for what it changes."
+ },
+ {
+  "repo": "vantagewithai/Qwen-Image-2.1-ComfyUI-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-ComfyUI",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 6085,
+  "tagline": "A community version of Qwen-Image 2.1 by vantagewithai.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (vantagewithai/Qwen-Image-2.1-ComfyUI-GGUF) for what it changes."
+ },
+ {
+  "repo": "second-state/FLUX.1-schnell-GGUF",
+  "family": "FLUX.1",
+  "name": "FLUX.1-schnell",
+  "tags": [
+   "fast"
+  ],
+  "dl": 5894,
+  "tagline": "A community version of FLUX.1 by second-state.",
+  "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (second-state/FLUX.1-schnell-GGUF) for what it changes."
+ },
+ {
+  "repo": "lllyasviel/FLUX.1-dev-gguf",
+  "family": "FLUX.1",
+  "name": "FLUX.1-dev",
+  "tags": [],
+  "dl": 5866,
+  "tagline": "A community version of FLUX.1 by lllyasviel.",
+  "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (lllyasviel/FLUX.1-dev-gguf) for what it changes."
+ },
+ {
+  "repo": "basileleuwa/Qwen-Image-2.1-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 5837,
+  "tagline": "A community version of Qwen-Image 2.1 by basileleuwa.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (basileleuwa/Qwen-Image-2.1-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "city96/stable-diffusion-3.5-large-gguf",
+  "family": "Stable Diffusion 3.5",
+  "name": "stable-diffusion-3.5-large",
+  "tags": [
+   "text"
+  ],
+  "dl": 5554,
+  "tagline": "A community version of Stable Diffusion 3.5 by city96.",
+  "strengths": "A community-made version based on Stable Diffusion 3.5. Not tested by us: see its description on Hugging Face (city96/stable-diffusion-3.5-large-gguf) for what it changes."
+ },
+ {
+  "repo": "silveroxides/Chroma1-Flash-GGUF",
+  "family": "Chroma",
+  "name": "Chroma1-Flash",
+  "tags": [],
+  "dl": 5437,
+  "tagline": "A community version of Chroma by silveroxides.",
+  "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (silveroxides/Chroma1-Flash-GGUF) for what it changes."
+ },
+ {
+  "repo": "TBT000/Qwen-Image-2.1-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 5343,
+  "tagline": "A community version of Qwen-Image 2.1 by TBT000.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (TBT000/Qwen-Image-2.1-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "h4shy/FLUX.1-dev-FluxedUp-V10-GGUF",
+  "family": "FLUX.1",
+  "name": "FLUX.1-dev-FluxedUp-V10",
+  "tags": [],
+  "dl": 5272,
+  "tagline": "A community version of FLUX.1 by h4shy.",
+  "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (h4shy/FLUX.1-dev-FluxedUp-V10-GGUF) for what it changes."
+ },
+ {
+  "repo": "wbruna/Z-Image-Turbo-sdcpp-GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image-Turbo-sdcpp",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 4783,
+  "tagline": "A community version of Z-Image by wbruna.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (wbruna/Z-Image-Turbo-sdcpp-GGUF) for what it changes."
+ },
+ {
+  "repo": "BennyDaBall/Z-Image-Engineer-V6-GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image-Engineer-V6",
+  "tags": [
+   "realism"
+  ],
+  "dl": 4559,
+  "tagline": "A community version of Z-Image by BennyDaBall.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (BennyDaBall/Z-Image-Engineer-V6-GGUF) for what it changes."
+ },
+ {
+  "repo": "Janchan123/Qwen-Image-2.1-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 4519,
+  "tagline": "A community version of Qwen-Image 2.1 by Janchan123.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Janchan123/Qwen-Image-2.1-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "calcuis/sd3.5-medium-gguf",
+  "family": "Stable Diffusion 3.5",
+  "name": "sd3.5-medium",
+  "tags": [
+   "text"
+  ],
+  "dl": 4516,
+  "tagline": "A community version of Stable Diffusion 3.5 by calcuis.",
+  "strengths": "A community-made version based on Stable Diffusion 3.5. Not tested by us: see its description on Hugging Face (calcuis/sd3.5-medium-gguf) for what it changes."
+ },
+ {
+  "repo": "vantagewithai/Z-Image-Turbo-GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image-Turbo",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 4002,
+  "tagline": "A community version of Z-Image by vantagewithai.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (vantagewithai/Z-Image-Turbo-GGUF) for what it changes."
+ },
+ {
+  "repo": "ldov/Qwen-Image-2.1-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 3871,
+  "tagline": "A community version of Qwen-Image 2.1 by ldov.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (ldov/Qwen-Image-2.1-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "Abiray/Qwen-Image-2.1-viggle-turbo-v0.3-6step-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-viggle-turbo-v0.3-6step",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 3577,
+  "tagline": "A community version of Qwen-Image 2.1 by Abiray.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Abiray/Qwen-Image-2.1-viggle-turbo-v0.3-6step-GGUF) for what it changes."
+ },
+ {
+  "repo": "second-state/FLUX.1-dev-GGUF",
+  "family": "FLUX.1",
+  "name": "FLUX.1-dev",
+  "tags": [],
+  "dl": 3126,
+  "tagline": "A community version of FLUX.1 by second-state.",
+  "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (second-state/FLUX.1-dev-GGUF) for what it changes."
+ },
+ {
+  "repo": "Manusagents/Qwen-Image-2.1-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 2923,
+  "tagline": "A community version of Qwen-Image 2.1 by Manusagents.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Manusagents/Qwen-Image-2.1-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "dawncreates/UnCanny-Photorealism-Chroma-GGUF",
+  "family": "Chroma",
+  "name": "UnCanny-Photorealism-Chroma",
+  "tags": [],
+  "dl": 2891,
+  "tagline": "A community version of Chroma by dawncreates.",
+  "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (dawncreates/UnCanny-Photorealism-Chroma-GGUF) for what it changes."
+ },
+ {
+  "repo": "jayn7/Z-Image-GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image",
+  "tags": [
+   "realism"
+  ],
+  "dl": 2833,
+  "tagline": "A community version of Z-Image by jayn7.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (jayn7/Z-Image-GGUF) for what it changes."
+ },
+ {
+  "repo": "azukivc/Qwen-Image-2.1-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 2805,
+  "tagline": "A community version of Qwen-Image 2.1 by azukivc.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (azukivc/Qwen-Image-2.1-GGUF) for what it changes."
+ },
+ {
+  "repo": "daddysteven/Qwen-Image-2.1-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 2736,
+  "tagline": "A community version of Qwen-Image 2.1 by daddysteven.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (daddysteven/Qwen-Image-2.1-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "tsqn/Z-Image-Turbo_GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image-Turbo GGUF",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 2664,
+  "tagline": "A community version of Z-Image by tsqn.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (tsqn/Z-Image-Turbo_GGUF) for what it changes."
+ },
+ {
+  "repo": "realrebelai/Qwen-Image-2.1-Turbo_GGUFs",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Turbo GGUFs",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 2632,
+  "tagline": "A community version of Qwen-Image 2.1 by realrebelai.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (realrebelai/Qwen-Image-2.1-Turbo_GGUFs) for what it changes."
+ },
+ {
+  "repo": "LocalAI-io/Qwen-Image-2.1-Anime-Fusal-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Anime-Fusal",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 2515,
+  "tagline": "A community version of Qwen-Image 2.1 by LocalAI-io.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (LocalAI-io/Qwen-Image-2.1-Anime-Fusal-GGUF) for what it changes."
+ },
+ {
+  "repo": "rayss868123/Qwen-Image-2.1-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 2307,
+  "tagline": "A community version of Qwen-Image 2.1 by rayss868123.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (rayss868123/Qwen-Image-2.1-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "ND911/Chroma1_HD_and_HD_Annealed_ggufs",
+  "family": "Chroma",
+  "name": "Chroma1 HD and HD Annealed ggufs",
+  "tags": [],
+  "dl": 2283,
+  "tagline": "A community version of Chroma by ND911.",
+  "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (ND911/Chroma1_HD_and_HD_Annealed_ggufs) for what it changes."
+ },
+ {
+  "repo": "gimly13/z-image-solordz-v2-gguf",
+  "family": "Z-Image",
+  "name": "z-image-solordz-v2",
+  "tags": [
+   "realism"
+  ],
+  "dl": 2070,
+  "tagline": "A community version of Z-Image by gimly13.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (gimly13/z-image-solordz-v2-gguf) for what it changes."
+ },
+ {
+  "repo": "pottokao/Z-Image-Engineer-V6-DHQ-GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image-Engineer-V6-DHQ",
+  "tags": [
+   "realism"
+  ],
+  "dl": 2024,
+  "tagline": "A community version of Z-Image by pottokao.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (pottokao/Z-Image-Engineer-V6-DHQ-GGUF) for what it changes."
+ },
+ {
+  "repo": "kkguku/Qwen-Image-2.1-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 1837,
+  "tagline": "A community version of Qwen-Image 2.1 by kkguku.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (kkguku/Qwen-Image-2.1-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "molbal/Qwen-Image-2.1-Turbo-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Turbo",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 1795,
+  "tagline": "A community version of Qwen-Image 2.1 by molbal.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (molbal/Qwen-Image-2.1-Turbo-GGUF) for what it changes."
+ },
+ {
+  "repo": "n-Arno/Z-Image-GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image",
+  "tags": [
+   "realism"
+  ],
+  "dl": 1776,
+  "tagline": "A community version of Z-Image by n-Arno.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (n-Arno/Z-Image-GGUF) for what it changes."
+ },
+ {
+  "repo": "martintomov/Hyper-FLUX.1-dev-gguf",
+  "family": "FLUX.1",
+  "name": "Hyper-FLUX.1-dev",
+  "tags": [],
+  "dl": 1771,
+  "tagline": "A community version of FLUX.1 by martintomov.",
+  "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (martintomov/Hyper-FLUX.1-dev-gguf) for what it changes."
+ },
+ {
+  "repo": "Supbatomic/Qwen-Image-2.1-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 1736,
+  "tagline": "A community version of Qwen-Image 2.1 by Supbatomic.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Supbatomic/Qwen-Image-2.1-GGUF) for what it changes."
+ },
+ {
+  "repo": "felipedpm/z-image-turbo-GGUF-confyui",
+  "family": "Z-Image",
+  "name": "z-image-turbo-confyui",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 1648,
+  "tagline": "A community version of Z-Image by felipedpm.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (felipedpm/z-image-turbo-GGUF-confyui) for what it changes."
+ },
+ {
+  "repo": "mradermacher/Qwen3-4b-Z-Image-Turbo-AbliteratedV1-GGUF",
+  "family": "Z-Image",
+  "name": "Qwen3-4b-Z-Image-Turbo-AbliteratedV1",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 1640,
+  "tagline": "A community version of Z-Image by mradermacher.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (mradermacher/Qwen3-4b-Z-Image-Turbo-AbliteratedV1-GGUF) for what it changes."
+ },
+ {
+  "repo": "babakarto/z-image-base-gguf",
+  "family": "Z-Image",
+  "name": "z-image-base",
+  "tags": [
+   "realism"
+  ],
+  "dl": 1549,
+  "tagline": "A community version of Z-Image by babakarto.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (babakarto/z-image-base-gguf) for what it changes."
+ },
+ {
+  "repo": "KENIC-1/Qwen-Image-2.1-Turbo-Uncensored-GGUF-BF16",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Turbo-Uncensored-BF16",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 1503,
+  "tagline": "A community version of Qwen-Image 2.1 by KENIC-1.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (KENIC-1/Qwen-Image-2.1-Turbo-Uncensored-GGUF-BF16) for what it changes."
+ },
+ {
+  "repo": "0Endzz/Qwen-Image-2.1-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 1480,
+  "tagline": "A community version of Qwen-Image 2.1 by 0Endzz.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (0Endzz/Qwen-Image-2.1-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "mradermacher/Qwen3-4b-Z-Image-Turbo-AbliteratedV1-i1-GGUF",
+  "family": "Z-Image",
+  "name": "Qwen3-4b-Z-Image-Turbo-AbliteratedV1-i1",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 1390,
+  "tagline": "A community version of Z-Image by mradermacher.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (mradermacher/Qwen3-4b-Z-Image-Turbo-AbliteratedV1-i1-GGUF) for what it changes."
+ },
+ {
+  "repo": "Zyszztggd/Qwen-Image-2.1-Turbo-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Turbo-Uncensored",
+  "tags": [
+   "fast",
+   "realism",
+   "text"
+  ],
+  "dl": 1125,
+  "tagline": "A community version of Qwen-Image 2.1 by Zyszztggd.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Zyszztggd/Qwen-Image-2.1-Turbo-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "silveroxides/Chroma1-Base-GGUF",
+  "family": "Chroma",
+  "name": "Chroma1-Base",
+  "tags": [],
+  "dl": 1117,
+  "tagline": "A community version of Chroma by silveroxides.",
+  "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (silveroxides/Chroma1-Base-GGUF) for what it changes."
+ },
+ {
+  "repo": "fairy322/Chroma1-HD-GGUF",
+  "family": "Chroma",
+  "name": "Chroma1-HD",
+  "tags": [],
+  "dl": 1091,
+  "tagline": "A community version of Chroma by fairy322.",
+  "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (fairy322/Chroma1-HD-GGUF) for what it changes."
+ },
+ {
+  "repo": "vantagewithai/Z-Image-GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image",
+  "tags": [
+   "realism"
+  ],
+  "dl": 1016,
+  "tagline": "A community version of Z-Image by vantagewithai.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (vantagewithai/Z-Image-GGUF) for what it changes."
+ },
+ {
+  "repo": "aifoundry-org/FLUX.1-schnell-Quantized",
+  "family": "FLUX.1",
+  "name": "FLUX.1-schnell-Quantized",
+  "tags": [
+   "fast"
+  ],
+  "dl": 830,
+  "tagline": "A community version of FLUX.1 by aifoundry-org.",
+  "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (aifoundry-org/FLUX.1-schnell-Quantized) for what it changes."
+ },
+ {
+  "repo": "gimly13/z-image-cyberrealistic-v8-gguf",
+  "family": "Z-Image",
+  "name": "z-image-cyberrealistic-v8",
+  "tags": [
+   "realism"
+  ],
+  "dl": 809,
+  "tagline": "A community version of Z-Image by gimly13.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (gimly13/z-image-cyberrealistic-v8-gguf) for what it changes."
+ },
+ {
+  "repo": "BlackStone-Yu/Z-Image-Turbo-GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image-Turbo",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 799,
+  "tagline": "A community version of Z-Image by BlackStone-Yu.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (BlackStone-Yu/Z-Image-Turbo-GGUF) for what it changes."
+ },
+ {
+  "repo": "Wesley1234/flux.1-dev-abliterated-V2-GGUF",
+  "family": "FLUX.1",
+  "name": "flux.1-dev-abliterated-V2",
+  "tags": [],
+  "dl": 786,
+  "tagline": "A community version of FLUX.1 by Wesley1234.",
+  "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (Wesley1234/flux.1-dev-abliterated-V2-GGUF) for what it changes."
+ },
+ {
+  "repo": "leejet/Z-Image-GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image",
+  "tags": [
+   "realism"
+  ],
+  "dl": 781,
+  "tagline": "A community version of Z-Image by leejet.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (leejet/Z-Image-GGUF) for what it changes."
+ },
+ {
+  "repo": "W-Zil/Qwen-Image-2.1-Uncensored-GGUF-bcp",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored-bcp",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 761,
+  "tagline": "A community version of Qwen-Image 2.1 by W-Zil.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (W-Zil/Qwen-Image-2.1-Uncensored-GGUF-bcp) for what it changes."
+ },
+ {
+  "repo": "AaryanK/Z-Image-Turbo-GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image-Turbo",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 710,
+  "tagline": "A community version of Z-Image by AaryanK.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (AaryanK/Z-Image-Turbo-GGUF) for what it changes."
+ },
+ {
+  "repo": "gaianet/stable-diffusion-3.5-medium-GGUF",
+  "family": "Stable Diffusion 3.5",
+  "name": "stable-diffusion-3.5-medium",
+  "tags": [
+   "text"
+  ],
+  "dl": 704,
+  "tagline": "A community version of Stable Diffusion 3.5 by gaianet.",
+  "strengths": "A community-made version based on Stable Diffusion 3.5. Not tested by us: see its description on Hugging Face (gaianet/stable-diffusion-3.5-medium-GGUF) for what it changes."
+ },
+ {
+  "repo": "feeday/Z-Image-Turbo-GGUF",
+  "family": "Z-Image",
+  "name": "Z-Image-Turbo",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 646,
+  "tagline": "A community version of Z-Image by feeday.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (feeday/Z-Image-Turbo-GGUF) for what it changes."
+ },
+ {
+  "repo": "joanlsoler/Qwen3-4b-Z-Image-Turbo-AbliteratedV1-Q4_K_M-GGUF",
+  "family": "Z-Image",
+  "name": "Qwen3-4b-Z-Image-Turbo-AbliteratedV1-Q4 K M",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 606,
+  "tagline": "A community version of Z-Image by joanlsoler.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (joanlsoler/Qwen3-4b-Z-Image-Turbo-AbliteratedV1-Q4_K_M-GGUF) for what it changes."
+ },
+ {
+  "repo": "stduhpf/SD3.5-Large-GGUF-mixed-sdcpp",
+  "family": "Stable Diffusion 3.5",
+  "name": "SD3.5-Large-mixed-sdcpp",
+  "tags": [
+   "text"
+  ],
+  "dl": 571,
+  "tagline": "A community version of Stable Diffusion 3.5 by stduhpf.",
+  "strengths": "A community-made version based on Stable Diffusion 3.5. Not tested by us: see its description on Hugging Face (stduhpf/SD3.5-Large-GGUF-mixed-sdcpp) for what it changes."
+ },
+ {
+  "repo": "ZiangLi/Qwen-Image-2.1-Uncensored-GGUF",
+  "family": "Qwen-Image 2.1",
+  "name": "Qwen-Image-2.1-Uncensored",
+  "tags": [
+   "realism",
+   "text"
+  ],
+  "dl": 521,
+  "tagline": "A community version of Qwen-Image 2.1 by ZiangLi.",
+  "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (ZiangLi/Qwen-Image-2.1-Uncensored-GGUF) for what it changes."
+ },
+ {
+  "repo": "ChrisColeTech/z-image-turbo-GGUF",
+  "family": "Z-Image",
+  "name": "z-image-turbo",
+  "tags": [
+   "fast",
+   "realism"
+  ],
+  "dl": 512,
+  "tagline": "A community version of Z-Image by ChrisColeTech.",
+  "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (ChrisColeTech/z-image-turbo-GGUF) for what it changes."
+ },
+ {
+  "name": "Qwen-Image 2.1",
+  "family": "Qwen-Image 2.1",
+  "community": false,
+  "quality": 96,
+  "steps": 20,
+  "tags": [
+   "realism",
+   "illustration",
+   "poster",
+   "text"
+  ],
+  "tagline": "The most capable free image model, with excellent text inside pictures.",
+  "strengths": "Follows long, detailed prompts and writes words inside the picture correctly, in English and Chinese. Strong at people, scenes, posters and cards. Large: use a lower quant if your card is small.",
+  "repo": "unsloth/Qwen-Image-2.1-GGUF",
+  "dl": 1425825
+ },
+ {
+  "name": "Qwen-Image 2.1 Turbo",
+  "family": "Qwen-Image 2.1",
+  "community": false,
+  "quality": 92,
+  "steps": 4,
+  "tags": [
+   "realism",
+   "poster",
+   "text",
+   "fast"
+  ],
+  "tagline": "Qwen-Image 2.1 in about 4 steps.",
+  "strengths": "Nearly the quality of Qwen-Image 2.1 in a fraction of the time. A good everyday choice if you have the memory.",
+  "repo": "unsloth/Qwen-Image-2.1-Turbo-GGUF",
+  "dl": 391796
+ },
+ {
+  "name": "Z-Image Turbo",
+  "family": "Z-Image",
+  "community": false,
+  "quality": 90,
+  "steps": 8,
+  "tags": [
+   "realism",
+   "fast",
+   "lowvram",
+   "poster"
+  ],
+  "tagline": "Fast, photo-real, and happy on small graphics cards.",
+  "strengths": "Very good photos of people and places in 8 steps, and it fits cards with as little as 4 GB. One of the best picks for speed and quality together.",
+  "repo": "unsloth/Z-Image-Turbo-GGUF",
+  "dl": 1076820
+ },
+ {
+  "name": "Z-Image (full)",
+  "family": "Z-Image",
+  "community": false,
+  "quality": 91,
+  "steps": 28,
+  "tags": [
+   "realism",
+   "illustration",
+   "poster"
+  ],
+  "tagline": "Z-Image with more control and variety.",
+  "strengths": "The full model behind Z-Image Turbo: more varied and easier to steer, but needs more steps.",
+  "repo": "unsloth/Z-Image-GGUF",
+  "dl": 130592
+ },
+ {
+  "name": "ERNIE-Image Turbo",
+  "family": "ERNIE-Image",
+  "community": false,
+  "quality": 86,
+  "steps": 8,
+  "tags": [
+   "illustration",
+   "poster",
+   "fast",
+   "lowvram",
+   "text"
+  ],
+  "tagline": "Quick, clean pictures with readable text.",
+  "strengths": "Good at posters, signs and layouts with words. Runs on cards with 4 GB.",
+  "repo": "unsloth/ERNIE-Image-Turbo-GGUF",
+  "dl": 151496
+ },
+ {
+  "name": "ERNIE-Image",
+  "family": "ERNIE-Image",
+  "community": false,
+  "quality": 87,
+  "steps": 30,
+  "tags": [
+   "illustration",
+   "poster",
+   "text"
+  ],
+  "tagline": "The full ERNIE-Image model.",
+  "strengths": "Slower than the Turbo version with a little more detail and control.",
+  "repo": "unsloth/ERNIE-Image-GGUF",
+  "dl": 0
+ },
+ {
+  "name": "FLUX.1 dev",
+  "family": "FLUX.1",
+  "community": false,
+  "quality": 90,
+  "steps": 28,
+  "tags": [
+   "realism",
+   "illustration",
+   "poster"
+  ],
+  "tagline": "The reference model for high-quality images.",
+  "strengths": "Excellent detail, anatomy and prompt following. Licence is non-commercial.",
+  "repo": "city96/FLUX.1-dev-gguf",
+  "dl": 201140
+ },
+ {
+  "name": "FLUX.1 schnell",
+  "family": "FLUX.1",
+  "community": false,
+  "quality": 88,
+  "steps": 4,
+  "tags": [
+   "realism",
+   "illustration",
+   "poster",
+   "fast"
+  ],
+  "tagline": "The best free-for-everything image model of its generation: 4 steps, Apache licence.",
+  "strengths": "Clean detail, follows long prompts, and you may sell what you make.",
+  "repo": "city96/FLUX.1-schnell-gguf",
+  "dl": 126176
+ },
+ {
+  "name": "Chroma",
+  "family": "Chroma",
+  "community": true,
+  "quality": 82,
+  "steps": 20,
+  "tags": [
+   "illustration",
+   "cartoon",
+   "realism"
+  ],
+  "tagline": "A flexible FLUX-based model with a wide range of styles.",
+  "strengths": "Open, uncensored-leaning model with very varied styles from anime to photo. Needs more steps than FLUX.1 schnell.",
+  "repo": "silveroxides/Chroma-GGUF",
+  "dl": 98964
+ },
+ {
+  "name": "Stable Diffusion 1.5",
+  "family": "Stable Diffusion 1.5",
+  "community": false,
+  "quality": 55,
+  "steps": 20,
+  "tags": [
+   "lowvram",
+   "fast",
+   "cartoon",
+   "illustration"
+  ],
+  "tagline": "The classic. Runs almost anywhere.",
+  "strengths": "Small and quick, works on 4 GB cards, with thousands of styles made for it. Weaker at hands, text and long prompts.",
+  "repo": "second-state/stable-diffusion-v1-5-GGUF",
+  "dl": 52762
+ },
+ {
+  "name": "Stable Diffusion 3.5 Large",
+  "family": "Stable Diffusion 3.5",
+  "community": false,
+  "quality": 82,
+  "steps": 28,
+  "tags": [
+   "illustration",
+   "text",
+   "realism"
+  ],
+  "tagline": "Stability AI's large model with good text and variety.",
+  "strengths": "Strong, varied pictures and decent text. Large; low quants fit smaller cards.",
+  "repo": "second-state/stable-diffusion-3.5-large-GGUF",
+  "dl": 24079
+ },
+ {
+  "name": "Stable Diffusion 3.5 Medium",
+  "family": "Stable Diffusion 3.5",
+  "community": false,
+  "quality": 74,
+  "steps": 28,
+  "tags": [
+   "illustration",
+   "text",
+   "lowvram"
+  ],
+  "tagline": "Good text in images and a small file size.",
+  "strengths": "Better than older Stable Diffusion at words inside pictures and following prompts.",
+  "repo": "city96/stable-diffusion-3.5-medium-gguf",
+  "dl": 2723
+ },
+ {
+  "repo": "cagliostrolab/animagine-xl-4.0",
+  "family": "Stable Diffusion XL",
+  "name": "animagine-xl-4.0",
+  "tags": [
+   "cartoon"
+  ],
+  "dl": 478388,
+  "files": [
+   "animagine-xl-4.0-opt.safetensors",
+   "animagine-xl-4.0.safetensors"
+  ],
+  "tagline": "A community SDXL model by cagliostrolab.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (cagliostrolab/animagine-xl-4.0) for the style it was trained for."
+ },
+ {
+  "repo": "RunDiffusion/Juggernaut-XL-v9",
+  "family": "Stable Diffusion XL",
+  "name": "Juggernaut-XL-v9",
+  "tags": [
+   "realism"
+  ],
+  "dl": 323945,
+  "files": [
+   "Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+  ],
+  "tagline": "A community SDXL model by RunDiffusion.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XL-v9) for the style it was trained for."
+ },
+ {
+  "repo": "RunDiffusion/Juggernaut-X-v10",
+  "family": "Stable Diffusion XL",
+  "name": "Juggernaut-X-v10",
+  "tags": [
+   "realism"
+  ],
+  "dl": 41078,
+  "files": [
+   "Juggernaut-X-RunDiffusion-NSFW.safetensors"
+  ],
+  "tagline": "A community SDXL model by RunDiffusion.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-X-v10) for the style it was trained for."
+ },
+ {
+  "repo": "RunDiffusion/Juggernaut-XI-v11",
+  "family": "Stable Diffusion XL",
+  "name": "Juggernaut-XI-v11",
+  "tags": [
+   "realism"
+  ],
+  "dl": 19186,
+  "files": [
+   "Juggernaut-XI-byRunDiffusion.safetensors"
+  ],
+  "tagline": "A community SDXL model by RunDiffusion.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XI-v11) for the style it was trained for."
+ },
+ {
+  "repo": "RunDiffusion/Juggernaut-XL-Lightning",
+  "family": "Stable Diffusion XL",
+  "name": "Juggernaut-XL-Lightning",
+  "tags": [
+   "realism",
+   "fast"
+  ],
+  "dl": 17759,
+  "files": [
+   "Juggernaut_RunDiffusionPhoto2_Lightning_4Steps.safetensors"
+  ],
+  "tagline": "A community SDXL model by RunDiffusion.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XL-Lightning) for the style it was trained for."
+ },
+ {
+  "repo": "RunDiffusion/Juggernaut-XL-v8",
+  "family": "Stable Diffusion XL",
+  "name": "Juggernaut-XL-v8",
+  "tags": [
+   "realism"
+  ],
+  "dl": 8810,
+  "files": [
+   "juggernautXL_v8Rundiffusion.safetensors"
+  ],
+  "tagline": "A community SDXL model by RunDiffusion.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XL-v8) for the style it was trained for."
+ },
+ {
+  "repo": "MLbackup/2023_Scraped_SDXL",
+  "family": "Stable Diffusion XL",
+  "name": "2023 Scraped SDXL",
+  "tags": [
+   "illustration"
+  ],
+  "dl": 7968,
+  "files": [
+   "EarthAniMix_XL------9819-----.safetensors",
+   "SlimyMixSDXLPRUNED.safetensors",
+   "DetailerMix.fp16.safetensors",
+   "DuskSlimeMixUltraInifity-YamerXL.fp16.safetensors"
+  ],
+  "tagline": "A community SDXL model by MLbackup.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (MLbackup/2023_Scraped_SDXL) for the style it was trained for."
+ },
+ {
+  "repo": "Manjushri/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
+  "family": "Stable Diffusion XL",
+  "name": "pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
+  "tags": [
+   "realism",
+   "cartoon"
+  ],
+  "dl": 5516,
+  "files": [
+   "pornworksRealPornPhoto_ponyV04.safetensors",
+   "pornworksRealPornPhoto_v04.safetensors",
+   "pornworksRealPornPhoto_v03.safetensors",
+   "pornworksRealPorn_Illustrious_v4_04.safetensors"
+  ],
+  "tagline": "A community SDXL model by Manjushri.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (Manjushri/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint) for the style it was trained for."
+ },
+ {
+  "repo": "fancyfeast/bigaspv2-5",
+  "family": "Stable Diffusion XL",
+  "name": "bigaspv2-5",
+  "tags": [
+   "illustration"
+  ],
+  "dl": 5483,
+  "files": [
+   "bigaspv25-20250716.safetensors"
+  ],
+  "tagline": "A community SDXL model by fancyfeast.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (fancyfeast/bigaspv2-5) for the style it was trained for."
+ },
+ {
+  "repo": "EnD-Diffusers/Dec2023",
+  "family": "Stable Diffusion XL",
+  "name": "Dec2023",
+  "tags": [
+   "illustration"
+  ],
+  "dl": 4427,
+  "files": [
+   "CamelliaMIx_NSFW_V1.1.safetensors",
+   "NabiMix_V2.safetensors",
+   "FanastyComicBackmix.safetensors",
+   "NagiMix12-Test-1609-1298-0548.safetensors"
+  ],
+  "tagline": "A community SDXL model by EnD-Diffusers.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (EnD-Diffusers/Dec2023) for the style it was trained for."
+ },
+ {
+  "repo": "xFutureTechx/2024_Backups",
+  "family": "Stable Diffusion 1.5",
+  "name": "2024 Backups",
+  "tags": [
+   "lowvram"
+  ],
+  "dl": 3847,
+  "files": [
+   "EpicV2-Pastel-PrunedFinal.safetensors",
+   "EpicV2-WaterDelfeclMeinRefPoodaintro.safetensors",
+   "EpicV3-Pruned.safetensors",
+   "HelllaineMixFixedprune-1845-0826-2628.safetensors"
+  ],
+  "tagline": "A community Stable Diffusion 1.5 model by xFutureTechx.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (xFutureTechx/2024_Backups) for the style it was trained for."
+ },
+ {
+  "repo": "HyperX-Sentience/Juggernaut-Reborn",
+  "family": "Stable Diffusion 1.5",
+  "name": "Juggernaut-Reborn",
+  "tags": [
+   "realism",
+   "fast",
+   "lowvram"
+  ],
+  "dl": 3563,
+  "files": [
+   "juggernaut_reborn.safetensors"
+  ],
+  "tagline": "A community Stable Diffusion 1.5 model by HyperX-Sentience.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (HyperX-Sentience/Juggernaut-Reborn) for the style it was trained for."
+ },
+ {
+  "repo": "RunDiffusion/Juggernaut-XL",
+  "family": "Stable Diffusion XL",
+  "name": "Juggernaut-XL",
+  "tags": [
+   "realism"
+  ],
+  "dl": 3187,
+  "files": [
+   "juggernautXL_version2.safetensors"
+  ],
+  "tagline": "A community SDXL model by RunDiffusion.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XL) for the style it was trained for."
+ },
+ {
+  "repo": "latent-consistency/lcm-sdxl",
+  "family": "Stable Diffusion XL",
+  "name": "lcm-sdxl",
+  "tags": [
+   "fast"
+  ],
+  "dl": 2342,
+  "files": [
+   "diffusion_pytorch_model.fp16.safetensors"
+  ],
+  "tagline": "A community SDXL model by latent-consistency.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (latent-consistency/lcm-sdxl) for the style it was trained for."
+ },
+ {
+  "repo": "cagliostrolab/animagine-xl-4.0-zero",
+  "family": "Stable Diffusion XL",
+  "name": "animagine-xl-4.0-zero",
+  "tags": [
+   "cartoon"
+  ],
+  "dl": 2074,
+  "files": [
+   "animagine-xl-4.0-zero.safetensors"
+  ],
+  "tagline": "A community SDXL model by cagliostrolab.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (cagliostrolab/animagine-xl-4.0-zero) for the style it was trained for."
+ },
+ {
+  "repo": "debugdll/nsfw-image-generator",
+  "family": "Stable Diffusion XL",
+  "name": "nsfw-image-generator",
+  "tags": [
+   "illustration"
+  ],
+  "dl": 1923,
+  "files": [
+   "lustifySDXLNSFWSFW_v20.safetensors"
+  ],
+  "tagline": "A community SDXL model by debugdll.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (debugdll/nsfw-image-generator) for the style it was trained for."
+ },
+ {
+  "repo": "uhuya/AsianVibesMix",
+  "family": "Stable Diffusion XL",
+  "name": "AsianVibesMix",
+  "tags": [
+   "illustration"
+  ],
+  "dl": 1791,
+  "files": [
+   "AsianVibesMixSDXL-V.1.0.safetensors"
+  ],
+  "tagline": "A community SDXL model by uhuya.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (uhuya/AsianVibesMix) for the style it was trained for."
+ },
+ {
+  "repo": "Eugeoter/anime_illust_diffusion_xl",
+  "family": "Stable Diffusion XL",
+  "name": "anime illust diffusion xl",
+  "tags": [
+   "cartoon"
+  ],
+  "dl": 1766,
+  "files": [
+   "anime-illust-diffusion-v08.safetensors"
+  ],
+  "tagline": "A community SDXL model by Eugeoter.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (Eugeoter/anime_illust_diffusion_xl) for the style it was trained for."
+ },
+ {
+  "repo": "RunDiffusion/Juggernaut-XI-Lightning",
+  "family": "Stable Diffusion XL",
+  "name": "Juggernaut-XI-Lightning",
+  "tags": [
+   "realism",
+   "fast"
+  ],
+  "dl": 1724,
+  "files": [
+   "Juggernaut-XI-byRunDiffusion-Lightning.safetensors",
+   "Juggernaut-XI-byRunDiffusion-Lightning-Civitai-Version.safetensors"
+  ],
+  "tagline": "A community SDXL model by RunDiffusion.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XI-Lightning) for the style it was trained for."
+ },
+ {
+  "repo": "Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
+  "family": "Stable Diffusion XL",
+  "name": "pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
+  "tags": [
+   "realism",
+   "cartoon"
+  ],
+  "dl": 1712,
+  "files": [
+   "pornworksRealPornPhoto_ponyV04.safetensors",
+   "pornworksRealPornPhoto_v04.safetensors",
+   "pornworksRealPornPhoto_v03.safetensors",
+   "pornworksRealPorn_Illustrious_v4_04.safetensors"
+  ],
+  "tagline": "A community SDXL model by Sexyevatender.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint) for the style it was trained for."
+ },
+ {
+  "repo": "RunDiffusion/Juggernaut-XL-v6",
+  "family": "Stable Diffusion XL",
+  "name": "Juggernaut-XL-v6",
+  "tags": [
+   "realism"
+  ],
+  "dl": 1563,
+  "files": [
+   "juggernautXL_version6Rundiffusion.safetensors"
+  ],
+  "tagline": "A community SDXL model by RunDiffusion.",
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XL-v6) for the style it was trained for."
+ }
+]
