@@ -3,6 +3,7 @@ mod assistants;
 mod answer_cache;
 mod backend;
 mod chat;
+mod images;
 mod chip;
 mod clipboard;
 mod cloud;
@@ -674,6 +675,7 @@ pub fn run() {
             commands::settings_get,
             commands::settings_update,
             commands::models_list,
+            images::image_catalog,
             commands::model_recommend,
             commands::catalog_refresh,
             commands::model_download,

@@ -47,6 +47,13 @@ export const WAKEMODEL_TUTORIALS: Tutorial[] = [
         ifStuck: "If it misses you now and then, turn on the Test log in Voice and Hey BYTE: each guess of the detector is written as a line starting with “detector”, with its score.",
       },
       {
+        id: "mic-test",
+        title: "Test my microphone",
+        body: ["In Voice and Hey BYTE press **Test** and say “Hey BYTE”. BYTE listens for five seconds, shows how loud you are, then tells you what it heard and whether that would have woken it. Nothing is kept."],
+        links: [S("voice", "Open Voice and Hey BYTE"), H("microphone-and-speakers", "Choose your microphone and speakers")],
+        ifStuck: "If you have more than one microphone, pick the right one under **Microphone** first, then test again.",
+      },
+      {
         id: "talk-over",
         title: "Say it over BYTE's own voice",
         body: ["With Quick on and **Talking over BYTE** set to **Speakers**, you can say “Hey BYTE” while BYTE is talking. BYTE stops and listens. This depends on the echo canceller, which needs tuning in your room."],

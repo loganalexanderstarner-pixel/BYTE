@@ -1695,3 +1695,49 @@ export interface BrowserActivity {
   action: string;
 }
 /* --- track:browser end --- */
+
+export interface ImageFile {
+  role: string;
+  name: string;
+  repo: string;
+  size: number;
+  sha256: string;
+  url: string;
+}
+
+export type ImagePlacement = "vram" | "split" | "ram" | "toobig";
+
+/** One quantisation of an image model, with how it would fit this PC. */
+export interface ImageVariant {
+  quant: string;
+  bits: number;
+  qualityCost: number;
+  sizeBytes: number;
+  files: ImageFile[];
+  fit: { placement: ImagePlacement; needBytes: number; overflowBytes: number };
+  installed: boolean;
+}
+
+/** An image model in the Image Studio catalog (Windows). */
+export interface ImageModel {
+  id: string;
+  name: string;
+  family: string;
+  kind: string;
+  tags: string[];
+  tagline: string;
+  strengths: string;
+  license: string;
+  commercialOk: boolean;
+  community: boolean;
+  mature: boolean;
+  quality: number;
+  steps: number;
+  overheadGb: number;
+  downloads: number;
+  source: string;
+  variants: ImageVariant[];
+  best: number;
+  totalBytes: number;
+  companions: ImageFile[];
+}

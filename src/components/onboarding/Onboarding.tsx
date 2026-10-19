@@ -87,6 +87,7 @@ export function Onboarding() {
   const downloads = useStore((s) => s.downloads);
   const refresh = useStore((s) => s.refreshModels);
   const update = useStore((s) => s.updateSettings);
+  const openHelp = useStore((s) => s.openHelp);
   const [choice, setChoice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -685,6 +686,16 @@ export function Onboarding() {
                     onClick={() => setStep(6)}
                   >
                     Back
+                  </button>
+                  <button
+                    className="btn lg"
+                    onClick={async () => {
+                      await finish();
+                      openHelp("tutorial-all");
+                    }}
+                    title="A short, friendly walkthrough of everything BYTE can do. You can leave it any time and pick it up later in Help."
+                  >
+                    Show me around
                   </button>
                   <button className="btn lg primary" onClick={finish}>
                     Start chatting{" "}

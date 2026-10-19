@@ -12,6 +12,7 @@ import { ModelCard } from "./ModelCard";
 // --- track:accuracy begin ---
 import { isWindows } from "../../lib/keys";
 import { PcControlModels } from "./PcControlModels";
+import { ImageCatalog } from "./ImageCatalog";
 // --- track:accuracy end ---
 
 const CAPABILITIES = ["reasoning", "coding", "writing", "multilingual", "fast", "small", "moe", "community", "stories", "uncensored"] as const;
@@ -49,6 +50,7 @@ export function CatalogBrowser() {
   const [notice, setNotice] = useState<string | null>(null);
   // --- track:accuracy begin ---
   const [pcView, setPcView] = useState(false);
+  const [imageView, setImageView] = useState(false);
   // --- track:accuracy end ---
 
   const run = async (fn: () => Promise<unknown>) => {
@@ -125,8 +127,26 @@ export function CatalogBrowser() {
   const helpers = models.filter((m) => m.role !== "chat");
   const chip = system?.chipInfo;
 
+  if (imageView && isWindows()) {
+    return (
+      <>
+        <div className="chips" role="group" aria-label="Kind of model" style={{ marginBottom: 12 }}>
+          <button className="chip" aria-pressed={false} onClick={() => setImageView(false)}>Chat models</button>
+          <button className="chip" aria-pressed>Image models</button>
+        </div>
+        <ImageCatalog />
+      </>
+    );
+  }
+
   return (
     <>
+      {isWindows() && (
+        <div className="chips" role="group" aria-label="Kind of model" style={{ marginBottom: 12 }}>
+          <button className="chip" aria-pressed>Chat models</button>
+          <button className="chip" aria-pressed={false} onClick={() => setImageView(true)}>Image models</button>
+        </div>
+      )}
       <div className="mac-strip">
         <span><Cpu size={15} /> {chip?.name ?? system?.chip ?? onDevice("This Mac")}{chip?.gpuCores ? ` · ${chip.gpuCores}-core GPU` : ""}</span>
         <span><MemoryStick size={15} /> {system ? ramLabel(system) : "?"}</span>

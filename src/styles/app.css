@@ -6943,3 +6943,7 @@ kbd {
   background: var(--accent);
   transition: width 90ms linear;
 }
+
+.pill.fit-great { color: var(--ok, #2fbf71); }
+.pill.fit-tight { color: var(--warn, #e0a030); }
+.pill.fit-slow { color: var(--danger, #e5534b); }
