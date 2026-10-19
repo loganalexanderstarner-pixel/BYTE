@@ -333,6 +333,18 @@ impl EchoCanceller {
                 echo_sq += y * y;
                 out.push(es[k]);
             }
+            // The filter has run away (the leftover is far louder than the microphone itself, seen as levels in the millions on a real
+            // PC): forget it and pass the microphone through, so a bad filter can never hide the person's voice.
+            if err_sq > 4.0 * mic_sq + 1e-3 * len as f32 || !err_sq.is_finite() {
+                self.w.iter_mut().for_each(|w| *w = 0.0);
+                self.err_floor = 0.0;
+                self.err_level = 0.0;
+                self.settled = false;
+                let at = out.len() - len;
+                out[at..].copy_from_slice(&self.mics[start..start + len]);
+                err_sq = mic_sq;
+                echo_sq = 0.0;
+            }
             let block_err = (err_sq / len as f32).sqrt();
             let echo_now = (echo_sq / len as f32).sqrt();
             // Double talk: the microphone is louder than the reference could explain, or (converged) the leftover jumped.
@@ -376,7 +388,7 @@ impl EchoCanceller {
                     }
                     let step = MU * ew / (en + EPS * TAPS as f32);
                     for (w, x) in self.w.iter_mut().zip(x) {
-                        *w += step * x;
+                        *w = (*w + step * x).clamp(-2.0, 2.0);
                     }
                 }
                 if self.w.iter().any(|w| !w.is_finite()) {
@@ -620,6 +632,23 @@ mod tests {
             out.extend(c.process(m, x));
         }
         out
+    }
+
+    #[test]
+    fn a_hot_reference_never_makes_the_output_louder_than_the_microphone() {
+        let _g = tests_lock();
+        let r: Vec<f32> = reference(6.0).iter().map(|x| x * 40.0).collect();
+        let mut mic = echo_of(&r, 500, 0.02);
+        let p = person(mic.len(), 3 * RATE, 0.1);
+        for (m, v) in mic.iter_mut().zip(&p) {
+            *m += v;
+        }
+        let mut c = EchoCanceller::new();
+        let out = run(&mut c, &mic, &r);
+        assert!(out.iter().all(|v| v.is_finite()));
+        for (o, m) in out.chunks(1600).zip(mic.chunks(1600)) {
+            assert!(rms(o) <= 4.0 * rms(m) + 0.01, "{} vs {}", rms(o), rms(m));
+        }
     }
 
     #[test]
