@@ -476,6 +476,37 @@ pub struct Settings {
     pub mic_device: String,
     #[serde(default)]
     pub speaker_device: String,
+    // --- Image Studio (Windows). Every switch is off until the owner turns it on. ---
+    /// Make pictures with image models (Settings → Images).
+    #[serde(default)]
+    pub image_studio: bool,
+    /// Allow pictures that look like real people. Off: BYTE asks first when a request is for a photo of a person.
+    #[serde(default)]
+    pub image_real_people: bool,
+    /// Draw a second, more detailed pass (slower, much finer detail).
+    #[serde(default)]
+    pub image_hires: bool,
+    /// Enlarge each picture after it is made, with `image_upscaler`.
+    #[serde(default)]
+    pub image_upscale: bool,
+    /// Id of the upscaler ("" = BYTE picks the best for the picture).
+    #[serde(default)]
+    pub image_upscaler: String,
+    /// A camera-style finish: fine grain, slight softness, natural colour.
+    #[serde(default)]
+    pub image_photo_finish: bool,
+    /// 0-100, how strong the finish is.
+    #[serde(default = "default_finish_strength")]
+    pub image_finish_strength: u32,
+    /// Where the model lives: "auto", "vram" (video memory only) or "ram" (processor and RAM only).
+    #[serde(default = "default_image_placement")]
+    pub image_placement: String,
+    /// What the gallery keeps: "all", "saved" (only pictures you save) or "none".
+    #[serde(default = "default_image_keep")]
+    pub image_keep: String,
+    /// Remove the prompt and settings stored inside saved picture files.
+    #[serde(default)]
+    pub image_strip_info: bool,
     // --- track:aec begin ---
     /// Talking over BYTE on speakers (Windows): take what the speakers play from the sound card's own loopback instead of BYTE's playback
     /// tap, so the echo is cancelled with an exact reference (also what other programs play). Off until the owner turns it on.
@@ -852,6 +883,16 @@ impl Default for Settings {
             // --- track:voice end ---
             mic_device: String::new(),
             speaker_device: String::new(),
+            image_studio: false,
+            image_real_people: false,
+            image_hires: false,
+            image_upscale: false,
+            image_upscaler: String::new(),
+            image_photo_finish: false,
+            image_finish_strength: default_finish_strength(),
+            image_placement: default_image_placement(),
+            image_keep: default_image_keep(),
+            image_strip_info: false,
             aec_loopback: false, // track:aec
             // --- track:wakemodel begin ---
             wake_detector: default_wake_detector(),
@@ -1060,6 +1101,16 @@ fn default_wake_detector() -> String {
 fn default_barge_in() -> String {
     crate::bargein::DEFAULT_MODE.into()
 }
+fn default_finish_strength() -> u32 {
+    40
+}
+fn default_image_placement() -> String {
+    "auto".into()
+}
+fn default_image_keep() -> String {
+    "all".into()
+}
+
 fn default_voice_focus() -> String {
     // Off until the voice matching has been tuned on real voices.
     "off".into()

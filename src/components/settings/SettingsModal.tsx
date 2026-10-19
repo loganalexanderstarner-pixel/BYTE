@@ -31,7 +31,7 @@ import { FoundBrowserToggles, FoundToggles, NeverTouchList } from "../found/Foun
 import { BackupRestoreCard, FreeUpSpace, HouseToggles, ProblemReportCard } from "./HouseSettings";
 /* --- track:house end --- */
 import { CatalogBrowser } from "../models/CatalogBrowser";
-import { ImageCatalog } from "../models/ImageCatalog";
+import { ImageStudio } from "../images/ImageStudio";
 import { CloudTab } from "./CloudTab";
 import { PrivacyTab } from "./PrivacyTab";
 import { BrowserSettings } from "./BrowserSettings"; // track:browser
@@ -113,7 +113,7 @@ function GroupBody({ group, about = true }: { group: SettingsGroup; about?: bool
           {about && <AboutTab />}
         </>
       )}
-      {group === "images" && <ImagesTab />}
+      {group === "images" && <ImageStudio />}
       {group === "voice" && (
         <>
           <VoiceSection />
@@ -316,16 +316,6 @@ function filterSettings(root: HTMLElement, query: string) {
     const anything = [...g.querySelectorAll(".field")].some((f) => !f.hasAttribute("hidden"));
     hide(g, !!q && !anything && !matchesSearch(label, q));
   });
-}
-
-/** Everything about making and editing pictures (Windows). */
-function ImagesTab() {
-  return (
-    <>
-      <h3>Images</h3>
-      <ImageCatalog />
-    </>
-  );
 }
 
 function ModelsTab() {

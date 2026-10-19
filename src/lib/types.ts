@@ -211,6 +211,17 @@ export interface Settings {
   /** The microphone and speakers BYTE's voice uses, by name (empty: the system default). */
   micDevice?: string;
   speakerDevice?: string;
+  // Image Studio (Windows)
+  imageStudio?: boolean;
+  imageRealPeople?: boolean;
+  imageHires?: boolean;
+  imageUpscale?: boolean;
+  imageUpscaler?: string;
+  imagePhotoFinish?: boolean;
+  imageFinishStrength?: number;
+  imagePlacement?: "auto" | "vram" | "ram";
+  imageKeep?: "all" | "saved" | "none";
+  imageStripInfo?: boolean;
   // --- track:wakemodel end ---
   voiceFocus?: "off" | "normal" | "strict";
   talkHotkey?: string;
@@ -1742,4 +1753,49 @@ export interface ImageModel {
   best: number;
   totalBytes: number;
   companions: ImageFile[];
+}
+
+export interface ImageRequest {
+  model: string;
+  quant: string;
+  prompt: string;
+  negative?: string;
+  width: number;
+  height: number;
+  steps?: number;
+  seed?: number;
+}
+
+/** A finished picture from Image Studio. */
+export interface ImageMade {
+  path: string;
+  /** A small JPEG as a data address, to show in the window. */
+  preview: string;
+  width: number;
+  height: number;
+  seed: number;
+  seconds: number;
+  notes: string[];
+}
+
+export interface ImageProgress {
+  phase: "loading" | "drawing" | "finishing" | "enlarging" | "polishing";
+  step: number;
+  total: number;
+}
+
+export interface ImageEngineOption {
+  id: string;
+  label: string;
+  note: string;
+  sizeBytes: number;
+  installed: boolean;
+}
+
+/** The picture engine (stable-diffusion.cpp) Image Studio draws with: downloaded on request. */
+export interface ImageEngine {
+  /** The engine in use: "cuda", "vulkan", "cpu", "custom", or "" when none is installed. */
+  active: string;
+  recommended: string;
+  options: ImageEngineOption[];
 }

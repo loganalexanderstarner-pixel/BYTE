@@ -3,6 +3,8 @@ mod assistants;
 mod answer_cache;
 mod backend;
 mod chat;
+mod finish;
+mod imagegen;
 mod images;
 mod chip;
 mod clipboard;
@@ -676,6 +678,13 @@ pub fn run() {
             commands::settings_update,
             commands::models_list,
             images::image_catalog,
+            imagegen::image_download,
+            imagegen::image_pause,
+            imagegen::image_delete,
+            imagegen::image_generate,
+            imagegen::image_cancel,
+            imagegen::image_engine,
+            imagegen::image_engine_install,
             commands::model_recommend,
             commands::catalog_refresh,
             commands::model_download,

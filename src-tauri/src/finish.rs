@@ -1,0 +1,190 @@
+//! The camera-style finish for pictures made by Image Studio, and the preview shown in the window.
+//!
+//! Image models make very clean pictures: no grain, soft even colour, edges too perfect. A real camera
+//! adds a little softness, colour fringing at the edges, flatter colour, a darker corner, fine sensor
+//! grain and JPEG compression. This does the same, scaled by a strength from 0 to 100.
+
+use std::path::Path;
+
+use base64::Engine;
+use image::{codecs::jpeg::JpegEncoder, imageops, ImageEncoder, RgbImage};
+
+use crate::error::{AppError, AppResult};
+
+fn img_err(e: image::ImageError) -> AppError {
+    AppError::msg(format!("could not process the picture: {e}"))
+}
+
+/// Small, fast, repeatable noise: the same picture and strength always get the same grain.
+struct Noise(u64);
+
+impl Noise {
+    fn next(&mut self) -> u64 {
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
+        self.0
+    }
+    /// About a normal distribution with mean 0 and standard deviation 1 (sum of four uniforms).
+    fn gauss(&mut self) -> f32 {
+        let mut t = 0.0f32;
+        for _ in 0..4 {
+            t += (self.next() >> 40) as f32 / (1u64 << 24) as f32;
+        }
+        (t - 2.0) * 1.732
+    }
+}
+
+/// Applies the finish. `strength` 0..=100.
+pub fn apply(src: &RgbImage, strength: u32) -> RgbImage {
+    let k = strength.min(100) as f32 / 100.0;
+    // Pictures enlarged 4x are shrunk back a little: the extra pixels keep their texture and lose the
+    // enlarger's over-sharp edges.
+    let mut img = if src.width() > 2400 {
+        let w = 2240;
+        let h = (src.height() as f32 * w as f32 / src.width() as f32).round() as u32;
+        imageops::resize(src, w, h, imageops::FilterType::Lanczos3)
+    } else {
+        src.clone()
+    };
+    let (w, h) = img.dimensions();
+    if k > 0.0 {
+        // The lens: a hair of softness, then the camera's own sharpening.
+        img = imageops::blur(&img, 0.3 + 0.4 * k);
+        img = imageops::unsharpen(&img, 1.4, 3);
+    }
+    let contrast = 1.0 - 0.06 * k;
+    let saturation = 1.0 - 0.08 * k;
+    let grain = 10.0 * k;
+    let colour_grain = 3.0 * k;
+    let mut noise = Noise(0x9E37_79B9_7F4A_7C15 ^ (w as u64) << 20 ^ h as u64 ^ strength as u64);
+    let src_px = img.clone();
+    let (cx, cy) = (w as f32 / 2.0, h as f32 / 2.0);
+    let max_r = (cx * cx + cy * cy).sqrt();
+    let shift = if k > 0.0 { 1i64 } else { 0 };
+    for y in 0..h {
+        for x in 0..w {
+            // Colour fringing: red a pixel to the right, blue a pixel to the left.
+            let xr = (x as i64 + shift).clamp(0, w as i64 - 1) as u32;
+            let xb = (x as i64 - shift).clamp(0, w as i64 - 1) as u32;
+            let mut r = src_px.get_pixel(xr, y)[0] as f32;
+            let mut g = src_px.get_pixel(x, y)[1] as f32;
+            let mut b = src_px.get_pixel(xb, y)[2] as f32;
+            // Flatter colour.
+            let l = 0.299 * r + 0.587 * g + 0.114 * b;
+            r = l + (r - l) * saturation;
+            g = l + (g - l) * saturation;
+            b = l + (b - l) * saturation;
+            r = (r - 128.0) * contrast + 128.0;
+            g = (g - 128.0) * contrast + 128.0;
+            b = (b - 128.0) * contrast + 128.0;
+            // A darker corner.
+            let dx = x as f32 - cx;
+            let dy = y as f32 - cy;
+            let d = ((dx * dx + dy * dy).sqrt() / max_r - 0.55).max(0.0) * 0.5 * k;
+            let v = 1.0 - d * 0.6;
+            // Sensor grain: the same for all three colours, plus a little colour noise.
+            let n = noise.gauss() * grain;
+            let px = img.get_pixel_mut(x, y);
+            px[0] = (r * v + n + noise.gauss() * colour_grain).clamp(0.0, 255.0) as u8;
+            px[1] = (g * v + n + noise.gauss() * colour_grain).clamp(0.0, 255.0) as u8;
+            px[2] = (b * v + n + noise.gauss() * colour_grain).clamp(0.0, 255.0) as u8;
+        }
+    }
+    img
+}
+
+/// Reads `src`, applies the finish and writes a JPEG like a camera would.
+pub fn finish_file(src: &Path, dst: &Path, strength: u32) -> AppResult<()> {
+    let img = image::open(src).map_err(img_err)?.to_rgb8();
+    let out = apply(&img, strength);
+    let file = std::fs::File::create(dst)?;
+    let enc = JpegEncoder::new_with_quality(std::io::BufWriter::new(file), 92);
+    enc.write_image(out.as_raw(), out.width(), out.height(), image::ExtendedColorType::Rgb8).map_err(img_err)
+}
+
+/// Writes the picture again without the prompt and settings the engine stores inside it.
+pub fn strip_file(src: &Path) -> AppResult<()> {
+    let img = image::open(src).map_err(img_err)?;
+    img.save(src).map_err(img_err)
+}
+
+/// A JPEG data address of the picture shrunk to fit `max` pixels, and the picture's real size.
+pub fn preview(path: &Path, max: u32) -> AppResult<(String, u32, u32)> {
+    let img = image::open(path).map_err(img_err)?.to_rgb8();
+    let (w, h) = img.dimensions();
+    let small = if w.max(h) > max {
+        let f = max as f32 / w.max(h) as f32;
+        imageops::resize(&img, (w as f32 * f).round().max(1.0) as u32, (h as f32 * f).round().max(1.0) as u32, imageops::FilterType::Triangle)
+    } else {
+        img
+    };
+    let mut buf = Vec::new();
+    JpegEncoder::new_with_quality(&mut buf, 85).write_image(small.as_raw(), small.width(), small.height(), image::ExtendedColorType::Rgb8).map_err(img_err)?;
+    Ok((format!("data:image/jpeg;base64,{}", base64::engine::general_purpose::STANDARD.encode(&buf)), w, h))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::Rgb;
+
+    fn smooth(w: u32, h: u32) -> RgbImage {
+        RgbImage::from_fn(w, h, |x, y| Rgb([(100 + x * 40 / w) as u8, (110 + y * 40 / h) as u8, 120]))
+    }
+
+    fn roughness(img: &RgbImage) -> f32 {
+        let mut t = 0.0f32;
+        let mut n = 0.0f32;
+        for y in 0..img.height() {
+            for x in 1..img.width() {
+                t += (img.get_pixel(x, y)[1] as f32 - img.get_pixel(x - 1, y)[1] as f32).abs();
+                n += 1.0;
+            }
+        }
+        t / n
+    }
+
+    #[test]
+    fn adds_grain_to_a_smooth_picture_in_proportion_to_strength() {
+        let src = smooth(200, 160);
+        let none = roughness(&apply(&src, 0));
+        let some = roughness(&apply(&src, 40));
+        let lots = roughness(&apply(&src, 100));
+        assert!(none < 1.0, "{none}");
+        assert!(some > none + 2.0 && lots > some, "{none} {some} {lots}");
+    }
+
+    #[test]
+    fn strength_zero_leaves_the_picture_alone() {
+        let src = smooth(64, 48);
+        let out = apply(&src, 0);
+        let worst = src.pixels().zip(out.pixels()).map(|(a, b)| (a[0] as i32 - b[0] as i32).abs()).max().unwrap();
+        assert!(worst <= 2, "{worst}");
+    }
+
+    #[test]
+    fn a_big_enlarged_picture_is_shrunk_back() {
+        let out = apply(&smooth(2600, 100), 30);
+        assert_eq!(out.width(), 2240);
+    }
+
+    #[test]
+    fn the_same_picture_gets_the_same_grain() {
+        let src = smooth(80, 60);
+        assert_eq!(apply(&src, 50).as_raw(), apply(&src, 50).as_raw());
+    }
+
+    #[test]
+    fn writes_a_jpeg_and_a_preview() {
+        let dir = std::env::temp_dir().join(format!("byte-finish-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (src, dst) = (dir.join("a.png"), dir.join("a.jpg"));
+        smooth(300, 200).save(&src).unwrap();
+        finish_file(&src, &dst, 40).unwrap();
+        let (url, w, h) = preview(&dst, 100).unwrap();
+        assert!(url.starts_with("data:image/jpeg;base64,"));
+        assert_eq!((w, h), (300, 200));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

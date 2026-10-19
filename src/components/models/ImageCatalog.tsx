@@ -7,6 +7,31 @@ import { fitSentence, PLACEMENT_LABEL, placementClass } from "../../lib/imageFit
 import type { ImageModel } from "../../lib/types";
 import { useStore } from "../../state/store";
 
+/** What a download is doing right now (from the engine's events). */
+export interface DlState {
+  bytes: number;
+  total: number;
+  phase: "downloading" | "verifying" | "paused" | "failed" | "done";
+  message?: string;
+}
+
+export function toDl(e: import("../../lib/types").DownloadEvent, prev?: DlState): DlState {
+  switch (e.kind) {
+    case "progress":
+      return { bytes: e.bytes, total: e.total, phase: "downloading" };
+    case "resuming":
+      return { bytes: e.bytes, total: prev?.total ?? 0, phase: "downloading" };
+    case "verifying":
+      return { bytes: prev?.total ?? 0, total: prev?.total ?? 0, phase: "verifying" };
+    case "paused":
+      return { bytes: e.bytes, total: prev?.total ?? 0, phase: "paused" };
+    case "failed":
+      return { bytes: prev?.bytes ?? 0, total: prev?.total ?? 0, phase: "failed", message: e.message };
+    case "finished":
+      return { bytes: prev?.total ?? 0, total: prev?.total ?? 0, phase: "done" };
+  }
+}
+
 type Sort = "best" | "fastest" | "smallest" | "popular";
 
 /** Every kind of image job. Only "Make pictures" has models so far; the rest light up as their models arrive. */
@@ -86,9 +111,9 @@ export function arrange(models: ImageModel[], opts: { query: string; filter: str
  * Image Studio's model list (Windows builds): what each free image model is good at and whether this
  * PC's graphics card can run it. Downloading and making pictures arrive in the next builds.
  */
-export function ImageCatalog() {
-  const [models, setModels] = useState<ImageModel[] | null>(null);
+export function ImageCatalog({ models, reload }: { models: ImageModel[] | null; reload: () => void }) {
   const [error, setError] = useState<string | null>(null);
+  const [dl, setDl] = useState<Record<string, DlState>>({});
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string | null>(null);
   const [look, setLook] = useState<string | null>(null);
@@ -101,15 +126,29 @@ export function ImageCatalog() {
   const kids = useStore((s) => !!s.settings?.kidsMode);
 
   useEffect(() => {
-    api.imageCatalog().then(setModels).catch((e) => setError(errorText(e)));
-  }, []);
+    let off: (() => void) | undefined;
+    void api.onImageDownload((e) => {
+      setDl((d) => ({ ...d, [e.id]: toDl(e, d[e.id]) }));
+      if (e.kind === "finished" || e.kind === "paused") reload();
+    }).then((u) => (off = u));
+    return () => off?.();
+  }, [reload]);
+  const run = async (fn: () => Promise<unknown>) => {
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError(errorText(e));
+    }
+    reload();
+  };
 
   const shown = useMemo(() => arrange(models ?? [], { query, filter, look, task, sort, community, commercialOnly, kids }).filter((m) => !fitOnly || m.variants.some((v) => v.fit.placement === "vram")), [models, query, filter, look, task, sort, community, commercialOnly, kids, fitOnly]);
 
   return (
     <>
       <p className="faint" style={{ marginTop: 0 }}>
-        Free image models, best first. Everything runs on this PC; pictures and photos never leave it. Downloading and making pictures are coming in the next test builds.
+        Free image models, best first. Everything runs on this PC; pictures and photos never leave it. Download a version, then use Make a picture at the top of this page.
       </p>
       <div className="catalog-tools">
         <label className="search">
@@ -202,6 +241,7 @@ export function ImageCatalog() {
               <div className={placementClass(v.fit.placement) === "danger" ? "banner danger" : "faint"} style={{ fontSize: "0.9em" }}>
                 {fitSentence(v)}{vi === m.best ? " Recommended for this PC." : ""}
               </div>
+              <DownloadRow m={m} vi={vi} state={dl[`${m.id}:${v.quant}`]} onDownload={() => run(() => api.imageDownload(m.id, v.quant))} onPause={() => run(() => api.imagePause(m.id, v.quant))} onDelete={() => run(() => api.imageDelete(m.id, v.quant))} />
               <div className="faint row" style={{ gap: 12, flexWrap: "wrap", fontSize: "0.85em" }}>
                 <span>{bytes(v.sizeBytes + m.companions.reduce((n, f) => n + f.size, 0))} to download with its text files</span>
                 <span>{m.steps} steps</span>
@@ -214,5 +254,35 @@ export function ImageCatalog() {
         })}
       </div>
     </>
+  );
+}
+
+function DownloadRow({ m, vi, state, onDownload, onPause, onDelete }: { m: ImageModel; vi: number; state?: DlState; onDownload: () => void; onPause: () => void; onDelete: () => void }) {
+  const v = m.variants[vi];
+  const total = v.sizeBytes + m.companions.reduce((n, f) => n + f.size, 0);
+  const busy = state && (state.phase === "downloading" || state.phase === "verifying");
+  if (v.installed && !busy) {
+    return (
+      <div className="row" style={{ gap: 8 }}>
+        <span className="pill ok">Downloaded</span>
+        <button className="btn sm ghost" onClick={onDelete} title="Deletes this version's file. Text files shared with other models stay.">Delete this version</button>
+      </div>
+    );
+  }
+  if (busy) {
+    const pct = state.total > 0 ? Math.min(100, Math.round((state.bytes / state.total) * 100)) : 0;
+    return (
+      <div className="row" style={{ gap: 8, alignItems: "center" }}>
+        <progress value={pct} max={100} style={{ flex: 1 }} aria-label="Download progress" />
+        <span className="faint small">{state.phase === "verifying" ? "Checking the file…" : `${pct}% · ${bytes(state.bytes)} of ${bytes(state.total)}`}</span>
+        {state.phase === "downloading" && <button className="btn sm ghost" onClick={onPause}>Pause</button>}
+      </div>
+    );
+  }
+  return (
+    <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+      <button className="btn sm" onClick={onDownload}>{state?.phase === "paused" ? "Resume" : "Download"} {v.quant} ({bytes(total)})</button>
+      {state?.phase === "failed" && <span className="faint small" role="alert">{state.message}</span>}
+    </div>
   );
 }

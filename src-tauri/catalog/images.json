@@ -1,6 +1,6 @@
 {
  "version": 2,
- "generated": "2026-10-19T20:16:00Z",
+ "generated": "2026-10-19T20:51:13Z",
  "models": [
   {
    "id": "abenzerps-qwen-image-2-1-uncensored-quantized",
@@ -18088,6 +18088,693 @@
        "size": 7105348560,
        "sha256": "1fe6c7ec54c786040cdabc7b4e89720069d97096922e20d01f13e7764412b47f",
        "url": "https://huggingface.co/RunDiffusion/Juggernaut-XL-v6/resolve/main/juggernautXL_version6Rundiffusion.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-4xnomoswebphoto-esrgan",
+   "name": "4xNomosWebPhoto",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "faces",
+    "photo"
+   ],
+   "looks": [],
+   "tagline": "The best for photos of people.",
+   "strengths": "Keeps real pore and wrinkle texture, so skin does not turn plastic. Tested best on a portrait. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 92,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 33449568,
+     "files": [
+      {
+       "role": "model",
+       "name": "4xNomosWebPhoto_esrgan.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 33449568,
+       "sha256": "3333a1e4c7a6d83ccf0c63cdb614c072ae16a0b90b4fba8defeacc3004c235e2",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/4xNomosWebPhoto_esrgan.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-realesrgan-x4plus",
+   "name": "Real-ESRGAN x4plus",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "fast",
+    "photo"
+   ],
+   "looks": [],
+   "tagline": "The classic all-round upscaler.",
+   "strengths": "Clean and safe on photos and art. Can smooth skin a little. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 78,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66839328,
+     "files": [
+      {
+       "role": "model",
+       "name": "RealESRGAN_x4plus.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66839328,
+       "sha256": "5a391e116e82d79863b270229bd18f5c6eba9d513f87c128405f8a701d0288ad",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/RealESRGAN_x4plus.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-4xultrasharpv10",
+   "name": "4x UltraSharp",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "art",
+    "text"
+   ],
+   "looks": [],
+   "tagline": "Crisp edges for art, screenshots and text.",
+   "strengths": "Very sharp lines. On faces it can look smooth. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 76,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66845536,
+     "files": [
+      {
+       "role": "model",
+       "name": "4xUltrasharpV10.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66845536,
+       "sha256": "71ca74e93c0f50872b2a12a1e59191a77fe0eea8bbf8888b00b5c7a525bed764",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/4xUltrasharpV10.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-4x-foolhardy-remacri",
+   "name": "4x Remacri",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "art",
+    "photo"
+   ],
+   "looks": [],
+   "tagline": "Soft natural enlargement.",
+   "strengths": "Gentle results for photos and paintings. Smooth skin. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 76,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66845536,
+     "files": [
+      {
+       "role": "model",
+       "name": "4x_foolhardy_Remacri.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66845536,
+       "sha256": "76e317ce6703c1161f521acfc557e181184fb7d316e4912041304acdf72b0295",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/4x_foolhardy_Remacri.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-4x-foolhardy-remacri-extrasmoother",
+   "name": "4x Remacri ExtraSmoother",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "photo"
+   ],
+   "looks": [],
+   "tagline": "Remacri with extra smoothing.",
+   "strengths": "Hides compression blocks in low-quality photos. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 70,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66845536,
+     "files": [
+      {
+       "role": "model",
+       "name": "4x_foolhardy_Remacri_ExtraSmoother.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66845536,
+       "sha256": "beafabbe60c027c9fc981e2dd215886965c8d1a40255b5fe30dd12e8daaf413c",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/4x_foolhardy_Remacri_ExtraSmoother.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-4xlsdirplusr",
+   "name": "4x LSDIR plus R",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "photo"
+   ],
+   "looks": [],
+   "tagline": "Strong clean-up for damaged photos.",
+   "strengths": "Good at removing noise and blur; skin comes out smooth. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 72,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66845536,
+     "files": [
+      {
+       "role": "model",
+       "name": "4xLSDIRplusR.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66845536,
+       "sha256": "8254bdd9757c9ab074260df786428bbe7f771fc2539ce5f9732a06a3def8108e",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/4xLSDIRplusR.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-4xlsdirplusn",
+   "name": "4x LSDIR plus N",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "photo"
+   ],
+   "looks": [],
+   "tagline": "Keeps fine grain and texture.",
+   "strengths": "Adds a sandy grain; good for textures, rough on faces. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 70,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66845536,
+     "files": [
+      {
+       "role": "model",
+       "name": "4xLSDIRplusN.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66845536,
+       "sha256": "b61a29c8060c08a6a1dc36b12f8ab71fe8f208b3d0052463033fbe580f62fd0c",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/4xLSDIRplusN.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-4xlsdirplusc",
+   "name": "4x LSDIR plus C",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "photo"
+   ],
+   "looks": [],
+   "tagline": "LSDIR tuned for compressed images.",
+   "strengths": "Repairs JPEG artifacts. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 70,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66845536,
+     "files": [
+      {
+       "role": "model",
+       "name": "4xLSDIRplusC.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66845536,
+       "sha256": "0347452a42ca12144dca4f79ddf859d8572d39f5fe91519136679e9826bbb33b",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/4xLSDIRplusC.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-4xnomos2-otf-esrgan",
+   "name": "4xNomos2 otf",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "art",
+    "photo"
+   ],
+   "looks": [],
+   "tagline": "Textured, grainy enlargement.",
+   "strengths": "Lots of texture; can look noisy on skin. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 68,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 33449568,
+     "files": [
+      {
+       "role": "model",
+       "name": "4xNomos2_otf_esrgan.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 33449568,
+       "sha256": "311bbaa21b28c2ea50fa66627191ded7e3fc290d7129943f94d993a225b2381b",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/4xNomos2_otf_esrgan.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-4xnomos8ksc",
+   "name": "4xNomos8k SC",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "art",
+    "photo"
+   ],
+   "looks": [],
+   "tagline": "Detail for large, clean images.",
+   "strengths": "Made for high-resolution sources. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 74,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66845536,
+     "files": [
+      {
+       "role": "model",
+       "name": "4xNomos8kSC.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66845536,
+       "sha256": "88e3fd8158ecb2b729813e1cae348fbe608f8d9a3bae897e1174173b62692362",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/4xNomos8kSC.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-4x-nickelbackfs-72000-g",
+   "name": "4x NickelbackFS",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "art"
+   ],
+   "looks": [],
+   "tagline": "Painterly, detailed enlargement.",
+   "strengths": "Good for illustrations and game art. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 70,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66845536,
+     "files": [
+      {
+       "role": "model",
+       "name": "4x_NickelbackFS_72000_G.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66845536,
+       "sha256": "97e9b8869b836448113d64f72c9d0461c3b5179e2056cb7f976aec69ff6b741b",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/4x_NickelbackFS_72000_G.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-4x-nickelback-70000g",
+   "name": "4x Nickelback",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "art"
+   ],
+   "looks": [],
+   "tagline": "An earlier Nickelback version.",
+   "strengths": "Good for illustrations. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 68,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66845536,
+     "files": [
+      {
+       "role": "model",
+       "name": "4x_Nickelback_70000G.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66845536,
+       "sha256": "52b9ed31dddca67c55ca5d76d361e9f875e3e77b706153a3738b8f6c2ef6d265",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/4x_Nickelback_70000G.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-2x-esrgan",
+   "name": "2x ESRGAN",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "fast",
+    "photo"
+   ],
+   "looks": [],
+   "tagline": "Gentle 2x enlargement.",
+   "strengths": "Smaller step than 4x, keeps things natural. Enlarges 2x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 72,
+   "steps": 2,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "2x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66697696,
+     "files": [
+      {
+       "role": "model",
+       "name": "2x-ESRGAN.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66697696,
+       "sha256": "eaa12716e05ddab63f417fef6265bd33608a821284000386f0ebe8bbaad05c70",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/2x-ESRGAN.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-2xpsnr",
+   "name": "2x PSNR",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "photo"
+   ],
+   "looks": [],
+   "tagline": "Faithful 2x enlargement without invented detail.",
+   "strengths": "Best when you want accuracy over sharpness. Enlarges 2x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 66,
+   "steps": 2,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "2x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66697696,
+     "files": [
+      {
+       "role": "model",
+       "name": "2xPSNR.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66697696,
+       "sha256": "788a6314d071e1365b6c771400cde8544bbad2b99aca8cb0829264fedddb5ec7",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/2xPSNR.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-2x-starsample-v2-0",
+   "name": "2x StarSample",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "art"
+   ],
+   "looks": [],
+   "tagline": "2x enlargement for stylised art.",
+   "strengths": "Made for cartoon and game art. Enlarges 2x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 66,
+   "steps": 2,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "2x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66697696,
+     "files": [
+      {
+       "role": "model",
+       "name": "2x_StarSample_V2.0.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66697696,
+       "sha256": "4b6cb8896fedb4b5baa55749eb866d7fc8d008b8562e2c290dabe29eb6eb7063",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/2x_StarSample_V2.0.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-realesrgan-x4plus-anime-6b",
+   "name": "Real-ESRGAN anime 6B",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "anime"
+   ],
+   "looks": [],
+   "tagline": "The standard upscaler for anime.",
+   "strengths": "Clean lines and flat colours; small and fast. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 84,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 17883936,
+     "files": [
+      {
+       "role": "model",
+       "name": "RealESRGAN_x4plus_anime_6B.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 17883936,
+       "sha256": "08e6eb5f76fc73e831d78283da1fd78bc604c70bc0b03a89418e09b184c45a40",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/RealESRGAN_x4plus_anime_6B.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "upscale-smbss-2x-rrdb-animation",
+   "name": "2x Animation RRDB",
+   "family": "Upscaler",
+   "kind": "upscale",
+   "tags": [
+    "anime"
+   ],
+   "looks": [],
+   "tagline": "2x enlargement for animation frames.",
+   "strengths": "Made for cartoons and animation. Enlarges 4x.",
+   "license": "Check the licence of the original model",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 70,
+   "steps": 4,
+   "overheadGb": 0.5,
+   "downloads": 0,
+   "source": "wbruna/upscalers-sdcpp-gguf",
+   "variants": [
+    {
+     "quant": "4x",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 66697696,
+     "files": [
+      {
+       "role": "model",
+       "name": "smbss_2x_RRDB_Animation.gguf",
+       "repo": "wbruna/upscalers-sdcpp-gguf",
+       "size": 66697696,
+       "sha256": "bc33d819f093b104f7d153d5e67ec0ade190efbe833012ae56fcbedd9a762eb7",
+       "url": "https://huggingface.co/wbruna/upscalers-sdcpp-gguf/resolve/main/smbss_2x_RRDB_Animation.gguf"
       }
      ]
     }

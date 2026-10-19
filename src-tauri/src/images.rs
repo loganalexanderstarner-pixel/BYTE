@@ -128,6 +128,13 @@ struct ImageCatalog {
     models: Vec<ImageModel>,
 }
 
+/// The embedded catalog, parsed once.
+static MODELS: once_cell::sync::Lazy<Vec<ImageModel>> = once_cell::sync::Lazy::new(|| parse(EMBEDDED).expect("embedded image catalog is valid"));
+
+pub fn get(id: &str) -> Option<&'static ImageModel> {
+    MODELS.iter().find(|m| m.id == id)
+}
+
 fn parse(json: &str) -> AppResult<Vec<ImageModel>> {
     let c: ImageCatalog = serde_json::from_str(json)?;
     if c.version != 2 {
@@ -180,8 +187,9 @@ fn best_variant(vs: &[ImageVariantStatus]) -> usize {
 
 /// Every image model with how each quant fits `mem`.
 pub fn list(mem: Memory, installed: &dyn Fn(&ImageModel, &ImageVariant) -> bool) -> AppResult<Vec<ImageModelStatus>> {
-    Ok(parse(EMBEDDED)?
-        .into_iter()
+    Ok(MODELS
+        .iter()
+        .cloned()
         .map(|m| {
             let mut vs: Vec<ImageVariantStatus> =
                 m.variants.iter().map(|v| ImageVariantStatus { fit: fit(&m, v, mem), installed: installed(&m, v), variant: v.clone() }).collect();
@@ -201,7 +209,8 @@ pub async fn image_catalog(state: tauri::State<'_, crate::state::AppState>) -> A
     }
     let info = crate::system::system_info(&state.paths.data);
     let vram = crate::gpu::best_discrete(crate::gpu::detect()).map(|g| g.dedicated_bytes);
-    list(Memory { vram, ram: info.total_ram_bytes }, &|_, _| false)
+    let dir = state.paths.models.clone();
+    list(Memory { vram, ram: info.total_ram_bytes }, &|m, v| crate::imagegen::installed(&dir, m, v))
 }
 
 #[cfg(test)]
