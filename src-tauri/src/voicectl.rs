@@ -4,6 +4,7 @@
 
 #![cfg_attr(not(any(target_os = "macos", windows)), allow(dead_code))]
 
+use crate::platform_text::SeeThrough;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -144,7 +145,7 @@ fn pill(app: &AppHandle, phase: Phase) {
                 .title("BYTE listening")
                 .inner_size(230.0, 36.0)
                 .decorations(false)
-                .transparent(true)
+                .see_through()
                 .shadow(false)
                 .resizable(false)
                 .always_on_top(true)

@@ -211,3 +211,20 @@ mod tests {
         assert_eq!(os_text("Keychains and Finders"), "Keychains and Finders");
     }
 }
+
+/// `.see_through()` on a window builder: a see-through window where the system allows it. On macOS that needs Tauri's private-API
+/// switch, which BYTE leaves off, so the window stays opaque there.
+pub trait SeeThrough {
+    fn see_through(self) -> Self;
+}
+
+impl<'a, R: tauri::Runtime, M: tauri::Manager<R>> SeeThrough for tauri::WebviewWindowBuilder<'a, R, M> {
+    #[cfg(not(target_os = "macos"))]
+    fn see_through(self) -> Self {
+        self.transparent(true)
+    }
+    #[cfg(target_os = "macos")]
+    fn see_through(self) -> Self {
+        self
+    }
+}

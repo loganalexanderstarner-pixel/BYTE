@@ -10,6 +10,7 @@
 //! The pure parts (phrase, plan reading, the step machine, finding an element again, the overlay's geometry) are tested everywhere;
 //! the overlay window and the polling loop are Windows only.
 
+use crate::platform_text::SeeThrough;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
@@ -671,7 +672,7 @@ mod win {
             .title("BYTE guide")
             .inner_size(340.0, 90.0)
             .decorations(false)
-            .transparent(true)
+            .see_through()
             .shadow(false)
             .resizable(false)
             .always_on_top(true)
