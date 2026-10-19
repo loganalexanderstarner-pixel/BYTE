@@ -1,11 +1,13 @@
-import { Brain, Cloud, Cpu, HardDrive, LifeBuoy, Mic, Plug, Settings2, Shield } from "lucide-react";
+import { Brain, Cloud, Cpu, HardDrive, Image as ImageIcon, LifeBuoy, Mic, Plug, Settings2, Shield } from "lucide-react";
 
+import { isWindows } from "../../lib/keys";
 import type { SettingsGroup } from "../../state/store";
 
 /** Settings' groups, in order (the left list; also listed in the command palette). */
 export const TABS: { id: SettingsGroup; label: string; icon: typeof Cpu }[] = [
   { id: "general", label: "General", icon: Settings2 },
   { id: "models", label: "Models and speed", icon: HardDrive },
+  { id: "images", label: "Images", icon: ImageIcon },
   { id: "voice", label: "Voice and Hey BYTE", icon: Mic },
   { id: "control", label: "Control and screen", icon: Plug },
   { id: "privacy", label: "Privacy", icon: Shield },
@@ -13,3 +15,8 @@ export const TABS: { id: SettingsGroup; label: string; icon: typeof Cpu }[] = [
   { id: "cloud", label: "Account and cloud", icon: Cloud },
   { id: "backup", label: "Backup and help", icon: LifeBuoy },
 ];
+
+/** The tabs this system shows: Images is in the Windows app only for now. */
+export function visibleTabs(): typeof TABS {
+  return TABS.filter((t) => t.id !== "images" || isWindows());
+}

@@ -45,6 +45,9 @@ pub struct ImageModel {
     /// "generate" for now; "edit", "upscale" and "restore" are added with those features.
     pub kind: String,
     pub tags: Vec<String>,
+    /// Real-life looks it does well (portrait, landscape ...); only models tagged "realism" have any.
+    #[serde(default)]
+    pub looks: Vec<String>,
     pub tagline: String,
     pub strengths: String,
     pub license: String,
@@ -278,6 +281,15 @@ mod tests {
         let l = list(Memory { vram: Some(4 * GB), ram: 32 * GB }, &|_, _| false).unwrap();
         let f = l.iter().find(|m| m.model.id == "city96-flux-1-dev-gguf").unwrap();
         assert_eq!(f.variants[f.best].fit.placement, Placement::Split);
+    }
+
+    #[test]
+    fn realism_models_say_which_real_life_looks_they_do() {
+        let l = list(MEM16, &|_, _| false).unwrap();
+        for m in l.iter().filter(|m| m.model.tags.iter().any(|t| t == "realism")) {
+            assert!(!m.model.looks.is_empty(), "{}", m.model.id);
+        }
+        assert!(l.iter().filter(|m| m.model.looks.iter().any(|k| k == "portrait")).count() > 20);
     }
 
     #[test]

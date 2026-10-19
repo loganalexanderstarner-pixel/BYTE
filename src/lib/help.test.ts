@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { availableExamples, EXAMPLES, todaysPicks } from "./examples";
 import { ARTICLES, linkTarget, searchHelp, sectioned } from "./help";
 
-const TABS = ["general", "models", "voice", "control", "privacy", "memory", "cloud", "backup", "knowledge", "connectors", "appearance", "engine", "about"];
+const TABS = ["general", "models", "voice", "control", "privacy", "memory", "cloud", "backup", "images", "knowledge", "connectors", "appearance", "engine", "about"];
 
 describe("help center", () => {
   it("loads every article with a title and body", () => {

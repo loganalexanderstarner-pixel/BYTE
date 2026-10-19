@@ -1725,6 +1725,8 @@ export interface ImageModel {
   family: string;
   kind: string;
   tags: string[];
+  /** Real-life looks it does well (portrait, landscape ...), for models tagged realism. */
+  looks: string[];
   tagline: string;
   strengths: string;
   license: string;

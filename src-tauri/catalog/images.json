@@ -1,6 +1,6 @@
 {
  "version": 2,
- "generated": "2026-10-19T19:47:19Z",
+ "generated": "2026-10-19T20:16:00Z",
  "models": [
   {
    "id": "abenzerps-qwen-image-2-1-uncensored-quantized",
@@ -10,6 +10,14 @@
    "tags": [
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by abenzerps.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (abenzerps/Qwen-Image-2.1-Uncensored-Quantized) for what it changes.",
@@ -148,6 +156,14 @@
     "fast",
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by AtomicChat.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF) for what it changes.",
@@ -301,6 +317,14 @@
    "tags": [
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by leejet.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (leejet/Qwen-Image-2.1-GGUF) for what it changes.",
@@ -456,6 +480,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by DogukanUrker.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (DogukanUrker/Qwen-Image-2.1-Turbo-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -577,6 +609,14 @@
     "fast",
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by AtomicChat.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (AtomicChat/Qwen-Image-2.1-Turbo-GGUF) for what it changes.",
@@ -731,6 +771,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by Abiray.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Abiray/Qwen-Image-2.1-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -867,6 +915,14 @@
    "tags": [
     "fast",
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by leejet.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (leejet/Z-Image-Turbo-GGUF) for what it changes.",
@@ -1022,6 +1078,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by Abiray.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Abiray/Qwen-Image-2.1-viggle-4-steps-turbo-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -1158,6 +1222,14 @@
    "tags": [
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by KasugaiSakura.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (KasugaiSakura/Qwen-Image-2.1-Uncensored-Abenzerps-GGUF) for what it changes.",
@@ -1296,6 +1368,14 @@
     "fast",
     "realism"
    ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
+   ],
    "tagline": "A community version of Z-Image by lesliemore.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (lesliemore/z-image-turbo-nsfw-v2-GGUF) for what it changes.",
    "license": "Apache-2.0",
@@ -1352,6 +1432,14 @@
    "tags": [
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by 0xSojalSec.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (0xSojalSec/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
@@ -1473,6 +1561,14 @@
    "tags": [
     "fast",
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by jayn7.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (jayn7/Z-Image-Turbo-GGUF) for what it changes.",
@@ -1639,7 +1735,17 @@
    "name": "FLUX.1-dev (unsloth)",
    "family": "FLUX.1",
    "kind": "generate",
-   "tags": [],
+   "tags": [
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
+   ],
    "tagline": "A community version of FLUX.1 by unsloth.",
    "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (unsloth/FLUX.1-dev-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -1926,6 +2032,7 @@
    "family": "Chroma",
    "kind": "generate",
    "tags": [],
+   "looks": [],
    "tagline": "A community version of Chroma by duyntnet.",
    "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (duyntnet/Chroma-GGUF-All-Versions) for what it changes.",
    "license": "Apache-2.0",
@@ -2127,6 +2234,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by chfm.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (chfm/Qwen-Image-2.1-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -2261,6 +2376,7 @@
    "family": "Chroma",
    "kind": "generate",
    "tags": [],
+   "looks": [],
    "tagline": "A community version of Chroma by silveroxides.",
    "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (silveroxides/Chroma1-HD-GGUF) for what it changes.",
    "license": "Apache-2.0",
@@ -2507,7 +2623,16 @@
    "family": "FLUX.1",
    "kind": "generate",
    "tags": [
-    "fast"
+    "fast",
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
    ],
    "tagline": "A community version of FLUX.1 by unsloth.",
    "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (unsloth/FLUX.1-schnell-GGUF) for what it changes.",
@@ -2798,6 +2923,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by realrebelai.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (realrebelai/Qwen-Image-2.1_GGUFs) for what it changes.",
    "license": "Not stated",
@@ -2919,6 +3052,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by AlperKTS.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (AlperKTS/Qwen-Image-2.1-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -3008,6 +3149,14 @@
     "fast",
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by Abiray.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Abiray/Qwen-Image-2.1-Turbo-GGUF) for what it changes.",
@@ -3222,7 +3371,17 @@
    "name": "FLUX.1-dev-4bit",
    "family": "FLUX.1",
    "kind": "generate",
-   "tags": [],
+   "tags": [
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
+   ],
    "tagline": "A community version of FLUX.1 by dgflash.",
    "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (dgflash/FLUX.1-dev-4bit-gguf) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -3288,6 +3447,14 @@
     "fast",
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by webmp3.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (webmp3/Sakura-Qwen-Image-2.1-Turbo-Uncensored-GGUF) for what it changes.",
@@ -3378,6 +3545,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by mozophe.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (mozophe/Qwen-Image-2.1-PE-MTP-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -3449,6 +3624,14 @@
    "kind": "generate",
    "tags": [
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by gimly13.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (gimly13/z-image-cyberrealistic-v9-gguf) for what it changes.",
@@ -3587,6 +3770,14 @@
     "fast",
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by TechnoBaptist.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (TechnoBaptist/Qwen-Image-2.1-Turbo-Uncensored-GGUF) for what it changes.",
@@ -3737,7 +3928,17 @@
    "name": "flux.1-dev-abliterated-V2 (t8star)",
    "family": "FLUX.1",
    "kind": "generate",
-   "tags": [],
+   "tags": [
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
+   ],
    "tagline": "A community version of FLUX.1 by t8star.",
    "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (t8star/flux.1-dev-abliterated-V2-GGUF) for what it changes.",
    "license": "Not stated",
@@ -3834,6 +4035,7 @@
    "tags": [
     "text"
    ],
+   "looks": [],
    "tagline": "A community version of Stable Diffusion 3.5 by second-state.",
    "strengths": "A community-made version based on Stable Diffusion 3.5. Not tested by us: see its description on Hugging Face (second-state/stable-diffusion-3.5-medium-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -3963,6 +4165,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by pottokao.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (pottokao/Qwen-Image-2.1-DiT-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -4050,6 +4260,14 @@
    "kind": "generate",
    "tags": [
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by gguf-org.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (gguf-org/z-image-gguf) for what it changes.",
@@ -4363,6 +4581,7 @@
    "tags": [
     "text"
    ],
+   "looks": [],
    "tagline": "A community version of Stable Diffusion 3.5 by calcuis.",
    "strengths": "A community-made version based on Stable Diffusion 3.5. Not tested by us: see its description on Hugging Face (calcuis/sd3.5-large-gguf) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -4509,6 +4728,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by Abiray.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Abiray/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -4646,6 +4873,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by gguf-org.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (gguf-org/qwen-image-2.1-gguf) for what it changes.",
    "license": "Not stated",
@@ -4702,6 +4937,14 @@
    "tags": [
     "fast",
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by BigDannyPt.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (BigDannyPt/Z-Image-Turbo-GGUF-Collection) for what it changes.",
@@ -4825,6 +5068,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by abenzerps.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (abenzerps/Qwen-Image-2.1-Turbo-Quantized) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -4946,6 +5197,14 @@
     "fast",
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by realrebelai.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (realrebelai/Viggle_Qwen-Image-2.1-Turbo_GGUFs) for what it changes.",
@@ -5084,6 +5343,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by LuffyTheFox.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (LuffyTheFox/Qwen-Image-2.1-Uncensored-Genesis-BF16-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -5137,7 +5404,17 @@
    "name": "flux1",
    "family": "FLUX.1",
    "kind": "generate",
-   "tags": [],
+   "tags": [
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
+   ],
    "tagline": "A community version of FLUX.1 by calcuis.",
    "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (calcuis/flux1-gguf) for what it changes.",
    "license": "Apache-2.0",
@@ -5427,6 +5704,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by molbal.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (molbal/Qwen-Image-2.1-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -5513,7 +5798,16 @@
    "family": "FLUX.1",
    "kind": "generate",
    "tags": [
-    "fast"
+    "fast",
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
    ],
    "tagline": "A community version of FLUX.1 by lllyasviel.",
    "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (lllyasviel/FLUX.1-schnell-gguf) for what it changes.",
@@ -5740,6 +6034,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by vantagewithai.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (vantagewithai/Qwen-Image-2.1-ComfyUI-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -5858,7 +6160,16 @@
    "family": "FLUX.1",
    "kind": "generate",
    "tags": [
-    "fast"
+    "fast",
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
    ],
    "tagline": "A community version of FLUX.1 by second-state.",
    "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (second-state/FLUX.1-schnell-GGUF) for what it changes.",
@@ -6001,7 +6312,17 @@
    "name": "FLUX.1-dev (lllyasviel)",
    "family": "FLUX.1",
    "kind": "generate",
-   "tags": [],
+   "tags": [
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
+   ],
    "tagline": "A community version of FLUX.1 by lllyasviel.",
    "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (lllyasviel/FLUX.1-dev-gguf) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -6227,6 +6548,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by basileleuwa.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (basileleuwa/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -6363,6 +6692,7 @@
    "tags": [
     "text"
    ],
+   "looks": [],
    "tagline": "A community version of Stable Diffusion 3.5 by city96.",
    "strengths": "A community-made version based on Stable Diffusion 3.5. Not tested by us: see its description on Hugging Face (city96/stable-diffusion-3.5-large-gguf) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -6505,6 +6835,7 @@
    "family": "Chroma",
    "kind": "generate",
    "tags": [],
+   "looks": [],
    "tagline": "A community version of Chroma by silveroxides.",
    "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (silveroxides/Chroma1-Flash-GGUF) for what it changes.",
    "license": "Apache-2.0",
@@ -6754,6 +7085,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by TBT000.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (TBT000/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -6871,7 +7210,17 @@
    "name": "FLUX.1-dev-FluxedUp-V10",
    "family": "FLUX.1",
    "kind": "generate",
-   "tags": [],
+   "tags": [
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
+   ],
    "tagline": "A community version of FLUX.1 by h4shy.",
    "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (h4shy/FLUX.1-dev-FluxedUp-V10-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -6936,6 +7285,14 @@
    "tags": [
     "fast",
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by wbruna.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (wbruna/Z-Image-Turbo-sdcpp-GGUF) for what it changes.",
@@ -7056,6 +7413,14 @@
    "kind": "generate",
    "tags": [
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by BennyDaBall.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (BennyDaBall/Z-Image-Engineer-V6-GGUF) for what it changes.",
@@ -7194,6 +7559,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by Janchan123.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Janchan123/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -7314,6 +7687,7 @@
    "tags": [
     "text"
    ],
+   "looks": [],
    "tagline": "A community version of Stable Diffusion 3.5 by calcuis.",
    "strengths": "A community-made version based on Stable Diffusion 3.5. Not tested by us: see its description on Hugging Face (calcuis/sd3.5-medium-gguf) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -7635,6 +8009,14 @@
     "fast",
     "realism"
    ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
+   ],
    "tagline": "A community version of Z-Image by vantagewithai.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (vantagewithai/Z-Image-Turbo-GGUF) for what it changes.",
    "license": "Apache-2.0",
@@ -7900,6 +8282,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by ldov.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (ldov/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -8038,6 +8428,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by Abiray.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Abiray/Qwen-Image-2.1-viggle-turbo-v0.3-6step-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -8171,7 +8569,17 @@
    "name": "FLUX.1-dev (second-state)",
    "family": "FLUX.1",
    "kind": "generate",
-   "tags": [],
+   "tags": [
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
+   ],
    "tagline": "A community version of FLUX.1 by second-state.",
    "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (second-state/FLUX.1-dev-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -8349,6 +8757,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by Manusagents.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Manusagents/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -8467,6 +8883,7 @@
    "family": "Chroma",
    "kind": "generate",
    "tags": [],
+   "looks": [],
    "tagline": "A community version of Chroma by dawncreates.",
    "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (dawncreates/UnCanny-Photorealism-Chroma-GGUF) for what it changes.",
    "license": "Apache-2.0",
@@ -8554,6 +8971,14 @@
    "kind": "generate",
    "tags": [
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by jayn7.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (jayn7/Z-Image-GGUF) for what it changes.",
@@ -8692,6 +9117,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by azukivc.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (azukivc/Qwen-Image-2.1-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -8812,6 +9245,14 @@
    "tags": [
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by daddysteven.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (daddysteven/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
@@ -8949,6 +9390,14 @@
    "tags": [
     "fast",
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by tsqn.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (tsqn/Z-Image-Turbo_GGUF) for what it changes.",
@@ -9232,6 +9681,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by realrebelai.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (realrebelai/Qwen-Image-2.1-Turbo_GGUFs) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -9337,6 +9794,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by LocalAI-io.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (LocalAI-io/Qwen-Image-2.1-Anime-Fusal-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -9393,6 +9858,14 @@
    "tags": [
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by rayss868123.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (rayss868123/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
@@ -9528,6 +10001,7 @@
    "family": "Chroma",
    "kind": "generate",
    "tags": [],
+   "looks": [],
    "tagline": "A community version of Chroma by ND911.",
    "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (ND911/Chroma1_HD_and_HD_Annealed_ggufs) for what it changes.",
    "license": "Not stated",
@@ -9583,6 +10057,14 @@
    "kind": "generate",
    "tags": [
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by gimly13.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (gimly13/z-image-solordz-v2-gguf) for what it changes.",
@@ -9719,6 +10201,14 @@
    "kind": "generate",
    "tags": [
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by pottokao.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (pottokao/Z-Image-Engineer-V6-DHQ-GGUF) for what it changes.",
@@ -9905,6 +10395,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by kkguku.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (kkguku/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -10043,6 +10541,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by molbal.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (molbal/Qwen-Image-2.1-Turbo-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -10163,6 +10669,14 @@
    "tags": [
     "realism"
    ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
+   ],
    "tagline": "A community version of Z-Image by n-Arno.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (n-Arno/Z-Image-GGUF) for what it changes.",
    "license": "Apache-2.0",
@@ -10216,7 +10730,17 @@
    "name": "Hyper-FLUX.1-dev",
    "family": "FLUX.1",
    "kind": "generate",
-   "tags": [],
+   "tags": [
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
+   ],
    "tagline": "A community version of FLUX.1 by martintomov.",
    "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (martintomov/Hyper-FLUX.1-dev-gguf) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -10426,6 +10950,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by Supbatomic.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Supbatomic/Qwen-Image-2.1-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -10547,6 +11079,14 @@
     "fast",
     "realism"
    ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
+   ],
    "tagline": "A community version of Z-Image by felipedpm.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (felipedpm/z-image-turbo-GGUF-confyui) for what it changes.",
    "license": "Apache-2.0",
@@ -10602,6 +11142,14 @@
    "kind": "generate",
    "tags": [
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by babakarto.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (babakarto/z-image-base-gguf) for what it changes.",
@@ -10693,6 +11241,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by KENIC-1.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (KENIC-1/Qwen-Image-2.1-Turbo-Uncensored-GGUF-BF16) for what it changes.",
    "license": "Apache-2.0",
@@ -10749,6 +11305,14 @@
    "tags": [
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by 0Endzz.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (0Endzz/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
@@ -10887,6 +11451,14 @@
     "fast",
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "A community version of Qwen-Image 2.1 by Zyszztggd.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Zyszztggd/Qwen-Image-2.1-Turbo-Uncensored-GGUF) for what it changes.",
@@ -11038,6 +11610,7 @@
    "family": "Chroma",
    "kind": "generate",
    "tags": [],
+   "looks": [],
    "tagline": "A community version of Chroma by silveroxides.",
    "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (silveroxides/Chroma1-Base-GGUF) for what it changes.",
    "license": "Apache-2.0",
@@ -11284,6 +11857,7 @@
    "family": "Chroma",
    "kind": "generate",
    "tags": [],
+   "looks": [],
    "tagline": "A community version of Chroma by fairy322.",
    "strengths": "A community-made version based on Chroma. Not tested by us: see its description on Hugging Face (fairy322/Chroma1-HD-GGUF) for what it changes.",
    "license": "Apache-2.0",
@@ -11531,6 +12105,14 @@
    "kind": "generate",
    "tags": [
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by vantagewithai.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (vantagewithai/Z-Image-GGUF) for what it changes.",
@@ -11794,7 +12376,16 @@
    "family": "FLUX.1",
    "kind": "generate",
    "tags": [
-    "fast"
+    "fast",
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
    ],
    "tagline": "A community version of FLUX.1 by aifoundry-org.",
    "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (aifoundry-org/FLUX.1-schnell-Quantized) for what it changes.",
@@ -11972,6 +12563,14 @@
    "tags": [
     "realism"
    ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
+   ],
    "tagline": "A community version of Z-Image by gimly13.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (gimly13/z-image-cyberrealistic-v8-gguf) for what it changes.",
    "license": "CreativeML OpenRAIL-M",
@@ -12109,6 +12708,14 @@
     "fast",
     "realism"
    ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
+   ],
    "tagline": "A community version of Z-Image by BlackStone-Yu.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (BlackStone-Yu/Z-Image-Turbo-GGUF) for what it changes.",
    "license": "Apache-2.0",
@@ -12210,7 +12817,17 @@
    "name": "flux.1-dev-abliterated-V2 (Wesley1234)",
    "family": "FLUX.1",
    "kind": "generate",
-   "tags": [],
+   "tags": [
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
+   ],
    "tagline": "A community version of FLUX.1 by Wesley1234.",
    "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (Wesley1234/flux.1-dev-abliterated-V2-GGUF) for what it changes.",
    "license": "Not stated",
@@ -12307,6 +12924,14 @@
    "tags": [
     "realism"
    ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
+   ],
    "tagline": "A community version of Z-Image by leejet.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (leejet/Z-Image-GGUF) for what it changes.",
    "license": "Apache-2.0",
@@ -12380,6 +13005,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by W-Zil.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (W-Zil/Qwen-Image-2.1-Uncensored-GGUF-bcp) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -12436,6 +13069,14 @@
    "tags": [
     "fast",
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by AaryanK.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (AaryanK/Z-Image-Turbo-GGUF) for what it changes.",
@@ -12701,6 +13342,7 @@
    "tags": [
     "text"
    ],
+   "looks": [],
    "tagline": "A community version of Stable Diffusion 3.5 by gaianet.",
    "strengths": "A community-made version based on Stable Diffusion 3.5. Not tested by us: see its description on Hugging Face (gaianet/stable-diffusion-3.5-medium-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -12829,6 +13471,14 @@
    "tags": [
     "fast",
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community version of Z-Image by feeday.",
    "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (feeday/Z-Image-Turbo-GGUF) for what it changes.",
@@ -12998,6 +13648,7 @@
    "tags": [
     "text"
    ],
+   "looks": [],
    "tagline": "A community version of Stable Diffusion 3.5 by stduhpf.",
    "strengths": "A community-made version based on Stable Diffusion 3.5. Not tested by us: see its description on Hugging Face (stduhpf/SD3.5-Large-GGUF-mixed-sdcpp) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -13223,6 +13874,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "A community version of Qwen-Image 2.1 by ZiangLi.",
    "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (ZiangLi/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
    "license": "Custom licence (read it before selling pictures)",
@@ -13361,6 +14020,14 @@
     "poster",
     "realism",
     "text"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
    ],
    "tagline": "The most capable free image model, with excellent text inside pictures.",
    "strengths": "Follows long, detailed prompts and writes words inside the picture correctly, in English and Chinese. Strong at people, scenes, posters and cards. Large: use a lower quant if your card is small.",
@@ -13597,6 +14264,14 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "product",
+    "food",
+    "architecture",
+    "landscape",
+    "street"
+   ],
    "tagline": "Qwen-Image 2.1 in about 4 steps.",
    "strengths": "Nearly the quality of Qwen-Image 2.1 in a fraction of the time. A good everyday choice if you have the memory.",
    "license": "Custom licence (read it before selling pictures)",
@@ -13831,6 +14506,14 @@
     "lowvram",
     "poster",
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "Fast, photo-real, and happy on small graphics cards.",
    "strengths": "Very good photos of people and places in 8 steps, and it fits cards with as little as 4 GB. One of the best picks for speed and quality together.",
@@ -14113,6 +14796,14 @@
     "illustration",
     "poster",
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "street",
+    "product",
+    "food",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "Z-Image with more control and variety.",
    "strengths": "The full model behind Z-Image Turbo: more varied and easier to steer, but needs more steps.",
@@ -14414,6 +15105,7 @@
     "poster",
     "text"
    ],
+   "looks": [],
    "tagline": "Quick, clean pictures with readable text.",
    "strengths": "Good at posters, signs and layouts with words. Runs on cards with 4 GB.",
    "license": "Apache-2.0",
@@ -14696,6 +15388,7 @@
     "poster",
     "text"
    ],
+   "looks": [],
    "tagline": "The full ERNIE-Image model.",
    "strengths": "Slower than the Turbo version with a little more detail and control.",
    "license": "Apache-2.0",
@@ -14978,6 +15671,14 @@
     "poster",
     "realism"
    ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
+   ],
    "tagline": "The reference model for high-quality images.",
    "strengths": "Excellent detail, anatomy and prompt following. Licence is non-commercial.",
    "license": "Custom licence (read it before selling pictures)",
@@ -15205,6 +15906,14 @@
     "poster",
     "realism"
    ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "animals",
+    "product",
+    "food",
+    "cinematic"
+   ],
    "tagline": "The best free-for-everything image model of its generation: 4 steps, Apache licence.",
    "strengths": "Clean detail, follows long prompts, and you may sell what you make.",
    "license": "Apache-2.0",
@@ -15430,6 +16139,11 @@
     "cartoon",
     "illustration",
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "film",
+    "cinematic"
    ],
    "tagline": "A flexible FLUX-based model with a wide range of styles.",
    "strengths": "Open, uncensored-leaning model with very varied styles from anime to photo. Needs more steps than FLUX.1 schnell.",
@@ -15698,6 +16412,7 @@
     "illustration",
     "lowvram"
    ],
+   "looks": [],
    "tagline": "The classic. Runs almost anywhere.",
    "strengths": "Small and quick, works on 4 GB cards, with thousands of styles made for it. Weaker at hands, text and long prompts.",
    "license": "CreativeML OpenRAIL-M",
@@ -15835,6 +16550,11 @@
     "realism",
     "text"
    ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "architecture"
+   ],
    "tagline": "Stability AI's large model with good text and variety.",
    "strengths": "Strong, varied pictures and decent text. Large; low quants fit smaller cards.",
    "license": "Custom licence (read it before selling pictures)",
@@ -15965,6 +16685,7 @@
     "lowvram",
     "text"
    ],
+   "looks": [],
    "tagline": "Good text in images and a small file size.",
    "strengths": "Better than older Stable Diffusion at words inside pictures and following prompts.",
    "license": "Custom licence (read it before selling pictures)",
@@ -16221,6 +16942,7 @@
    "tags": [
     "cartoon"
    ],
+   "looks": [],
    "tagline": "A community SDXL model by cagliostrolab.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (cagliostrolab/animagine-xl-4.0) for the style it was trained for.",
    "license": "OpenRAIL++",
@@ -16276,6 +16998,11 @@
    "tags": [
     "realism"
    ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "cinematic"
+   ],
    "tagline": "A community SDXL model by RunDiffusion.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XL-v9) for the style it was trained for.",
    "license": "CreativeML OpenRAIL-M",
@@ -16315,6 +17042,11 @@
    "tags": [
     "realism"
    ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "cinematic"
+   ],
    "tagline": "A community SDXL model by RunDiffusion.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-X-v10) for the style it was trained for.",
    "license": "CreativeML OpenRAIL-M",
@@ -16353,6 +17085,11 @@
    "kind": "generate",
    "tags": [
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community SDXL model by RunDiffusion.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XI-v11) for the style it was trained for.",
@@ -16394,6 +17131,11 @@
     "fast",
     "realism"
    ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "cinematic"
+   ],
    "tagline": "A community SDXL model by RunDiffusion.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XL-Lightning) for the style it was trained for.",
    "license": "CreativeML OpenRAIL-M",
@@ -16432,6 +17174,11 @@
    "kind": "generate",
    "tags": [
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community SDXL model by RunDiffusion.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XL-v8) for the style it was trained for.",
@@ -16472,6 +17219,7 @@
    "tags": [
     "illustration"
    ],
+   "looks": [],
    "tagline": "A community SDXL model by MLbackup.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (MLbackup/2023_Scraped_SDXL) for the style it was trained for.",
    "license": "CreativeML OpenRAIL-M",
@@ -16560,6 +17308,11 @@
     "cartoon",
     "realism"
    ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "cinematic"
+   ],
    "tagline": "A community SDXL model by Manjushri.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (Manjushri/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint) for the style it was trained for.",
    "license": "OpenRAIL++",
@@ -16647,6 +17400,7 @@
    "tags": [
     "illustration"
    ],
+   "looks": [],
    "tagline": "A community SDXL model by fancyfeast.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (fancyfeast/bigaspv2-5) for the style it was trained for.",
    "license": "Not stated",
@@ -16686,6 +17440,7 @@
    "tags": [
     "illustration"
    ],
+   "looks": [],
    "tagline": "A community SDXL model by EnD-Diffusers.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (EnD-Diffusers/Dec2023) for the style it was trained for.",
    "license": "CreativeML OpenRAIL-M",
@@ -16773,6 +17528,7 @@
    "tags": [
     "lowvram"
    ],
+   "looks": [],
    "tagline": "A community Stable Diffusion 1.5 model by xFutureTechx.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (xFutureTechx/2024_Backups) for the style it was trained for.",
    "license": "CreativeML OpenRAIL-M",
@@ -16862,6 +17618,9 @@
     "lowvram",
     "realism"
    ],
+   "looks": [
+    "portrait"
+   ],
    "tagline": "A community Stable Diffusion 1.5 model by HyperX-Sentience.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (HyperX-Sentience/Juggernaut-Reborn) for the style it was trained for.",
    "license": "MIT",
@@ -16900,6 +17659,11 @@
    "kind": "generate",
    "tags": [
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community SDXL model by RunDiffusion.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XL) for the style it was trained for.",
@@ -16940,6 +17704,7 @@
    "tags": [
     "fast"
    ],
+   "looks": [],
    "tagline": "A community SDXL model by latent-consistency.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (latent-consistency/lcm-sdxl) for the style it was trained for.",
    "license": "OpenRAIL++",
@@ -16979,6 +17744,7 @@
    "tags": [
     "cartoon"
    ],
+   "looks": [],
    "tagline": "A community SDXL model by cagliostrolab.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (cagliostrolab/animagine-xl-4.0-zero) for the style it was trained for.",
    "license": "OpenRAIL++",
@@ -17018,6 +17784,7 @@
    "tags": [
     "illustration"
    ],
+   "looks": [],
    "tagline": "A community SDXL model by debugdll.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (debugdll/nsfw-image-generator) for the style it was trained for.",
    "license": "Custom licence (read it before selling pictures)",
@@ -17057,6 +17824,7 @@
    "tags": [
     "illustration"
    ],
+   "looks": [],
    "tagline": "A community SDXL model by uhuya.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (uhuya/AsianVibesMix) for the style it was trained for.",
    "license": "MIT",
@@ -17096,6 +17864,7 @@
    "tags": [
     "cartoon"
    ],
+   "looks": [],
    "tagline": "A community SDXL model by Eugeoter.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (Eugeoter/anime_illust_diffusion_xl) for the style it was trained for.",
    "license": "Custom licence (read it before selling pictures)",
@@ -17135,6 +17904,11 @@
    "tags": [
     "fast",
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community SDXL model by RunDiffusion.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XI-Lightning) for the style it was trained for.",
@@ -17191,6 +17965,11 @@
    "tags": [
     "cartoon",
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community SDXL model by Sexyevatender.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint) for the style it was trained for.",
@@ -17278,6 +18057,11 @@
    "kind": "generate",
    "tags": [
     "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "cinematic"
    ],
    "tagline": "A community SDXL model by RunDiffusion.",
    "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XL-v6) for the style it was trained for.",

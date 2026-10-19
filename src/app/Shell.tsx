@@ -32,7 +32,7 @@ import type { NewText } from "../lib/types";
 import { Sidebar } from "../components/Sidebar";
 import { KidsExit } from "../components/kids/KidsExit";
 import { useStore, type SettingsTab, onMac } from "../state/store";
-import { TABS } from "../components/settings/tabs";
+import { TABS, visibleTabs } from "../components/settings/tabs";
 import { platformKeys as K } from "../lib/keys";
 import { osText } from "../lib/platform";
 import { TimersPanel } from "../components/TimersPanel";
@@ -403,7 +403,7 @@ export function Shell() {
         keywords: "flashcards quiz learn",
         group: "Actions",
       });
-    for (const t of TABS)
+    for (const t of visibleTabs())
       items.push({
         id: `settings:${t.id}`,
         label: `Settings: ${t.label}`,

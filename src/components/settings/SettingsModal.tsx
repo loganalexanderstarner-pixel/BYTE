@@ -22,7 +22,7 @@ import { displayName } from "../../lib/models";
 import type { BoostInfo, GpuShare, LookerStatus, Memory, Profiles, Settings, Usage } from "../../lib/types";
 import { bars } from "../../lib/dashboard";
 import { onMac, useStore, type SettingsGroup, type SettingsTab } from "../../state/store";
-import { TABS } from "./tabs";
+import { visibleTabs } from "./tabs";
 /* --- track:house begin --- */
 // --- track:found begin ---
 import { FoundBackupCards } from "../found/FoundSettings";
@@ -31,6 +31,7 @@ import { FoundBrowserToggles, FoundToggles, NeverTouchList } from "../found/Foun
 import { BackupRestoreCard, FreeUpSpace, HouseToggles, ProblemReportCard } from "./HouseSettings";
 /* --- track:house end --- */
 import { CatalogBrowser } from "../models/CatalogBrowser";
+import { ImageCatalog } from "../models/ImageCatalog";
 import { CloudTab } from "./CloudTab";
 import { PrivacyTab } from "./PrivacyTab";
 import { BrowserSettings } from "./BrowserSettings"; // track:browser
@@ -112,6 +113,7 @@ function GroupBody({ group, about = true }: { group: SettingsGroup; about?: bool
           {about && <AboutTab />}
         </>
       )}
+      {group === "images" && <ImagesTab />}
       {group === "voice" && (
         <>
           <VoiceSection />
@@ -245,7 +247,7 @@ export function SettingsModal() {
               </ul>
             )}
           </div>
-          {TABS.map(({ id, label, icon: Icon }) => (
+          {visibleTabs().map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               aria-current={!searching && group === id}
@@ -265,7 +267,7 @@ export function SettingsModal() {
           </button>
           {searching ? (
             <>
-              {TABS.map(({ id, label }) => (
+              {visibleTabs().map(({ id, label }) => (
                 <div key={id} data-search-group={label}>
                   <h3 className="search-group">{label}</h3>
                   <GroupBody group={id} about={false} />
@@ -314,6 +316,16 @@ function filterSettings(root: HTMLElement, query: string) {
     const anything = [...g.querySelectorAll(".field")].some((f) => !f.hasAttribute("hidden"));
     hide(g, !!q && !anything && !matchesSearch(label, q));
   });
+}
+
+/** Everything about making and editing pictures (Windows). */
+function ImagesTab() {
+  return (
+    <>
+      <h3>Images</h3>
+      <ImageCatalog />
+    </>
+  );
 }
 
 function ModelsTab() {

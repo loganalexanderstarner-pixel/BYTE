@@ -16,8 +16,8 @@ export const IMAGE_TUTORIALS: Tutorial[] = [
       {
         id: "open",
         title: "Open the image catalog",
-        body: ["In Models, choose **Image models** at the top. Every model is free, and everything runs on this PC. Making pictures arrives in the next test builds; for now you can look around."],
-        links: [S("models", "Open Models"), H("image-models", "Read about image models")],
+        body: ["Open **Images** in Settings. Every model is free, and everything runs on this PC. Making pictures arrives in the next test builds; for now you can look around."],
+        links: [S("images", "Open Images"), H("image-models", "Read about image models")],
       },
       {
         id: "versions",

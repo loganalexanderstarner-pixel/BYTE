@@ -9,6 +9,30 @@ import { useStore } from "../../state/store";
 
 type Sort = "best" | "fastest" | "smallest" | "popular";
 
+/** Every kind of image job. Only "Make pictures" has models so far; the rest light up as their models arrive. */
+export const TASKS: { id: string; label: string; hint: string }[] = [
+  { id: "generate", label: "Make pictures", hint: "Make a new picture from words" },
+  { id: "edit", label: "Edit a photo", hint: "Film grain, motion blur, crop, lighting, change the background" },
+  { id: "remove", label: "Remove things", hint: "Take a person or object out of a photo" },
+  { id: "upscale", label: "Upscale", hint: "Make a picture bigger and sharper, fix zoom pixelation" },
+  { id: "restore", label: "Restore faces and old photos", hint: "Sharpen faces, fix scratches, colorize" },
+  { id: "background", label: "Remove background", hint: "Cut a subject out" },
+  { id: "style", label: "Change the style", hint: "Turn a photo into a painting, anime or sketch" },
+];
+
+/** Real-life equivalents offered under Realism. */
+export const REAL_LOOKS: { id: string; label: string }[] = [
+  { id: "portrait", label: "Portraits and people" },
+  { id: "street", label: "Street and everyday life" },
+  { id: "landscape", label: "Landscapes and nature" },
+  { id: "animals", label: "Animals and wildlife" },
+  { id: "product", label: "Product photos" },
+  { id: "food", label: "Food photos" },
+  { id: "architecture", label: "Buildings and interiors" },
+  { id: "cinematic", label: "Movie-still look" },
+  { id: "film", label: "Film and vintage photo look" },
+];
+
 export const IMAGE_FILTERS: { id: string; label: string; hint?: string }[] = [
   { id: "realism", label: "Realism", hint: "Photo-like people, places and objects" },
   { id: "cartoon", label: "Cartoon", hint: "Cartoon, anime and flat colour styles" },
@@ -20,18 +44,34 @@ export const IMAGE_FILTERS: { id: string; label: string; hint?: string }[] = [
 ];
 
 
+/** What a model stands out for: shown on its card whatever filter is on, so nothing is hidden by a filter. */
+export function goodAt(m: ImageModel): string[] {
+  const out: string[] = [];
+  for (const t of m.tags) {
+    const f = IMAGE_FILTERS.find((x) => x.id === t);
+    if (f && f.id !== "realism") out.push(f.label);
+  }
+  if (m.tags.includes("realism")) {
+    const looks = m.looks.slice(0, 3).map((k) => REAL_LOOKS.find((l) => l.id === k)?.label ?? k);
+    out.unshift(...(looks.length ? looks.map((l) => `Realistic: ${l.toLowerCase()}`) : ["Realism"]));
+  }
+  return out.slice(0, 6);
+}
+
 /** Quality of the version recommended for this PC (quant losses included). */
 function headline(m: ImageModel): number {
   return m.quality - (m.variants[m.best]?.qualityCost ?? 0);
 }
 
 /** Sorts and filters the image catalog. Pure, so it is tested without the UI. */
-export function arrange(models: ImageModel[], opts: { query: string; filter: string | null; sort: Sort; community: boolean; commercialOnly: boolean; kids?: boolean }): ImageModel[] {
+export function arrange(models: ImageModel[], opts: { query: string; filter: string | null; look?: string | null; task?: string | null; sort: Sort; community: boolean; commercialOnly: boolean; kids?: boolean }): ImageModel[] {
   const q = opts.query.trim().toLowerCase();
   // Community models need their own switch; adult ones are never shown in kids mode.
   let list = models.filter((m) => (opts.community || !m.community) && !(opts.kids && m.mature));
   if (opts.commercialOnly) list = list.filter((m) => m.commercialOk);
+  if (opts.task) list = list.filter((m) => m.kind === opts.task);
   if (opts.filter) list = list.filter((m) => m.tags.includes(opts.filter!));
+  if (opts.filter === "realism" && opts.look) list = list.filter((m) => m.looks.includes(opts.look!));
   if (q) list = list.filter((m) => [m.name, m.family, m.tagline, m.strengths, m.tags.join(" ")].join(" ").toLowerCase().includes(q));
   const by: Record<Sort, (a: ImageModel, b: ImageModel) => number> = {
     best: (a, b) => headline(b) - headline(a),
@@ -51,6 +91,8 @@ export function ImageCatalog() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string | null>(null);
+  const [look, setLook] = useState<string | null>(null);
+  const [task, setTask] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>("best");
   const [community, setCommunity] = useState(false);
   const [commercialOnly, setCommercialOnly] = useState(false);
@@ -62,7 +104,7 @@ export function ImageCatalog() {
     api.imageCatalog().then(setModels).catch((e) => setError(errorText(e)));
   }, []);
 
-  const shown = useMemo(() => arrange(models ?? [], { query, filter, sort, community, commercialOnly, kids }).filter((m) => !fitOnly || m.variants.some((v) => v.fit.placement === "vram")), [models, query, filter, sort, community, commercialOnly, kids, fitOnly]);
+  const shown = useMemo(() => arrange(models ?? [], { query, filter, look, task, sort, community, commercialOnly, kids }).filter((m) => !fitOnly || m.variants.some((v) => v.fit.placement === "vram")), [models, query, filter, look, task, sort, community, commercialOnly, kids, fitOnly]);
 
   return (
     <>
@@ -82,14 +124,35 @@ export function ImageCatalog() {
         </select>
       </div>
       <div className="filters">
+        <div className="chips" role="group" aria-label="What you want to do">
+          <button className="chip" aria-pressed={task === null} onClick={() => setTask(null)}>Everything</button>
+          {TASKS.map((t) => {
+            const n = (models ?? []).filter((m) => m.kind === t.id).length;
+            return (
+              <button key={t.id} className="chip" disabled={n === 0} aria-pressed={task === t.id} onClick={() => setTask(task === t.id ? null : t.id)} title={n === 0 ? `${t.hint}. Models for this are coming.` : t.hint}>
+                {t.label}{n === 0 ? " (coming)" : ` (${n})`}
+              </button>
+            );
+          })}
+        </div>
         <div className="chips" role="group" aria-label="Style">
           <button className="chip" aria-pressed={filter === null} onClick={() => setFilter(null)}>All</button>
           {IMAGE_FILTERS.map((f) => (
-            <button key={f.id} className="chip" title={f.hint} aria-pressed={filter === f.id} onClick={() => setFilter(filter === f.id ? null : f.id)}>
+            <button key={f.id} className="chip" title={f.hint} aria-pressed={filter === f.id} onClick={() => (setFilter(filter === f.id ? null : f.id), setLook(null))}>
               {f.label}
             </button>
           ))}
         </div>
+        {filter === "realism" && (
+          <div className="chips" role="group" aria-label="Real-life look">
+            <span className="faint small" style={{ alignSelf: "center" }}>Real-life look:</span>
+            {REAL_LOOKS.map((l) => (
+              <button key={l.id} className="chip" aria-pressed={look === l.id} onClick={() => setLook(look === l.id ? null : l.id)}>
+                {l.label}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="chips" role="group" aria-label="Options">
           <button className="chip" aria-pressed={fitOnly} onClick={() => setFitOnly(!fitOnly)} title="Only models with a version that fits entirely in your graphics card's memory">
             Fits my graphics card
@@ -117,6 +180,11 @@ export function ImageCatalog() {
                 <span className={`pill ${placementClass(v.fit.placement)}`}>{PLACEMENT_LABEL[v.fit.placement]}</span>
               </div>
               <div>{m.tagline}</div>
+              <div className="row" style={{ gap: 6, flexWrap: "wrap" }} aria-label="Good at">
+                {goodAt(m).map((g) => (
+                  <span key={g} className="pill ok">{g}</span>
+                ))}
+              </div>
               <div className="faint" style={{ fontSize: "0.9em" }}>{m.strengths}</div>
               <div className="row" style={{ gap: 8, flexWrap: "wrap" }} role="group" aria-label={`Version of ${m.name}`}>
                 {m.variants.map((x, i) => (

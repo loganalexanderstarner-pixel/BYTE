@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { ImageModel } from "../../lib/types";
-import { arrange } from "./ImageCatalog";
+import { arrange, goodAt } from "./ImageCatalog";
 
 const m = (id: string, o: Partial<ImageModel>): ImageModel => ({
-  id, name: id, family: "f", kind: "generate", tags: [], tagline: "", strengths: "", license: "x", commercialOk: true,
+  id, name: id, family: "f", kind: "generate", tags: [], looks: [], tagline: "", strengths: "", license: "x", commercialOk: true,
   quality: 50, steps: 4, community: false, mature: false, overheadGb: 2, downloads: 0, source: "a/b", variants: [], best: 0, totalBytes: 1, companions: [], ...o,
 });
 const base = { query: "", filter: null, sort: "best" as const, community: false, commercialOnly: false };
@@ -16,6 +16,12 @@ describe("arrange", () => {
   });
   it("shows community models when asked, and filters by style", () => {
     expect(arrange(list, { ...base, community: true, filter: "realism" }).map((x) => x.id)).toEqual(["c", "a"]);
+  });
+  it("narrows Realism to a real-life look", () => {
+    const l = [m("p", { tags: ["realism"], looks: ["portrait"] }), m("q", { tags: ["realism"], looks: ["food"] }), m("r", { tags: ["fast"], looks: ["food"] })];
+    expect(arrange(l, { ...base, filter: "realism", look: "food" }).map((x) => x.id)).toEqual(["q"]);
+    expect(arrange(l, { ...base, filter: "realism" }).map((x) => x.id).sort()).toEqual(["p", "q"]);
+    expect(arrange(l, { ...base, look: "food" }).length).toBe(3); // a look alone does nothing without Realism
   });
   it("hides adult models in kids mode even when community models are on", () => {
     const l = [...list, m("d", { community: true, mature: true })];
@@ -30,5 +36,19 @@ describe("arrange", () => {
     expect(arrange(list, { ...base, sort: "popular", community: true })[0].id).toBeDefined();
     expect(arrange(list, { ...base, sort: "smallest" })[1].id).toBe("b");
     expect(arrange(list, { ...base, query: "B" }).map((x) => x.id)).toEqual(["b"]);
+  });
+});
+
+describe("goodAt", () => {
+  it("shows what a model stands out for, with its real-life looks", () => {
+    const g = goodAt(m("z", { tags: ["realism", "fast", "poster"], looks: ["portrait", "food"] }));
+    expect(g).toContain("Realistic: portraits and people");
+    expect(g).toContain("Fast");
+    expect(g).toContain("Poems and posters");
+  });
+  it("a task filter only narrows when asked", () => {
+    const l = [m("a", { kind: "generate" }), m("b", { kind: "upscale" })];
+    expect(arrange(l, base).length).toBe(2);
+    expect(arrange(l, { ...base, task: "upscale" }).map((x) => x.id)).toEqual(["b"]);
   });
 });

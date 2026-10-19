@@ -7,7 +7,7 @@ Image models, a catalog of free picture-making models, are not available on Linu
 <!-- win -->
 Image Studio is coming to the Windows app in steps. **Right now you can browse the catalog and see which models and versions your PC can run.** Downloading them and making pictures arrive in the next test builds.
 
-Open [Settings → Models](byte-setting:models) and choose **Image models** at the top.
+Open [Settings → Images](byte-setting:images).
 
 ## Reading a model card
 - **The pill** says where the selected version would run: **Fits video memory** (fastest), **Overflows into RAM** (works, but slower), **Runs from RAM** (no graphics card memory, slowest) or **Too big**.
@@ -17,7 +17,7 @@ Open [Settings → Models](byte-setting:models) and choose **Image models** at t
 
 ## Finding a model
 - **Sort:** best to least, fewest steps (fastest), smallest download, most downloaded.
-- **Styles:** Realism, Cartoon, Illustration, Poems and posters (art with room for words), Words in pictures, Fast, Small graphics card.
+- **Styles:** Realism (then pick a real-life look: portraits, street, landscapes, animals, product photos, food, buildings, movie-still or film look), Cartoon, Illustration, Poems and posters (art with room for words), Words in pictures, Fast, Small graphics card.
 - **Fits my graphics card** hides models with no version that fits video memory. Leave it off to see everything.
 - **Commercial use OK** hides models whose licence limits selling what you make.
 - **Community models** shows models made by people other than the original labs. Some can make adult pictures; those are never shown in kids mode. Read each licence.

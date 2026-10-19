@@ -61,6 +61,52 @@ def quant_of(fname):
 def qkey(q):
     return re.match(r"(?i)(iq\d|q\d|bf16|f16|fp16|fp8|f32)", q).group(1).lower()
 
+# Real-life looks, for the "Realism" filter. Family defaults say what the base model is good at; words in a
+# model's name add to them. Only models tagged "realism" get any.
+LOOKS = {
+    "portrait": "Portraits and people",
+    "street": "Street and everyday life",
+    "landscape": "Landscapes and nature",
+    "animals": "Animals and wildlife",
+    "product": "Product photos",
+    "food": "Food photos",
+    "architecture": "Buildings and interiors",
+    "cinematic": "Movie-still look",
+    "film": "Film and vintage photo look",
+}
+FAMILY_LOOKS = {
+    "Z-Image": ["portrait", "street", "product", "food", "landscape", "cinematic"],
+    "Qwen-Image 2.1": ["portrait", "product", "food", "architecture", "landscape", "street"],
+    "FLUX.1": ["portrait", "landscape", "animals", "product", "food", "cinematic"],
+    "Chroma": ["portrait", "film", "cinematic"],
+    "ERNIE-Image": ["product", "architecture"],
+    "Stable Diffusion 3.5": ["portrait", "landscape", "architecture"],
+    "Stable Diffusion XL": ["portrait", "landscape", "cinematic"],
+    "Stable Diffusion 1.5": ["portrait"],
+}
+NAME_LOOKS = [
+    (r"portrait|face|skin|people|human|girl|man\b", "portrait"),
+    (r"real|photo|epic|juggernaut|cyber|vision|lifelike", "portrait"),
+    (r"street|candid|snap|amateur|iphone|instagram", "street"),
+    (r"landscape|nature|scenery|outdoor|travel", "landscape"),
+    (r"animal|wildlife|pet|bird", "animals"),
+    (r"product|commercial|advert|ecommerce", "product"),
+    (r"food|kitchen|culinary", "food"),
+    (r"arch|interior|building|house|room", "architecture"),
+    (r"cinema|movie|film-still|anamorphic|cine", "cinematic"),
+    (r"film|analog|kodak|vintage|retro|35mm|grain", "film"),
+]
+
+def looks_for(fam, repo, tags):
+    if "realism" not in tags:
+        return []
+    out = list(FAMILY_LOOKS.get(fam, ["portrait"]))
+    r = repo.lower()
+    for pat, k in NAME_LOOKS:
+        if re.search(pat, r) and k not in out:
+            out.append(k)
+    return out
+
 MATURE = re.compile(r"(?i)uncensor|nsfw|heretic|abliter|biglove|lewd|erotic|porn")
 SKIP = re.compile(r"(?i)mmproj|text[-_]?enc|vae|lora|edit|inpaint|controlnet|encoder|clip|t5xxl|qwen3-4b|qwen3-vl|mistral")
 
@@ -123,6 +169,8 @@ def build(specs):
                 print("companions failed", fam, e, file=sys.stderr); comp_cache[key] = None
         if comp_cache[key] is None:
             continue
+        # The photo-capable families are all "realism" models; the filter then offers real-life looks.
+        tags = set(sp.get("tags", [])) | ({"realism"} if fam in ("Z-Image", "Qwen-Image 2.1", "FLUX.1") else set())
         card = d.get("cardData") or {}
         lic = card.get("license") or "unknown"
         lic_name = {"apache-2.0": "Apache-2.0", "mit": "MIT", "openrail++": "OpenRAIL++", "creativeml-openrail-m": "CreativeML OpenRAIL-M", "other": "Custom licence (read it before selling pictures)", "unknown": "Not stated"}.get(lic, lic)
@@ -132,7 +180,9 @@ def build(specs):
         models.append({
             "id": re.sub(r"[^a-z0-9]+", "-", sp["repo"].lower()).strip("-"),
             "name": name, "family": fam, "kind": "generate",
-            "tags": sorted(set(sp.get("tags", []))), "tagline": sp["tagline"], "strengths": sp["strengths"],
+            "tags": sorted(tags),
+            "looks": looks_for(fam, sp["repo"], tags),
+            "tagline": sp["tagline"], "strengths": sp["strengths"],
             "license": lic_name, "commercialOk": commercial, "community": sp.get("community", True), "mature": mature,
             "quality": sp.get("quality", F["base"] - 3), "steps": sp.get("steps", F["steps"]),
             "overheadGb": F["overhead"], "downloads": sp.get("dl", 0),
