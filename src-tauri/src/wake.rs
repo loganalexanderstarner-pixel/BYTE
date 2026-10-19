@@ -249,7 +249,7 @@ pub async fn on_wake_interrupt(app: &AppHandle, rest: String) {
     let (show, quiet) = {
         let state = app.state::<crate::state::AppState>();
         let st = state.settings.lock().await;
-        (st.wake_show_window, crate::gamepolicy::current(st.game_aware, &st.hey_byte_engine, true).quiet)
+        (st.wake_show_window || !st.voice_enabled, crate::gamepolicy::current(st.game_aware, &st.hey_byte_engine, true).quiet)
     };
     on_wake(app, rest, show, quiet);
 }
@@ -260,7 +260,19 @@ async fn heard_wake(app: Option<&AppHandle>, models_dir: &Path, burst: &[f32]) -
     let started = std::time::Instant::now();
     match transcript(app, models_dir, burst).await {
         Ok(text) => {
-            let rest = wake_rest(&text);
+            let mut rest = wake_rest(&text);
+            // The phrase was found but the burst is longer than the phrase: the wake check's steering toward "Hey BYTE" can stop the
+            // reading after it, so read the whole burst once more, plainly, for the words that came right after ("Hey BYTE open notepad").
+            if rest.as_ref().is_some_and(|r| r.trim().len() <= 1) && burst.len() > RATE as usize * 13 / 10 {
+                if let Ok(again) = transcript_plain(app, models_dir, burst).await {
+                    if let Some(more) = wake_rest(&again).filter(|m| m.trim().len() > 1) {
+                        if test_log_on() {
+                            log::info!("[test] hey-byte: the rest of the burst, read again: {again:?}");
+                        }
+                        rest = Some(more);
+                    }
+                }
+            }
             if test_log_on() {
                 log::info!("[test] hey-byte heard {text:?}: {} ({} ms, burst {:.1} s)", if rest.is_some() { "WAKE PHRASE" } else { "no wake phrase" }, started.elapsed().as_millis(), burst.len() as f32 / 16000.0);
             } else {
@@ -273,6 +285,12 @@ async fn heard_wake(app: Option<&AppHandle>, models_dir: &Path, burst: &[f32]) -
             None
         }
     }
+}
+
+async fn transcript_plain(app: Option<&AppHandle>, models_dir: &Path, burst: &[f32]) -> AppResult<String> {
+    let tmp = tempfile::Builder::new().prefix("byte-wake").suffix(".wav").tempfile()?.into_temp_path();
+    write_wav(&tmp, &padded(burst))?;
+    crate::voice::transcribe_short(app, models_dir, &tmp, "A short spoken request.").await
 }
 
 async fn transcript(app: Option<&AppHandle>, models_dir: &Path, burst: &[f32]) -> AppResult<String> {
@@ -644,7 +662,7 @@ async fn wake_over_speech(app: &AppHandle, audio: &[f32], rest: String) {
     let (show, quiet) = {
         let state = app.state::<crate::state::AppState>();
         let st = state.settings.lock().await;
-        (st.wake_show_window, crate::gamepolicy::current(st.game_aware, &st.hey_byte_engine, true).quiet)
+        (st.wake_show_window || !st.voice_enabled, crate::gamepolicy::current(st.game_aware, &st.hey_byte_engine, true).quiet)
     };
     on_wake(app, rest, show, quiet);
 }
@@ -1080,7 +1098,7 @@ mod listen {
                     let (show, quiet) = {
                         let state = app.state::<crate::state::AppState>();
                         let st = state.settings.lock().await;
-                        (st.wake_show_window, crate::gamepolicy::current(st.game_aware, &st.hey_byte_engine, true).quiet)
+                        (st.wake_show_window || !st.voice_enabled, crate::gamepolicy::current(st.game_aware, &st.hey_byte_engine, true).quiet)
                     };
                     on_wake(&app, rest, show, quiet);
                 }
