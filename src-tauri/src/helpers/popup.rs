@@ -213,6 +213,13 @@ pub fn helper_popup_close(app: tauri::AppHandle) {
 /// A button was pressed (or Enter in the question box, id "send"); `text` is what is in the box.
 #[tauri::command]
 pub async fn helper_popup_click(app: tauri::AppHandle, id: String, text: Option<String>) -> Result<(), String> {
+    #[cfg(not(desktop))]
+    {
+        let _ = (&app, &id, &text);
+        return Ok(());
+    }
+    #[cfg(desktop)]
+    {
     let Some(kind) = current_kind() else { return Ok(()) };
     if id == "close" {
         helper_popup_close(app);
@@ -234,6 +241,7 @@ pub async fn helper_popup_click(app: tauri::AppHandle, id: String, text: Option<
         Kind::Focus => super::focus::clicked(&app, &id, text.unwrap_or_default()).await,
     }
     Ok(())
+    }
 }
 
 #[cfg(test)]

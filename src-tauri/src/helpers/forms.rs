@@ -141,7 +141,6 @@ pub fn save(path: &std::path::Path, p: &Profile) -> std::io::Result<()> {
 
 // ---------------------------------------------------------------- commands
 
-#[cfg(desktop)]
 fn file(app: &tauri::AppHandle) -> std::path::PathBuf {
     use tauri::Manager;
     app.state::<crate::state::AppState>().paths.data.join(FILE)

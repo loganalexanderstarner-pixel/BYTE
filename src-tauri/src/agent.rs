@@ -998,16 +998,16 @@ async fn open_session(app: &tauri::AppHandle, cfg: &crate::browserroutes::Cfg, r
     // --- track:found begin --- a research job that runs "until I'm back": a visible Edge with a real tab per page, port open only for the job
     let live: Option<Box<dyn crate::web_agent::Browser>> = if research && cfg!(windows) && crate::found::research::opts(Some(app)).await.until_back != crate::found::research::Limit::Off {
         let own = crate::found::research::use_own_edge(app).await;
-        let profile = if own { crate::web_agent::cdp_browser::own_profile_dir().ok_or(tauri::Error::UnknownPath) } else { app.path().app_data_dir().map(|d| d.join(crate::web_agent::cdp_browser::PROFILE_NAME)) };
+        let profile = if own { crate::web_agent::cdp_browser::own_profile_dir() } else { app.path().app_data_dir().ok().map(|d| d.join(crate::web_agent::cdp_browser::PROFILE_NAME)) };
         match profile {
-            Ok(p) => match crate::web_agent::cdp_tabs::launch(&p, own).await {
+            Some(p) => match crate::web_agent::cdp_tabs::launch(&p, own).await {
                 Ok(b) => Some(Box::new(b)),
                 Err(e) => {
                     log::warn!("couldn't start the live research tabs, using the usual browser instead: {e}");
                     None
                 }
             },
-            Err(_) => None,
+            None => None,
         }
     } else {
         None
@@ -1018,17 +1018,17 @@ async fn open_session(app: &tauri::AppHandle, cfg: &crate::browserroutes::Cfg, r
     } else if cfg.drive_real {
         // --- track:found begin --- the person's own Edge profile, only when they chose that (Settings, with its warning)
         let own = crate::found::research::use_own_edge(app).await;
-        let profile = if own { crate::web_agent::cdp_browser::own_profile_dir().ok_or(tauri::Error::UnknownPath) } else { app.path().app_data_dir().map(|d| d.join(crate::web_agent::cdp_browser::PROFILE_NAME)) };
+        let profile = if own { crate::web_agent::cdp_browser::own_profile_dir() } else { app.path().app_data_dir().ok().map(|d| d.join(crate::web_agent::cdp_browser::PROFILE_NAME)) };
         // --- track:found end ---
         match profile {
-            Ok(p) => match crate::web_agent::cdp_browser::launch_in(&p, own).await {
+            Some(p) => match crate::web_agent::cdp_browser::launch_in(&p, own).await {
                 Ok(b) => Some(Box::new(b)),
                 Err(e) => {
                     log::warn!("couldn't drive Edge/Chrome, using BYTE's own private browser instead: {e}");
                     None
                 }
             },
-            Err(_) => None,
+            None => None,
         }
     } else {
         None

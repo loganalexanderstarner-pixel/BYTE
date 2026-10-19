@@ -263,7 +263,21 @@ pub async fn transcribe(app: Option<&AppHandle>, models_dir: &Path, chosen: &str
     } else {
         audio.to_path_buf()
     };
-    Ok(clean(&run_whisper(app, args(&model_path(models_dir, m), &input, language, m.english_only, threads())).await?))
+    let mut a = args(&model_path(models_dir, m), &input, language, m.english_only, threads());
+    // Whisper encodes a full 30 s window however short the clip is, which took 20 s for a two-second question with the big model on a
+    // PC's processor. Telling it how long the clip really is (about 50 positions per second, plus room) makes a short question quick.
+    if let Some(secs) = wav_seconds(&input).filter(|s| *s < 24.0) {
+        let ac = ((secs * 50.0) as u32 + 200).clamp(400, 1500);
+        a.extend(["-ac".to_string(), ac.to_string()]);
+    }
+    Ok(clean(&run_whisper(app, a).await?))
+}
+
+/// The length of a PCM WAV file in seconds (None if it isn't one).
+fn wav_seconds(path: &Path) -> Option<f32> {
+    let (rate, channels) = wav_format(path)?;
+    let len = std::fs::metadata(path).ok()?.len().saturating_sub(44);
+    (rate > 0 && channels > 0).then(|| len as f32 / (rate as f32 * channels as f32 * 2.0))
 }
 
 /// The sample rate and channel count of a PCM WAV file (None if it isn't one).
@@ -445,7 +459,7 @@ pub async fn voice_transcribe(app: AppHandle, state: State<'_, AppState>, wav_ba
 /// sounds, and spares this PC while a game runs), on this PC otherwise or when the cloud cannot be reached. `private`: a private chat never
 /// leaves this PC.
 #[tauri::command]
-pub async fn voice_transcribe_smart(app: AppHandle, state: State<'_, AppState>, wav_base64: String, private: bool) -> AppResult<crate::cloud::voice::Heard> {
+pub async fn voice_transcribe_smart(app: AppHandle, webview: tauri::Webview, state: State<'_, AppState>, wav_base64: String, private: bool) -> AppResult<crate::cloud::voice::Heard> {
     let timing_started = std::time::Instant::now();
     let engine = state.settings.lock().await.hey_byte_engine.clone();
     if !private && engine != "local" {
@@ -453,7 +467,7 @@ pub async fn voice_transcribe_smart(app: AppHandle, state: State<'_, AppState>, 
             match tokio::time::timeout(std::time::Duration::from_secs(6), crate::cloud::voice::transcribe(&client, &wav_base64)).await {
                 Ok(Ok(h)) if !h.text.is_empty() => {
                     if crate::wake::test_log_on() {
-                        log::info!("[test] spoken turn heard (cloud): {:?} ({} ms to turn it into text)", h.text, timing_started.elapsed().as_millis());
+                        log::info!("[test] spoken turn heard (cloud, asked by the {} window): {:?} ({} ms to turn it into text)", webview.label(), h.text, timing_started.elapsed().as_millis());
                     }
                     return Ok(h);
                 }
@@ -465,7 +479,7 @@ pub async fn voice_transcribe_smart(app: AppHandle, state: State<'_, AppState>, 
     }
     let text = voice_transcribe(app, state, wav_base64).await?;
     if crate::wake::test_log_on() {
-        log::info!("[test] spoken turn heard (this PC): {text:?} ({} ms to turn it into text)", timing_started.elapsed().as_millis());
+        log::info!("[test] spoken turn heard (this PC, asked by the {} window): {text:?} ({} ms to turn it into text)", webview.label(), timing_started.elapsed().as_millis());
     }
     Ok(crate::cloud::voice::Heard { text, source: "pc".into(), ..Default::default() })
 }

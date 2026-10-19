@@ -457,6 +457,10 @@ pub fn start(app: &AppHandle) {
 // ------------------------------------------------------------------ the stop key
 
 /// Registers the stop key while a job is running (called by `quick::apply_shortcuts` after it cleared every shortcut).
+#[cfg(not(desktop))]
+pub fn register_stop_key(_app: &AppHandle, _s: &crate::settings::Settings, _taken: &[Option<u32>]) {}
+
+#[cfg(desktop)]
 pub fn register_stop_key(app: &AppHandle, s: &crate::settings::Settings, taken: &[Option<u32>]) {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
     let mut id = None;

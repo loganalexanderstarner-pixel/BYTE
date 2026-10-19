@@ -335,7 +335,7 @@ impl EchoCanceller {
             }
             // The filter has run away (the leftover is far louder than the microphone itself, seen as levels in the millions on a real
             // PC): forget it and pass the microphone through, so a bad filter can never hide the person's voice.
-            if err_sq > 4.0 * mic_sq + 1e-3 * len as f32 || !err_sq.is_finite() {
+            if err_sq > 400.0 * mic_sq + 0.25 * len as f32 || !err_sq.is_finite() {
                 self.w.iter_mut().for_each(|w| *w = 0.0);
                 self.err_floor = 0.0;
                 self.err_level = 0.0;
@@ -388,7 +388,7 @@ impl EchoCanceller {
                     }
                     let step = MU * ew / (en + EPS * TAPS as f32);
                     for (w, x) in self.w.iter_mut().zip(x) {
-                        *w = (*w + step * x).clamp(-2.0, 2.0);
+                        *w = (*w + step * x).clamp(-4.0, 4.0);
                     }
                 }
                 if self.w.iter().any(|w| !w.is_finite()) {

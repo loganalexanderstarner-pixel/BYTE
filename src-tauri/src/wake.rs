@@ -12,7 +12,7 @@
 #![cfg_attr(not(target_os = "macos"), allow(dead_code))]
 
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -345,6 +345,8 @@ pub struct Capture {
     last_loud: usize,
     /// The short extra listen after a turn ("wait until I'm done"): its result is `wake://more`, not the turn.
     more: bool,
+    /// What was heard right after the wake phrase, before this capture began: it comes first, and is not part of the chime skip.
+    seed: Vec<f32>,
 }
 
 pub enum Heard {
@@ -365,6 +367,7 @@ impl Capture {
             started: None,
             last_loud: 0,
             more: false,
+            seed: vec![],
         }
     }
 
@@ -374,6 +377,22 @@ impl Capture {
     }
 
     pub fn feed(&mut self, samples: &[f32]) -> Heard {
+        if !self.seed.is_empty() {
+            let seed = std::mem::take(&mut self.seed);
+            let skip = std::mem::take(&mut self.skip);
+            let first = self.feed_samples(&seed, 0);
+            self.skip = skip;
+            if let Heard::Done(a) = first {
+                return Heard::Done(a);
+            }
+        }
+        let skip = self.skip;
+        self.skip = 0;
+        self.feed_samples(samples, skip)
+    }
+
+    fn feed_samples(&mut self, samples: &[f32], skip: usize) -> Heard {
+        self.skip = skip;
         let mut input = samples;
         if self.skip > 0 {
             let n = self.skip.min(input.len());
@@ -429,9 +448,47 @@ impl Capture {
 static CAPTURE: std::sync::Mutex<Option<Capture>> = std::sync::Mutex::new(None);
 
 /// The next thing said is the question (sent to the Quick Ask window as `wake://utterance`).
+/// The last few seconds of what the microphone heard, with a running count of samples: when "Hey BYTE" is confirmed (the check takes a
+/// moment), what the person said right after the phrase was already heard and is handed to the question instead of being lost.
+static TAIL: std::sync::Mutex<(std::collections::VecDeque<f32>, u64)> = std::sync::Mutex::new((std::collections::VecDeque::new(), 0));
+/// The value of the running count when the burst that held the phrase was handed over for checking.
+static BURST_AT: AtomicU64 = AtomicU64::new(0);
+const TAIL_MAX: usize = RATE as usize * 6;
+
+fn tail_push(chunk: &[f32]) {
+    if let Ok(mut t) = TAIL.lock() {
+        t.0.extend(chunk.iter().copied());
+        let over = t.0.len().saturating_sub(TAIL_MAX);
+        t.0.drain(..over);
+        t.1 += chunk.len() as u64;
+    }
+}
+
+fn tail_mark() {
+    if let Ok(t) = TAIL.lock() {
+        BURST_AT.store(t.1, Ordering::SeqCst);
+    }
+}
+
+/// What was heard since the last marked burst (at most 5 s of it).
+fn tail_since_mark() -> Vec<f32> {
+    let Ok(t) = TAIL.lock() else { return Vec::new() };
+    let n = (t.1.saturating_sub(BURST_AT.load(Ordering::SeqCst)) as usize).min(t.0.len()).min(RATE as usize * 5);
+    t.0.iter().skip(t.0.len() - n).copied().collect()
+}
+
 pub fn begin_capture(wait_ms: u64, skip_ms: u64) {
     if let Ok(mut c) = CAPTURE.lock() {
         *c = Some(Capture::new(wait_ms, skip_ms));
+    }
+}
+
+/// Like `begin_capture`, but what was heard right after the phrase (before the capture could start) comes first.
+fn begin_capture_after_phrase(wait_ms: u64, skip_ms: u64) {
+    let mut cap = Capture::new(wait_ms, skip_ms);
+    cap.seed = tail_since_mark();
+    if let Ok(mut c) = CAPTURE.lock() {
+        *c = Some(cap);
     }
 }
 
@@ -600,6 +657,92 @@ pub fn capturing_now() -> bool {
 }
 
 /// Feeds the stream to the running capture; when the turn is over, hands it to the window.
+/// Test hook: when the environment variable `BYTE_TEST_INJECT` names a folder, any 16 kHz mono 16-bit `.wav` put there is heard as if
+/// it came through the microphone, at real-time speed (the real microphone is ignored while it plays). It is how the whole spoken
+/// pipeline is tested on a PC with nobody speaking. Never set by the app itself; without the variable nothing here runs.
+mod test_inject {
+    use std::collections::VecDeque;
+    use std::path::PathBuf;
+    use std::sync::{Mutex, OnceLock};
+    use std::time::Instant;
+
+    struct State {
+        queue: VecDeque<f32>,
+        last: Instant,
+        polled: Instant,
+    }
+
+    fn dir() -> Option<&'static PathBuf> {
+        static DIR: OnceLock<Option<PathBuf>> = OnceLock::new();
+        DIR.get_or_init(|| std::env::var_os("BYTE_TEST_INJECT").map(PathBuf::from).filter(|p| p.is_dir())).as_ref()
+    }
+
+    /// The samples of a 16-bit PCM wav (mono; the first channel of anything else).
+    pub fn parse_wav(b: &[u8]) -> Option<Vec<f32>> {
+        if b.len() < 44 || &b[..4] != b"RIFF" || &b[8..12] != b"WAVE" {
+            return None;
+        }
+        let (mut i, mut channels) = (12, 1usize);
+        while i + 8 <= b.len() {
+            let size = u32::from_le_bytes(b[i + 4..i + 8].try_into().ok()?) as usize;
+            let body = i + 8;
+            match &b[i..i + 4] {
+                b"fmt " if body + 4 <= b.len() => channels = (u16::from_le_bytes(b[body + 2..body + 4].try_into().ok()?) as usize).max(1),
+                b"data" => {
+                    let end = (body + size).min(b.len());
+                    return Some(b[body..end].chunks_exact(2 * channels).map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 / 32768.0).collect());
+                }
+                _ => {}
+            }
+            i = body + size + (size & 1);
+        }
+        None
+    }
+
+    pub fn take() -> Option<Vec<f32>> {
+        let dir = dir()?;
+        static STATE: Mutex<Option<State>> = Mutex::new(None);
+        let mut guard = STATE.lock().ok()?;
+        let st = guard.get_or_insert_with(|| State { queue: VecDeque::new(), last: Instant::now(), polled: Instant::now() });
+        if st.queue.is_empty() && st.polled.elapsed().as_millis() > 300 {
+            st.polled = Instant::now();
+            if let Some(path) = std::fs::read_dir(dir).ok()?.flatten().map(|e| e.path()).find(|p| p.extension().is_some_and(|x| x == "wav")) {
+                if let Some(samples) = std::fs::read(&path).ok().and_then(|b| parse_wav(&b)) {
+                    log::info!("[test] injected {:.1} s of recorded voice from {}", samples.len() as f32 / 16000.0, path.display());
+                    st.queue.extend(samples);
+                    st.last = Instant::now();
+                }
+                let _ = std::fs::rename(&path, path.with_extension("played"));
+            }
+        }
+        if st.queue.is_empty() {
+            return None;
+        }
+        let n = ((st.last.elapsed().as_secs_f32() * 16000.0) as usize).min(3200);
+        if n < 160 {
+            return Some(Vec::new());
+        }
+        st.last = Instant::now();
+        Some(st.queue.drain(..n.min(st.queue.len())).collect())
+    }
+
+    #[cfg(test)]
+    mod tests {
+        #[test]
+        fn a_wav_is_read() {
+            let mut b = b"RIFF\0\0\0\0WAVEfmt ".to_vec();
+            b.extend_from_slice(&16u32.to_le_bytes());
+            b.extend_from_slice(&[1, 0, 1, 0, 0x80, 0x3e, 0, 0, 0, 0x7d, 0, 0, 2, 0, 16, 0]);
+            b.extend_from_slice(b"data");
+            b.extend_from_slice(&4u32.to_le_bytes());
+            b.extend_from_slice(&[0, 0x40, 0, 0xc0]);
+            let s = super::parse_wav(&b).unwrap();
+            assert_eq!(s, vec![0.5, -0.5]);
+            assert!(super::parse_wav(b"nope").is_none());
+        }
+    }
+}
+
 fn capture_feed(app: &AppHandle, chunk: &[f32]) {
     use base64::Engine;
     // (audio, was the extra listen, samples of the wait that were left)
@@ -711,7 +854,7 @@ fn on_wake(app: &AppHandle, rest: String, show_window: bool, quiet: bool) {
     let skip_ms = if quiet { 0 } else { crate::voicectl::play_chime() };
     // Only the phrase was said: the next thing heard is the question (after the chime, which would otherwise count as speech).
     if rest.trim().len() <= 1 {
-        begin_capture(15_000, skip_ms);
+        begin_capture_after_phrase(15_000, skip_ms);
     } else {
         crate::voicectl::set_thinking(true);
     }
@@ -806,6 +949,10 @@ mod listen {
                 }
                 let mut chunk: Vec<f32> = Vec::new();
                 ring.pop_into(&mut chunk, usize::MAX);
+                if let Some(injected) = test_inject::take() {
+                    chunk = injected; // a recorded voice stands in for the microphone (only when BYTE_TEST_INJECT names a folder)
+                    last_data = std::time::Instant::now();
+                }
                 if chunk.is_empty() {
                     // The stream reported an error, or has delivered nothing for 3 s (a device that was unplugged or switched): rebuild it.
                     let stalled = last_data.elapsed() > std::time::Duration::from_secs(3);
@@ -831,6 +978,7 @@ mod listen {
                 crate::aec::stats::MIC_OVERRUNS.store(ring.dropped(), Ordering::Relaxed);
                 // --- track:aec end ---
                 let mic_pos = crate::echo::advance_mic(chunk.len()); // track:voice
+                tail_push(&chunk);
                 if capturing() {
                     capture_feed(&app, &chunk);
                     vad = Vad::default();
@@ -886,6 +1034,9 @@ mod listen {
                 }
                 quick.listen(&chunk); // track:wakemodel (every frame goes through the quick detector when it is on)
                 for burst in vad.feed(&chunk) {
+                    if !busy.load(Ordering::SeqCst) {
+                        tail_mark(); // (not while a check runs: that burst is the question, which the seed must keep)
+                    }
                     match quick.verdict(&burst) { // track:wakemodel (Quick: only bursts the detector found plausible go on)
                         Some(false) => continue,
                         _ => check_burst(&app, &models, &busy, burst, false),
@@ -1018,6 +1169,19 @@ mod tests {
             }
         }
         None
+    }
+
+    #[test]
+    fn words_said_right_after_the_phrase_are_kept_and_the_chime_skip_comes_after_them() {
+        let mut cap = Capture::new(10_000, 300);
+        let mut seed = speech(1.5);
+        seed.extend(vec![0.0; RATE as usize * 2]);
+        cap.seed = seed;
+        let got = match cap.feed(&vec![0.0; 1600]) {
+            Heard::Done(a) => a,
+            Heard::Pending => panic!("the words in the seed should end the turn"),
+        };
+        assert!(got.len() >= RATE as usize);
     }
 
     #[test]

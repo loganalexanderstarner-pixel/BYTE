@@ -116,7 +116,6 @@ fn file_name(phrase: &str) -> String {
     format!("{}.byte-recipe.json", if n.is_empty() { "recipe" } else { &n })
 }
 
-#[cfg(desktop)]
 fn enabled(app: &tauri::AppHandle) -> Result<(), crate::error::AppError> {
     let on = crate::control::settings_now(app).is_some_and(|s| s.helper_recipes && !s.kids_mode);
     if on { Ok(()) } else { Err(crate::error::AppError::msg("Recipes are off (Settings > Control and screen > Everyday helpers).")) }
