@@ -612,6 +612,13 @@ pub struct Settings {
     pub game_aware: bool,
     /// "Hey BYTE" stays off while another program is using the microphone for a call (meeting.rs).
     pub meeting_quiet: bool,
+    /// "Hey BYTE" stays off and BYTE speaks nothing on its own between `quiet_from` and `quiet_to` (quiethours.rs).
+    #[serde(default)]
+    pub quiet_hours: bool,
+    #[serde(default = "default_quiet_from")]
+    pub quiet_from: String,
+    #[serde(default = "default_quiet_to")]
+    pub quiet_to: String,
     /// Say "your model finished downloading" and long jobs finishing out loud (spokennotice.rs).
     pub spoken_notices: bool,
     /// "Where did I leave off" recap and voice notes (houseroutes.rs).
@@ -949,6 +956,9 @@ impl Default for Settings {
             disk_hints: true,
             game_aware: true,
             meeting_quiet: true,
+            quiet_hours: false,
+            quiet_from: default_quiet_from(),
+            quiet_to: default_quiet_to(),
             spoken_notices: false,
             recap: true,
             scheduled_briefing: false,
@@ -1125,6 +1135,14 @@ fn default_wake_detector() -> String {
 fn default_barge_in() -> String {
     crate::bargein::DEFAULT_MODE.into()
 }
+fn default_quiet_from() -> String {
+    "22:00".into()
+}
+
+fn default_quiet_to() -> String {
+    "07:00".into()
+}
+
 fn default_finish_strength() -> u32 {
     40
 }

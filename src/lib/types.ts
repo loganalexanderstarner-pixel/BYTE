@@ -282,6 +282,9 @@ export interface Settings {
   gameAware?: boolean;
   /** "Hey BYTE" stays off while another program is using the microphone for a call. */
   meetingQuiet?: boolean;
+  quietHours?: boolean;
+  quietFrom?: string;
+  quietTo?: string;
   /** Say "your model finished downloading" and long jobs finishing out loud. */
   spokenNotices?: boolean;
   /** "Where did I leave off" recap and voice notes. */

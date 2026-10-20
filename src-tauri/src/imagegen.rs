@@ -523,21 +523,29 @@ pub fn build_args(m: &ImageModel, r: &Resolved, req: &Request, seed: i64, opt: &
     a
 }
 
+/// How much of a model may sit in video memory (GB), when it must not all go there. `None` = all of it fits.
+/// BYTE's chat model and the desktop keep about 4 GB; big models need a further 2 GB for the picture's working space
+/// (a 12 GB edit model ran out of memory at "all in video memory" on a 16 GB card, and ran well with 10).
+pub(crate) fn max_vram_gb(weights_bytes: u64, vram_bytes: u64) -> Option<u64> {
+    const GB: u64 = 1 << 30;
+    let w = weights_bytes / GB;
+    let extra = if w >= 8 { 2 } else { 0 };
+    let budget = (vram_bytes / GB).saturating_sub(4 + extra).max(2);
+    (w >= budget).then_some(budget)
+}
+
 /// Where the model lives. Auto: weights stay in video memory while they fit, else the rest spills into RAM.
 pub(crate) fn placement_args(main: &Path, opt: &Options) -> Vec<String> {
     let mut a: Vec<String> = Vec::new();
     let mut push = |x: &[&str]| a.extend(x.iter().map(|s| s.to_string()));
-    const GB: u64 = 1 << 30;
     match opt.placement.as_str() {
         "ram" => push(&["--offload-to-cpu", "--max-vram", "1"]),
         _ => {
             push(&["--offload-to-cpu"]);
             if let Some(v) = opt.vram_bytes {
                 let weights = std::fs::metadata(main).map(|m| m.len()).unwrap_or(0);
-                // Keep about 3.5 GB for the desktop, BYTE's chat model and the picture itself.
-                let budget = (v / GB).saturating_sub(4).max(2);
-                if opt.placement != "vram" && weights / GB >= budget {
-                    push(&["--max-vram", &budget.to_string()]);
+                if let (true, Some(b)) = (opt.placement != "vram", max_vram_gb(weights, v)) {
+                    push(&["--max-vram", &b.to_string()]);
                 }
             }
         }
@@ -580,6 +588,7 @@ pub(crate) async fn run_engine(app: &AppHandle, exe: &Path, args: &[String], pha
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
+    log::info!("picture engine: starting {} ({} arguments)", exe.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(), args.len());
     let mut child = cmd.spawn().map_err(|e| AppError::msg(format!("could not start the picture engine: {e}")))?;
     let mut tail: Vec<String> = Vec::new();
     let mut phase = phase_default.to_string();
@@ -618,6 +627,10 @@ pub(crate) async fn run_engine(app: &AppHandle, exe: &Path, args: &[String], pha
             line = rx.recv() => {
                 let Some(line) = line else { break };
                 let l = line.to_lowercase();
+                // The engine's own timings go to the log, so a slow picture can be traced to a stage.
+                if l.contains("completed, taking") || l.contains("generate_image completed") || l.contains("[w]") || l.contains("[e]") {
+                    log::info!("picture engine: {}", line.trim());
+                }
                 if l.contains("loading tensors") || l.contains("loading model") { phase = "loading".into(); }
                 else if l.contains("sampling") || l.contains("generating") { phase = "drawing".into(); }
                 else if l.contains("decoding") { phase = "finishing".into(); }
@@ -892,6 +905,16 @@ mod tests {
         assert!(j.contains("--hires --hires-scale 1.5") && j.contains("--hires-upscalers-dir up --hires-upscaler Nomos"));
         o.hires = Some(HiresPass { upscaler: None });
         assert!(build_args(m, &res(), &req(), 1, &o, Path::new("o.png")).join(" ").contains("--hires-upscaler Lanczos"));
+    }
+
+    #[test]
+    fn big_models_keep_room_on_the_card() {
+        let gb = 1u64 << 30;
+        assert_eq!(max_vram_gb(7 * gb, 16 * gb), None); // Z-Image Q8 fits whole
+        assert_eq!(max_vram_gb(11 * gb + gb / 2, 16 * gb), Some(10)); // Qwen-Image Edit Q4_K_S
+        assert_eq!(max_vram_gb(13 * gb, 16 * gb), Some(10)); // FLUX.1 dev Q8
+        assert_eq!(max_vram_gb(7 * gb, 8 * gb), Some(4));
+        assert_eq!(max_vram_gb(3 * gb, 8 * gb), None);
     }
 
     #[test]

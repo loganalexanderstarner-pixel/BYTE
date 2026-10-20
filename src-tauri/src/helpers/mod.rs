@@ -232,7 +232,7 @@ pub fn set_focus_menu(app: &AppHandle, running: bool) {
     refresh_menu(app);
 }
 
-/// Says `text` aloud with BYTE's voice, unless a call is going on.
+/// Says `text` aloud with BYTE's voice, unless a call is going on or it is inside the owner's quiet hours.
 #[cfg(desktop)]
 pub async fn speak(app: &AppHandle, text: &str) {
     use tauri::Manager;
@@ -240,6 +240,13 @@ pub async fn speak(app: &AppHandle, text: &str) {
         return;
     }
     let state = app.state::<crate::state::AppState>();
+    // Quiet hours (quiethours.rs): nothing is said on BYTE's own.
+    {
+        let st = state.settings.lock().await;
+        if crate::quiethours::active_now(st.quiet_hours, &st.quiet_from, &st.quiet_to) {
+            return;
+        }
+    }
     if let Err(e) = crate::speech::speech_say(app.clone(), state, text.to_string(), None).await {
         log::info!("helper speech: {e}");
     }

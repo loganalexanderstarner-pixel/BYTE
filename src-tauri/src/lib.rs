@@ -4,6 +4,7 @@ mod answer_cache;
 mod backend;
 mod chat;
 mod finish;
+mod quiethours;
 mod imagegallery;
 mod imagegen;
 mod imageedit;

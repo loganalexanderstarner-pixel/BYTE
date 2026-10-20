@@ -8,3 +8,5 @@
    SHA-256 Hugging Face publishes for every file. Upscalers are listed in `build-image-catalog.py`.
 
 `specs.json` here is the list used for the checked-in catalog; run step 3 alone to refresh sizes and checksums.
+
+`more-checkpoints.py` adds community Stable Diffusion checkpoints (one `.safetensors` file) from a pool of Hugging Face repositories to `specs.json`; edit models (`kind: "edit"`) and FLUX.2 klein are hand-written entries.

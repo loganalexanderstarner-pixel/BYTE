@@ -277,4 +277,85 @@ mod tests {
         assert_eq!((w, h), (300, 200));
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    fn tmpdir(n: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!("byte-finish-{n}-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn crops_a_rectangle_given_as_fractions() {
+        let d = tmpdir("crop");
+        let (a, b) = (d.join("a.png"), d.join("b.png"));
+        smooth(400, 200).save(&a).unwrap();
+        assert_eq!(crop_file(&a, &b, 0.25, 0.0, 0.5, 1.0).unwrap(), (200, 200));
+        assert_eq!(dims(&b).unwrap(), (200, 200));
+        // A rectangle that sticks out is pulled back inside.
+        assert!(crop_file(&a, &b, 0.9, 0.9, 0.5, 0.5).is_ok());
+        let (w, h) = dims(&b).unwrap();
+        assert!(w <= 400 && h <= 200 && w >= 8 && h >= 8);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn motion_blur_smears_along_the_line_and_keeps_flat_areas() {
+        let d = tmpdir("blur");
+        let (a, b) = (d.join("a.png"), d.join("b.png"));
+        // A white square on black.
+        RgbImage::from_fn(60, 60, |x, y| if (20..40).contains(&x) && (20..40).contains(&y) { Rgb([255, 255, 255]) } else { Rgb([0, 0, 0]) }).save(&a).unwrap();
+        motion_blur_file(&a, &b, 10, 0.0).unwrap();
+        let o = image::open(&b).unwrap().to_rgb8();
+        assert!(o.get_pixel(17, 30)[0] > 20 && o.get_pixel(17, 30)[0] < 200, "the edge is smeared sideways");
+        assert_eq!(o.get_pixel(30, 5)[0], 0, "a dark area far from the square stays dark");
+        assert_eq!(o.get_pixel(30, 30)[0], 255, "the middle of the square stays white");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn grain_only_adds_noise_and_keeps_the_size() {
+        let d = tmpdir("grain");
+        let (a, b) = (d.join("a.png"), d.join("b.png"));
+        smooth(120, 80).save(&a).unwrap();
+        grain_file(&a, &b, 60).unwrap();
+        let o = image::open(&b).unwrap().to_rgb8();
+        assert_eq!(o.dimensions(), (120, 80));
+        assert!(roughness(&o) > roughness(&smooth(120, 80)) + 3.0);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn resizes_by_percent() {
+        let d = tmpdir("size");
+        let (a, b) = (d.join("a.png"), d.join("b.png"));
+        smooth(400, 300).save(&a).unwrap();
+        assert_eq!(resize_file(&a, &b, 50).unwrap(), (200, 150));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn a_drawn_poster_data_address_becomes_a_png_file() {
+        let d = tmpdir("poster");
+        let src = d.join("a.png");
+        smooth(30, 20).save(&src).unwrap();
+        let bytes = std::fs::read(&src).unwrap();
+        let url = format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes));
+        let out = d.join("p.png");
+        write_data_url(&url, &out).unwrap();
+        assert_eq!(dims(&out).unwrap(), (30, 20));
+        assert!(write_data_url("data:text/plain;base64,aGk=", &out).is_err());
+        assert!(write_data_url("nonsense", &out).is_err());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn the_brightness_grid_tells_dark_from_light() {
+        let d = tmpdir("grid");
+        let a = d.join("a.png");
+        RgbImage::from_fn(80, 40, |x, _| if x < 40 { Rgb([10, 10, 10]) } else { Rgb([240, 240, 240]) }).save(&a).unwrap();
+        let g = brightness_grid(&a, 4, 2).unwrap();
+        assert_eq!(g.len(), 8);
+        assert!(g[0] < 40 && g[3] > 200);
+        let _ = std::fs::remove_dir_all(&d);
+    }
 }
