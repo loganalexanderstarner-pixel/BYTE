@@ -478,7 +478,7 @@ pub fn build_args(m: &ImageModel, r: &Resolved, req: &Request, seed: i64, opt: &
         }
         "Qwen-Image 2.1" => {
             push(&["--diffusion-model", &s(&r.main)]);
-            push(&["--cfg-scale", if dist { "1.0" } else { "2.5" }, "--sampling-method", "euler", "--flow-shift", "3"]);
+            push(&["--cfg-scale", if dist { "1.0" } else { "6.0" }, "--sampling-method", "euler"]);
         }
         "ERNIE-Image" => {
             push(&["--diffusion-model", &s(&r.main)]);
