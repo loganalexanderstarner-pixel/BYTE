@@ -6897,6 +6897,11 @@ kbd {
   position: relative;
   margin: 0 var(--space-2) var(--space-2);
 }
+.settings-search .text-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
 .settings-suggest {
   position: absolute;
   z-index: 5;

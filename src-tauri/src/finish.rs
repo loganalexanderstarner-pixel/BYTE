@@ -103,6 +103,96 @@ pub fn finish_file(src: &Path, dst: &Path, strength: u32) -> AppResult<()> {
     enc.write_image(out.as_raw(), out.width(), out.height(), image::ExtendedColorType::Rgb8).map_err(img_err)
 }
 
+/// The picture's size without decoding it.
+pub fn dims(path: &Path) -> AppResult<(u32, u32)> {
+    image::image_dimensions(path).map_err(img_err)
+}
+
+fn save_png(img: &RgbImage, dst: &Path) -> AppResult<()> {
+    img.save_with_format(dst, image::ImageFormat::Png).map_err(img_err)
+}
+
+/// Cuts out a rectangle given as fractions of the picture (0..1).
+pub fn crop_file(src: &Path, dst: &Path, x: f32, y: f32, w: f32, h: f32) -> AppResult<(u32, u32)> {
+    let img = image::open(src).map_err(img_err)?.to_rgb8();
+    let (iw, ih) = img.dimensions();
+    let cx = ((x.clamp(0.0, 1.0)) * iw as f32).round() as u32;
+    let cy = ((y.clamp(0.0, 1.0)) * ih as f32).round() as u32;
+    let cw = ((w.clamp(0.02, 1.0)) * iw as f32).round().max(8.0) as u32;
+    let ch = ((h.clamp(0.02, 1.0)) * ih as f32).round().max(8.0) as u32;
+    let cx = cx.min(iw.saturating_sub(8));
+    let cy = cy.min(ih.saturating_sub(8));
+    let out = imageops::crop_imm(&img, cx, cy, cw.min(iw - cx), ch.min(ih - cy)).to_image();
+    save_png(&out, dst)?;
+    Ok(out.dimensions())
+}
+
+/// Smears the picture along a line, like a camera that moved while the shutter was open.
+pub fn motion_blur_file(src: &Path, dst: &Path, length: u32, angle_deg: f32) -> AppResult<()> {
+    let img = image::open(src).map_err(img_err)?.to_rgb8();
+    let (w, h) = img.dimensions();
+    let n = length.clamp(2, 80) as i32;
+    let (dx, dy) = (angle_deg.to_radians().cos(), angle_deg.to_radians().sin());
+    let mut out = img.clone();
+    for y in 0..h {
+        for x in 0..w {
+            let (mut r, mut g, mut b) = (0u32, 0u32, 0u32);
+            for i in 0..n {
+                let t = i as f32 - (n - 1) as f32 / 2.0;
+                let sx = (x as f32 + dx * t).round().clamp(0.0, w as f32 - 1.0) as u32;
+                let sy = (y as f32 + dy * t).round().clamp(0.0, h as f32 - 1.0) as u32;
+                let p = img.get_pixel(sx, sy);
+                r += p[0] as u32;
+                g += p[1] as u32;
+                b += p[2] as u32;
+            }
+            let n = n as u32;
+            out.put_pixel(x, y, image::Rgb([(r / n) as u8, (g / n) as u8, (b / n) as u8]));
+        }
+    }
+    save_png(&out, dst)
+}
+
+/// Film grain alone (no softening, fringing or vignette). `strength` 0..=100.
+pub fn grain_file(src: &Path, dst: &Path, strength: u32) -> AppResult<()> {
+    let mut img = image::open(src).map_err(img_err)?.to_rgb8();
+    let (w, h) = img.dimensions();
+    let k = strength.min(100) as f32 / 100.0;
+    let mut noise = Noise(0x9E37_79B9_7F4A_7C15 ^ (w as u64) << 20 ^ h as u64 ^ strength as u64);
+    for px in img.pixels_mut() {
+        let n = noise.gauss() * 14.0 * k;
+        for c in px.0.iter_mut() {
+            *c = (*c as f32 + n + noise.gauss() * 3.0 * k).clamp(0.0, 255.0) as u8;
+        }
+    }
+    save_png(&img, dst)
+}
+
+/// Makes the picture `percent` of its size (for example an enlarged 4x picture back to 2x).
+pub fn resize_file(src: &Path, dst: &Path, percent: u32) -> AppResult<(u32, u32)> {
+    let img = image::open(src).map_err(img_err)?.to_rgb8();
+    let f = percent.clamp(10, 400) as f32 / 100.0;
+    let (w, h) = ((img.width() as f32 * f).round().max(1.0) as u32, (img.height() as f32 * f).round().max(1.0) as u32);
+    let out = imageops::resize(&img, w, h, imageops::FilterType::Lanczos3);
+    save_png(&out, dst)?;
+    Ok((w, h))
+}
+
+/// Writes a data address (the poster the window drew) to a PNG file.
+pub fn write_data_url(data_url: &str, dst: &Path) -> AppResult<()> {
+    let b64 = data_url.split_once("base64,").map(|(_, b)| b).ok_or_else(|| AppError::msg("not a picture"))?;
+    let bytes = base64::engine::general_purpose::STANDARD.decode(b64.trim()).map_err(|e| AppError::msg(format!("not a picture: {e}")))?;
+    let img = image::load_from_memory(&bytes).map_err(img_err)?;
+    img.save_with_format(dst, image::ImageFormat::Png).map_err(img_err)
+}
+
+/// How bright each part of the picture is: a grid of `cols` x `rows` averages, 0..=255, row by row.
+pub fn brightness_grid(path: &Path, cols: u32, rows: u32) -> AppResult<Vec<u8>> {
+    let img = image::open(path).map_err(img_err)?.to_rgb8();
+    let small = imageops::resize(&img, cols, rows, imageops::FilterType::Triangle);
+    Ok(small.pixels().map(|p| (0.299 * p[0] as f32 + 0.587 * p[1] as f32 + 0.114 * p[2] as f32) as u8).collect())
+}
+
 /// Writes the picture again without the prompt and settings the engine stores inside it.
 pub fn strip_file(src: &Path) -> AppResult<()> {
     let img = image::open(src).map_err(img_err)?;
@@ -186,5 +276,86 @@ mod tests {
         assert!(url.starts_with("data:image/jpeg;base64,"));
         assert_eq!((w, h), (300, 200));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn tmpdir(n: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!("byte-finish-{n}-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn crops_a_rectangle_given_as_fractions() {
+        let d = tmpdir("crop");
+        let (a, b) = (d.join("a.png"), d.join("b.png"));
+        smooth(400, 200).save(&a).unwrap();
+        assert_eq!(crop_file(&a, &b, 0.25, 0.0, 0.5, 1.0).unwrap(), (200, 200));
+        assert_eq!(dims(&b).unwrap(), (200, 200));
+        // A rectangle that sticks out is pulled back inside.
+        assert!(crop_file(&a, &b, 0.9, 0.9, 0.5, 0.5).is_ok());
+        let (w, h) = dims(&b).unwrap();
+        assert!(w <= 400 && h <= 200 && w >= 8 && h >= 8);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn motion_blur_smears_along_the_line_and_keeps_flat_areas() {
+        let d = tmpdir("blur");
+        let (a, b) = (d.join("a.png"), d.join("b.png"));
+        // A white square on black.
+        RgbImage::from_fn(60, 60, |x, y| if (20..40).contains(&x) && (20..40).contains(&y) { Rgb([255, 255, 255]) } else { Rgb([0, 0, 0]) }).save(&a).unwrap();
+        motion_blur_file(&a, &b, 10, 0.0).unwrap();
+        let o = image::open(&b).unwrap().to_rgb8();
+        assert!(o.get_pixel(17, 30)[0] > 20 && o.get_pixel(17, 30)[0] < 200, "the edge is smeared sideways");
+        assert_eq!(o.get_pixel(30, 5)[0], 0, "a dark area far from the square stays dark");
+        assert_eq!(o.get_pixel(30, 30)[0], 255, "the middle of the square stays white");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn grain_only_adds_noise_and_keeps_the_size() {
+        let d = tmpdir("grain");
+        let (a, b) = (d.join("a.png"), d.join("b.png"));
+        smooth(120, 80).save(&a).unwrap();
+        grain_file(&a, &b, 60).unwrap();
+        let o = image::open(&b).unwrap().to_rgb8();
+        assert_eq!(o.dimensions(), (120, 80));
+        assert!(roughness(&o) > roughness(&smooth(120, 80)) + 3.0);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn resizes_by_percent() {
+        let d = tmpdir("size");
+        let (a, b) = (d.join("a.png"), d.join("b.png"));
+        smooth(400, 300).save(&a).unwrap();
+        assert_eq!(resize_file(&a, &b, 50).unwrap(), (200, 150));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn a_drawn_poster_data_address_becomes_a_png_file() {
+        let d = tmpdir("poster");
+        let src = d.join("a.png");
+        smooth(30, 20).save(&src).unwrap();
+        let bytes = std::fs::read(&src).unwrap();
+        let url = format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes));
+        let out = d.join("p.png");
+        write_data_url(&url, &out).unwrap();
+        assert_eq!(dims(&out).unwrap(), (30, 20));
+        assert!(write_data_url("data:text/plain;base64,aGk=", &out).is_err());
+        assert!(write_data_url("nonsense", &out).is_err());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn the_brightness_grid_tells_dark_from_light() {
+        let d = tmpdir("grid");
+        let a = d.join("a.png");
+        RgbImage::from_fn(80, 40, |x, _| if x < 40 { Rgb([10, 10, 10]) } else { Rgb([240, 240, 240]) }).save(&a).unwrap();
+        let g = brightness_grid(&a, 4, 2).unwrap();
+        assert_eq!(g.len(), 8);
+        assert!(g[0] < 40 && g[3] > 200);
+        let _ = std::fs::remove_dir_all(&d);
     }
 }

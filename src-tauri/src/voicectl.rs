@@ -23,6 +23,8 @@ pub enum Phase {
     Speaking,
     /// In a call: "Hey BYTE" is off (wake.rs `watch_meeting`), so the person is not left wondering why BYTE does not answer.
     Call,
+    /// Quiet hours (quiethours.rs): "Hey BYTE" is off until the morning.
+    Hours,
 }
 
 impl Phase {
@@ -33,6 +35,7 @@ impl Phase {
             Phase::Thinking => "thinking",
             Phase::Speaking => "speaking",
             Phase::Call => "call",
+            Phase::Hours => "hours",
         }
     }
 }
@@ -123,7 +126,10 @@ fn start_poller(app: &AppHandle) {
                 if speaking || capturing {
                     set_thinking(false);
                 }
-                let now = phase_for(crate::wake::meeting_quiet(), speaking, capturing, thinking());
+                let mut now = phase_for(crate::wake::meeting_quiet(), speaking, capturing, thinking());
+                if now == Phase::Idle && crate::wake::hours_quiet() {
+                    now = Phase::Hours;
+                }
                 if now != shown {
                     shown = now;
                     PHASE_SEQ.fetch_add(1, Ordering::Relaxed);

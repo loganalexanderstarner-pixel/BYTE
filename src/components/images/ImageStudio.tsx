@@ -3,11 +3,17 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText } from "../../lib/api";
 import { sizeOf, SIZES, took } from "../../lib/imageSizes";
 import { bytes } from "../../lib/format";
-import type { ImageEngine, ImageMade, ImageModel, ImageProgress } from "../../lib/types";
+import type { ImageEngine, ImageMade, ImageModel } from "../../lib/types";
 import { useStore } from "../../state/store";
 import { ImageCatalog, toDl, type DlState } from "../models/ImageCatalog";
+import { EditPhoto } from "./EditPhoto";
+import { Gallery } from "./Gallery";
+import { Poster } from "./Poster";
+import { PHASE, useImageProgress } from "./shared";
 
-/** The Images tab: switches, the Generate form, and the model catalog (Windows). */
+type Section = "make" | "edit" | "poster" | "gallery" | "models";
+
+/** The Images tab: switches, then Make / Edit / Poster / Gallery / Models, and the model catalog (Windows). */
 export function ImageStudio() {
   const settings = useStore((s) => s.settings);
   const [models, setModels] = useState<ImageModel[] | null>(null);
@@ -20,12 +26,59 @@ export function ImageStudio() {
     api.imageEngine().then(setEngine).catch(() => setEngine(null));
   }, []);
   useEffect(reloadEngine, [reloadEngine]);
+  const [section, setSection] = useState<Section>("make");
+  const [editStart, setEditStart] = useState<string | undefined>();
+  const on = !!settings?.imageStudio;
+  const ready = on && !!engine?.active;
+  const sections: { id: Section; label: string }[] = [
+    { id: "make", label: "Make" },
+    ...(settings?.imageEdit ? [{ id: "edit" as const, label: "Edit" }] : []),
+    ...(settings?.imagePoster ? [{ id: "poster" as const, label: "Posters" }] : []),
+    ...(settings?.imageGallery ? [{ id: "gallery" as const, label: "Gallery" }] : []),
+    { id: "models", label: "Models" },
+  ];
+  const current = sections.some((x) => x.id === section) ? section : "make";
   return (
     <>
       <h3>Images</h3>
       <ImageSwitches models={models} />
-      {settings?.imageStudio && <EngineRow engine={engine} reload={reloadEngine} />}
-      {settings?.imageStudio && engine?.active && <Generate models={models ?? []} />}
+      {on && <EngineRow engine={engine} reload={reloadEngine} />}
+      {ready ? (
+        <>
+          <div className="segmented" role="tablist" aria-label="Image tools" style={{ margin: "12px 0" }}>
+            {sections.map((x) => (
+              <button key={x.id} role="tab" aria-selected={current === x.id} aria-pressed={current === x.id} onClick={() => setSection(x.id)}>
+                {x.label}
+              </button>
+            ))}
+          </div>
+          {current === "make" && <Generate models={models ?? []} />}
+          {current === "edit" && <EditPhoto models={models ?? []} start={editStart} />}
+          {current === "poster" && <Poster models={models ?? []} />}
+          {current === "gallery" && (
+            <Gallery
+              onEdit={
+                settings?.imageEdit
+                  ? (p) => {
+                      setEditStart(p);
+                      setSection("edit");
+                    }
+                  : undefined
+              }
+            />
+          )}
+          {current === "models" && <ModelsList models={models} reload={reload} />}
+        </>
+      ) : (
+        <ModelsList models={models} reload={reload} />
+      )}
+    </>
+  );
+}
+
+function ModelsList({ models, reload }: { models: ImageModel[] | null; reload: () => void }) {
+  return (
+    <>
       <h4 style={{ marginTop: 24 }}>Image models</h4>
       <ImageCatalog models={models} reload={reload} />
     </>
@@ -112,6 +165,48 @@ function ImageSwitches({ models }: { models: ImageModel[] | null }) {
         <>
           <label className="field">
             <span>
+              Prompt helper
+              <small>Adds a button that turns a short idea into a fuller description. Uses BYTE's chat model when it is running; otherwise a simple template. Nothing leaves this PC.</small>
+            </span>
+            <input type="checkbox" checked={s.imagePromptHelper ?? false} onChange={(e) => void update({ imagePromptHelper: e.target.checked })} />
+          </label>
+          <label className="field">
+            <span>
+              Compare models
+              <small>Make the same picture with several models, side by side with the same seed, to see which you like. Each model is loaded in turn.</small>
+            </span>
+            <input type="checkbox" checked={s.imageCompare ?? false} onChange={(e) => void update({ imageCompare: e.target.checked })} />
+          </label>
+          <label className="field">
+            <span>
+              Gallery
+              <small>Shows the pictures you made or edited, with what you asked for. Pictures stay in BYTE's folder on this PC.</small>
+            </span>
+            <input type="checkbox" checked={s.imageGallery ?? false} onChange={(e) => void update({ imageGallery: e.target.checked })} />
+          </label>
+          <label className="field">
+            <span>
+              Edit photos
+              <small>Change a photo with a sentence (remove a person, restore an old photo, change the style), make it bigger, crop it, add film grain or motion blur. Needs an editing model for the sentence part.</small>
+            </span>
+            <input type="checkbox" checked={s.imageEdit ?? false} onChange={(e) => void update({ imageEdit: e.target.checked })} />
+          </label>
+          <label className="field">
+            <span>
+              Poem and quote posters
+              <small>Put a poem or quote on a picture, with the words set where the picture is quiet. Several lettering styles.</small>
+            </span>
+            <input type="checkbox" checked={s.imagePoster ?? false} onChange={(e) => void update({ imagePoster: e.target.checked })} />
+          </label>
+          <label className="field">
+            <span>
+              Draw from chat and Hey BYTE
+              <small>“Draw me a lighthouse” in a chat, or out loud, makes a picture with your best downloaded model. Never in private chats or kids mode.</small>
+            </span>
+            <input type="checkbox" checked={s.imageFromChat ?? false} onChange={(e) => void update({ imageFromChat: e.target.checked })} />
+          </label>
+          <label className="field">
+            <span>
               Realistic people
               <small>
                 Lets you ask for pictures that look like real people. Such pictures can be mistaken for photographs. Don't make pictures of real, named people, and don't use them to mislead anyone. What you make and share is your responsibility.
@@ -137,7 +232,11 @@ function ImageSwitches({ models }: { models: ImageModel[] | null }) {
             <label className="field">
               <span>
                 Upscaler
-                <small>Auto uses 4xNomosWebPhoto when it is downloaded, which keeps real skin texture.</small>
+                <small>
+                  {upscalers.find((m) => m.id === s.imageUpscaler)
+                    ? `${upscalers.find((m) => m.id === s.imageUpscaler)!.tagline} ${upscalers.find((m) => m.id === s.imageUpscaler)!.strengths}`
+                    : "Auto uses 4xNomosWebPhoto when it is downloaded, which keeps real skin texture; otherwise the best photo upscaler you have."}
+                </small>
               </span>
               <select value={s.imageUpscaler ?? ""} onChange={(e) => void update({ imageUpscaler: e.target.value })} aria-label="Upscaler">
                 <option value="">Auto (best installed)</option>
@@ -198,58 +297,74 @@ function ImageSwitches({ models }: { models: ImageModel[] | null }) {
   );
 }
 
-const PHASE: Record<ImageProgress["phase"], string> = {
-  loading: "Loading the model…",
-  drawing: "Drawing",
-  finishing: "Finishing the picture…",
-  enlarging: "Enlarging…",
-  polishing: "Adding the camera finish…",
-};
-
 function Generate({ models }: { models: ImageModel[] }) {
+  const settings = useStore((s) => s.settings);
   const ready = models
     .filter((m) => m.kind === "generate")
     .flatMap((m) => m.variants.filter((v) => v.installed).map((v) => ({ key: `${m.id}|${v.quant}`, label: `${m.name} · ${v.quant}`, m, v })));
   const [pick, setPick] = useState("");
+  const [also, setAlso] = useState<string[]>([]);
   const [prompt, setPrompt] = useState("A lighthouse on a rocky coast at golden hour, 35mm film photograph, soft haze over the water");
   const [negative, setNegative] = useState("");
   const [size, setSize] = useState("portrait");
   const [seed, setSeed] = useState("");
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState<ImageProgress | null>(null);
-  const [made, setMade] = useState<ImageMade | null>(null);
+  const [helping, setHelping] = useState(false);
+  const [helpNote, setHelpNote] = useState<string | null>(null);
+  const [made, setMade] = useState<{ label: string; made: ImageMade }[]>([]);
+  const [step, setStep] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [savedPath, setSavedPath] = useState<string | null>(null);
+  const progress = useImageProgress();
   useEffect(() => {
     if (!pick && ready[0]) setPick(ready[0].key);
   }, [ready, pick]);
-  useEffect(() => {
-    let off: (() => void) | undefined;
-    void api.onImageProgress(setProgress).then((u) => (off = u));
-    return () => off?.();
-  }, []);
 
   const go = async () => {
-    const chosen = ready.find((r) => r.key === pick);
-    if (!chosen) return;
+    const first = ready.find((r) => r.key === pick);
+    if (!first) return;
+    const list = [first, ...(settings?.imageCompare ? also.map((k) => ready.find((r) => r.key === k)).filter((r): r is NonNullable<typeof r> => !!r && r.key !== first.key) : [])];
+    // The same seed for every model, so the difference you see is the model.
+    const useSeed = seed.trim() ? Number(seed) : list.length > 1 ? Math.floor(Math.random() * 2_000_000_000) : undefined;
     setBusy(true);
     setError(null);
-    setProgress({ phase: "loading", step: 0, total: 0 });
+    setMade([]);
+    setSavedPath(null);
     const { w, h } = sizeOf(size);
     try {
-      setMade(await api.imageGenerate({ model: chosen.m.id, quant: chosen.v.quant, prompt, negative, width: w, height: h, seed: seed.trim() ? Number(seed) : undefined }));
+      for (const [i, m] of list.entries()) {
+        setStep(list.length > 1 ? `Picture ${i + 1} of ${list.length}: ${m.m.name}. ` : "");
+        const r = await api.imageGenerate({ model: m.m.id, quant: m.v.quant, prompt, negative, width: w, height: h, seed: useSeed });
+        setMade((cur) => [...cur, { label: m.label, made: r }]);
+      }
     } catch (e) {
       const t = errorText(e);
       if (t !== "cancelled") setError(t);
     }
     setBusy(false);
-    setProgress(null);
+    setStep("");
+  };
+
+  const help = async (style: string) => {
+    setHelping(true);
+    setHelpNote(null);
+    setError(null);
+    try {
+      const r = await api.imageImprovePrompt(prompt, style);
+      setPrompt(r.prompt);
+      if (r.negative) setNegative(r.negative);
+      setHelpNote(r.by === "model" ? "BYTE rewrote your idea. Edit it if you like." : "Added some standard details. Start BYTE's chat model for a fuller rewrite.");
+    } catch (e) {
+      setError(errorText(e));
+    }
+    setHelping(false);
   };
 
   return (
     <div className="section">
       <h4>Make a picture</h4>
       {ready.length === 0 ? (
-        <p className="faint">Download an image model below first. A good start is Z-Image Turbo: quick, photo-real, and happy on small graphics cards.</p>
+        <p className="faint">Download an image model under “Models” first. A good start is Z-Image Turbo: quick, photo-real, and happy on small graphics cards.</p>
       ) : (
         <>
           <label className="field">
@@ -260,10 +375,32 @@ function Generate({ models }: { models: ImageModel[] }) {
               ))}
             </select>
           </label>
+          {settings?.imageCompare && ready.length > 1 && (
+            <fieldset className="field" style={{ border: 0, padding: 0 }}>
+              <legend className="faint small">Also make it with (to compare)</legend>
+              <div className="chips" role="group" aria-label="Compare with">
+                {ready.filter((r) => r.key !== pick).map((r) => (
+                  <button key={r.key} className="chip" aria-pressed={also.includes(r.key)} onClick={() => setAlso((a) => (a.includes(r.key) ? a.filter((k) => k !== r.key) : [...a, r.key]))}>
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          )}
           <label className="field" style={{ display: "block" }}>
             <span>Describe the picture</span>
             <textarea className="text-input" style={{ width: "100%", minHeight: 90 }} value={prompt} onChange={(e) => setPrompt(e.target.value)} aria-label="Describe the picture" />
           </label>
+          {settings?.imagePromptHelper && (
+            <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 6 }}>
+              <span className="faint small">Improve my description as:</span>
+              {[["photo", "A photo"], ["painting", "A painting"], ["poster", "A poster"], ["cartoon", "A cartoon"]].map(([id, label]) => (
+                <button key={id} className="btn sm" disabled={helping || !prompt.trim()} onClick={() => void help(id)}>{label}</button>
+              ))}
+              {helping && <span className="faint small">Thinking…</span>}
+            </div>
+          )}
+          {helpNote && <p className="faint small">{helpNote}</p>}
           <details>
             <summary className="faint small">More options</summary>
             <label className="field">
@@ -287,25 +424,36 @@ function Generate({ models }: { models: ImageModel[] }) {
             {busy ? (
               <button className="btn" onClick={() => void api.imageCancel()}>Stop</button>
             ) : (
-              <button className="btn primary" disabled={!prompt.trim()} onClick={() => void go()}>Make picture</button>
+              <button className="btn primary" disabled={!prompt.trim()} onClick={() => void go()}>{settings?.imageCompare && also.length ? `Make ${also.length + 1} pictures` : "Make picture"}</button>
             )}
             {busy && progress && (
               <>
                 {progress.total > 0 ? <progress value={progress.step} max={progress.total} style={{ flex: 1 }} aria-label="Progress" /> : null}
-                <span className="faint small" aria-live="polite">{PHASE[progress.phase]}{progress.total > 0 ? ` ${progress.step}/${progress.total}` : ""}</span>
+                <span className="faint small" aria-live="polite">{step}{PHASE[progress.phase]}{progress.total > 0 ? ` ${progress.step}/${progress.total}` : ""}</span>
               </>
             )}
           </div>
           {error && <div className="banner danger" role="alert">{error}</div>}
-          {made && (
-            <figure style={{ margin: "16px 0 0" }}>
-              <img src={made.preview} alt={prompt} style={{ maxWidth: "100%", borderRadius: 8 }} />
-              <figcaption className="faint small">
-                {made.width} × {made.height} · {took(made.seconds)} · seed {made.seed}{made.notes.length ? ` · ${made.notes.join(" · ")}` : ""}
-                <br />
-                Saved as {made.path}
-              </figcaption>
-            </figure>
+          {made.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: made.length > 1 ? "repeat(auto-fit, minmax(260px, 1fr))" : "1fr", gap: 12, marginTop: 16 }}>
+              {made.map((r) => (
+                <figure key={r.made.path} style={{ margin: 0 }}>
+                  <img src={r.made.preview} alt={prompt} style={{ maxWidth: "100%", borderRadius: 8 }} />
+                  <figcaption className="faint small">
+                    {made.length > 1 && <b>{r.label}<br /></b>}
+                    {r.made.width} × {r.made.height} · {took(r.made.seconds)} · seed {r.made.seed}{r.made.notes.length ? ` · ${r.made.notes.join(" · ")}` : ""}
+                    {settings?.imageKeep === "saved" && (
+                      <>
+                        <br />
+                        <button className="btn sm" disabled={savedPath === r.made.path} onClick={() => void api.imageGallerySave(r.made.path, true).then(() => setSavedPath(r.made.path)).catch((e) => setError(errorText(e)))}>
+                          {savedPath === r.made.path ? "Saved" : "Save this one"}
+                        </button>
+                      </>
+                    )}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
           )}
         </>
       )}

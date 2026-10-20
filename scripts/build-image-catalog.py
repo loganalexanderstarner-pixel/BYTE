@@ -46,6 +46,9 @@ FAMILIES = {
     "Z-Image": dict(companions=[FLUX_AE, ("unsloth/Qwen3-4B-Instruct-2507-GGUF", "Qwen3-4B-Instruct-2507-Q4_K_M.gguf", "llm")], overhead=2.5, base=88, steps=8),
     "Qwen-Image 2.1": dict(companions=[("Comfy-Org/Qwen-Image-2.1", "vae/qwen_image_2.1_vae_bf16.safetensors", "vae"), ("Qwen/Qwen3-VL-8B-Instruct-GGUF", "Qwen3VL-8B-Instruct-Q4_K_M.gguf", "llm")], overhead=3.0, base=94, steps=20),
     "ERNIE-Image": dict(companions=[("Comfy-Org/ERNIE-Image", "vae/flux2-vae.safetensors", "vae"), ("unsloth/Ministral-3-3B-Instruct-2512-GGUF", "Ministral-3-3B-Instruct-2512-Q4_K_M.gguf", "llm")], overhead=2.5, base=86, steps=8),
+    "FLUX.2 klein": dict(companions=[("Comfy-Org/ERNIE-Image", "vae/flux2-vae.safetensors", "vae"), ("unsloth/Qwen3-4B-GGUF", "Qwen3-4B-Q4_K_M.gguf", "llm")], overhead=2.5, base=88, steps=4),
+    "FLUX.1 Kontext": dict(companions=[CLIP_L, T5, FLUX_AE], overhead=2.5, base=86, steps=28),
+    "Qwen-Image Edit": dict(companions=[("Comfy-Org/Qwen-Image_ComfyUI", "split_files/vae/qwen_image_vae.safetensors", "vae"), ("unsloth/Qwen2.5-VL-7B-Instruct-GGUF", "Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf", "llm"), ("unsloth/Qwen2.5-VL-7B-Instruct-GGUF", "mmproj-F16.gguf", "mmproj")], overhead=4.0, base=92, steps=20),
     "Stable Diffusion 3.5": dict(companions=[CLIP_L, CLIP_G, T5], overhead=2.0, base=78, steps=28),
     "Stable Diffusion XL": dict(companions=[], overhead=2.0, base=76, steps=25),
     "Stable Diffusion 1.5": dict(companions=[], overhead=1.5, base=55, steps=20),
@@ -81,6 +84,7 @@ FAMILY_LOOKS = {
     "Chroma": ["portrait", "film", "cinematic"],
     "ERNIE-Image": ["product", "architecture"],
     "Stable Diffusion 3.5": ["portrait", "landscape", "architecture"],
+    "FLUX.2 klein": ["portrait", "product", "street", "cinematic", "food"],
     "Stable Diffusion XL": ["portrait", "landscape", "cinematic"],
     "Stable Diffusion 1.5": ["portrait"],
 }
@@ -110,6 +114,8 @@ def looks_for(fam, repo, tags):
 MATURE = re.compile(r"(?i)uncensor|nsfw|heretic|abliter|biglove|lewd|erotic|porn")
 SKIP = re.compile(r"(?i)mmproj|text[-_]?enc|vae|lora|edit|inpaint|controlnet|encoder|clip|t5xxl|qwen3-4b|qwen3-vl|mistral")
 
+SKIP_EDIT = re.compile(r"(?i)mmproj|text[-_]?enc|vae|lora|controlnet|encoder|clip|t5xxl")
+
 def family_of(repo):
     r = repo.lower()
     if "qwen-image-2.1" in r or "qwen-image-2512" in r and False: return "Qwen-Image 2.1"
@@ -120,12 +126,12 @@ def family_of(repo):
     if "stable-diffusion-3.5" in r or "sd3.5" in r: return "Stable Diffusion 3.5"
     return None
 
-def variants_gguf(repo, fam):
+def variants_gguf(repo, fam, skip=SKIP):
     out = []
     for s in tree(repo).get("siblings", []):
         n = s["rfilename"]
         base = n.split("/")[-1]
-        if not n.endswith(".gguf") or SKIP.search(base) or s["size"] < 3e8:
+        if not n.endswith(".gguf") or skip.search(base) or s["size"] < 3e8:
             continue
         q = quant_of(base)
         sha = (s.get("lfs") or {}).get("sha256")
@@ -158,7 +164,7 @@ def build(specs):
                 vs.append({"quant": q, "bits": BITS.get(k, 16), "qualityCost": QUALITY_COST.get(k, 0), "sizeBytes": s["size"],
                            "file": {"role": "model", "name": fn, "repo": sp["repo"], "size": s["size"], "sha256": s["lfs"]["sha256"], "url": f"{HF}{sp['repo']}/resolve/main/{fn}"}})
         else:
-            vs = variants_gguf(sp["repo"], fam)
+            vs = variants_gguf(sp["repo"], fam, SKIP_EDIT if sp.get("kind") == "edit" else SKIP)
         if not vs:
             print("no variants", sp["repo"], file=sys.stderr); continue
         key = (fam)
@@ -170,7 +176,7 @@ def build(specs):
         if comp_cache[key] is None:
             continue
         # The photo-capable families are all "realism" models; the filter then offers real-life looks.
-        tags = set(sp.get("tags", [])) | ({"realism"} if fam in ("Z-Image", "Qwen-Image 2.1", "FLUX.1") else set())
+        tags = set(sp.get("tags", [])) | ({"realism"} if fam in ("Z-Image", "Qwen-Image 2.1", "FLUX.1", "FLUX.2 klein") else set())
         card = d.get("cardData") or {}
         lic = card.get("license") or "unknown"
         lic_name = {"apache-2.0": "Apache-2.0", "mit": "MIT", "openrail++": "OpenRAIL++", "creativeml-openrail-m": "CreativeML OpenRAIL-M", "other": "Custom licence (read it before selling pictures)", "unknown": "Not stated"}.get(lic, lic)
@@ -179,7 +185,7 @@ def build(specs):
         name = sp.get("name") or sp["repo"].split("/")[-1].replace("-GGUF", "").replace("-gguf", "").replace("_", " ")
         models.append({
             "id": re.sub(r"[^a-z0-9]+", "-", sp["repo"].lower()).strip("-"),
-            "name": name, "family": fam, "kind": "generate",
+            "name": name, "family": fam, "kind": sp.get("kind", "generate"),
             "tags": sorted(tags),
             "looks": looks_for(fam, sp["repo"], tags),
             "tagline": sp["tagline"], "strengths": sp["strengths"],

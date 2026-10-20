@@ -16,6 +16,9 @@ Try it: with Headphones on, ask for a long story, then start talking.
 ## Focus on one voice (off by default)
 **Focus on one voice** makes BYTE answer only the voice that said "Hey BYTE" while you talk to it, so a phone call or the TV doesn't interrupt it. Say "listen to everyone", "also listen to <name>" (a voice you taught BYTE) or "stop focusing on me". It uses simple voice features kept in memory only, cleared after a few quiet minutes. It is not tuned on many real voices yet, so expect mistakes.
 
+## Quiet hours
+- **Quiet hours** (off until you turn it on, under Settings → Voice and Hey BYTE): pick a start and end time, for example 22:00 to 07:00. In that window "Hey BYTE" is switched off (the listening pill says "Quiet hours") and BYTE says nothing on its own: no spoken notices or briefing. Typing to BYTE and the talk key still work. Windows that run past midnight are fine.
+
 ## Quiet during calls
 - **Quiet during calls** (on by default): "Hey BYTE" stays off while another program is using the microphone for a call, and spoken notices wait. BYTE only checks which program holds the microphone; it records nothing.
 

@@ -481,6 +481,7 @@ impl Setup {
                 study: s.study_enabled,
                 small_model,
                 translate: s.translate_enabled,
+                images: s.image_studio && s.image_from_chat && !kids && !request.private,
                 mac: s.mac_control,
                 terminal: s.terminal_enabled && !kids,
                 upkeep: s.mac_upkeep,

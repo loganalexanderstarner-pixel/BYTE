@@ -40,6 +40,7 @@ Test builds are for trying things out and reporting problems, not for daily use 
 - **Writing and learning:** a writing studio, translation, flashcards, quizzes and a tutor.
 - **Everyday helpers:** to-dos, reminders, timers, a daily briefing, page watchers and automations.
 - **Notes, mind maps and a brainstorm board**, Quick Ask from anywhere, and a command palette.
+- **Pictures (Windows, each part its own switch, off by default):** make pictures on your own PC with a catalog of free image models (every quant, with a plain "fits your graphics card or not" for each), compare models side by side, a prompt helper, a gallery, edit photos with a sentence or tools (remove a person, restore an old photo, enlarge, crop, grain), poem and quote posters, and "draw me …" in a chat or to Hey BYTE. Nothing leaves your PC.
 - **Voice:** dictation, spoken answers in thousands of free natural voices, and **Hey BYTE**.
 - **Private by design:** an offline switch, an app lock, a log of everything BYTE did, kids mode, encrypted backups, and erasing everything in one step.
 - **Safe to try:** a first-run setup that asks about each optional feature, safe mode (`--safe`) that starts with them all off, crash recovery with a problem report, an on-screen approval popup you can answer by voice, and a Never touch list shared by PC control and the screen features.

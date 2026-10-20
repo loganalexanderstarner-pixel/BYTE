@@ -34,6 +34,22 @@ export function HouseToggles({ group }: { group?: "models" | "voice" | "memory" 
       {(!group || group === "voice") && (
         <label className="field">
           <span>
+            Quiet hours
+            <small>
+              Between these times “Hey BYTE” is switched off (the listening pill says so) and BYTE says nothing on its own: no spoken notices or briefing. Typing to BYTE and the talk key still work. Off until you turn it on.
+            </small>
+          </span>
+          <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="time" value={settings?.quietFrom ?? "22:00"} aria-label="Quiet hours start" onChange={(e) => void update({ quietFrom: e.target.value || "22:00" })} />
+            <span aria-hidden="true">to</span>
+            <input type="time" value={settings?.quietTo ?? "07:00"} aria-label="Quiet hours end" onChange={(e) => void update({ quietTo: e.target.value || "07:00" })} />
+            <input type="checkbox" checked={settings?.quietHours ?? false} aria-label="Quiet hours" onChange={(e) => void update({ quietHours: e.target.checked })} />
+          </span>
+        </label>
+      )}
+      {(!group || group === "voice") && (
+        <label className="field">
+          <span>
             Spoken morning briefing
             <small>Every day at the time you choose, BYTE puts your briefing together, saves it as a chat and says the summary out loud (never during a game or a call).</small>
           </span>

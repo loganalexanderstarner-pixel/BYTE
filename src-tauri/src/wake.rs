@@ -539,6 +539,11 @@ fn cooldown_remember(burst: &[f32]) {
 pub fn meeting_quiet() -> bool {
     MEETING_QUIET.load(Ordering::Relaxed)
 }
+
+/// The owner's quiet hours are on and it is inside them (quiethours.rs): "Hey BYTE" is off.
+pub fn hours_quiet() -> bool {
+    HOURS_QUIET.load(Ordering::Relaxed)
+}
 // --- track:voice end ---
 
 // --- track:wakemodel begin ---
@@ -886,6 +891,7 @@ fn on_wake(app: &AppHandle, rest: String, show_window: bool, quiet: bool) {
 // --- track:lead begin ---
 /// True while another program has the microphone open for a call and the person left "meeting-aware quiet" on.
 static MEETING_QUIET: AtomicBool = AtomicBool::new(false);
+static HOURS_QUIET: AtomicBool = AtomicBool::new(false);
 
 /// Looks every 20 s. It goes quiet only after two readings in a row say "in a call", and comes back at the first clear reading, so one odd
 /// reading never silences BYTE for long. Ends when the listener stops.
@@ -898,9 +904,14 @@ fn watch_meeting(app: AppHandle) {
             tokio::time::sleep(std::time::Duration::from_secs(20)).await;
             if listen::STOP.lock().map(|s| s.is_none()).unwrap_or(true) {
                 MEETING_QUIET.store(false, Ordering::Relaxed);
+                HOURS_QUIET.store(false, Ordering::Relaxed);
                 return;
             }
-            let enabled = app.state::<crate::state::AppState>().settings.lock().await.meeting_quiet;
+            let (enabled, hours) = {
+                let st = app.state::<crate::state::AppState>().settings.lock().await.clone();
+                (st.meeting_quiet, crate::quiethours::active_now(st.quiet_hours, &st.quiet_from, &st.quiet_to))
+            };
+            HOURS_QUIET.store(hours, Ordering::Relaxed);
             let now = enabled && tauri::async_runtime::spawn_blocking(crate::meeting::active).await.unwrap_or(false);
             MEETING_QUIET.store(now && previous, Ordering::Relaxed);
             previous = now;
@@ -1005,7 +1016,7 @@ mod listen {
                 }
                 // --- track:lead begin ---
                 // A call is going on (meeting.rs, checked twice in a row by `watch_meeting`): "Hey BYTE" stays off so BYTE does not answer the room.
-                if MEETING_QUIET.load(Ordering::Relaxed) {
+                if MEETING_QUIET.load(Ordering::Relaxed) || HOURS_QUIET.load(Ordering::Relaxed) {
                     vad = Vad::default();
                     quick.gap(); // track:wakemodel
                     continue;

@@ -222,6 +222,12 @@ export interface Settings {
   imagePlacement?: "auto" | "vram" | "ram";
   imageKeep?: "all" | "saved" | "none";
   imageStripInfo?: boolean;
+  imageEdit?: boolean;
+  imageFromChat?: boolean;
+  imagePromptHelper?: boolean;
+  imageCompare?: boolean;
+  imageGallery?: boolean;
+  imagePoster?: boolean;
   // --- track:wakemodel end ---
   voiceFocus?: "off" | "normal" | "strict";
   talkHotkey?: string;
@@ -276,6 +282,9 @@ export interface Settings {
   gameAware?: boolean;
   /** "Hey BYTE" stays off while another program is using the microphone for a call. */
   meetingQuiet?: boolean;
+  quietHours?: boolean;
+  quietFrom?: string;
+  quietTo?: string;
   /** Say "your model finished downloading" and long jobs finishing out loud. */
   spokenNotices?: boolean;
   /** "Where did I leave off" recap and voice notes. */
@@ -1798,4 +1807,54 @@ export interface ImageEngine {
   active: string;
   recommended: string;
   options: ImageEngineOption[];
+}
+
+/** A picture the window shows (gallery pick, a file the owner chose). */
+export interface ImageShown {
+  path: string;
+  preview: string;
+  width: number;
+  height: number;
+}
+
+/** A picture in the gallery with the note kept beside it. */
+export interface ImageGalleryItem {
+  path: string;
+  thumb: string;
+  kind: "made" | "edited" | "enlarged" | "poster" | "changed" | "";
+  prompt: string;
+  model: string;
+  seed: number;
+  seconds: number;
+  notes: string[];
+  created: number;
+  saved: boolean;
+  width: number;
+  height: number;
+  bytes: number;
+}
+
+export interface ImageEditRequest {
+  source: string;
+  op: "edit" | "enlarge" | "crop" | "motion" | "grain" | "finish";
+  model?: string;
+  quant?: string;
+  prompt?: string;
+  seed?: number;
+  maxSide?: number;
+  upscaler?: string;
+  scale?: number;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  length?: number;
+  angle?: number;
+  strength?: number;
+}
+
+export interface ImageImproved {
+  prompt: string;
+  negative: string;
+  by: "model" | "template";
 }

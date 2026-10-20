@@ -495,6 +495,24 @@ pub struct Settings {
     /// A camera-style finish: fine grain, slight softness, natural colour.
     #[serde(default)]
     pub image_photo_finish: bool,
+    /// Edit photos with a sentence, enlarge, crop, blur and grain (Settings → Images).
+    #[serde(default)]
+    pub image_edit: bool,
+    /// "Draw me …" in a chat or to Hey BYTE makes a picture.
+    #[serde(default)]
+    pub image_from_chat: bool,
+    /// A button that rewrites a short idea into a better prompt (uses the chat model when it is running).
+    #[serde(default)]
+    pub image_prompt_helper: bool,
+    /// Make the same picture with two or more models side by side.
+    #[serde(default)]
+    pub image_compare: bool,
+    /// Show the gallery of pictures.
+    #[serde(default)]
+    pub image_gallery: bool,
+    /// Poem and quote posters.
+    #[serde(default)]
+    pub image_poster: bool,
     /// 0-100, how strong the finish is.
     #[serde(default = "default_finish_strength")]
     pub image_finish_strength: u32,
@@ -594,6 +612,13 @@ pub struct Settings {
     pub game_aware: bool,
     /// "Hey BYTE" stays off while another program is using the microphone for a call (meeting.rs).
     pub meeting_quiet: bool,
+    /// "Hey BYTE" stays off and BYTE speaks nothing on its own between `quiet_from` and `quiet_to` (quiethours.rs).
+    #[serde(default)]
+    pub quiet_hours: bool,
+    #[serde(default = "default_quiet_from")]
+    pub quiet_from: String,
+    #[serde(default = "default_quiet_to")]
+    pub quiet_to: String,
     /// Say "your model finished downloading" and long jobs finishing out loud (spokennotice.rs).
     pub spoken_notices: bool,
     /// "Where did I leave off" recap and voice notes (houseroutes.rs).
@@ -889,6 +914,12 @@ impl Default for Settings {
             image_upscale: false,
             image_upscaler: String::new(),
             image_photo_finish: false,
+            image_edit: false,
+            image_from_chat: false,
+            image_prompt_helper: false,
+            image_compare: false,
+            image_gallery: false,
+            image_poster: false,
             image_finish_strength: default_finish_strength(),
             image_placement: default_image_placement(),
             image_keep: default_image_keep(),
@@ -925,6 +956,9 @@ impl Default for Settings {
             disk_hints: true,
             game_aware: true,
             meeting_quiet: true,
+            quiet_hours: false,
+            quiet_from: default_quiet_from(),
+            quiet_to: default_quiet_to(),
             spoken_notices: false,
             recap: true,
             scheduled_briefing: false,
@@ -1101,6 +1135,14 @@ fn default_wake_detector() -> String {
 fn default_barge_in() -> String {
     crate::bargein::DEFAULT_MODE.into()
 }
+fn default_quiet_from() -> String {
+    "22:00".into()
+}
+
+fn default_quiet_to() -> String {
+    "07:00".into()
+}
+
 fn default_finish_strength() -> u32 {
     40
 }

@@ -14,6 +14,8 @@
   .speaking #dot { background: #4aa8ff; animation: pulse 1.4s ease-in-out infinite; }
   .call #dot { background: #8a93a6; }
   .call { color: #aab2c3; }
+  .hours #dot { background: #8a93a6; }
+  .hours { color: #aab2c3; }
   @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: 0.7; } 50% { transform: scale(1.25); opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { #dot { animation: none !important; } }
 </style>
@@ -21,7 +23,7 @@
 <body>
 <div id="pill"><span id="dot"></span><span id="label"></span></div>
 <script>
-  var labels = { listening: "Listening", thinking: "Thinking", speaking: "Speaking", call: "In a call: Hey BYTE is off" };
+  var labels = { listening: "Listening", thinking: "Thinking", speaking: "Speaking", call: "In a call: Hey BYTE is off", hours: "Quiet hours: Hey BYTE is off" };
   window.setPill = function (state) {
     var p = document.getElementById("pill");
     if (!labels[state]) { p.className = ""; return; }

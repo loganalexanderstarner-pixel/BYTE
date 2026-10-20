@@ -52,6 +52,20 @@ export const IMAGE_TUTORIALS: Tutorial[] = [
         ],
       },
       {
+        id: "extras",
+        title: "The extras (each has its own switch)",
+        body: [
+          "All off until you turn them on:",
+          "- **Prompt helper** rewrites a short idea into a fuller description.",
+          "- **Compare models** makes the same picture with several models, side by side.",
+          "- **Gallery** keeps what you made, with what you asked for.",
+          "- **Edit photos** changes a photo with a sentence (remove a person, restore an old photo), or makes it bigger, crops it, adds grain or motion blur.",
+          "- **Poem and quote posters** put words on a picture where it is quiet.",
+          "- **Draw from chat and Hey BYTE** makes a picture when you say “draw me …”.",
+        ],
+        links: [H("image-tools", "Read about the extras")],
+      },
+      {
         id: "filter",
         title: "Find other models",
         body: ["Sort best to least, or by speed or size. Pick what you want to do, then a style. **Realism** has real-life looks such as portraits, food or landscapes. Models list what they are good at, and nothing is hidden by a filter you did not choose."],

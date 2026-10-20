@@ -4,7 +4,10 @@ mod answer_cache;
 mod backend;
 mod chat;
 mod finish;
+mod quiethours;
+mod imagegallery;
 mod imagegen;
+mod imageedit;
 mod images;
 mod chip;
 mod clipboard;
@@ -682,6 +685,15 @@ pub fn run() {
             imagegen::image_pause,
             imagegen::image_delete,
             imagegen::image_generate,
+            imageedit::image_edit,
+            imageedit::image_improve_prompt,
+            imagegallery::image_gallery,
+            imagegallery::image_preview,
+            imagegallery::image_gallery_delete,
+            imagegallery::image_gallery_save,
+            imagegallery::image_copy_to,
+            imagegallery::image_poster_save,
+            imagegallery::image_brightness,
             imagegen::image_cancel,
             imagegen::image_engine,
             imagegen::image_engine_install,

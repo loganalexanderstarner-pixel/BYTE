@@ -25,7 +25,7 @@ use crate::state::AppState;
 pub const DOWNLOAD_EVENT: &str = "images://download";
 pub const PROGRESS_EVENT: &str = "images://progress";
 
-static ACTIVE: Lazy<Mutex<HashMap<String, CancellationToken>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+pub(crate) static ACTIVE: Lazy<Mutex<HashMap<String, CancellationToken>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 // ---------- where files live ----------
 
@@ -74,7 +74,7 @@ fn bytes_present(models_dir: &Path, m: &ImageModel, v: &ImageVariant) -> u64 {
         .sum()
 }
 
-fn variant_of<'a>(m: &'a ImageModel, quant: &str) -> AppResult<&'a ImageVariant> {
+pub(crate) fn variant_of<'a>(m: &'a ImageModel, quant: &str) -> AppResult<&'a ImageVariant> {
     m.variants.iter().find(|v| v.quant == quant).ok_or_else(|| AppError::msg("that version is not in the catalog"))
 }
 
@@ -421,6 +421,7 @@ pub struct Resolved {
     pub clip_g: Option<PathBuf>,
     pub t5xxl: Option<PathBuf>,
     pub llm: Option<PathBuf>,
+    pub mmproj: Option<PathBuf>,
 }
 
 pub fn resolve(models_dir: &Path, m: &ImageModel, v: &ImageVariant) -> AppResult<Resolved> {
@@ -437,6 +438,7 @@ pub fn resolve(models_dir: &Path, m: &ImageModel, v: &ImageVariant) -> AppResult
             "clip_g" => r.clip_g = Some(p),
             "t5xxl" => r.t5xxl = Some(p),
             "llm" => r.llm = Some(p),
+            "mmproj" => r.mmproj = Some(p),
             _ => {}
         }
     }
@@ -444,12 +446,12 @@ pub fn resolve(models_dir: &Path, m: &ImageModel, v: &ImageVariant) -> AppResult
 }
 
 /// A distilled model makes a picture in a few steps and wants no guidance.
-fn distilled(m: &ImageModel) -> bool {
+pub(crate) fn distilled(m: &ImageModel) -> bool {
     let n = format!("{} {}", m.name, m.source).to_lowercase();
     ["turbo", "schnell", "lightning", "flash", "hyper", "viggle"].iter().any(|k| n.contains(k))
 }
 
-fn s(p: &Path) -> String {
+pub(crate) fn s(p: &Path) -> String {
     p.to_string_lossy().into_owned()
 }
 
@@ -482,6 +484,10 @@ pub fn build_args(m: &ImageModel, r: &Resolved, req: &Request, seed: i64, opt: &
             push(&["--diffusion-model", &s(&r.main)]);
             push(&["--cfg-scale", if dist { "1.0" } else { "5.0" }]);
         }
+        "FLUX.2 klein" => {
+            push(&["--diffusion-model", &s(&r.main)]);
+            push(&["--cfg-scale", if m.name.to_lowercase().contains("base") { "4.0" } else { "1.0" }, "--sampling-method", "euler"]);
+        }
         "Stable Diffusion 3.5" => {
             push(&[if gguf { "--diffusion-model" } else { "-m" }, &s(&r.main)]);
             push(&["--cfg-scale", "4.5", "--sampling-method", "euler", "--clip-on-cpu"]);
@@ -492,7 +498,7 @@ pub fn build_args(m: &ImageModel, r: &Resolved, req: &Request, seed: i64, opt: &
             push(&["--cfg-scale", if dist { "1.0" } else { "7.0" }]);
         }
     }
-    for (flag, p) in [("--vae", &r.vae), ("--clip_l", &r.clip_l), ("--clip_g", &r.clip_g), ("--t5xxl", &r.t5xxl), ("--llm", &r.llm)] {
+    for (flag, p) in [("--vae", &r.vae), ("--clip_l", &r.clip_l), ("--clip_g", &r.clip_g), ("--t5xxl", &r.t5xxl), ("--llm", &r.llm), ("--llm_vision", &r.mmproj)] {
         if let Some(p) = p {
             push(&[flag, &s(p)]);
         }
@@ -503,22 +509,8 @@ pub fn build_args(m: &ImageModel, r: &Resolved, req: &Request, seed: i64, opt: &
     }
     push(&["--steps", &steps.to_string(), "-W", &req.width.to_string(), "-H", &req.height.to_string(), "--seed", &seed.to_string()]);
 
-    // Where the model lives. Auto: weights stay in video memory while they fit, else the rest spills into RAM.
-    const GB: u64 = 1 << 30;
-    match opt.placement.as_str() {
-        "ram" => push(&["--offload-to-cpu", "--max-vram", "1"]),
-        _ => {
-            push(&["--offload-to-cpu"]);
-            if let Some(v) = opt.vram_bytes {
-                let weights = std::fs::metadata(&r.main).map(|m| m.len()).unwrap_or(0);
-                // Keep about 3.5 GB for the desktop, BYTE's chat model and the picture itself.
-                let budget = (v / GB).saturating_sub(4).max(2);
-                if opt.placement != "vram" && weights / GB >= budget {
-                    push(&["--max-vram", &budget.to_string()]);
-                }
-            }
-        }
-    }
+    let place = placement_args(&r.main, opt);
+    push(&place.iter().map(String::as_str).collect::<Vec<_>>());
 
     if let Some(h) = &opt.hires {
         push(&["--hires", "--hires-scale", "1.5", "--hires-denoising-strength", "0.35", "--hires-steps", &(steps / 2).max(4).to_string()]);
@@ -528,6 +520,36 @@ pub fn build_args(m: &ImageModel, r: &Resolved, req: &Request, seed: i64, opt: &
         }
     }
     push(&["-o", &s(out)]);
+    a
+}
+
+/// How much of a model may sit in video memory (GB), when it must not all go there. `None` = all of it fits.
+/// BYTE's chat model and the desktop keep about 4 GB; big models need a further 2 GB for the picture's working space
+/// (a 12 GB edit model ran out of memory at "all in video memory" on a 16 GB card, and ran well with 10).
+pub(crate) fn max_vram_gb(weights_bytes: u64, vram_bytes: u64) -> Option<u64> {
+    const GB: u64 = 1 << 30;
+    let w = weights_bytes / GB;
+    let extra = if w >= 8 { 2 } else { 0 };
+    let budget = (vram_bytes / GB).saturating_sub(4 + extra).max(2);
+    (w >= budget).then_some(budget)
+}
+
+/// Where the model lives. Auto: weights stay in video memory while they fit, else the rest spills into RAM.
+pub(crate) fn placement_args(main: &Path, opt: &Options) -> Vec<String> {
+    let mut a: Vec<String> = Vec::new();
+    let mut push = |x: &[&str]| a.extend(x.iter().map(|s| s.to_string()));
+    match opt.placement.as_str() {
+        "ram" => push(&["--offload-to-cpu", "--max-vram", "1"]),
+        _ => {
+            push(&["--offload-to-cpu"]);
+            if let Some(v) = opt.vram_bytes {
+                let weights = std::fs::metadata(main).map(|m| m.len()).unwrap_or(0);
+                if let (true, Some(b)) = (opt.placement != "vram", max_vram_gb(weights, v)) {
+                    push(&["--max-vram", &b.to_string()]);
+                }
+            }
+        }
+    }
     a
 }
 
@@ -555,7 +577,7 @@ pub fn parse_progress(line: &str) -> Option<(u32, u32)> {
     Some((a.parse().ok()?, b.parse().ok()?))
 }
 
-async fn run_engine(app: &AppHandle, exe: &Path, args: &[String], phase_default: &str, cancel: &CancellationToken) -> AppResult<()> {
+pub(crate) async fn run_engine(app: &AppHandle, exe: &Path, args: &[String], phase_default: &str, cancel: &CancellationToken) -> AppResult<()> {
     let mut cmd = tokio::process::Command::new(exe);
     cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::piped()).stdin(Stdio::null()).kill_on_drop(true);
     if let Some(dir) = exe.parent() {
@@ -566,6 +588,7 @@ async fn run_engine(app: &AppHandle, exe: &Path, args: &[String], phase_default:
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
+    log::info!("picture engine: starting {} ({} arguments)", exe.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(), args.len());
     let mut child = cmd.spawn().map_err(|e| AppError::msg(format!("could not start the picture engine: {e}")))?;
     let mut tail: Vec<String> = Vec::new();
     let mut phase = phase_default.to_string();
@@ -604,6 +627,10 @@ async fn run_engine(app: &AppHandle, exe: &Path, args: &[String], phase_default:
             line = rx.recv() => {
                 let Some(line) = line else { break };
                 let l = line.to_lowercase();
+                // The engine's own timings go to the log, so a slow picture can be traced to a stage.
+                if l.contains("completed, taking") || l.contains("generate_image completed") || l.contains("[w]") || l.contains("[e]") {
+                    log::info!("picture engine: {}", line.trim());
+                }
                 if l.contains("loading tensors") || l.contains("loading model") { phase = "loading".into(); }
                 else if l.contains("sampling") || l.contains("generating") { phase = "drawing".into(); }
                 else if l.contains("decoding") { phase = "finishing".into(); }
@@ -657,13 +684,18 @@ pub fn wants_real_person(prompt: &str) -> bool {
     photo && person
 }
 
-fn gallery_dir(models_dir: &Path) -> PathBuf {
+pub(crate) fn gallery_dir(models_dir: &Path) -> PathBuf {
     images_root(models_dir).join("gallery")
 }
 
 #[tauri::command]
 pub async fn image_generate(app: AppHandle, state: State<'_, AppState>, req: Request) -> AppResult<Made> {
     crate::lock::ensure(&state)?;
+    generate(&app, &state, req).await
+}
+
+/// Makes one picture (the Generate form, a chat message, Hey BYTE).
+pub(crate) async fn generate(app: &AppHandle, state: &AppState, req: Request) -> AppResult<Made> {
     let settings = state.settings.lock().await.clone();
     if !cfg!(windows) {
         return Err(AppError::msg("Making pictures is in the Windows app for now."));
@@ -687,11 +719,14 @@ pub async fn image_generate(app: AppHandle, state: State<'_, AppState>, req: Req
     }
     let v = variant_of(m, &req.quant)?;
     let files = resolve(&models_dir, m, v)?;
-    let exe = engine_path(&app, &models_dir).ok_or_else(|| AppError::msg("The picture engine is not in this build yet."))?;
+    let exe = engine_path(app, &models_dir).ok_or_else(|| AppError::msg("The picture engine is not in this build yet."))?;
+    if settings.image_keep == "saved" {
+        crate::imagegallery::purge_unsaved(&models_dir);
+    }
 
     let token = CancellationToken::new();
     ACTIVE.lock().await.insert("generate".into(), token.clone());
-    let result = make(&app, &settings, &models_dir, &exe, m, &files, &req, &token).await;
+    let result = make(app, &settings, &models_dir, &exe, m, &files, &req, &token).await;
     ACTIVE.lock().await.remove("generate");
     result
 }
@@ -705,7 +740,7 @@ pub async fn image_cancel() -> AppResult<()> {
 }
 
 /// The installed upscaler to use: the chosen one, else the best installed for photos.
-fn pick_upscaler(models_dir: &Path, chosen: &str) -> Option<(PathBuf, String, String)> {
+pub(crate) fn pick_upscaler(models_dir: &Path, chosen: &str) -> Option<(PathBuf, String, String)> {
     let order = [chosen, "upscale-4xnomoswebphoto-esrgan", "upscale-realesrgan-x4plus", "upscale-4xultrasharpv10"];
     for id in order.iter().filter(|i| !i.is_empty()) {
         if let Some(m) = images::get(id) {
@@ -795,10 +830,16 @@ async fn make(
     for step in steps.iter().filter(|p| **p != current) {
         let _ = tokio::fs::remove_file(step).await;
     }
+    let seconds = started.elapsed().as_secs_f32();
+    crate::imagegallery::write_meta(
+        &current,
+        &crate::imagegallery::Meta { kind: "made".into(), prompt: req.prompt.clone(), model: m.name.clone(), seed, seconds, notes: notes.clone(), created: crate::imagegallery::now(), saved: settings.image_keep != "saved", width, height },
+    );
     if settings.image_keep == "none" {
         let _ = tokio::fs::remove_file(&current).await;
+        let _ = tokio::fs::remove_file(current.with_extension("json")).await;
     }
-    Ok(Made { path: current.to_string_lossy().into_owned(), preview, width, height, seed, seconds: started.elapsed().as_secs_f32(), notes })
+    Ok(Made { path: current.to_string_lossy().into_owned(), preview, width, height, seed, seconds, notes })
 }
 
 #[cfg(test)]
@@ -811,6 +852,7 @@ mod tests {
 
     fn res() -> Resolved {
         Resolved {
+            mmproj: None,
             main: PathBuf::from("m.gguf"),
             vae: Some("ae.safetensors".into()),
             clip_l: Some("clip_l.safetensors".into()),
@@ -863,6 +905,16 @@ mod tests {
         assert!(j.contains("--hires --hires-scale 1.5") && j.contains("--hires-upscalers-dir up --hires-upscaler Nomos"));
         o.hires = Some(HiresPass { upscaler: None });
         assert!(build_args(m, &res(), &req(), 1, &o, Path::new("o.png")).join(" ").contains("--hires-upscaler Lanczos"));
+    }
+
+    #[test]
+    fn big_models_keep_room_on_the_card() {
+        let gb = 1u64 << 30;
+        assert_eq!(max_vram_gb(7 * gb, 16 * gb), None); // Z-Image Q8 fits whole
+        assert_eq!(max_vram_gb(11 * gb + gb / 2, 16 * gb), Some(10)); // Qwen-Image Edit Q4_K_S
+        assert_eq!(max_vram_gb(13 * gb, 16 * gb), Some(10)); // FLUX.1 dev Q8
+        assert_eq!(max_vram_gb(7 * gb, 8 * gb), Some(4));
+        assert_eq!(max_vram_gb(3 * gb, 8 * gb), None);
     }
 
     #[test]
