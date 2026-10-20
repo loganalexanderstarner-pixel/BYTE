@@ -34,16 +34,30 @@ export function toDl(e: import("../../lib/types").DownloadEvent, prev?: DlState)
 
 type Sort = "best" | "fastest" | "smallest" | "popular";
 
-/** Every kind of image job. Only "Make pictures" has models so far; the rest light up as their models arrive. */
+/** Every kind of image job. Editing jobs are done by the edit models (Qwen-Image Edit, FLUX Kontext, FLUX.2 klein). */
 export const TASKS: { id: string; label: string; hint: string }[] = [
   { id: "generate", label: "Make pictures", hint: "Make a new picture from words" },
-  { id: "edit", label: "Edit a photo", hint: "Film grain, motion blur, crop, lighting, change the background" },
+  { id: "edit", label: "Edit a photo", hint: "Change a photo with a sentence: lighting, outfit, background, text on a sign" },
   { id: "remove", label: "Remove things", hint: "Take a person or object out of a photo" },
   { id: "upscale", label: "Upscale", hint: "Make a picture bigger and sharper, fix zoom pixelation" },
   { id: "restore", label: "Restore faces and old photos", hint: "Sharpen faces, fix scratches, colorize" },
   { id: "background", label: "Remove background", hint: "Cut a subject out" },
   { id: "style", label: "Change the style", hint: "Turn a photo into a painting, anime or sketch" },
 ];
+
+/** Whether a model can do a job: editing jobs use the edit models, and some models are listed for a job by their tags. */
+export function forTask(m: ImageModel, task: string): boolean {
+  switch (task) {
+    case "generate":
+    case "upscale":
+      return m.kind === task;
+    case "restore":
+    case "style":
+      return m.tags.includes(task);
+    default:
+      return m.kind === "edit" || m.tags.includes("edit");
+  }
+}
 
 /** Real-life equivalents offered under Realism. */
 export const REAL_LOOKS: { id: string; label: string }[] = [
@@ -94,7 +108,7 @@ export function arrange(models: ImageModel[], opts: { query: string; filter: str
   // Community models need their own switch; adult ones are never shown in kids mode.
   let list = models.filter((m) => (opts.community || !m.community) && !(opts.kids && m.mature));
   if (opts.commercialOnly) list = list.filter((m) => m.commercialOk);
-  if (opts.task) list = list.filter((m) => m.kind === opts.task);
+  if (opts.task) list = list.filter((m) => forTask(m, opts.task!));
   if (opts.filter) list = list.filter((m) => m.tags.includes(opts.filter!));
   if (opts.filter === "realism" && opts.look) list = list.filter((m) => m.looks.includes(opts.look!));
   if (q) list = list.filter((m) => [m.name, m.family, m.tagline, m.strengths, m.tags.join(" ")].join(" ").toLowerCase().includes(q));
@@ -166,7 +180,7 @@ export function ImageCatalog({ models, reload }: { models: ImageModel[] | null; 
         <div className="chips" role="group" aria-label="What you want to do">
           <button className="chip" aria-pressed={task === null} onClick={() => setTask(null)}>Everything</button>
           {TASKS.map((t) => {
-            const n = (models ?? []).filter((m) => m.kind === t.id).length;
+            const n = (models ?? []).filter((m) => forTask(m, t.id)).length;
             return (
               <button key={t.id} className="chip" disabled={n === 0} aria-pressed={task === t.id} onClick={() => setTask(task === t.id ? null : t.id)} title={n === 0 ? `${t.hint}. Models for this are coming.` : t.hint}>
                 {t.label}{n === 0 ? " (coming)" : ` (${n})`}

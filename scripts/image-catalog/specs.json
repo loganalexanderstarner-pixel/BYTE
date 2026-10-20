@@ -1325,7 +1325,8 @@
    "Juggernaut-X-RunDiffusion-NSFW.safetensors"
   ],
   "tagline": "A community SDXL model by RunDiffusion.",
-  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-X-v10) for the style it was trained for."
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-X-v10) for the style it was trained for.",
+  "mature": true
  },
  {
   "repo": "RunDiffusion/Juggernaut-XI-v11",
@@ -1371,23 +1372,6 @@
   "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XL-v8) for the style it was trained for."
  },
  {
-  "repo": "MLbackup/2023_Scraped_SDXL",
-  "family": "Stable Diffusion XL",
-  "name": "2023 Scraped SDXL",
-  "tags": [
-   "illustration"
-  ],
-  "dl": 7968,
-  "files": [
-   "EarthAniMix_XL------9819-----.safetensors",
-   "SlimyMixSDXLPRUNED.safetensors",
-   "DetailerMix.fp16.safetensors",
-   "DuskSlimeMixUltraInifity-YamerXL.fp16.safetensors"
-  ],
-  "tagline": "A community SDXL model by MLbackup.",
-  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (MLbackup/2023_Scraped_SDXL) for the style it was trained for."
- },
- {
   "repo": "Manjushri/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
   "family": "Stable Diffusion XL",
   "name": "pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
@@ -1403,7 +1387,8 @@
    "pornworksRealPorn_Illustrious_v4_04.safetensors"
   ],
   "tagline": "A community SDXL model by Manjushri.",
-  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (Manjushri/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint) for the style it was trained for."
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (Manjushri/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint) for the style it was trained for.",
+  "mature": true
  },
  {
   "repo": "fancyfeast/bigaspv2-5",
@@ -1418,40 +1403,6 @@
   ],
   "tagline": "A community SDXL model by fancyfeast.",
   "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (fancyfeast/bigaspv2-5) for the style it was trained for."
- },
- {
-  "repo": "EnD-Diffusers/Dec2023",
-  "family": "Stable Diffusion XL",
-  "name": "Dec2023",
-  "tags": [
-   "illustration"
-  ],
-  "dl": 4427,
-  "files": [
-   "CamelliaMIx_NSFW_V1.1.safetensors",
-   "NabiMix_V2.safetensors",
-   "FanastyComicBackmix.safetensors",
-   "NagiMix12-Test-1609-1298-0548.safetensors"
-  ],
-  "tagline": "A community SDXL model by EnD-Diffusers.",
-  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (EnD-Diffusers/Dec2023) for the style it was trained for."
- },
- {
-  "repo": "xFutureTechx/2024_Backups",
-  "family": "Stable Diffusion 1.5",
-  "name": "2024 Backups",
-  "tags": [
-   "lowvram"
-  ],
-  "dl": 3847,
-  "files": [
-   "EpicV2-Pastel-PrunedFinal.safetensors",
-   "EpicV2-WaterDelfeclMeinRefPoodaintro.safetensors",
-   "EpicV3-Pruned.safetensors",
-   "HelllaineMixFixedprune-1845-0826-2628.safetensors"
-  ],
-  "tagline": "A community Stable Diffusion 1.5 model by xFutureTechx.",
-  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (xFutureTechx/2024_Backups) for the style it was trained for."
  },
  {
   "repo": "HyperX-Sentience/Juggernaut-Reborn",
@@ -1484,20 +1435,6 @@
   "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XL) for the style it was trained for."
  },
  {
-  "repo": "latent-consistency/lcm-sdxl",
-  "family": "Stable Diffusion XL",
-  "name": "lcm-sdxl",
-  "tags": [
-   "fast"
-  ],
-  "dl": 2342,
-  "files": [
-   "diffusion_pytorch_model.fp16.safetensors"
-  ],
-  "tagline": "A community SDXL model by latent-consistency.",
-  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (latent-consistency/lcm-sdxl) for the style it was trained for."
- },
- {
   "repo": "cagliostrolab/animagine-xl-4.0-zero",
   "family": "Stable Diffusion XL",
   "name": "animagine-xl-4.0-zero",
@@ -1523,7 +1460,8 @@
    "lustifySDXLNSFWSFW_v20.safetensors"
   ],
   "tagline": "A community SDXL model by debugdll.",
-  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (debugdll/nsfw-image-generator) for the style it was trained for."
+  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (debugdll/nsfw-image-generator) for the style it was trained for.",
+  "mature": true
  },
  {
   "repo": "uhuya/AsianVibesMix",
@@ -1570,24 +1508,6 @@
   "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XI-Lightning) for the style it was trained for."
  },
  {
-  "repo": "Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
-  "family": "Stable Diffusion XL",
-  "name": "pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
-  "tags": [
-   "realism",
-   "cartoon"
-  ],
-  "dl": 1712,
-  "files": [
-   "pornworksRealPornPhoto_ponyV04.safetensors",
-   "pornworksRealPornPhoto_v04.safetensors",
-   "pornworksRealPornPhoto_v03.safetensors",
-   "pornworksRealPorn_Illustrious_v4_04.safetensors"
-  ],
-  "tagline": "A community SDXL model by Sexyevatender.",
-  "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint) for the style it was trained for."
- },
- {
   "repo": "RunDiffusion/Juggernaut-XL-v6",
   "family": "Stable Diffusion XL",
   "name": "Juggernaut-XL-v6",
@@ -1600,5 +1520,596 @@
   ],
   "tagline": "A community SDXL model by RunDiffusion.",
   "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-XL-v6) for the style it was trained for."
+ },
+ {
+  "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+  "family": "Qwen-Image Edit",
+  "kind": "edit",
+  "name": "Qwen-Image Edit 2511",
+  "community": false,
+  "quality": 94,
+  "steps": 20,
+  "tags": [
+   "edit",
+   "text",
+   "restore",
+   "style"
+  ],
+  "dl": 0,
+  "tagline": "Change a photo by describing what you want: remove a person, swap the background, restyle, fix an old photo.",
+  "strengths": "The best free photo editor. Tell it \"remove the man on the left\", \"make it a watercolor\", \"change the sign to say OPEN\" or \"restore this old photo\" and it keeps everything else the same. Large: use a lower quant on small cards."
+ },
+ {
+  "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+  "family": "Qwen-Image Edit",
+  "kind": "edit",
+  "name": "Qwen-Image Edit 2509",
+  "community": false,
+  "quality": 92,
+  "steps": 20,
+  "tags": [
+   "edit",
+   "text",
+   "restore",
+   "style"
+  ],
+  "dl": 0,
+  "tagline": "The earlier Qwen photo editor, still very good.",
+  "strengths": "Removes or adds things, changes style and background, edits text in pictures. A little less steady on small details than 2511."
+ },
+ {
+  "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+  "family": "Qwen-Image Edit",
+  "kind": "edit",
+  "name": "Qwen-Image Edit",
+  "community": false,
+  "quality": 88,
+  "steps": 20,
+  "tags": [
+   "edit",
+   "text",
+   "style"
+  ],
+  "dl": 0,
+  "tagline": "The first Qwen photo editor.",
+  "strengths": "Good at changing text and style; the newer versions are better at keeping people's faces the same."
+ },
+ {
+  "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+  "family": "FLUX.1 Kontext",
+  "kind": "edit",
+  "name": "FLUX.1 Kontext dev",
+  "community": false,
+  "quality": 88,
+  "steps": 28,
+  "tags": [
+   "edit",
+   "style",
+   "restore"
+  ],
+  "dl": 0,
+  "tagline": "Edit a photo with a sentence, and keep the same person or object.",
+  "strengths": "Strong at keeping a face or object the same while you change the scene, outfit or style. Smaller than Qwen Edit, so it fits more cards. Licence is non-commercial."
+ },
+ {
+  "repo": "leejet/FLUX.2-klein-4B-GGUF",
+  "family": "FLUX.2 klein",
+  "name": "FLUX.2 klein 4B",
+  "community": false,
+  "quality": 88,
+  "steps": 4,
+  "tags": [
+   "realism",
+   "fast",
+   "lowvram",
+   "edit",
+   "poster"
+  ],
+  "dl": 0,
+  "tagline": "Makes pictures and edits photos, in 4 steps, on a small card.",
+  "strengths": "One small model that does both: draw a new picture or change a photo you give it. Quick, photo-real, Apache licence, and it fits cards with 6 GB."
+ },
+ {
+  "repo": "leejet/FLUX.2-klein-base-4B-GGUF",
+  "family": "FLUX.2 klein",
+  "name": "FLUX.2 klein base 4B",
+  "community": false,
+  "quality": 89,
+  "steps": 20,
+  "tags": [
+   "realism",
+   "edit",
+   "illustration"
+  ],
+  "dl": 0,
+  "tagline": "The slower, more steerable FLUX.2 klein.",
+  "strengths": "More varied and easier to steer than the quick version, with the same picture and photo-edit skills. Needs about 20 steps."
+ },
+ {
+  "repo": "stabilityai/stable-diffusion-xl-base-1.0",
+  "family": "Stable Diffusion XL",
+  "name": "stable diffusion xl base 1.0",
+  "tags": [
+   "illustration"
+  ],
+  "dl": 4300663,
+  "files": [
+   "sd_xl_base_1.0.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community SDXL model by stabilityai.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (stabilityai/stable-diffusion-xl-base-1.0) for what it is tuned for."
+ },
+ {
+  "repo": "Lykon/DreamShaper",
+  "family": "Stable Diffusion 1.5",
+  "name": "DreamShaper",
+  "tags": [
+   "fast",
+   "illustration",
+   "lowvram"
+  ],
+  "dl": 235999,
+  "files": [
+   "DreamShaper_3.3_pruned.safetensors",
+   "DreamShaper8_LCM.safetensors",
+   "DreamShaper_8_pruned.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community Stable Diffusion 1.5 model by Lykon.",
+  "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (Lykon/DreamShaper) for what it is tuned for."
+ },
+ {
+  "repo": "cagliostrolab/animagine-xl-3.1",
+  "family": "Stable Diffusion XL",
+  "name": "animagine xl 3.1",
+  "tags": [
+   "cartoon",
+   "illustration"
+  ],
+  "dl": 178167,
+  "files": [
+   "animagine-xl-3.1.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community SDXL model by cagliostrolab.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (cagliostrolab/animagine-xl-3.1) for what it is tuned for."
+ },
+ {
+  "repo": "cagliostrolab/animagine-xl-3.0",
+  "family": "Stable Diffusion XL",
+  "name": "animagine xl 3.0",
+  "tags": [
+   "cartoon",
+   "illustration"
+  ],
+  "dl": 54943,
+  "files": [
+   "animagine-xl-3.0.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community SDXL model by cagliostrolab.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (cagliostrolab/animagine-xl-3.0) for what it is tuned for."
+ },
+ {
+  "repo": "cyberdelia/CyberRealisticXL",
+  "family": "Stable Diffusion XL",
+  "name": "CyberRealisticXL",
+  "tags": [
+   "realism"
+  ],
+  "dl": 48577,
+  "files": [
+   "CyberRealisticXLPlay_V10.0_FP16.safetensors",
+   "CyberRealisticXLPlay_V6.0.safetensors",
+   "CyberRealisticXLPlay_V5.8.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community SDXL model by cyberdelia.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (cyberdelia/CyberRealisticXL) for what it is tuned for."
+ },
+ {
+  "repo": "Laxhar/noobai-XL-Vpred-1.0",
+  "family": "Stable Diffusion XL",
+  "name": "noobai XL Vpred 1.0",
+  "tags": [
+   "cartoon",
+   "illustration"
+  ],
+  "dl": 42092,
+  "files": [
+   "NoobAI-XL-Vpred-v1.0.safetensors"
+  ],
+  "community": true,
+  "mature": true,
+  "tagline": "A community SDXL model by Laxhar.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Laxhar/noobai-XL-Vpred-1.0) for what it is tuned for."
+ },
+ {
+  "repo": "cyberdelia/CyberRealistic",
+  "family": "Stable Diffusion 1.5",
+  "name": "CyberRealistic",
+  "tags": [
+   "fast",
+   "lowvram",
+   "realism"
+  ],
+  "dl": 34513,
+  "files": [
+   "CyberRealistic_V9_FP32.safetensors",
+   "CyberRealistic_V8_FP32.safetensors",
+   "CyberRealistic_V7.0_FP32.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community Stable Diffusion 1.5 model by cyberdelia.",
+  "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (cyberdelia/CyberRealistic) for what it is tuned for."
+ },
+ {
+  "repo": "sam749/AWPainting-v1-2",
+  "family": "Stable Diffusion 1.5",
+  "name": "AWPainting v1 2",
+  "tags": [
+   "fast",
+   "illustration",
+   "lowvram"
+  ],
+  "dl": 33736,
+  "files": [
+   "awpainting_v12.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community Stable Diffusion 1.5 model by sam749.",
+  "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (sam749/AWPainting-v1-2) for what it is tuned for."
+ },
+ {
+  "repo": "gsdf/Counterfeit-V2.5",
+  "family": "Stable Diffusion 1.5",
+  "name": "Counterfeit V2.5",
+  "tags": [
+   "cartoon",
+   "fast",
+   "illustration",
+   "lowvram"
+  ],
+  "dl": 24491,
+  "files": [
+   "Counterfeit-V2.2.safetensors",
+   "Counterfeit-V2.5_pruned.safetensors",
+   "Counterfeit-V2.1.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community Stable Diffusion 1.5 model by gsdf.",
+  "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (gsdf/Counterfeit-V2.5) for what it is tuned for."
+ },
+ {
+  "repo": "digiplay/majicMIX_realistic_v7",
+  "family": "Stable Diffusion 1.5",
+  "name": "majicMIX realistic v7",
+  "tags": [
+   "fast",
+   "lowvram",
+   "realism"
+  ],
+  "dl": 20415,
+  "files": [
+   "majicmixRealistic_v7.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community Stable Diffusion 1.5 model by digiplay.",
+  "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (digiplay/majicMIX_realistic_v7) for what it is tuned for."
+ },
+ {
+  "repo": "segmind/SSD-1B",
+  "family": "Stable Diffusion XL",
+  "name": "SSD 1B",
+  "tags": [
+   "illustration"
+  ],
+  "dl": 18186,
+  "files": [
+   "SSD-1B-modelspec.safetensors",
+   "SSD-1B.safetensors",
+   "SSD-1B-A1111.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community SDXL model by segmind.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (segmind/SSD-1B) for what it is tuned for."
+ },
+ {
+  "repo": "cyberdelia/CyberRealisticXL_Desire",
+  "family": "Stable Diffusion XL",
+  "name": "CyberRealisticXL Desire",
+  "tags": [
+   "realism"
+  ],
+  "dl": 14488,
+  "files": [
+   "CyberRealisticXL_Desire_V2.safetensors",
+   "CyberRealisticXL_Desire_V3_FP16.safetensors",
+   "CyberRealisticXL_Desire_V1_FP16.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community SDXL model by cyberdelia.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (cyberdelia/CyberRealisticXL_Desire) for what it is tuned for."
+ },
+ {
+  "repo": "Lykon/dreamshaper-8-lcm",
+  "family": "Stable Diffusion 1.5",
+  "name": "dreamshaper 8 lcm",
+  "tags": [
+   "fast",
+   "illustration",
+   "lowvram"
+  ],
+  "dl": 14476,
+  "files": [
+   "DreamShaper8_LCM.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community Stable Diffusion 1.5 model by Lykon.",
+  "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (Lykon/dreamshaper-8-lcm) for what it is tuned for."
+ },
+ {
+  "repo": "Jommarn/Illustrious-XL-v2.0",
+  "family": "Stable Diffusion XL",
+  "name": "Illustrious XL v2.0",
+  "tags": [
+   "cartoon",
+   "illustration"
+  ],
+  "dl": 13802,
+  "files": [
+   "Illustrious-XL-v2.0.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community SDXL model by Jommarn.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Jommarn/Illustrious-XL-v2.0) for what it is tuned for."
+ },
+ {
+  "repo": "xiaolxl/GuoFeng3",
+  "family": "Stable Diffusion 1.5",
+  "name": "GuoFeng3",
+  "tags": [
+   "fast",
+   "illustration",
+   "lowvram"
+  ],
+  "dl": 13446,
+  "files": [
+   "GuoFeng3.2.safetensors",
+   "GuoFeng3.3.safetensors",
+   "GuoFeng3.2_light_f16.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community Stable Diffusion 1.5 model by xiaolxl.",
+  "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (xiaolxl/GuoFeng3) for what it is tuned for."
+ },
+ {
+  "repo": "digiplay/MeinaMix_v11",
+  "family": "Stable Diffusion 1.5",
+  "name": "MeinaMix v11",
+  "tags": [
+   "fast",
+   "illustration",
+   "lowvram"
+  ],
+  "dl": 7619,
+  "files": [
+   "meinamix_meinaV11.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community Stable Diffusion 1.5 model by digiplay.",
+  "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (digiplay/MeinaMix_v11) for what it is tuned for."
+ },
+ {
+  "repo": "Yntec/AnythingV5",
+  "family": "Stable Diffusion 1.5",
+  "name": "AnythingV5",
+  "tags": [
+   "cartoon",
+   "fast",
+   "illustration",
+   "lowvram"
+  ],
+  "dl": 7221,
+  "files": [
+   "AnythingV5.safetensors",
+   "Anything-v5.0-PRT.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community Stable Diffusion 1.5 model by Yntec.",
+  "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (Yntec/AnythingV5) for what it is tuned for."
+ },
+ {
+  "repo": "rityak/RealCore_Pony",
+  "family": "Stable Diffusion XL",
+  "name": "RealCore Pony",
+  "tags": [
+   "cartoon",
+   "illustration",
+   "realism"
+  ],
+  "dl": 6824,
+  "files": [
+   "RealCore_Pony_v20.safetensors",
+   "RealPonyCore.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community SDXL model by rityak.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (rityak/RealCore_Pony) for what it is tuned for."
+ },
+ {
+  "repo": "Koolchh/AnimeBoysXL-v3.0",
+  "family": "Stable Diffusion XL",
+  "name": "AnimeBoysXL v3.0",
+  "tags": [
+   "cartoon",
+   "illustration"
+  ],
+  "dl": 5780,
+  "files": [
+   "AnimeBoysXL-v3.0.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community SDXL model by Koolchh.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Koolchh/AnimeBoysXL-v3.0) for what it is tuned for."
+ },
+ {
+  "repo": "digiplay/Photon_v1",
+  "family": "Stable Diffusion 1.5",
+  "name": "Photon v1",
+  "tags": [
+   "fast",
+   "lowvram",
+   "realism"
+  ],
+  "dl": 4913,
+  "files": [
+   "photon_v1.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community Stable Diffusion 1.5 model by digiplay.",
+  "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (digiplay/Photon_v1) for what it is tuned for."
+ },
+ {
+  "repo": "Lykon/AbsoluteReality",
+  "family": "Stable Diffusion 1.5",
+  "name": "AbsoluteReality",
+  "tags": [
+   "fast",
+   "lowvram",
+   "realism"
+  ],
+  "dl": 4845,
+  "files": [
+   "AbsoluteRealityV1.6525.safetensors",
+   "AbsoluteReality_1.8.1_pruned.safetensors",
+   "AbsoluteRealityV1.6525_pruned.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community Stable Diffusion 1.5 model by Lykon.",
+  "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (Lykon/AbsoluteReality) for what it is tuned for."
+ },
+ {
+  "repo": "Lykon/AAM_XL_AnimeMix",
+  "family": "Stable Diffusion XL",
+  "name": "AAM XL AnimeMix",
+  "tags": [
+   "cartoon",
+   "illustration"
+  ],
+  "dl": 4802,
+  "files": [
+   "AAM_XL_Anime_Mix.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community SDXL model by Lykon.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Lykon/AAM_XL_AnimeMix) for what it is tuned for."
+ },
+ {
+  "repo": "dreamlike-art/dreamlike-photoreal-2.0",
+  "family": "Stable Diffusion 1.5",
+  "name": "dreamlike photoreal 2.0",
+  "tags": [
+   "fast",
+   "lowvram",
+   "realism"
+  ],
+  "dl": 4635,
+  "files": [
+   "dreamlike-photoreal-2.0.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community Stable Diffusion 1.5 model by dreamlike-art.",
+  "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (dreamlike-art/dreamlike-photoreal-2.0) for what it is tuned for."
+ },
+ {
+  "repo": "digiplay/DreamShaper_8",
+  "family": "Stable Diffusion 1.5",
+  "name": "DreamShaper 8",
+  "tags": [
+   "fast",
+   "illustration",
+   "lowvram"
+  ],
+  "dl": 4368,
+  "files": [
+   "dreamshaper_8.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community Stable Diffusion 1.5 model by digiplay.",
+  "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (digiplay/DreamShaper_8) for what it is tuned for."
+ },
+ {
+  "repo": "swl-models/xiaolxl-guofeng-v3",
+  "family": "Stable Diffusion XL",
+  "name": "xiaolxl guofeng v3",
+  "tags": [
+   "illustration"
+  ],
+  "dl": 4189,
+  "files": [
+   "GuoFeng3.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community SDXL model by swl-models.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (swl-models/xiaolxl-guofeng-v3) for what it is tuned for."
+ },
+ {
+  "repo": "Raelina/Raehoshi-illust-XL-11",
+  "family": "Stable Diffusion XL",
+  "name": "Raehoshi illust XL 11",
+  "tags": [
+   "illustration"
+  ],
+  "dl": 4182,
+  "files": [
+   "raehoshi-illust-xl-11.safetensors"
+  ],
+  "community": true,
+  "mature": false,
+  "tagline": "A community SDXL model by Raelina.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Raelina/Raehoshi-illust-XL-11) for what it is tuned for."
+ },
+ {
+  "repo": "Ine007/waiNSFWIllustrious_v140",
+  "family": "Stable Diffusion XL",
+  "name": "waiNSFWIllustrious v140",
+  "tags": [
+   "cartoon",
+   "illustration"
+  ],
+  "dl": 3212,
+  "files": [
+   "waiNSFWIllustrious_v140.safetensors"
+  ],
+  "community": true,
+  "mature": true,
+  "tagline": "A community SDXL model by Ine007.",
+  "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Ine007/waiNSFWIllustrious_v140) for what it is tuned for."
  }
 ]

@@ -108,6 +108,8 @@ pub struct Modules {
     pub small_model: bool,
     /// "Translate … into …": part by part, streamed (translate.rs).
     pub translate: bool,
+    /// "Draw me …" makes a picture on this PC (Settings → Images → Draw from chat).
+    pub images: bool,
     /// Mac control: notes, reminders, calendar, music, settings (macctl.rs).
     pub mac: bool,
     /// Windows: the PowerShell terminal helper (terminal.rs); the person switched it on in Settings.
@@ -497,6 +499,28 @@ pub async fn run(turn: Turn<'_>, cancel: CancellationToken, events: &Channel<Cha
     if session.is_none() && turn.modules.translate && crate::translate::ask(&tr_question).is_some() && crate::translate::run(&turn, &tr_question, &cancel, &send).await?.is_some() {
         send(ChatEvent::Done { finish_reason: "stop".into() })?;
         return Ok(());
+    }
+    // "Draw me a lighthouse": made on this PC with the best picture model downloaded (imageedit.rs).
+    if session.is_none() && turn.modules.images {
+        if let (Some(app), Some(prompt)) = (turn.app, crate::imageedit::picture_request(&question)) {
+            let call_id = "byte_picture_0".to_string();
+            let args = json!({ "prompt": prompt });
+            send(ChatEvent::ToolCall { id: call_id.clone(), name: "make_picture".into(), args })?;
+            let reply = tokio::select! {
+                r = crate::imageedit::from_chat(app, &prompt) => r,
+                _ = cancel.cancelled() => {
+                    let _ = crate::imagegen::image_cancel().await;
+                    return Err(AppError::Cancelled);
+                }
+            };
+            if !reply.is_empty() {
+                send(ChatEvent::ToolResult { id: call_id, ok: true, summary: "Picture".into() })?;
+                send(ChatEvent::Content { delta: reply })?;
+                send(ChatEvent::Done { finish_reason: "stop".into() })?;
+                return Ok(());
+            }
+            send(ChatEvent::ToolResult { id: call_id, ok: false, summary: "Not made".into() })?;
+        }
     }
     let mut prepared: Option<(SourceBook, String, &str)> = None;
     if let Some(s) = session.as_mut() {
@@ -1366,7 +1390,7 @@ mod tests {
         let log = ActionLog::new(dir.path().join("a.jsonl"));
         let http = chat::local_client();
         let net = tools::fetch::web_client();
-        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false, mac: false, terminal: false, upkeep: false, tasks: false, watch: false, automations: false, trackers: false, connectors: false, instant: false, action_mode: Default::default(), control: Default::default() };
+        let modules = Modules { reviews: true, prices: true, game_hints: true, self_check: true, best_of_three: true, study: false, small_model: false, translate: false, images: false, mac: false, terminal: false, upkeep: false, tasks: false, watch: false, automations: false, trackers: false, connectors: false, instant: false, action_mode: Default::default(), control: Default::default() };
         let cases = [
             ("Reviews of the Sony WH-1000XM5", Mode::Auto, "reviews"),
             ("What's the cheapest place to buy a Steam Deck OLED?", Mode::Auto, "prices"),

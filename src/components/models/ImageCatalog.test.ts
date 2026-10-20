@@ -46,6 +46,12 @@ describe("goodAt", () => {
     expect(g).toContain("Fast");
     expect(g).toContain("Poems and posters");
   });
+  it("editing jobs are done by the edit models and by models tagged edit", () => {
+    const l = [m("g", {}), m("e", { kind: "edit", tags: ["edit", "restore"] }), m("k", { tags: ["edit"] }), m("u", { kind: "upscale" })];
+    expect(arrange(l, { ...base, task: "remove" }).map((x) => x.id).sort()).toEqual(["e", "k"]);
+    expect(arrange(l, { ...base, task: "restore" }).map((x) => x.id)).toEqual(["e"]);
+    expect(arrange(l, { ...base, task: "generate" }).map((x) => x.id).sort()).toEqual(["g", "k"]);
+  });
   it("a task filter only narrows when asked", () => {
     const l = [m("a", { kind: "generate" }), m("b", { kind: "upscale" })];
     expect(arrange(l, base).length).toBe(2);

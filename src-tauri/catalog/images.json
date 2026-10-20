@@ -1,6 +1,6 @@
 {
  "version": 2,
- "generated": "2026-10-19T20:51:13Z",
+ "generated": "2026-10-20T00:19:31Z",
  "models": [
   {
    "id": "abenzerps-qwen-image-2-1-uncensored-quantized",
@@ -17052,7 +17052,7 @@
    "license": "CreativeML OpenRAIL-M",
    "commercialOk": true,
    "community": true,
-   "mature": false,
+   "mature": true,
    "quality": 73,
    "steps": 25,
    "overheadGb": 2.0,
@@ -17212,96 +17212,8 @@
    "companions": []
   },
   {
-   "id": "mlbackup-2023-scraped-sdxl",
-   "name": "2023 Scraped SDXL",
-   "family": "Stable Diffusion XL",
-   "kind": "generate",
-   "tags": [
-    "illustration"
-   ],
-   "looks": [],
-   "tagline": "A community SDXL model by MLbackup.",
-   "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (MLbackup/2023_Scraped_SDXL) for the style it was trained for.",
-   "license": "CreativeML OpenRAIL-M",
-   "commercialOk": true,
-   "community": true,
-   "mature": false,
-   "quality": 73,
-   "steps": 25,
-   "overheadGb": 2.0,
-   "downloads": 7968,
-   "source": "MLbackup/2023_Scraped_SDXL",
-   "variants": [
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 6938040682,
-     "files": [
-      {
-       "role": "model",
-       "name": "EarthAniMix_XL------9819-----.safetensors",
-       "repo": "MLbackup/2023_Scraped_SDXL",
-       "size": 6938040682,
-       "sha256": "0c484d4c9bb004f4cea7bdf8209e860c322433ffcd9b02abee7564bb73536aa5",
-       "url": "https://huggingface.co/MLbackup/2023_Scraped_SDXL/resolve/main/EarthAniMix_XL------9819-----.safetensors"
-      }
-     ]
-    },
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 6938040682,
-     "files": [
-      {
-       "role": "model",
-       "name": "SlimyMixSDXLPRUNED.safetensors",
-       "repo": "MLbackup/2023_Scraped_SDXL",
-       "size": 6938040682,
-       "sha256": "28e315ffe8ed6421d0c2b93448d16acb7e505024a4767dd37c00da0602b048ae",
-       "url": "https://huggingface.co/MLbackup/2023_Scraped_SDXL/resolve/main/SlimyMixSDXLPRUNED.safetensors"
-      }
-     ]
-    },
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 6938040706,
-     "files": [
-      {
-       "role": "model",
-       "name": "DetailerMix.fp16.safetensors",
-       "repo": "MLbackup/2023_Scraped_SDXL",
-       "size": 6938040706,
-       "sha256": "21e187772f361dbf0e7fc47c39d4450408284b03e74cfc8af957af6c8fb77a48",
-       "url": "https://huggingface.co/MLbackup/2023_Scraped_SDXL/resolve/main/DetailerMix.fp16.safetensors"
-      }
-     ]
-    },
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 6938040706,
-     "files": [
-      {
-       "role": "model",
-       "name": "DuskSlimeMixUltraInifity-YamerXL.fp16.safetensors",
-       "repo": "MLbackup/2023_Scraped_SDXL",
-       "size": 6938040706,
-       "sha256": "06064da749a3410a37b650c190073f943469ed865db367a58920640028ec2f46",
-       "url": "https://huggingface.co/MLbackup/2023_Scraped_SDXL/resolve/main/DuskSlimeMixUltraInifity-YamerXL.fp16.safetensors"
-      }
-     ]
-    }
-   ],
-   "companions": []
-  },
-  {
    "id": "manjushri-pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
-   "name": "pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint (Manjushri)",
+   "name": "pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
    "family": "Stable Diffusion XL",
    "kind": "generate",
    "tags": [
@@ -17433,182 +17345,6 @@
    "companions": []
   },
   {
-   "id": "end-diffusers-dec2023",
-   "name": "Dec2023",
-   "family": "Stable Diffusion XL",
-   "kind": "generate",
-   "tags": [
-    "illustration"
-   ],
-   "looks": [],
-   "tagline": "A community SDXL model by EnD-Diffusers.",
-   "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (EnD-Diffusers/Dec2023) for the style it was trained for.",
-   "license": "CreativeML OpenRAIL-M",
-   "commercialOk": true,
-   "community": true,
-   "mature": false,
-   "quality": 73,
-   "steps": 25,
-   "overheadGb": 2.0,
-   "downloads": 4427,
-   "source": "EnD-Diffusers/Dec2023",
-   "variants": [
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 2132625431,
-     "files": [
-      {
-       "role": "model",
-       "name": "CamelliaMIx_NSFW_V1.1.safetensors",
-       "repo": "EnD-Diffusers/Dec2023",
-       "size": 2132625431,
-       "sha256": "d3ffeb2390b0ec595778a2d826b6e9cfdab1feb48edac1242278635aa74a5774",
-       "url": "https://huggingface.co/EnD-Diffusers/Dec2023/resolve/main/CamelliaMIx_NSFW_V1.1.safetensors"
-      }
-     ]
-    },
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 2132625432,
-     "files": [
-      {
-       "role": "model",
-       "name": "NabiMix_V2.safetensors",
-       "repo": "EnD-Diffusers/Dec2023",
-       "size": 2132625432,
-       "sha256": "06dc6ec91d9578dc947f2e5155ac5e6df30854d194963d346abf46170a91b5db",
-       "url": "https://huggingface.co/EnD-Diffusers/Dec2023/resolve/main/NabiMix_V2.safetensors"
-      }
-     ]
-    },
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 2132625448,
-     "files": [
-      {
-       "role": "model",
-       "name": "FanastyComicBackmix.safetensors",
-       "repo": "EnD-Diffusers/Dec2023",
-       "size": 2132625448,
-       "sha256": "2928f1bc48b36d6cf6dcc4966934bd6b565b370bf76663fda3cc3be23462ea3c",
-       "url": "https://huggingface.co/EnD-Diffusers/Dec2023/resolve/main/FanastyComicBackmix.safetensors"
-      }
-     ]
-    },
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 2132625894,
-     "files": [
-      {
-       "role": "model",
-       "name": "NagiMix12-Test-1609-1298-0548.safetensors",
-       "repo": "EnD-Diffusers/Dec2023",
-       "size": 2132625894,
-       "sha256": "5c6f7cffe7b334c7b06d8eb221b56ff17677d8793f26325e813dd7a7fd3ffff7",
-       "url": "https://huggingface.co/EnD-Diffusers/Dec2023/resolve/main/NagiMix12-Test-1609-1298-0548.safetensors"
-      }
-     ]
-    }
-   ],
-   "companions": []
-  },
-  {
-   "id": "xfuturetechx-2024-backups",
-   "name": "2024 Backups",
-   "family": "Stable Diffusion 1.5",
-   "kind": "generate",
-   "tags": [
-    "lowvram"
-   ],
-   "looks": [],
-   "tagline": "A community Stable Diffusion 1.5 model by xFutureTechx.",
-   "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (xFutureTechx/2024_Backups) for the style it was trained for.",
-   "license": "CreativeML OpenRAIL-M",
-   "commercialOk": true,
-   "community": true,
-   "mature": false,
-   "quality": 52,
-   "steps": 20,
-   "overheadGb": 1.5,
-   "downloads": 3847,
-   "source": "xFutureTechx/2024_Backups",
-   "variants": [
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 2132625894,
-     "files": [
-      {
-       "role": "model",
-       "name": "EpicV2-Pastel-PrunedFinal.safetensors",
-       "repo": "xFutureTechx/2024_Backups",
-       "size": 2132625894,
-       "sha256": "173deacf1a869137e65f5678e83bf985ab345c7a744798aa0a840e400bae256f",
-       "url": "https://huggingface.co/xFutureTechx/2024_Backups/resolve/main/EpicV2-Pastel-PrunedFinal.safetensors"
-      }
-     ]
-    },
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 2132625894,
-     "files": [
-      {
-       "role": "model",
-       "name": "EpicV2-WaterDelfeclMeinRefPoodaintro.safetensors",
-       "repo": "xFutureTechx/2024_Backups",
-       "size": 2132625894,
-       "sha256": "a0e6a318fa00c09402cb2685e23bdc88727e9221a54a8407573813ad65faf28a",
-       "url": "https://huggingface.co/xFutureTechx/2024_Backups/resolve/main/EpicV2-WaterDelfeclMeinRefPoodaintro.safetensors"
-      }
-     ]
-    },
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 2132625894,
-     "files": [
-      {
-       "role": "model",
-       "name": "EpicV3-Pruned.safetensors",
-       "repo": "xFutureTechx/2024_Backups",
-       "size": 2132625894,
-       "sha256": "26ded524754374a55ca788ad96d41aa69bed70a9bfdd72b9c0117045ec71245d",
-       "url": "https://huggingface.co/xFutureTechx/2024_Backups/resolve/main/EpicV3-Pruned.safetensors"
-      }
-     ]
-    },
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 2132625894,
-     "files": [
-      {
-       "role": "model",
-       "name": "HelllaineMixFixedprune-1845-0826-2628.safetensors",
-       "repo": "xFutureTechx/2024_Backups",
-       "size": 2132625894,
-       "sha256": "5d3f2ae9a1585ba829d1f1f0b6c4ff40a32ea3db4fd81e0568ecc248a6112092",
-       "url": "https://huggingface.co/xFutureTechx/2024_Backups/resolve/main/HelllaineMixFixedprune-1845-0826-2628.safetensors"
-      }
-     ]
-    }
-   ],
-   "companions": []
-  },
-  {
    "id": "hyperx-sentience-juggernaut-reborn",
    "name": "Juggernaut-Reborn",
    "family": "Stable Diffusion 1.5",
@@ -17690,46 +17426,6 @@
        "size": 6938040706,
        "sha256": "700528894b5ec7f8709d5a911c3c0b4e84877a0103126e5ea5cc2b003921acea",
        "url": "https://huggingface.co/RunDiffusion/Juggernaut-XL/resolve/main/juggernautXL_version2.safetensors"
-      }
-     ]
-    }
-   ],
-   "companions": []
-  },
-  {
-   "id": "latent-consistency-lcm-sdxl",
-   "name": "lcm-sdxl",
-   "family": "Stable Diffusion XL",
-   "kind": "generate",
-   "tags": [
-    "fast"
-   ],
-   "looks": [],
-   "tagline": "A community SDXL model by latent-consistency.",
-   "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (latent-consistency/lcm-sdxl) for the style it was trained for.",
-   "license": "OpenRAIL++",
-   "commercialOk": true,
-   "community": true,
-   "mature": false,
-   "quality": 73,
-   "steps": 25,
-   "overheadGb": 2.0,
-   "downloads": 2342,
-   "source": "latent-consistency/lcm-sdxl",
-   "variants": [
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 5135313712,
-     "files": [
-      {
-       "role": "model",
-       "name": "diffusion_pytorch_model.fp16.safetensors",
-       "repo": "latent-consistency/lcm-sdxl",
-       "size": 5135313712,
-       "sha256": "e906040f7a2f484cf6c4fcef93bfa3cead8c245a87d02c825a1554bad9c7204a",
-       "url": "https://huggingface.co/latent-consistency/lcm-sdxl/resolve/main/diffusion_pytorch_model.fp16.safetensors"
       }
      ]
     }
@@ -17958,99 +17654,6 @@
    "companions": []
   },
   {
-   "id": "sexyevatender-pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
-   "name": "pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint (Sexyevatender)",
-   "family": "Stable Diffusion XL",
-   "kind": "generate",
-   "tags": [
-    "cartoon",
-    "realism"
-   ],
-   "looks": [
-    "portrait",
-    "landscape",
-    "cinematic"
-   ],
-   "tagline": "A community SDXL model by Sexyevatender.",
-   "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint) for the style it was trained for.",
-   "license": "OpenRAIL++",
-   "commercialOk": true,
-   "community": true,
-   "mature": true,
-   "quality": 73,
-   "steps": 25,
-   "overheadGb": 2.0,
-   "downloads": 1712,
-   "source": "Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
-   "variants": [
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 6938041176,
-     "files": [
-      {
-       "role": "model",
-       "name": "pornworksRealPornPhoto_ponyV04.safetensors",
-       "repo": "Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
-       "size": 6938041176,
-       "sha256": "4142bfecb12c9183f7bfa48ffb244409c7292e7cb08b5565d5656047a4bae307",
-       "url": "https://huggingface.co/Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint/resolve/main/pornworksRealPornPhoto_ponyV04.safetensors"
-      }
-     ]
-    },
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 6938042528,
-     "files": [
-      {
-       "role": "model",
-       "name": "pornworksRealPornPhoto_v04.safetensors",
-       "repo": "Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
-       "size": 6938042528,
-       "sha256": "fb1d2047596d4d350092a37294426ab46ea834c7f38e3308f4a0c92703a71e64",
-       "url": "https://huggingface.co/Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint/resolve/main/pornworksRealPornPhoto_v04.safetensors"
-      }
-     ]
-    },
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 6938043248,
-     "files": [
-      {
-       "role": "model",
-       "name": "pornworksRealPornPhoto_v03.safetensors",
-       "repo": "Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
-       "size": 6938043248,
-       "sha256": "622b8a73162b0144563dddb2b3561c6c04f51172cfebcf2d7a3915ff41370648",
-       "url": "https://huggingface.co/Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint/resolve/main/pornworksRealPornPhoto_v03.safetensors"
-      }
-     ]
-    },
-    {
-     "quant": "FP16",
-     "bits": 16,
-     "qualityCost": 0,
-     "sizeBytes": 6938043264,
-     "files": [
-      {
-       "role": "model",
-       "name": "pornworksRealPorn_Illustrious_v4_04.safetensors",
-       "repo": "Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
-       "size": 6938043264,
-       "sha256": "eab7124e98baa4bcf60f986324871369d369d6d268dd63e128065e288d115bc3",
-       "url": "https://huggingface.co/Sexyevatender/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint/resolve/main/pornworksRealPorn_Illustrious_v4_04.safetensors"
-      }
-     ]
-    }
-   ],
-   "companions": []
-  },
-  {
    "id": "rundiffusion-juggernaut-xl-v6",
    "name": "Juggernaut-XL-v6",
    "family": "Stable Diffusion XL",
@@ -18088,6 +17691,2683 @@
        "size": 7105348560,
        "sha256": "1fe6c7ec54c786040cdabc7b4e89720069d97096922e20d01f13e7764412b47f",
        "url": "https://huggingface.co/RunDiffusion/Juggernaut-XL-v6/resolve/main/juggernautXL_version6Rundiffusion.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "unsloth-qwen-image-edit-2511-gguf",
+   "name": "Qwen-Image Edit 2511",
+   "family": "Qwen-Image Edit",
+   "kind": "edit",
+   "tags": [
+    "edit",
+    "restore",
+    "style",
+    "text"
+   ],
+   "looks": [],
+   "tagline": "Change a photo by describing what you want: remove a person, swap the background, restyle, fix an old photo.",
+   "strengths": "The best free photo editor. Tell it \"remove the man on the left\", \"make it a watercolor\", \"change the sign to say OPEN\" or \"restore this old photo\" and it keeps everything else the same. Large: use a lower quant on small cards.",
+   "license": "Apache-2.0",
+   "commercialOk": true,
+   "community": false,
+   "mature": false,
+   "quality": 94,
+   "steps": 20,
+   "overheadGb": 4.0,
+   "downloads": 0,
+   "source": "unsloth/Qwen-Image-Edit-2511-GGUF",
+   "variants": [
+    {
+     "quant": "Q2_K",
+     "bits": 2.6,
+     "qualityCost": 15,
+     "sizeBytes": 7468022368,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q2_K.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 7468022368,
+       "sha256": "a3d09042b64657970654941aa08d895de29b4d98edf3632a89e70d4d6e23c47c",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q2_K.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q3_K_S",
+     "bits": 3.5,
+     "qualityCost": 8,
+     "sizeBytes": 9218914912,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q3_K_S.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 9218914912,
+       "sha256": "d613d933c54ea2cace72bc556f803137c45363513677268283c08a5480a99309",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q3_K_S.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q3_K_M",
+     "bits": 3.5,
+     "qualityCost": 8,
+     "sizeBytes": 9920805472,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q3_K_M.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 9920805472,
+       "sha256": "5631fd3a407880e1fb541dc47696628633c898565136c128d5a2741d4b84e9e9",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q3_K_M.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q3_K_L",
+     "bits": 3.5,
+     "qualityCost": 8,
+     "sizeBytes": 10581408352,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q3_K_L.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 10581408352,
+       "sha256": "0b21b582014f62aa183d58987d5cf734fc00ed2d17fe8deef11b995806c11423",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q3_K_L.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_0",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 11852773984,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q4_0.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 11852773984,
+       "sha256": "4b537c1e238f315fb4774e3ae677037b3d8bfde3e50a95d0b0a68dd9597b4f82",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q4_0.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_K_S",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 12410747488,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q4_K_S.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 12410747488,
+       "sha256": "df952ef0d2b46463bd95d9afbb78e045ec5412316f453a7ad5a3d7bcbb111b72",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q4_K_S.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_1",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 12843678304,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q4_1.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 12843678304,
+       "sha256": "ea5e56e5b729ee642960914aa69b7ef1ac973ad123397f6b93f9acdac5ab9160",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q4_1.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_K_M",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 13244758624,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q4_K_M.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 13244758624,
+       "sha256": "8677bac90627adbbc11efab87b1870e701c4eb3689ee865a3de8ab81b705a723",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q4_K_M.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_K_S",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 14325611104,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q5_K_S.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 14325611104,
+       "sha256": "439a8da6093c338f52ff906058c35338989669922b9d69a9c3abd23f5a67551b",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q5_K_S.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_0",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 14400813664,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q5_0.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 14400813664,
+       "sha256": "f39607a683dd86789be2aff67d6a5f0317080242865311fd1ca077eb3ebe63cb",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q5_0.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_K_M",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 15027501664,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q5_K_M.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 15027501664,
+       "sha256": "c257def934d25562e1dcb7e8710eb5457a23c1ae7218f7a5ea3174e773421d29",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q5_K_M.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_1",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 15391717984,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q5_1.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 15391717984,
+       "sha256": "fafa6e7e5c86f5d8d54c977c089b641d63cb9c346f3634d4c21910f75dd5284a",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q5_1.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q6_K",
+     "bits": 6.6,
+     "qualityCost": 1,
+     "sizeBytes": 16852417120,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q6_K.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 16852417120,
+       "sha256": "fdc28e5b8f7d9cfe0399fd1700c375f25f000fc4159bbdb0d4a809ae898eb759",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q6_K.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q8_0",
+     "bits": 8.5,
+     "qualityCost": 0,
+     "sizeBytes": 21761817184,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-Q8_0.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 21761817184,
+       "sha256": "ab4f0622fb002fccaaa679a2ecce6fd1b3190d8ea28a5b7b2b17b8669bc24afa",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q8_0.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "BF16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 40872114784,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-BF16.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 40872114784,
+       "sha256": "5c8f2fbd5819cd6a23fb54e1517e42956a0844e3eb6aed23d2dd0a55d3072783",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-BF16.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "F16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 40872114784,
+     "files": [
+      {
+       "role": "model",
+       "name": "qwen-image-edit-2511-F16.gguf",
+       "repo": "unsloth/Qwen-Image-Edit-2511-GGUF",
+       "size": 40872114784,
+       "sha256": "8c9ee5250455a3e9efc11dbce6aa89695fc72cdcd8af3783ac4cc22f4866e2b0",
+       "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-F16.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": [
+    {
+     "role": "vae",
+     "name": "split_files/vae/qwen_image_vae.safetensors",
+     "repo": "Comfy-Org/Qwen-Image_ComfyUI",
+     "size": 253806246,
+     "sha256": "a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f",
+     "url": "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors"
+    },
+    {
+     "role": "llm",
+     "name": "Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
+     "repo": "unsloth/Qwen2.5-VL-7B-Instruct-GGUF",
+     "size": 4683072384,
+     "sha256": "d16776dcd9a28d42758c2958ed3a752aabf20a305252cd64ff2be72b4a78c503",
+     "url": "https://huggingface.co/unsloth/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+    },
+    {
+     "role": "mmproj",
+     "name": "mmproj-F16.gguf",
+     "repo": "unsloth/Qwen2.5-VL-7B-Instruct-GGUF",
+     "size": 1354163040,
+     "sha256": "987dd0733033fb5dd9b124d1ca926ae865572e432384eee7618b2eec3e735e17",
+     "url": "https://huggingface.co/unsloth/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/mmproj-F16.gguf"
+    }
+   ]
+  },
+  {
+   "id": "quantstack-qwen-image-edit-2509-gguf",
+   "name": "Qwen-Image Edit 2509",
+   "family": "Qwen-Image Edit",
+   "kind": "edit",
+   "tags": [
+    "edit",
+    "restore",
+    "style",
+    "text"
+   ],
+   "looks": [],
+   "tagline": "The earlier Qwen photo editor, still very good.",
+   "strengths": "Removes or adds things, changes style and background, edits text in pictures. A little less steady on small details than 2511.",
+   "license": "Apache-2.0",
+   "commercialOk": true,
+   "community": false,
+   "mature": false,
+   "quality": 92,
+   "steps": 20,
+   "overheadGb": 4.0,
+   "downloads": 0,
+   "source": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+   "variants": [
+    {
+     "quant": "Q2_K",
+     "bits": 2.6,
+     "qualityCost": 15,
+     "sizeBytes": 7147452960,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen-Image-Edit-2509-Q2_K.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+       "size": 7147452960,
+       "sha256": "8d65b6f3b02c93ad5163b9bb7580ae6dd4cee776224b8d64528459c1e197fe93",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q2_K.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q3_K_S",
+     "bits": 3.5,
+     "qualityCost": 8,
+     "sizeBytes": 9037543968,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen-Image-Edit-2509-Q3_K_S.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+       "size": 9037543968,
+       "sha256": "03e46bb9666f15c282d316989bd082c449074e5f4cf186382444d4dfad1e8308",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q3_K_S.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q3_K_M",
+     "bits": 3.5,
+     "qualityCost": 8,
+     "sizeBytes": 9764502048,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen-Image-Edit-2509-Q3_K_M.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+       "size": 9764502048,
+       "sha256": "8fc24bbc4f818dd767f5219f38b8011bf1f2d196b9d1c3cab8df51f8e9f3bd43",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q3_K_M.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_0",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 11928271392,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen-Image-Edit-2509-Q4_0.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+       "size": 11928271392,
+       "sha256": "4f6cda402e1dbc36ee4b601b10b9ee0da2dbefedfbfa53eae3efb0ddff48c3e2",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q4_0.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_K_S",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 12204309024,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen-Image-Edit-2509-Q4_K_S.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+       "size": 12204309024,
+       "sha256": "07e64364812e527e0e39db3770440f76a5ed4732926c54a0a0e7da841cbe0ce6",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q4_K_S.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_1",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 12886145568,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen-Image-Edit-2509-Q4_1.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+       "size": 12886145568,
+       "sha256": "cec10dd533706d47bb690d6c4ba9a20afc89686d4c1a7024552fca226aad9706",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q4_1.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_K_M",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 13065746976,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen-Image-Edit-2509-Q4_K_M.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+       "size": 13065746976,
+       "sha256": "08f27cdf3e760edef5136ab0afdb9d3ed7a2799bd730b8d5cd9ecb291d808425",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q4_K_M.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_K_S",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 14117698080,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen-Image-Edit-2509-Q5_K_S.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+       "size": 14117698080,
+       "sha256": "3e1360f542502f7bc7cc923dad0f16ee6f331bda85fdd2558c989617aa75f4e0",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q5_K_S.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_0",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 14400813600,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen-Image-Edit-2509-Q5_0.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+       "size": 14400813600,
+       "sha256": "f9f8ac45665c82d4b0dfd2bd60df4dc37d90b4e9906a8cdc4ef3ab75f5403fa6",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q5_0.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_K_M",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 14934899232,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen-Image-Edit-2509-Q5_K_M.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+       "size": 14934899232,
+       "sha256": "9e3f23a2c662fd4ccc84ca259fa93a6e5a6beec81a51662f4437a6a399b84d87",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q5_K_M.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_1",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 15391717920,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen-Image-Edit-2509-Q5_1.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+       "size": 15391717920,
+       "sha256": "c85582fcefbf44c156484e90611f8598c991240418b85d3df19efb361f593e5a",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q5_1.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q6_K",
+     "bits": 6.6,
+     "qualityCost": 1,
+     "sizeBytes": 16824990240,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen-Image-Edit-2509-Q6_K.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+       "size": 16824990240,
+       "sha256": "ec5694f11a2908c10ef5324c50c79b1bb433547a39a211996551417b4b16f0ce",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q6_K.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q8_0",
+     "bits": 8.5,
+     "qualityCost": 0,
+     "sizeBytes": 21761817120,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen-Image-Edit-2509-Q8_0.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-2509-GGUF",
+       "size": 21761817120,
+       "sha256": "f8f0773e56f94f7f4508ca15a5bc9acf1d6ca2863bebaba7a1b80fbf76198e02",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q8_0.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": [
+    {
+     "role": "vae",
+     "name": "split_files/vae/qwen_image_vae.safetensors",
+     "repo": "Comfy-Org/Qwen-Image_ComfyUI",
+     "size": 253806246,
+     "sha256": "a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f",
+     "url": "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors"
+    },
+    {
+     "role": "llm",
+     "name": "Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
+     "repo": "unsloth/Qwen2.5-VL-7B-Instruct-GGUF",
+     "size": 4683072384,
+     "sha256": "d16776dcd9a28d42758c2958ed3a752aabf20a305252cd64ff2be72b4a78c503",
+     "url": "https://huggingface.co/unsloth/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+    },
+    {
+     "role": "mmproj",
+     "name": "mmproj-F16.gguf",
+     "repo": "unsloth/Qwen2.5-VL-7B-Instruct-GGUF",
+     "size": 1354163040,
+     "sha256": "987dd0733033fb5dd9b124d1ca926ae865572e432384eee7618b2eec3e735e17",
+     "url": "https://huggingface.co/unsloth/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/mmproj-F16.gguf"
+    }
+   ]
+  },
+  {
+   "id": "quantstack-qwen-image-edit-gguf",
+   "name": "Qwen-Image Edit",
+   "family": "Qwen-Image Edit",
+   "kind": "edit",
+   "tags": [
+    "edit",
+    "style",
+    "text"
+   ],
+   "looks": [],
+   "tagline": "The first Qwen photo editor.",
+   "strengths": "Good at changing text and style; the newer versions are better at keeping people's faces the same.",
+   "license": "Apache-2.0",
+   "commercialOk": true,
+   "community": false,
+   "mature": false,
+   "quality": 88,
+   "steps": 20,
+   "overheadGb": 4.0,
+   "downloads": 0,
+   "source": "QuantStack/Qwen-Image-Edit-GGUF",
+   "variants": [
+    {
+     "quant": "Q2_K",
+     "bits": 2.6,
+     "qualityCost": 15,
+     "sizeBytes": 7062518304,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen_Image_Edit-Q2_K.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+       "size": 7062518304,
+       "sha256": "a3f1680339685f558cbdf0254684e3529aab52b7e37aa8055eed0e8844a2b304",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q2_K.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q3_K_S",
+     "bits": 3.5,
+     "qualityCost": 8,
+     "sizeBytes": 8952609312,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen_Image_Edit-Q3_K_S.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+       "size": 8952609312,
+       "sha256": "69a54ec267d22ce2235fb1d2a681a3ddefa46e207b4844e03e1283cdf1845f51",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q3_K_S.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q3_K_M",
+     "bits": 3.5,
+     "qualityCost": 8,
+     "sizeBytes": 9679567392,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen_Image_Edit-Q3_K_M.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+       "size": 9679567392,
+       "sha256": "091ae31a0a9c2c0e39a9a0dc8c6b5c7e40715d1d84c62683d7b978241f655ec8",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q3_K_M.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_0",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 11852773920,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen_Image_Edit-Q4_0.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+       "size": 11852773920,
+       "sha256": "bbcfeee45b03f84c9d5f980652f2532e891100e67e7a6f9f1dbdbb63f88a70b3",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q4_0.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_K_S",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 12140608032,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen_Image_Edit-Q4_K_S.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+       "size": 12140608032,
+       "sha256": "78bf89a8d18b6a5fb10858ed98f9843c50eb89af6fd83140ff7b0d4aaa6a8c28",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q4_K_S.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_1",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 12843678240,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen_Image_Edit-Q4_1.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+       "size": 12843678240,
+       "sha256": "04266a84c084f60bb74803a21accfb46fcdaf65b2bb20e082a0591d41d82634b",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q4_1.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_K_M",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 13065746976,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen_Image_Edit-Q4_K_M.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+       "size": 13065746976,
+       "sha256": "52fde8590c26b361158bf40c573cc18805c65279cdd86fb38710863771c8eaf0",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q4_K_M.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_K_S",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 14117698080,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen_Image_Edit-Q5_K_S.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+       "size": 14117698080,
+       "sha256": "2c4c69f06b7a5304b1da99f68788fd61065f57190f4850d3d2c7c146bb77043f",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q5_K_S.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_0",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 14400813600,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen_Image_Edit-Q5_0.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+       "size": 14400813600,
+       "sha256": "4bc51cf30685c962619e3c833f98ed15bb7693cfb051e50a8ddeea500531dd68",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q5_0.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_K_M",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 14934899232,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen_Image_Edit-Q5_K_M.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+       "size": 14934899232,
+       "sha256": "5a6224c76ef8b7737b4d0f29080a6c506a6d2d8a91cd4b93e320da0e18306f10",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q5_K_M.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_1",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 15391717920,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen_Image_Edit-Q5_1.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+       "size": 15391717920,
+       "sha256": "aa009aaccbb5cbc261c83c6452ee517f94af5b1eeaeba53f7a903db06b112022",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q5_1.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q6_K",
+     "bits": 6.6,
+     "qualityCost": 1,
+     "sizeBytes": 16824990240,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen_Image_Edit-Q6_K.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+       "size": 16824990240,
+       "sha256": "59ab5e015de35ca1c4cacbf95caff49c02d36ebe713ba51ef878c0481a988656",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q6_K.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q8_0",
+     "bits": 8.5,
+     "qualityCost": 0,
+     "sizeBytes": 21761817120,
+     "files": [
+      {
+       "role": "model",
+       "name": "Qwen_Image_Edit-Q8_0.gguf",
+       "repo": "QuantStack/Qwen-Image-Edit-GGUF",
+       "size": 21761817120,
+       "sha256": "d881a65010b10f9a6aff6e0ab6d00eda0382ab939c833f7e1507b6ab6d309ac9",
+       "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q8_0.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": [
+    {
+     "role": "vae",
+     "name": "split_files/vae/qwen_image_vae.safetensors",
+     "repo": "Comfy-Org/Qwen-Image_ComfyUI",
+     "size": 253806246,
+     "sha256": "a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f",
+     "url": "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors"
+    },
+    {
+     "role": "llm",
+     "name": "Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
+     "repo": "unsloth/Qwen2.5-VL-7B-Instruct-GGUF",
+     "size": 4683072384,
+     "sha256": "d16776dcd9a28d42758c2958ed3a752aabf20a305252cd64ff2be72b4a78c503",
+     "url": "https://huggingface.co/unsloth/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+    },
+    {
+     "role": "mmproj",
+     "name": "mmproj-F16.gguf",
+     "repo": "unsloth/Qwen2.5-VL-7B-Instruct-GGUF",
+     "size": 1354163040,
+     "sha256": "987dd0733033fb5dd9b124d1ca926ae865572e432384eee7618b2eec3e735e17",
+     "url": "https://huggingface.co/unsloth/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/mmproj-F16.gguf"
+    }
+   ]
+  },
+  {
+   "id": "quantstack-flux-1-kontext-dev-gguf",
+   "name": "FLUX.1 Kontext dev",
+   "family": "FLUX.1 Kontext",
+   "kind": "edit",
+   "tags": [
+    "edit",
+    "restore",
+    "style"
+   ],
+   "looks": [],
+   "tagline": "Edit a photo with a sentence, and keep the same person or object.",
+   "strengths": "Strong at keeping a face or object the same while you change the scene, outfit or style. Smaller than Qwen Edit, so it fits more cards. Licence is non-commercial.",
+   "license": "Custom licence (read it before selling pictures)",
+   "commercialOk": false,
+   "community": false,
+   "mature": false,
+   "quality": 88,
+   "steps": 28,
+   "overheadGb": 2.5,
+   "downloads": 0,
+   "source": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+   "variants": [
+    {
+     "quant": "Q2_K",
+     "bits": 2.6,
+     "qualityCost": 15,
+     "sizeBytes": 4023690528,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux1-kontext-dev-Q2_K.gguf",
+       "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+       "size": 4023690528,
+       "sha256": "36b6024a4cd4432da2f43bfdf48153215c34429aec4cf9cff93d9ad6fe44feec",
+       "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q2_K.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q3_K_S",
+     "bits": 3.5,
+     "qualityCost": 8,
+     "sizeBytes": 5225604384,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux1-kontext-dev-Q3_K_S.gguf",
+       "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+       "size": 5225604384,
+       "sha256": "9061368b63caa680fcbe7c9417cd82e9c0286bfd214a9cf2d3aa72b1b40610dc",
+       "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q3_K_S.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q3_K_M",
+     "bits": 3.5,
+     "qualityCost": 8,
+     "sizeBytes": 5368489248,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux1-kontext-dev-Q3_K_M.gguf",
+       "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+       "size": 5368489248,
+       "sha256": "d0584c8781911e7d43dc1f9669e123a32bc2dca5260c68a753a8de750cc6312c",
+       "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q3_K_M.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_0",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 6797337888,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux1-kontext-dev-Q4_0.gguf",
+       "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+       "size": 6797337888,
+       "sha256": "859f06ce2b492a2a88b675ed55fed97a2d57d43b9d9aeffb5b6d4ce3b155259e",
+       "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q4_0.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_K_S",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 6797337888,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux1-kontext-dev-Q4_K_S.gguf",
+       "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+       "size": 6797337888,
+       "sha256": "cc22ff7a2debb02e63765fa53af8c5ae0b6883b462d0601b9b55f51a15cdd6da",
+       "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q4_K_S.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_K_M",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 6931817760,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux1-kontext-dev-Q4_K_M.gguf",
+       "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+       "size": 6931817760,
+       "sha256": "ebd4e92c44c47f104ad64e4353692f37addf06eb99420c9b459334d871c8b750",
+       "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q4_K_M.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q4_1",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 7536977184,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux1-kontext-dev-Q4_1.gguf",
+       "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+       "size": 7536977184,
+       "sha256": "3de6aef01cebb33aa2355854a7779ecf4eaefc677ea222319fa50c53d59fb09f",
+       "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q4_1.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_0",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 8276616480,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux1-kontext-dev-Q5_0.gguf",
+       "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+       "size": 8276616480,
+       "sha256": "487313f45650fcec0bae9327849fc1a0e7712d3d0a266ac6a5fe0cd8b7a83ef0",
+       "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q5_0.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_K_S",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 8276616480,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux1-kontext-dev-Q5_K_S.gguf",
+       "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+       "size": 8276616480,
+       "sha256": "2148f87a91a55513448551511021d36632cbd3307b4086306a8c08e22615798e",
+       "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q5_K_S.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_K_M",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 8419501344,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux1-kontext-dev-Q5_K_M.gguf",
+       "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+       "size": 8419501344,
+       "sha256": "7f7b98b1d496176cb0b0c8b12edb35cc6a1a467a9809d7372242a117484ad422",
+       "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q5_K_M.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q5_1",
+     "bits": 5.5,
+     "qualityCost": 2,
+     "sizeBytes": 9016255776,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux1-kontext-dev-Q5_1.gguf",
+       "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+       "size": 9016255776,
+       "sha256": "4f3677d57115b012d93b5cde57c7136dc5c90178812f6a9b940f54ad3849c24b",
+       "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q5_1.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q6_K",
+     "bits": 6.6,
+     "qualityCost": 1,
+     "sizeBytes": 9848349984,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux1-kontext-dev-Q6_K.gguf",
+       "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+       "size": 9848349984,
+       "sha256": "b01dcd428fe5783082f8177415a2c45b64918ea1b08a1e9ed19e3eab1f29fa7e",
+       "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q6_K.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q8_0",
+     "bits": 8.5,
+     "qualityCost": 0,
+     "sizeBytes": 12714452256,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux1-kontext-dev-Q8_0.gguf",
+       "repo": "QuantStack/FLUX.1-Kontext-dev-GGUF",
+       "size": 12714452256,
+       "sha256": "ff2ff71c3755c8ab394398a412252c23382a83138b65190b16e736d457b80f73",
+       "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q8_0.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": [
+    {
+     "role": "clip_l",
+     "name": "clip_l.safetensors",
+     "repo": "comfyanonymous/flux_text_encoders",
+     "size": 246144152,
+     "sha256": "660c6f5b1abae9dc498ac2d21e1347d2abdb0cf6c0c0c8576cd796491d9a6cdd",
+     "url": "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors"
+    },
+    {
+     "role": "t5xxl",
+     "name": "t5xxl_fp8_e4m3fn.safetensors",
+     "repo": "comfyanonymous/flux_text_encoders",
+     "size": 4893934904,
+     "sha256": "7d330da4816157540d6bb7838bf63a0f02f573fc48ca4d8de34bb0cbfd514f09",
+     "url": "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn.safetensors"
+    },
+    {
+     "role": "vae",
+     "name": "ae.safetensors",
+     "repo": "camenduru/FLUX.1-dev-ungated",
+     "size": 335304388,
+     "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38",
+     "url": "https://huggingface.co/camenduru/FLUX.1-dev-ungated/resolve/main/ae.safetensors"
+    }
+   ]
+  },
+  {
+   "id": "leejet-flux-2-klein-4b-gguf",
+   "name": "FLUX.2 klein 4B",
+   "family": "FLUX.2 klein",
+   "kind": "generate",
+   "tags": [
+    "edit",
+    "fast",
+    "lowvram",
+    "poster",
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "street",
+    "cinematic",
+    "food"
+   ],
+   "tagline": "Makes pictures and edits photos, in 4 steps, on a small card.",
+   "strengths": "One small model that does both: draw a new picture or change a photo you give it. Quick, photo-real, Apache licence, and it fits cards with 6 GB.",
+   "license": "Apache-2.0",
+   "commercialOk": true,
+   "community": false,
+   "mature": false,
+   "quality": 88,
+   "steps": 4,
+   "overheadGb": 2.5,
+   "downloads": 0,
+   "source": "leejet/FLUX.2-klein-4B-GGUF",
+   "variants": [
+    {
+     "quant": "Q4_0",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 2460378560,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux-2-klein-4b-Q4_0.gguf",
+       "repo": "leejet/FLUX.2-klein-4B-GGUF",
+       "size": 2460378560,
+       "sha256": "d1023499ef3f2f82ff7c50e6778495195c1b6cc34835741778868428111f9ff4",
+       "url": "https://huggingface.co/leejet/FLUX.2-klein-4B-GGUF/resolve/main/flux-2-klein-4b-Q4_0.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q8_0",
+     "bits": 8.5,
+     "qualityCost": 0,
+     "sizeBytes": 4300629440,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux-2-klein-4b-Q8_0.gguf",
+       "repo": "leejet/FLUX.2-klein-4B-GGUF",
+       "size": 4300629440,
+       "sha256": "0bba6951258ec8f92d51114a8fa13e66828297bfff58a738f52729b3ef66fa28",
+       "url": "https://huggingface.co/leejet/FLUX.2-klein-4B-GGUF/resolve/main/flux-2-klein-4b-Q8_0.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": [
+    {
+     "role": "vae",
+     "name": "vae/flux2-vae.safetensors",
+     "repo": "Comfy-Org/ERNIE-Image",
+     "size": 336213556,
+     "sha256": "d64f3a68e1cc4f9f4e29b6e0da38a0204fe9a49f2d4053f0ec1fa1ca02f9c4b5",
+     "url": "https://huggingface.co/Comfy-Org/ERNIE-Image/resolve/main/vae/flux2-vae.safetensors"
+    },
+    {
+     "role": "llm",
+     "name": "Qwen3-4B-Q4_K_M.gguf",
+     "repo": "unsloth/Qwen3-4B-GGUF",
+     "size": 2497281312,
+     "sha256": "f6f851777709861056efcdad3af01da38b31223a3ba26e61a4f8bf3a2195813a",
+     "url": "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf"
+    }
+   ]
+  },
+  {
+   "id": "leejet-flux-2-klein-base-4b-gguf",
+   "name": "FLUX.2 klein base 4B",
+   "family": "FLUX.2 klein",
+   "kind": "generate",
+   "tags": [
+    "edit",
+    "illustration",
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "product",
+    "street",
+    "cinematic",
+    "food"
+   ],
+   "tagline": "The slower, more steerable FLUX.2 klein.",
+   "strengths": "More varied and easier to steer than the quick version, with the same picture and photo-edit skills. Needs about 20 steps.",
+   "license": "Apache-2.0",
+   "commercialOk": true,
+   "community": false,
+   "mature": false,
+   "quality": 89,
+   "steps": 20,
+   "overheadGb": 2.5,
+   "downloads": 0,
+   "source": "leejet/FLUX.2-klein-base-4B-GGUF",
+   "variants": [
+    {
+     "quant": "Q4_0",
+     "bits": 4.5,
+     "qualityCost": 4,
+     "sizeBytes": 2460378560,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux-2-klein-base-4b-Q4_0.gguf",
+       "repo": "leejet/FLUX.2-klein-base-4B-GGUF",
+       "size": 2460378560,
+       "sha256": "c3a2854510677b7aa37dd7547d908c54889a76c6d6aa3ffe902fcaa092d1328b",
+       "url": "https://huggingface.co/leejet/FLUX.2-klein-base-4B-GGUF/resolve/main/flux-2-klein-base-4b-Q4_0.gguf"
+      }
+     ]
+    },
+    {
+     "quant": "Q8_0",
+     "bits": 8.5,
+     "qualityCost": 0,
+     "sizeBytes": 4300629440,
+     "files": [
+      {
+       "role": "model",
+       "name": "flux-2-klein-base-4b-Q8_0.gguf",
+       "repo": "leejet/FLUX.2-klein-base-4B-GGUF",
+       "size": 4300629440,
+       "sha256": "197fbc64147d4f0a0ddf4c9e667b05a3790a73ed12f92d391f0f4d286ee30fe8",
+       "url": "https://huggingface.co/leejet/FLUX.2-klein-base-4B-GGUF/resolve/main/flux-2-klein-base-4b-Q8_0.gguf"
+      }
+     ]
+    }
+   ],
+   "companions": [
+    {
+     "role": "vae",
+     "name": "vae/flux2-vae.safetensors",
+     "repo": "Comfy-Org/ERNIE-Image",
+     "size": 336213556,
+     "sha256": "d64f3a68e1cc4f9f4e29b6e0da38a0204fe9a49f2d4053f0ec1fa1ca02f9c4b5",
+     "url": "https://huggingface.co/Comfy-Org/ERNIE-Image/resolve/main/vae/flux2-vae.safetensors"
+    },
+    {
+     "role": "llm",
+     "name": "Qwen3-4B-Q4_K_M.gguf",
+     "repo": "unsloth/Qwen3-4B-GGUF",
+     "size": 2497281312,
+     "sha256": "f6f851777709861056efcdad3af01da38b31223a3ba26e61a4f8bf3a2195813a",
+     "url": "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf"
+    }
+   ]
+  },
+  {
+   "id": "stabilityai-stable-diffusion-xl-base-1-0",
+   "name": "stable diffusion xl base 1.0",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "illustration"
+   ],
+   "looks": [],
+   "tagline": "A community SDXL model by stabilityai.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (stabilityai/stable-diffusion-xl-base-1.0) for what it is tuned for.",
+   "license": "OpenRAIL++",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 4300663,
+   "source": "stabilityai/stable-diffusion-xl-base-1.0",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938078334,
+     "files": [
+      {
+       "role": "model",
+       "name": "sd_xl_base_1.0.safetensors",
+       "repo": "stabilityai/stable-diffusion-xl-base-1.0",
+       "size": 6938078334,
+       "sha256": "31e35c80fc4829d14f90153f4c74cd59c90b779f6afe05a74cd6120b893f7e5b",
+       "url": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "lykon-dreamshaper",
+   "name": "DreamShaper",
+   "family": "Stable Diffusion 1.5",
+   "kind": "generate",
+   "tags": [
+    "fast",
+    "illustration",
+    "lowvram"
+   ],
+   "looks": [],
+   "tagline": "A community Stable Diffusion 1.5 model by Lykon.",
+   "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (Lykon/DreamShaper) for what it is tuned for.",
+   "license": "Custom licence (read it before selling pictures)",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 52,
+   "steps": 20,
+   "overheadGb": 1.5,
+   "downloads": 235999,
+   "source": "Lykon/DreamShaper",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 3851761699,
+     "files": [
+      {
+       "role": "model",
+       "name": "DreamShaper_3.3_pruned.safetensors",
+       "repo": "Lykon/DreamShaper",
+       "size": 3851761699,
+       "sha256": "4e367dddcbf844034114bb078b022f929b8e685670a27698e400e8fa5e8a4b1c",
+       "url": "https://huggingface.co/Lykon/DreamShaper/resolve/main/DreamShaper_3.3_pruned.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 2133804992,
+     "files": [
+      {
+       "role": "model",
+       "name": "DreamShaper8_LCM.safetensors",
+       "repo": "Lykon/DreamShaper",
+       "size": 2133804992,
+       "sha256": "a4f3e1526c5dc4fcbe342f5c410d83ae202c7a415fcefcbb92e0f93fcd0a87c3",
+       "url": "https://huggingface.co/Lykon/DreamShaper/resolve/main/DreamShaper8_LCM.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 2132625894,
+     "files": [
+      {
+       "role": "model",
+       "name": "DreamShaper_8_pruned.safetensors",
+       "repo": "Lykon/DreamShaper",
+       "size": 2132625894,
+       "sha256": "879db523c30d3b9017143d56705015e15a2cb5628762c11d086fed9538abd7fd",
+       "url": "https://huggingface.co/Lykon/DreamShaper/resolve/main/DreamShaper_8_pruned.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "cagliostrolab-animagine-xl-3-1",
+   "name": "animagine xl 3.1",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "cartoon",
+    "illustration"
+   ],
+   "looks": [],
+   "tagline": "A community SDXL model by cagliostrolab.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (cagliostrolab/animagine-xl-3.1) for what it is tuned for.",
+   "license": "OpenRAIL++",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 178167,
+   "source": "cagliostrolab/animagine-xl-3.1",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938325776,
+     "files": [
+      {
+       "role": "model",
+       "name": "animagine-xl-3.1.safetensors",
+       "repo": "cagliostrolab/animagine-xl-3.1",
+       "size": 6938325776,
+       "sha256": "e3c47aedb06418c6c331443cd89f2b3b3b34b7ed2102a3d4c4408a8d35aad6b0",
+       "url": "https://huggingface.co/cagliostrolab/animagine-xl-3.1/resolve/main/animagine-xl-3.1.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "cagliostrolab-animagine-xl-3-0",
+   "name": "animagine xl 3.0",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "cartoon",
+    "illustration"
+   ],
+   "looks": [],
+   "tagline": "A community SDXL model by cagliostrolab.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (cagliostrolab/animagine-xl-3.0) for what it is tuned for.",
+   "license": "OpenRAIL++",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 54943,
+   "source": "cagliostrolab/animagine-xl-3.0",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938218610,
+     "files": [
+      {
+       "role": "model",
+       "name": "animagine-xl-3.0.safetensors",
+       "repo": "cagliostrolab/animagine-xl-3.0",
+       "size": 6938218610,
+       "sha256": "1449e5b0b9de87b0f414c5f29cb11ce3b3dc61fa2b320e784c9441720bf7b766",
+       "url": "https://huggingface.co/cagliostrolab/animagine-xl-3.0/resolve/main/animagine-xl-3.0.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "cyberdelia-cyberrealisticxl",
+   "name": "CyberRealisticXL",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "cinematic"
+   ],
+   "tagline": "A community SDXL model by cyberdelia.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (cyberdelia/CyberRealisticXL) for what it is tuned for.",
+   "license": "CreativeML OpenRAIL-M",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 48577,
+   "source": "cyberdelia/CyberRealisticXL",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938041288,
+     "files": [
+      {
+       "role": "model",
+       "name": "CyberRealisticXLPlay_V10.0_FP16.safetensors",
+       "repo": "cyberdelia/CyberRealisticXL",
+       "size": 6938041288,
+       "sha256": "fd5e870b5bbce4bddeb64f4bb8e49c57f84ab793c0262a503f0123be435e667d",
+       "url": "https://huggingface.co/cyberdelia/CyberRealisticXL/resolve/main/CyberRealisticXLPlay_V10.0_FP16.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938041144,
+     "files": [
+      {
+       "role": "model",
+       "name": "CyberRealisticXLPlay_V6.0.safetensors",
+       "repo": "cyberdelia/CyberRealisticXL",
+       "size": 6938041144,
+       "sha256": "f166e3d6dd5261c8bf3022d31105c14b1501ae327dc953791f46a81042eb3943",
+       "url": "https://huggingface.co/cyberdelia/CyberRealisticXL/resolve/main/CyberRealisticXLPlay_V6.0.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938041144,
+     "files": [
+      {
+       "role": "model",
+       "name": "CyberRealisticXLPlay_V5.8.safetensors",
+       "repo": "cyberdelia/CyberRealisticXL",
+       "size": 6938041144,
+       "sha256": "e8764d543a45cdd3affb282983ef6f0012018a97c8f142b0dec8ecd2ac75ec67",
+       "url": "https://huggingface.co/cyberdelia/CyberRealisticXL/resolve/main/CyberRealisticXLPlay_V5.8.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "laxhar-noobai-xl-vpred-1-0",
+   "name": "noobai XL Vpred 1.0",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "cartoon",
+    "illustration"
+   ],
+   "looks": [],
+   "tagline": "A community SDXL model by Laxhar.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Laxhar/noobai-XL-Vpred-1.0) for what it is tuned for.",
+   "license": "Custom licence (read it before selling pictures)",
+   "commercialOk": false,
+   "community": true,
+   "mature": true,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 42092,
+   "source": "Laxhar/noobai-XL-Vpred-1.0",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 7105350110,
+     "files": [
+      {
+       "role": "model",
+       "name": "NoobAI-XL-Vpred-v1.0.safetensors",
+       "repo": "Laxhar/noobai-XL-Vpred-1.0",
+       "size": 7105350110,
+       "sha256": "ea349eeae87ca8d25ba902c93810f7ca83e5c82f920edf12f273af004ae02819",
+       "url": "https://huggingface.co/Laxhar/noobai-XL-Vpred-1.0/resolve/main/NoobAI-XL-Vpred-v1.0.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "cyberdelia-cyberrealistic",
+   "name": "CyberRealistic",
+   "family": "Stable Diffusion 1.5",
+   "kind": "generate",
+   "tags": [
+    "fast",
+    "lowvram",
+    "realism"
+   ],
+   "looks": [
+    "portrait"
+   ],
+   "tagline": "A community Stable Diffusion 1.5 model by cyberdelia.",
+   "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (cyberdelia/CyberRealistic) for what it is tuned for.",
+   "license": "CreativeML OpenRAIL-M",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 52,
+   "steps": 20,
+   "overheadGb": 1.5,
+   "downloads": 34513,
+   "source": "cyberdelia/CyberRealistic",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4265146268,
+     "files": [
+      {
+       "role": "model",
+       "name": "CyberRealistic_V9_FP32.safetensors",
+       "repo": "cyberdelia/CyberRealistic",
+       "size": 4265146268,
+       "sha256": "c8d35d5795ba650a62a511d0310101645e9ce15c827e472e3f8ad5cfc09b1b5e",
+       "url": "https://huggingface.co/cyberdelia/CyberRealistic/resolve/main/CyberRealistic_V9_FP32.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4265146268,
+     "files": [
+      {
+       "role": "model",
+       "name": "CyberRealistic_V8_FP32.safetensors",
+       "repo": "cyberdelia/CyberRealistic",
+       "size": 4265146268,
+       "sha256": "90389105e4986e0608db7335f02aeeb71aca26961ae55a20794913409b088ad1",
+       "url": "https://huggingface.co/cyberdelia/CyberRealistic/resolve/main/CyberRealistic_V8_FP32.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4265146268,
+     "files": [
+      {
+       "role": "model",
+       "name": "CyberRealistic_V7.0_FP32.safetensors",
+       "repo": "cyberdelia/CyberRealistic",
+       "size": 4265146268,
+       "sha256": "c519426ba544982d81df9dc5f670d7c66e254f8c1069e886b9cbf7d683c735e5",
+       "url": "https://huggingface.co/cyberdelia/CyberRealistic/resolve/main/CyberRealistic_V7.0_FP32.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "sam749-awpainting-v1-2",
+   "name": "AWPainting v1 2",
+   "family": "Stable Diffusion 1.5",
+   "kind": "generate",
+   "tags": [
+    "fast",
+    "illustration",
+    "lowvram"
+   ],
+   "looks": [],
+   "tagline": "A community Stable Diffusion 1.5 model by sam749.",
+   "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (sam749/AWPainting-v1-2) for what it is tuned for.",
+   "license": "CreativeML OpenRAIL-M",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 52,
+   "steps": 20,
+   "overheadGb": 1.5,
+   "downloads": 33736,
+   "source": "sam749/AWPainting-v1-2",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 2132626102,
+     "files": [
+      {
+       "role": "model",
+       "name": "awpainting_v12.safetensors",
+       "repo": "sam749/AWPainting-v1-2",
+       "size": 2132626102,
+       "sha256": "3d1b3c42ec704f3397d9e2968e3e544eda111741e10793afd78faa8148b36e12",
+       "url": "https://huggingface.co/sam749/AWPainting-v1-2/resolve/main/awpainting_v12.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "gsdf-counterfeit-v2-5",
+   "name": "Counterfeit V2.5",
+   "family": "Stable Diffusion 1.5",
+   "kind": "generate",
+   "tags": [
+    "cartoon",
+    "fast",
+    "illustration",
+    "lowvram"
+   ],
+   "looks": [],
+   "tagline": "A community Stable Diffusion 1.5 model by gsdf.",
+   "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (gsdf/Counterfeit-V2.5) for what it is tuned for.",
+   "license": "CreativeML OpenRAIL-M",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 52,
+   "steps": 20,
+   "overheadGb": 1.5,
+   "downloads": 24491,
+   "source": "gsdf/Counterfeit-V2.5",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4265146273,
+     "files": [
+      {
+       "role": "model",
+       "name": "Counterfeit-V2.2.safetensors",
+       "repo": "gsdf/Counterfeit-V2.5",
+       "size": 4265146273,
+       "sha256": "7d7b896083c4f8ecda83263e3835a785fdd44356ac664db314a37889ee53d09d",
+       "url": "https://huggingface.co/gsdf/Counterfeit-V2.5/resolve/main/Counterfeit-V2.2.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4265097179,
+     "files": [
+      {
+       "role": "model",
+       "name": "Counterfeit-V2.5_pruned.safetensors",
+       "repo": "gsdf/Counterfeit-V2.5",
+       "size": 4265097179,
+       "sha256": "a074b8864e31b8681e40db3dfde0005df7b5309fd2a2f592a2caee59e4591cae",
+       "url": "https://huggingface.co/gsdf/Counterfeit-V2.5/resolve/main/Counterfeit-V2.5_pruned.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4265097179,
+     "files": [
+      {
+       "role": "model",
+       "name": "Counterfeit-V2.1.safetensors",
+       "repo": "gsdf/Counterfeit-V2.5",
+       "size": 4265097179,
+       "sha256": "f9ca43dbe8e39d2263bfc02bc8480b44fd219bb58fe263fb03ef3d774e329f9d",
+       "url": "https://huggingface.co/gsdf/Counterfeit-V2.5/resolve/main/Counterfeit-V2.1.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "digiplay-majicmix-realistic-v7",
+   "name": "majicMIX realistic v7",
+   "family": "Stable Diffusion 1.5",
+   "kind": "generate",
+   "tags": [
+    "fast",
+    "lowvram",
+    "realism"
+   ],
+   "looks": [
+    "portrait"
+   ],
+   "tagline": "A community Stable Diffusion 1.5 model by digiplay.",
+   "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (digiplay/majicMIX_realistic_v7) for what it is tuned for.",
+   "license": "Custom licence (read it before selling pictures)",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 52,
+   "steps": 20,
+   "overheadGb": 1.5,
+   "downloads": 20415,
+   "source": "digiplay/majicMIX_realistic_v7",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 2132625894,
+     "files": [
+      {
+       "role": "model",
+       "name": "majicmixRealistic_v7.safetensors",
+       "repo": "digiplay/majicMIX_realistic_v7",
+       "size": 2132625894,
+       "sha256": "7c819b6d13663ed720c2254f4fe18373107dfef2448d337913c8fc545640881e",
+       "url": "https://huggingface.co/digiplay/majicMIX_realistic_v7/resolve/main/majicmixRealistic_v7.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "segmind-ssd-1b",
+   "name": "SSD 1B",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "illustration"
+   ],
+   "looks": [],
+   "tagline": "A community SDXL model by segmind.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (segmind/SSD-1B) for what it is tuned for.",
+   "license": "Apache-2.0",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 18186,
+   "source": "segmind/SSD-1B",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4465933050,
+     "files": [
+      {
+       "role": "model",
+       "name": "SSD-1B-modelspec.safetensors",
+       "repo": "segmind/SSD-1B",
+       "size": 4465933050,
+       "sha256": "7cb406ec0662e91570a79f3c4fb8f0ea5325bffe6af5d9382edae838698f72bd",
+       "url": "https://huggingface.co/segmind/SSD-1B/resolve/main/SSD-1B-modelspec.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4465671506,
+     "files": [
+      {
+       "role": "model",
+       "name": "SSD-1B.safetensors",
+       "repo": "segmind/SSD-1B",
+       "size": 4465671506,
+       "sha256": "0bf1ce6b065a6b969ab02dc8e8fa21eb20ee189b10935c49ce68c77a7e432c1c",
+       "url": "https://huggingface.co/segmind/SSD-1B/resolve/main/SSD-1B.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4465671322,
+     "files": [
+      {
+       "role": "model",
+       "name": "SSD-1B-A1111.safetensors",
+       "repo": "segmind/SSD-1B",
+       "size": 4465671322,
+       "sha256": "1895a00bfc769a00b0c0c43a95e433e79e9db8a85402b45a33e8448785bde94d",
+       "url": "https://huggingface.co/segmind/SSD-1B/resolve/main/SSD-1B-A1111.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "cyberdelia-cyberrealisticxl-desire",
+   "name": "CyberRealisticXL Desire",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "cinematic"
+   ],
+   "tagline": "A community SDXL model by cyberdelia.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (cyberdelia/CyberRealisticXL_Desire) for what it is tuned for.",
+   "license": "CreativeML OpenRAIL-M",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 14488,
+   "source": "cyberdelia/CyberRealisticXL_Desire",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 7105348104,
+     "files": [
+      {
+       "role": "model",
+       "name": "CyberRealisticXL_Desire_V2.safetensors",
+       "repo": "cyberdelia/CyberRealisticXL_Desire",
+       "size": 7105348104,
+       "sha256": "dcec58d825b82f2ea8a064826e983cda3634a8a72ece7036406a29c068739f9d",
+       "url": "https://huggingface.co/cyberdelia/CyberRealisticXL_Desire/resolve/main/CyberRealisticXL_Desire_V2.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938041144,
+     "files": [
+      {
+       "role": "model",
+       "name": "CyberRealisticXL_Desire_V3_FP16.safetensors",
+       "repo": "cyberdelia/CyberRealisticXL_Desire",
+       "size": 6938041144,
+       "sha256": "d5d7b51a51a2f1aec51ebcece9a83bc0379e264458d10e2031be38eb43820ccf",
+       "url": "https://huggingface.co/cyberdelia/CyberRealisticXL_Desire/resolve/main/CyberRealisticXL_Desire_V3_FP16.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938040866,
+     "files": [
+      {
+       "role": "model",
+       "name": "CyberRealisticXL_Desire_V1_FP16.safetensors",
+       "repo": "cyberdelia/CyberRealisticXL_Desire",
+       "size": 6938040866,
+       "sha256": "af27168ffeefcca49e05fd46aed99fdcb834b9708215a22fe68946d1b80c4859",
+       "url": "https://huggingface.co/cyberdelia/CyberRealisticXL_Desire/resolve/main/CyberRealisticXL_Desire_V1_FP16.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "lykon-dreamshaper-8-lcm",
+   "name": "dreamshaper 8 lcm",
+   "family": "Stable Diffusion 1.5",
+   "kind": "generate",
+   "tags": [
+    "fast",
+    "illustration",
+    "lowvram"
+   ],
+   "looks": [],
+   "tagline": "A community Stable Diffusion 1.5 model by Lykon.",
+   "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (Lykon/dreamshaper-8-lcm) for what it is tuned for.",
+   "license": "CreativeML OpenRAIL-M",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 52,
+   "steps": 20,
+   "overheadGb": 1.5,
+   "downloads": 14476,
+   "source": "Lykon/dreamshaper-8-lcm",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 2133804992,
+     "files": [
+      {
+       "role": "model",
+       "name": "DreamShaper8_LCM.safetensors",
+       "repo": "Lykon/dreamshaper-8-lcm",
+       "size": 2133804992,
+       "sha256": "a4f3e1526c5dc4fcbe342f5c410d83ae202c7a415fcefcbb92e0f93fcd0a87c3",
+       "url": "https://huggingface.co/Lykon/dreamshaper-8-lcm/resolve/main/DreamShaper8_LCM.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "jommarn-illustrious-xl-v2-0",
+   "name": "Illustrious XL v2.0",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "cartoon",
+    "illustration"
+   ],
+   "looks": [],
+   "tagline": "A community SDXL model by Jommarn.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Jommarn/Illustrious-XL-v2.0) for what it is tuned for.",
+   "license": "Custom licence (read it before selling pictures)",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 13802,
+   "source": "Jommarn/Illustrious-XL-v2.0",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938040674,
+     "files": [
+      {
+       "role": "model",
+       "name": "Illustrious-XL-v2.0.safetensors",
+       "repo": "Jommarn/Illustrious-XL-v2.0",
+       "size": 6938040674,
+       "sha256": "c2a1a3eaa13d4c107dc7e00c3fe830cab427aa026362740ea094745b3422a331",
+       "url": "https://huggingface.co/Jommarn/Illustrious-XL-v2.0/resolve/main/Illustrious-XL-v2.0.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "xiaolxl-guofeng3",
+   "name": "GuoFeng3",
+   "family": "Stable Diffusion 1.5",
+   "kind": "generate",
+   "tags": [
+    "fast",
+    "illustration",
+    "lowvram"
+   ],
+   "looks": [],
+   "tagline": "A community Stable Diffusion 1.5 model by xiaolxl.",
+   "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (xiaolxl/GuoFeng3) for what it is tuned for.",
+   "license": "cc-by-nc-sa-4.0",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 52,
+   "steps": 20,
+   "overheadGb": 1.5,
+   "downloads": 13446,
+   "source": "xiaolxl/GuoFeng3",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4265097028,
+     "files": [
+      {
+       "role": "model",
+       "name": "GuoFeng3.2.safetensors",
+       "repo": "xiaolxl/GuoFeng3",
+       "size": 4265097028,
+       "sha256": "2537d1a815b8ddc6c352e2a536550a9dab4954d1b5935cd3c414a31745449aed",
+       "url": "https://huggingface.co/xiaolxl/GuoFeng3/resolve/main/GuoFeng3.2.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4244098026,
+     "files": [
+      {
+       "role": "model",
+       "name": "GuoFeng3.3.safetensors",
+       "repo": "xiaolxl/GuoFeng3",
+       "size": 4244098026,
+       "sha256": "4078eb4174eea1dd75e03d437f5104f36d7587db31ebdfadc534599f61920119",
+       "url": "https://huggingface.co/xiaolxl/GuoFeng3/resolve/main/GuoFeng3.3.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "F16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4244098026,
+     "files": [
+      {
+       "role": "model",
+       "name": "GuoFeng3.2_light_f16.safetensors",
+       "repo": "xiaolxl/GuoFeng3",
+       "size": 4244098026,
+       "sha256": "f42edd43aa30455ce5c3d68ba7cb284b2516e9285a9e49c9813a83544c875e6b",
+       "url": "https://huggingface.co/xiaolxl/GuoFeng3/resolve/main/GuoFeng3.2_light_f16.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "digiplay-meinamix-v11",
+   "name": "MeinaMix v11",
+   "family": "Stable Diffusion 1.5",
+   "kind": "generate",
+   "tags": [
+    "fast",
+    "illustration",
+    "lowvram"
+   ],
+   "looks": [],
+   "tagline": "A community Stable Diffusion 1.5 model by digiplay.",
+   "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (digiplay/MeinaMix_v11) for what it is tuned for.",
+   "license": "Custom licence (read it before selling pictures)",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 52,
+   "steps": 20,
+   "overheadGb": 1.5,
+   "downloads": 7619,
+   "source": "digiplay/MeinaMix_v11",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 2132651818,
+     "files": [
+      {
+       "role": "model",
+       "name": "meinamix_meinaV11.safetensors",
+       "repo": "digiplay/MeinaMix_v11",
+       "size": 2132651818,
+       "sha256": "54ef3e3610eee7f0f6c9f9b82eee26aa404598512d800494d1db344e3bc560b1",
+       "url": "https://huggingface.co/digiplay/MeinaMix_v11/resolve/main/meinamix_meinaV11.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "yntec-anythingv5",
+   "name": "AnythingV5",
+   "family": "Stable Diffusion 1.5",
+   "kind": "generate",
+   "tags": [
+    "cartoon",
+    "fast",
+    "illustration",
+    "lowvram"
+   ],
+   "looks": [],
+   "tagline": "A community Stable Diffusion 1.5 model by Yntec.",
+   "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (Yntec/AnythingV5) for what it is tuned for.",
+   "license": "CreativeML OpenRAIL-M",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 52,
+   "steps": 20,
+   "overheadGb": 1.5,
+   "downloads": 7221,
+   "source": "Yntec/AnythingV5",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 2299933888,
+     "files": [
+      {
+       "role": "model",
+       "name": "AnythingV5.safetensors",
+       "repo": "Yntec/AnythingV5",
+       "size": 2299933888,
+       "sha256": "758d6b3f90a5dc3cbb225405c542aa665052c2c5a453919181ee0168f812cfdd",
+       "url": "https://huggingface.co/Yntec/AnythingV5/resolve/main/AnythingV5.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 2132625616,
+     "files": [
+      {
+       "role": "model",
+       "name": "Anything-v5.0-PRT.safetensors",
+       "repo": "Yntec/AnythingV5",
+       "size": 2132625616,
+       "sha256": "23b41e5091ffe1c9ee25f807771b6a007306fe185ecbc21d1fab835f5655a4f7",
+       "url": "https://huggingface.co/Yntec/AnythingV5/resolve/main/Anything-v5.0-PRT.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "rityak-realcore-pony",
+   "name": "RealCore Pony",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "cartoon",
+    "illustration",
+    "realism"
+   ],
+   "looks": [
+    "portrait",
+    "landscape",
+    "cinematic"
+   ],
+   "tagline": "A community SDXL model by rityak.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (rityak/RealCore_Pony) for what it is tuned for.",
+   "license": "OpenRAIL++",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 6824,
+   "source": "rityak/RealCore_Pony",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938160794,
+     "files": [
+      {
+       "role": "model",
+       "name": "RealCore_Pony_v20.safetensors",
+       "repo": "rityak/RealCore_Pony",
+       "size": 6938160794,
+       "sha256": "9147c8c1bb14d13cce45c833adc9e29305ee12a131139b61ef4b9cf389c6bcd1",
+       "url": "https://huggingface.co/rityak/RealCore_Pony/resolve/main/RealCore_Pony_v20.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938117546,
+     "files": [
+      {
+       "role": "model",
+       "name": "RealPonyCore.safetensors",
+       "repo": "rityak/RealCore_Pony",
+       "size": 6938117546,
+       "sha256": "d0c7d7b9f0f50be4dc097f3a50e329e0746adca9d94215df3b913d87ba15894d",
+       "url": "https://huggingface.co/rityak/RealCore_Pony/resolve/main/RealPonyCore.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "koolchh-animeboysxl-v3-0",
+   "name": "AnimeBoysXL v3.0",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "cartoon",
+    "illustration"
+   ],
+   "looks": [],
+   "tagline": "A community SDXL model by Koolchh.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Koolchh/AnimeBoysXL-v3.0) for what it is tuned for.",
+   "license": "OpenRAIL++",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 5780,
+   "source": "Koolchh/AnimeBoysXL-v3.0",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938040682,
+     "files": [
+      {
+       "role": "model",
+       "name": "AnimeBoysXL-v3.0.safetensors",
+       "repo": "Koolchh/AnimeBoysXL-v3.0",
+       "size": 6938040682,
+       "sha256": "80cc8f54fc2be27d348e1c9c13d667ae7940bb71650607318a5df408ff89f54a",
+       "url": "https://huggingface.co/Koolchh/AnimeBoysXL-v3.0/resolve/main/AnimeBoysXL-v3.0.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "digiplay-photon-v1",
+   "name": "Photon v1",
+   "family": "Stable Diffusion 1.5",
+   "kind": "generate",
+   "tags": [
+    "fast",
+    "lowvram",
+    "realism"
+   ],
+   "looks": [
+    "portrait"
+   ],
+   "tagline": "A community Stable Diffusion 1.5 model by digiplay.",
+   "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (digiplay/Photon_v1) for what it is tuned for.",
+   "license": "Custom licence (read it before selling pictures)",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 52,
+   "steps": 20,
+   "overheadGb": 1.5,
+   "downloads": 4913,
+   "source": "digiplay/Photon_v1",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 2132625918,
+     "files": [
+      {
+       "role": "model",
+       "name": "photon_v1.safetensors",
+       "repo": "digiplay/Photon_v1",
+       "size": 2132625918,
+       "sha256": "ec41bd2a8271acde4ae81cac004d9f3300e7fb0870eae8cbfe0bbc4ef8e27f91",
+       "url": "https://huggingface.co/digiplay/Photon_v1/resolve/main/photon_v1.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "lykon-absolutereality",
+   "name": "AbsoluteReality",
+   "family": "Stable Diffusion 1.5",
+   "kind": "generate",
+   "tags": [
+    "fast",
+    "lowvram",
+    "realism"
+   ],
+   "looks": [
+    "portrait"
+   ],
+   "tagline": "A community Stable Diffusion 1.5 model by Lykon.",
+   "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (Lykon/AbsoluteReality) for what it is tuned for.",
+   "license": "Custom licence (read it before selling pictures)",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 52,
+   "steps": 20,
+   "overheadGb": 1.5,
+   "downloads": 4845,
+   "source": "Lykon/AbsoluteReality",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4244098272,
+     "files": [
+      {
+       "role": "model",
+       "name": "AbsoluteRealityV1.6525.safetensors",
+       "repo": "Lykon/AbsoluteReality",
+       "size": 4244098272,
+       "sha256": "e948ca5dc4a84b317f3858c6ce8dd9e25c13a05c212e60499bc718a3fdd313ed",
+       "url": "https://huggingface.co/Lykon/AbsoluteReality/resolve/main/AbsoluteRealityV1.6525.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 2132625432,
+     "files": [
+      {
+       "role": "model",
+       "name": "AbsoluteReality_1.8.1_pruned.safetensors",
+       "repo": "Lykon/AbsoluteReality",
+       "size": 2132625432,
+       "sha256": "463d6a9fe8a4b56a4d69ef3692074c0617428dfd8e8f12f9efe3b1e9a71717ce",
+       "url": "https://huggingface.co/Lykon/AbsoluteReality/resolve/main/AbsoluteReality_1.8.1_pruned.safetensors"
+      }
+     ]
+    },
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 2132625432,
+     "files": [
+      {
+       "role": "model",
+       "name": "AbsoluteRealityV1.6525_pruned.safetensors",
+       "repo": "Lykon/AbsoluteReality",
+       "size": 2132625432,
+       "sha256": "be1d90c4abb7bb0183f267f899f38b44112ad6ef9a757a6723514ea4e9be15dc",
+       "url": "https://huggingface.co/Lykon/AbsoluteReality/resolve/main/AbsoluteRealityV1.6525_pruned.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "lykon-aam-xl-animemix",
+   "name": "AAM XL AnimeMix",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "cartoon",
+    "illustration"
+   ],
+   "looks": [],
+   "tagline": "A community SDXL model by Lykon.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Lykon/AAM_XL_AnimeMix) for what it is tuned for.",
+   "license": "Custom licence (read it before selling pictures)",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 4802,
+   "source": "Lykon/AAM_XL_AnimeMix",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6939220250,
+     "files": [
+      {
+       "role": "model",
+       "name": "AAM_XL_Anime_Mix.safetensors",
+       "repo": "Lykon/AAM_XL_AnimeMix",
+       "size": 6939220250,
+       "sha256": "d48c2391e04f7dbc83d8538b71be8a30991f3e4e2ff1a8a757b849381f769a8b",
+       "url": "https://huggingface.co/Lykon/AAM_XL_AnimeMix/resolve/main/AAM_XL_Anime_Mix.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "dreamlike-art-dreamlike-photoreal-2-0",
+   "name": "dreamlike photoreal 2.0",
+   "family": "Stable Diffusion 1.5",
+   "kind": "generate",
+   "tags": [
+    "fast",
+    "lowvram",
+    "realism"
+   ],
+   "looks": [
+    "portrait"
+   ],
+   "tagline": "A community Stable Diffusion 1.5 model by dreamlike-art.",
+   "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (dreamlike-art/dreamlike-photoreal-2.0) for what it is tuned for.",
+   "license": "Custom licence (read it before selling pictures)",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 52,
+   "steps": 20,
+   "overheadGb": 1.5,
+   "downloads": 4635,
+   "source": "dreamlike-art/dreamlike-photoreal-2.0",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 2132625462,
+     "files": [
+      {
+       "role": "model",
+       "name": "dreamlike-photoreal-2.0.safetensors",
+       "repo": "dreamlike-art/dreamlike-photoreal-2.0",
+       "size": 2132625462,
+       "sha256": "92970aa785eb76e427847109a8f4ec6abfab36ef941f78d295d323d79f6130c9",
+       "url": "https://huggingface.co/dreamlike-art/dreamlike-photoreal-2.0/resolve/main/dreamlike-photoreal-2.0.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "digiplay-dreamshaper-8",
+   "name": "DreamShaper 8",
+   "family": "Stable Diffusion 1.5",
+   "kind": "generate",
+   "tags": [
+    "fast",
+    "illustration",
+    "lowvram"
+   ],
+   "looks": [],
+   "tagline": "A community Stable Diffusion 1.5 model by digiplay.",
+   "strengths": "A community-made Stable Diffusion 1.5 checkpoint. Not tested by us: read its page on Hugging Face (digiplay/DreamShaper_8) for what it is tuned for.",
+   "license": "Custom licence (read it before selling pictures)",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 52,
+   "steps": 20,
+   "overheadGb": 1.5,
+   "downloads": 4368,
+   "source": "digiplay/DreamShaper_8",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 2132625894,
+     "files": [
+      {
+       "role": "model",
+       "name": "dreamshaper_8.safetensors",
+       "repo": "digiplay/DreamShaper_8",
+       "size": 2132625894,
+       "sha256": "879db523c30d3b9017143d56705015e15a2cb5628762c11d086fed9538abd7fd",
+       "url": "https://huggingface.co/digiplay/DreamShaper_8/resolve/main/dreamshaper_8.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "swl-models-xiaolxl-guofeng-v3",
+   "name": "xiaolxl guofeng v3",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "illustration"
+   ],
+   "looks": [],
+   "tagline": "A community SDXL model by swl-models.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (swl-models/xiaolxl-guofeng-v3) for what it is tuned for.",
+   "license": "CreativeML OpenRAIL-M",
+   "commercialOk": true,
+   "community": true,
+   "mature": false,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 4189,
+   "source": "swl-models/xiaolxl-guofeng-v3",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 4265097028,
+     "files": [
+      {
+       "role": "model",
+       "name": "GuoFeng3.safetensors",
+       "repo": "swl-models/xiaolxl-guofeng-v3",
+       "size": 4265097028,
+       "sha256": "a25bc83d010c103f0e7eea579a27196500e286af1ed0007611687b9a09212c0b",
+       "url": "https://huggingface.co/swl-models/xiaolxl-guofeng-v3/resolve/main/GuoFeng3.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "raelina-raehoshi-illust-xl-11",
+   "name": "Raehoshi illust XL 11",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "illustration"
+   ],
+   "looks": [],
+   "tagline": "A community SDXL model by Raelina.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Raelina/Raehoshi-illust-XL-11) for what it is tuned for.",
+   "license": "Custom licence (read it before selling pictures)",
+   "commercialOk": false,
+   "community": true,
+   "mature": false,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 4182,
+   "source": "Raelina/Raehoshi-illust-XL-11",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938063182,
+     "files": [
+      {
+       "role": "model",
+       "name": "raehoshi-illust-xl-11.safetensors",
+       "repo": "Raelina/Raehoshi-illust-XL-11",
+       "size": 6938063182,
+       "sha256": "0753c9ddcb82f4d47d98ca2f65b0e5944a8e4528b848d0741654be0740973e64",
+       "url": "https://huggingface.co/Raelina/Raehoshi-illust-XL-11/resolve/main/raehoshi-illust-xl-11.safetensors"
+      }
+     ]
+    }
+   ],
+   "companions": []
+  },
+  {
+   "id": "ine007-wainsfwillustrious-v140",
+   "name": "waiNSFWIllustrious v140",
+   "family": "Stable Diffusion XL",
+   "kind": "generate",
+   "tags": [
+    "cartoon",
+    "illustration"
+   ],
+   "looks": [],
+   "tagline": "A community SDXL model by Ine007.",
+   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Ine007/waiNSFWIllustrious_v140) for what it is tuned for.",
+   "license": "Custom licence (read it before selling pictures)",
+   "commercialOk": false,
+   "community": true,
+   "mature": true,
+   "quality": 73,
+   "steps": 25,
+   "overheadGb": 2.0,
+   "downloads": 3212,
+   "source": "Ine007/waiNSFWIllustrious_v140",
+   "variants": [
+    {
+     "quant": "FP16",
+     "bits": 16,
+     "qualityCost": 0,
+     "sizeBytes": 6938040682,
+     "files": [
+      {
+       "role": "model",
+       "name": "waiNSFWIllustrious_v140.safetensors",
+       "repo": "Ine007/waiNSFWIllustrious_v140",
+       "size": 6938040682,
+       "sha256": "bdb59bac77d94ae7a55ff893170f9554c3f349e48a1b73c0c17c0b7c6f4d41a2",
+       "url": "https://huggingface.co/Ine007/waiNSFWIllustrious_v140/resolve/main/waiNSFWIllustrious_v140.safetensors"
       }
      ]
     }
