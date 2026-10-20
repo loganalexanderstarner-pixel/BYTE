@@ -11,11 +11,13 @@ const base = { query: "", filter: null, sort: "best" as const, community: false,
 
 describe("arrange", () => {
   const list = [m("a", { quality: 60, tags: ["realism"] }), m("b", { quality: 90, steps: 30, totalBytes: 9 }), m("c", { quality: 70, community: true, commercialOk: false, tags: ["realism"] })];
-  it("sorts best first and hides community models by default", () => {
+  it("sorts best first and keeps community models on their own tab", () => {
     expect(arrange(list, base).map((x) => x.id)).toEqual(["b", "a"]);
   });
-  it("shows community models when asked, and filters by style", () => {
-    expect(arrange(list, { ...base, community: true, filter: "realism" }).map((x) => x.id)).toEqual(["c", "a"]);
+  it("shows only community models on the Community tab, and filters by style", () => {
+    expect(arrange(list, { ...base, community: true }).map((x) => x.id)).toEqual(["c"]);
+    expect(arrange(list, { ...base, community: true, filter: "realism" }).map((x) => x.id)).toEqual(["c"]);
+    expect(arrange(list, { ...base, filter: "realism" }).map((x) => x.id)).toEqual(["a"]);
   });
   it("narrows Realism to a real-life look", () => {
     const l = [m("p", { tags: ["realism"], looks: ["portrait"] }), m("q", { tags: ["realism"], looks: ["food"] }), m("r", { tags: ["fast"], looks: ["food"] })];
@@ -29,7 +31,7 @@ describe("arrange", () => {
     expect(arrange(l, { ...base, community: true, kids: true }).map((x) => x.id)).not.toContain("d");
   });
   it("can hide models that are not for commercial use", () => {
-    expect(arrange(list, { ...base, community: true, commercialOnly: true }).map((x) => x.id)).toEqual(["b", "a"]);
+    expect(arrange(list, { ...base, community: true, commercialOnly: true }).map((x) => x.id)).toEqual([]);
   });
   it("sorts by speed and size and searches", () => {
     expect(arrange(list, { ...base, sort: "fastest" })[0].id).toBe("a");

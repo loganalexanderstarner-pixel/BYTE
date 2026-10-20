@@ -4,7 +4,7 @@
  "models": [
   {
    "id": "abenzerps-qwen-image-2-1-uncensored-quantized",
-   "name": "Qwen-Image-2.1-Uncensored-Quantized",
+   "name": "Qwen-Image 2.1 · abenzerps",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -19,8 +19,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by abenzerps.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (abenzerps/Qwen-Image-2.1-Uncensored-Quantized) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by abenzerps.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -149,7 +149,7 @@
   },
   {
    "id": "atomicchat-qwen-image-2-1-turbo-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Turbo-Uncensored (AtomicChat)",
+   "name": "Qwen-Image 2.1 Turbo · AtomicChat",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -165,8 +165,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by AtomicChat.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 Turbo variant by AtomicChat.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Makes a picture in about 4 steps. Community-made and not tested by us, so try it beside the original.",
    "license": "Apache-2.0",
    "commercialOk": true,
    "community": true,
@@ -1216,7 +1216,7 @@
   },
   {
    "id": "kasugaisakura-qwen-image-2-1-uncensored-abenzerps-gguf",
-   "name": "Qwen-Image-2.1-Uncensored-Abenzerps",
+   "name": "Qwen-Image 2.1 · KasugaiSakura",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -1231,8 +1231,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by KasugaiSakura.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (KasugaiSakura/Qwen-Image-2.1-Uncensored-Abenzerps-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by KasugaiSakura.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -1361,7 +1361,7 @@
   },
   {
    "id": "lesliemore-z-image-turbo-nsfw-v2-gguf",
-   "name": "z-image-turbo-nsfw-v2",
+   "name": "Z-Image Turbo v2 · lesliemore",
    "family": "Z-Image",
    "kind": "generate",
    "tags": [
@@ -1376,8 +1376,8 @@
     "landscape",
     "cinematic"
    ],
-   "tagline": "A community version of Z-Image by lesliemore.",
-   "strengths": "A community-made version based on Z-Image. Not tested by us: see its description on Hugging Face (lesliemore/z-image-turbo-nsfw-v2-GGUF) for what it changes.",
+   "tagline": "Z-Image Turbo variant by lesliemore.",
+   "strengths": "Fast, photographic pictures from the Z-Image Turbo base: sharp detail and natural light in a few steps. Community-made and not tested by us, so try it beside the original.",
    "license": "Apache-2.0",
    "commercialOk": true,
    "community": true,
@@ -1426,7 +1426,7 @@
   },
   {
    "id": "0xsojalsec-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Uncensored (0xSojalSec)",
+   "name": "Qwen-Image 2.1 · 0xSojalSec",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -1441,8 +1441,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by 0xSojalSec.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (0xSojalSec/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by 0xSojalSec.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -3440,7 +3440,7 @@
   },
   {
    "id": "webmp3-sakura-qwen-image-2-1-turbo-uncensored-gguf",
-   "name": "Sakura-Qwen-Image-2.1-Turbo-Uncensored",
+   "name": "Qwen-Image 2.1 Turbo · webmp3",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -3456,8 +3456,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by webmp3.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (webmp3/Sakura-Qwen-Image-2.1-Turbo-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 Turbo variant by webmp3.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Makes a picture in about 4 steps. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -3763,7 +3763,7 @@
   },
   {
    "id": "technobaptist-qwen-image-2-1-turbo-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Turbo-Uncensored (TechnoBaptist)",
+   "name": "Qwen-Image 2.1 Turbo · TechnoBaptist",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -3779,8 +3779,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by TechnoBaptist.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (TechnoBaptist/Qwen-Image-2.1-Turbo-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 Turbo variant by TechnoBaptist.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Makes a picture in about 4 steps. Community-made and not tested by us, so try it beside the original.",
    "license": "Apache-2.0",
    "commercialOk": true,
    "community": true,
@@ -3925,7 +3925,7 @@
   },
   {
    "id": "t8star-flux-1-dev-abliterated-v2-gguf",
-   "name": "flux.1-dev-abliterated-V2 (t8star)",
+   "name": "FLUX.1 dev · t8star",
    "family": "FLUX.1",
    "kind": "generate",
    "tags": [
@@ -3939,8 +3939,8 @@
     "food",
     "cinematic"
    ],
-   "tagline": "A community version of FLUX.1 by t8star.",
-   "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (t8star/flux.1-dev-abliterated-V2-GGUF) for what it changes.",
+   "tagline": "FLUX.1 dev variant by t8star.",
+   "strengths": "Detailed photographic realism from the FLUX.1 dev base: fine texture, natural light and good hands. Community-made and not tested by us, so try it beside the original.",
    "license": "Not stated",
    "commercialOk": false,
    "community": true,
@@ -5336,7 +5336,7 @@
   },
   {
    "id": "luffythefox-qwen-image-2-1-uncensored-genesis-bf16-gguf",
-   "name": "Qwen-Image-2.1-Uncensored-Genesis-BF16",
+   "name": "Qwen-Image 2.1 · LuffyTheFox",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -5351,8 +5351,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by LuffyTheFox.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (LuffyTheFox/Qwen-Image-2.1-Uncensored-Genesis-BF16-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by LuffyTheFox.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -6541,7 +6541,7 @@
   },
   {
    "id": "basileleuwa-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Uncensored (basileleuwa)",
+   "name": "Qwen-Image 2.1 · basileleuwa",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -6556,8 +6556,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by basileleuwa.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (basileleuwa/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by basileleuwa.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -7078,7 +7078,7 @@
   },
   {
    "id": "tbt000-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Uncensored (TBT000)",
+   "name": "Qwen-Image 2.1 · TBT000",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -7093,8 +7093,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by TBT000.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (TBT000/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by TBT000.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -7552,7 +7552,7 @@
   },
   {
    "id": "janchan123-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Uncensored (Janchan123)",
+   "name": "Qwen-Image 2.1 · Janchan123",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -7567,8 +7567,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by Janchan123.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Janchan123/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by Janchan123.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -8275,7 +8275,7 @@
   },
   {
    "id": "ldov-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Uncensored (ldov)",
+   "name": "Qwen-Image 2.1 · ldov",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -8290,8 +8290,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by ldov.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (ldov/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by ldov.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -8750,7 +8750,7 @@
   },
   {
    "id": "manusagents-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Uncensored (Manusagents)",
+   "name": "Qwen-Image 2.1 · Manusagents",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -8765,8 +8765,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by Manusagents.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Manusagents/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by Manusagents.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -9239,7 +9239,7 @@
   },
   {
    "id": "daddysteven-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Uncensored (daddysteven)",
+   "name": "Qwen-Image 2.1 · daddysteven",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -9254,8 +9254,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by daddysteven.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (daddysteven/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by daddysteven.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -9852,7 +9852,7 @@
   },
   {
    "id": "rayss868123-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Uncensored (rayss868123)",
+   "name": "Qwen-Image 2.1 · rayss868123",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -9867,8 +9867,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by rayss868123.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (rayss868123/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by rayss868123.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -10388,7 +10388,7 @@
   },
   {
    "id": "kkguku-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Uncensored (kkguku)",
+   "name": "Qwen-Image 2.1 · kkguku",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -10403,8 +10403,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by kkguku.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (kkguku/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by kkguku.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -11233,7 +11233,7 @@
   },
   {
    "id": "kenic-1-qwen-image-2-1-turbo-uncensored-gguf-bf16",
-   "name": "Qwen-Image-2.1-Turbo-Uncensored-BF16",
+   "name": "Qwen-Image 2.1 Turbo · KENIC-1",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -11249,8 +11249,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by KENIC-1.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (KENIC-1/Qwen-Image-2.1-Turbo-Uncensored-GGUF-BF16) for what it changes.",
+   "tagline": "Qwen-Image 2.1 Turbo variant by KENIC-1.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Makes a picture in about 4 steps. Community-made and not tested by us, so try it beside the original.",
    "license": "Apache-2.0",
    "commercialOk": true,
    "community": true,
@@ -11299,7 +11299,7 @@
   },
   {
    "id": "0endzz-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Uncensored (0Endzz)",
+   "name": "Qwen-Image 2.1 · 0Endzz",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -11314,8 +11314,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by 0Endzz.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (0Endzz/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by 0Endzz.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -11444,7 +11444,7 @@
   },
   {
    "id": "zyszztggd-qwen-image-2-1-turbo-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Turbo-Uncensored (Zyszztggd)",
+   "name": "Qwen-Image 2.1 Turbo · Zyszztggd",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -11460,8 +11460,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by Zyszztggd.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (Zyszztggd/Qwen-Image-2.1-Turbo-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 Turbo variant by Zyszztggd.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Makes a picture in about 4 steps. Community-made and not tested by us, so try it beside the original.",
    "license": "Apache-2.0",
    "commercialOk": true,
    "community": true,
@@ -12814,7 +12814,7 @@
   },
   {
    "id": "wesley1234-flux-1-dev-abliterated-v2-gguf",
-   "name": "flux.1-dev-abliterated-V2 (Wesley1234)",
+   "name": "FLUX.1 dev · Wesley1234",
    "family": "FLUX.1",
    "kind": "generate",
    "tags": [
@@ -12828,8 +12828,8 @@
     "food",
     "cinematic"
    ],
-   "tagline": "A community version of FLUX.1 by Wesley1234.",
-   "strengths": "A community-made version based on FLUX.1. Not tested by us: see its description on Hugging Face (Wesley1234/flux.1-dev-abliterated-V2-GGUF) for what it changes.",
+   "tagline": "FLUX.1 dev variant by Wesley1234.",
+   "strengths": "Detailed photographic realism from the FLUX.1 dev base: fine texture, natural light and good hands. Community-made and not tested by us, so try it beside the original.",
    "license": "Not stated",
    "commercialOk": false,
    "community": true,
@@ -12998,7 +12998,7 @@
   },
   {
    "id": "w-zil-qwen-image-2-1-uncensored-gguf-bcp",
-   "name": "Qwen-Image-2.1-Uncensored-bcp",
+   "name": "Qwen-Image 2.1 · W-Zil",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -13013,8 +13013,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by W-Zil.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (W-Zil/Qwen-Image-2.1-Uncensored-GGUF-bcp) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by W-Zil.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -13867,7 +13867,7 @@
   },
   {
    "id": "ziangli-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image-2.1-Uncensored (ZiangLi)",
+   "name": "Qwen-Image 2.1 · ZiangLi",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -13882,8 +13882,8 @@
     "landscape",
     "street"
    ],
-   "tagline": "A community version of Qwen-Image 2.1 by ZiangLi.",
-   "strengths": "A community-made version based on Qwen-Image 2.1. Not tested by us: see its description on Hugging Face (ZiangLi/Qwen-Image-2.1-Uncensored-GGUF) for what it changes.",
+   "tagline": "Qwen-Image 2.1 variant by ZiangLi.",
+   "strengths": "Photographic detail from the Qwen-Image 2.1 base: natural skin, believable light and readable text in the picture. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -17047,8 +17047,8 @@
     "landscape",
     "cinematic"
    ],
-   "tagline": "A community SDXL model by RunDiffusion.",
-   "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (RunDiffusion/Juggernaut-X-v10) for the style it was trained for.",
+   "tagline": "Juggernaut X, an SDXL photo model by RunDiffusion.",
+   "strengths": "A well-known SDXL model for photographic pictures: natural skin, lighting and depth of field. Community-made and not tested by us, so try it beside the original.",
    "license": "CreativeML OpenRAIL-M",
    "commercialOk": true,
    "community": true,
@@ -17213,7 +17213,7 @@
   },
   {
    "id": "manjushri-pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
-   "name": "pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
+   "name": "Photoreal SDXL · Manjushri",
    "family": "Stable Diffusion XL",
    "kind": "generate",
    "tags": [
@@ -17225,8 +17225,8 @@
     "landscape",
     "cinematic"
    ],
-   "tagline": "A community SDXL model by Manjushri.",
-   "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (Manjushri/pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint) for the style it was trained for.",
+   "tagline": "Photographic SDXL model by Manjushri.",
+   "strengths": "Aimed at realistic photographs: skin texture, lighting and a camera-like look, in SDXL's small size. Community-made and not tested by us, so try it beside the original.",
    "license": "OpenRAIL++",
    "commercialOk": true,
    "community": true,
@@ -17474,15 +17474,15 @@
   },
   {
    "id": "debugdll-nsfw-image-generator",
-   "name": "nsfw-image-generator",
+   "name": "SDXL model · debugdll",
    "family": "Stable Diffusion XL",
    "kind": "generate",
    "tags": [
     "illustration"
    ],
    "looks": [],
-   "tagline": "A community SDXL model by debugdll.",
-   "strengths": "A community-made model. Not tested by us: see its page on Hugging Face (debugdll/nsfw-image-generator) for the style it was trained for.",
+   "tagline": "SDXL model by debugdll.",
+   "strengths": "An SDXL checkpoint, small and quick to run. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -19221,7 +19221,7 @@
   },
   {
    "id": "laxhar-noobai-xl-vpred-1-0",
-   "name": "noobai XL Vpred 1.0",
+   "name": "NoobAI XL (vpred 1.0)",
    "family": "Stable Diffusion XL",
    "kind": "generate",
    "tags": [
@@ -19229,8 +19229,8 @@
     "illustration"
    ],
    "looks": [],
-   "tagline": "A community SDXL model by Laxhar.",
-   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Laxhar/noobai-XL-Vpred-1.0) for what it is tuned for.",
+   "tagline": "NoobAI XL, an illustration model by Laxhar.",
+   "strengths": "Clean illustration and anime-style pictures with strong line work and colour. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,
@@ -20335,7 +20335,7 @@
   },
   {
    "id": "ine007-wainsfwillustrious-v140",
-   "name": "waiNSFWIllustrious v140",
+   "name": "WAI Illustrious v140",
    "family": "Stable Diffusion XL",
    "kind": "generate",
    "tags": [
@@ -20343,8 +20343,8 @@
     "illustration"
    ],
    "looks": [],
-   "tagline": "A community SDXL model by Ine007.",
-   "strengths": "A community-made SDXL checkpoint. Not tested by us: read its page on Hugging Face (Ine007/waiNSFWIllustrious_v140) for what it is tuned for.",
+   "tagline": "WAI Illustrious, an illustration model by Ine007.",
+   "strengths": "Polished illustration and anime-style pictures built on Illustrious. Community-made and not tested by us, so try it beside the original.",
    "license": "Custom licence (read it before selling pictures)",
    "commercialOk": false,
    "community": true,

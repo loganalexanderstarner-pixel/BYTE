@@ -6,6 +6,8 @@ Companion files (text encoders, VAE) per model family follow the stable-diffusio
 Usage: scripts/build-image-catalog.py [pool.json]   (pool.json: {repo: {dl, likes}} from a search)
 """
 import json, re, sys, urllib.request, time
+sys.path.insert(0, "scripts/image-catalog")
+from community_text import apply as plain_text
 
 HF = "https://huggingface.co/"
 UA = {"User-Agent": "byte-catalog"}
@@ -250,5 +252,7 @@ if __name__ == "__main__":
     specs = json.load(open(sys.argv[1]))
     ms = build(specs) + build_upscalers()
     cat = {"version": 2, "generated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "models": ms}
+    for m in cat["models"]:
+        plain_text(m)
     json.dump(cat, open("src-tauri/catalog/images.json", "w"), indent=1)
     print(len(ms), "models", sum(len(m["variants"]) for m in ms), "versions")

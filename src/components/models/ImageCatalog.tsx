@@ -105,8 +105,8 @@ function headline(m: ImageModel): number {
 /** Sorts and filters the image catalog. Pure, so it is tested without the UI. */
 export function arrange(models: ImageModel[], opts: { query: string; filter: string | null; look?: string | null; task?: string | null; sort: Sort; community: boolean; commercialOnly: boolean; kids?: boolean }): ImageModel[] {
   const q = opts.query.trim().toLowerCase();
-  // Community models need their own switch; adult ones are never shown in kids mode.
-  let list = models.filter((m) => (opts.community || !m.community) && !(opts.kids && m.mature));
+  // Official and Community are separate tabs; models flagged mature are never shown in kids mode.
+  let list = models.filter((m) => opts.community === m.community && !(opts.kids && m.mature));
   if (opts.commercialOnly) list = list.filter((m) => m.commercialOk);
   if (opts.task) list = list.filter((m) => forTask(m, opts.task!));
   if (opts.filter) list = list.filter((m) => m.tags.includes(opts.filter!));
@@ -162,8 +162,15 @@ export function ImageCatalog({ models, reload }: { models: ImageModel[] | null; 
   return (
     <>
       <p className="faint" style={{ marginTop: 0 }}>
-        Free image models, best first. Everything runs on this PC; pictures and photos never leave it. Download a version, then use Make a picture at the top of this page.
+        Free image models, best first. Official ones come from the labs that made them; Community ones are versions and fine-tunes by other people. Everything runs on this PC; pictures and photos never leave it. Download a version, then use Make a picture at the top of this page.
       </p>
+      <div className="segmented" role="tablist" aria-label="Where the models come from" style={{ marginBottom: 10 }}>
+        {[false, true].map((c) => (
+          <button key={String(c)} role="tab" aria-selected={community === c} className={community === c ? "active" : ""} onClick={() => setCommunity(c)}>
+            {c ? "Community" : "Official"} ({(models ?? []).filter((m) => m.community === c && !(kids && m.mature)).length})
+          </button>
+        ))}
+      </div>
       <div className="catalog-tools">
         <label className="search">
           <Search size={14} className="faint" />
@@ -213,9 +220,6 @@ export function ImageCatalog({ models, reload }: { models: ImageModel[] | null; 
           <button className="chip" aria-pressed={commercialOnly} onClick={() => setCommercialOnly(!commercialOnly)} title="Hide models whose licence does not allow selling what you make">
             Commercial use OK
           </button>
-          <button className="chip" aria-pressed={community} onClick={() => setCommunity(!community)} title="Models made by the community rather than the original labs. Check each licence.">
-            Community models
-          </button>
         </div>
       </div>
       {error && <div className="banner danger">{error}</div>}
@@ -261,7 +265,6 @@ export function ImageCatalog({ models, reload }: { models: ImageModel[] | null; 
                 <span>{m.steps} steps</span>
                 <span>{m.license}{m.commercialOk || /selling/.test(m.license) ? "" : " · check before selling pictures"}</span>
                 {m.community && <span>Community model by {m.source.split("/")[0]}</span>}
-                {m.mature && <span>Adult content possible</span>}
               </div>
             </div>
           );
