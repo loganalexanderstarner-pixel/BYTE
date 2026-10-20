@@ -83,8 +83,21 @@ export const IMAGE_FILTERS: { id: string; label: string; hint?: string }[] = [
 ];
 
 
+/** What an upscaler stands out for: its own list, since Realism and Cartoon do not describe a resizer. */
+export const UPSCALE_FILTERS: { id: string; label: string }[] = [
+  { id: "photo", label: "Photos" },
+  { id: "faces", label: "Faces and people" },
+  { id: "art", label: "Art and illustration" },
+  { id: "anime", label: "Anime and cartoons" },
+  { id: "text", label: "Text and screenshots" },
+  { id: "fast", label: "Fast" },
+];
+
+export type Tab = "official" | "community" | "upscale";
+
 /** What a model stands out for: shown on its card whatever filter is on, so nothing is hidden by a filter. */
 export function goodAt(m: ImageModel): string[] {
+  if (m.kind === "upscale") return UPSCALE_FILTERS.filter((f) => m.tags.includes(f.id)).map((f) => f.label);
   const out: string[] = [];
   for (const t of m.tags) {
     const f = IMAGE_FILTERS.find((x) => x.id === t);
@@ -102,11 +115,16 @@ function headline(m: ImageModel): number {
   return m.quality - (m.variants[m.best]?.qualityCost ?? 0);
 }
 
+export function inTab(m: ImageModel, tab: Tab): boolean {
+  if (tab === "upscale") return m.kind === "upscale";
+  return m.kind !== "upscale" && m.community === (tab === "community");
+}
+
 /** Sorts and filters the image catalog. Pure, so it is tested without the UI. */
-export function arrange(models: ImageModel[], opts: { query: string; filter: string | null; look?: string | null; task?: string | null; sort: Sort; community: boolean; commercialOnly: boolean; kids?: boolean }): ImageModel[] {
+export function arrange(models: ImageModel[], opts: { query: string; filter: string | null; look?: string | null; task?: string | null; sort: Sort; tab: Tab; commercialOnly: boolean; kids?: boolean }): ImageModel[] {
   const q = opts.query.trim().toLowerCase();
-  // Official and Community are separate tabs; models flagged mature are never shown in kids mode.
-  let list = models.filter((m) => opts.community === m.community && !(opts.kids && m.mature));
+  // Official, Community and Upscalers are separate tabs; models flagged mature are never shown in kids mode.
+  let list = models.filter((m) => inTab(m, opts.tab) && !(opts.kids && m.mature));
   if (opts.commercialOnly) list = list.filter((m) => m.commercialOk);
   if (opts.task) list = list.filter((m) => forTask(m, opts.task!));
   if (opts.filter) list = list.filter((m) => m.tags.includes(opts.filter!));
@@ -133,7 +151,7 @@ export function ImageCatalog({ models, reload }: { models: ImageModel[] | null; 
   const [look, setLook] = useState<string | null>(null);
   const [task, setTask] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>("best");
-  const [community, setCommunity] = useState(false);
+  const [tab, setTab] = useState<Tab>("official");
   const [commercialOnly, setCommercialOnly] = useState(false);
   const [pick, setPick] = useState<Record<string, number>>({});
   const [fitOnly, setFitOnly] = useState(false);
@@ -157,17 +175,17 @@ export function ImageCatalog({ models, reload }: { models: ImageModel[] | null; 
     reload();
   };
 
-  const shown = useMemo(() => arrange(models ?? [], { query, filter, look, task, sort, community, commercialOnly, kids }).filter((m) => !fitOnly || m.variants.some((v) => v.fit.placement === "vram")), [models, query, filter, look, task, sort, community, commercialOnly, kids, fitOnly]);
+  const shown = useMemo(() => arrange(models ?? [], { query, filter, look, task, sort, tab, commercialOnly, kids }).filter((m) => !fitOnly || m.variants.some((v) => v.fit.placement === "vram")), [models, query, filter, look, task, sort, tab, commercialOnly, kids, fitOnly]);
 
   return (
     <>
       <p className="faint" style={{ marginTop: 0 }}>
-        Free image models, best first. Official ones come from the labs that made them; Community ones are versions and fine-tunes by other people. Everything runs on this PC; pictures and photos never leave it. Download a version, then use Make a picture at the top of this page.
+        Free image models, best first. Official ones come from the labs that made them; Community ones are versions and fine-tunes by other people; Upscalers make a finished picture bigger and sharper. Everything runs on this PC; pictures and photos never leave it. Download a version, then use Make a picture at the top of this page.
       </p>
       <div className="segmented" role="tablist" aria-label="Where the models come from" style={{ marginBottom: 10 }}>
-        {[false, true].map((c) => (
-          <button key={String(c)} role="tab" aria-selected={community === c} className={community === c ? "active" : ""} onClick={() => setCommunity(c)}>
-            {c ? "Community" : "Official"} ({(models ?? []).filter((m) => m.community === c && !(kids && m.mature)).length})
+        {([["official", "Official"], ["community", "Community"], ["upscale", "Upscalers"]] as [Tab, string][]).map(([id, label]) => (
+          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => (setTab(id), setFilter(null), setLook(null), setTask(null))}>
+            {label} ({(models ?? []).filter((m) => inTab(m, id) && !(kids && m.mature)).length})
           </button>
         ))}
       </div>
@@ -184,21 +202,23 @@ export function ImageCatalog({ models, reload }: { models: ImageModel[] | null; 
         </select>
       </div>
       <div className="filters">
+        {tab !== "upscale" && (
         <div className="chips" role="group" aria-label="What you want to do">
           <button className="chip" aria-pressed={task === null} onClick={() => setTask(null)}>Everything</button>
           {TASKS.map((t) => {
             const n = (models ?? []).filter((m) => forTask(m, t.id)).length;
             return (
-              <button key={t.id} className="chip" disabled={n === 0} aria-pressed={task === t.id} onClick={() => setTask(task === t.id ? null : t.id)} title={n === 0 ? `${t.hint}. Models for this are coming.` : t.hint}>
+              <button key={t.id} className="chip" disabled={n === 0} aria-pressed={task === t.id} onClick={() => (t.id === "upscale" ? (setTab("upscale"), setTask(null), setFilter(null)) : setTask(task === t.id ? null : t.id))} title={n === 0 ? `${t.hint}. Models for this are coming.` : t.hint}>
                 {t.label}{n === 0 ? " (coming)" : ` (${n})`}
               </button>
             );
           })}
         </div>
-        <div className="chips" role="group" aria-label="Style">
+        )}
+        <div className="chips" role="group" aria-label={tab === "upscale" ? "Good for" : "Style"}>
           <button className="chip" aria-pressed={filter === null} onClick={() => setFilter(null)}>All</button>
-          {IMAGE_FILTERS.map((f) => (
-            <button key={f.id} className="chip" title={f.hint} aria-pressed={filter === f.id} onClick={() => (setFilter(filter === f.id ? null : f.id), setLook(null))}>
+          {(tab === "upscale" ? UPSCALE_FILTERS : IMAGE_FILTERS).map((f) => (
+            <button key={f.id} className="chip" title={"hint" in f ? (f as { hint?: string }).hint : undefined} aria-pressed={filter === f.id} onClick={() => (setFilter(filter === f.id ? null : f.id), setLook(null))}>
               {f.label}
             </button>
           ))}
@@ -262,7 +282,7 @@ export function ImageCatalog({ models, reload }: { models: ImageModel[] | null; 
               <DownloadRow m={m} vi={vi} state={dl[`${m.id}:${v.quant}`]} onDownload={() => run(() => api.imageDownload(m.id, v.quant))} onPause={() => run(() => api.imagePause(m.id, v.quant))} onDelete={() => run(() => api.imageDelete(m.id, v.quant))} />
               <div className="faint row" style={{ gap: 12, flexWrap: "wrap", fontSize: "0.85em" }}>
                 <span>{bytes(v.sizeBytes + m.companions.reduce((n, f) => n + f.size, 0))} to download with its text files</span>
-                <span>{m.steps} steps</span>
+                <span>{m.kind === "upscale" ? `${m.steps}x bigger` : `${m.steps} steps`}</span>
                 <span>{m.license}{m.commercialOk || /selling/.test(m.license) ? "" : " · check before selling pictures"}</span>
                 {m.community && <span>Community model by {m.source.split("/")[0]}</span>}
               </div>

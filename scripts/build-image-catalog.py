@@ -209,23 +209,23 @@ def build(specs):
 # Upscalers (kind "upscale"): small ESRGAN-family files that stable-diffusion.cpp reads directly.
 UPSCALERS = [
     # (file, name, tags, tagline, strengths, quality, watch out)
-    ("4xNomosWebPhoto_esrgan.gguf", "4xNomosWebPhoto", ["photo", "faces"], "The best for photos of people.", "Keeps real pore and wrinkle texture, so skin does not turn plastic. Tested best on a portrait.", 92),
-    ("RealESRGAN_x4plus.gguf", "Real-ESRGAN x4plus", ["photo", "fast"], "The classic all-round upscaler.", "Clean and safe on photos and art. Can smooth skin a little.", 78),
-    ("4xUltrasharpV10.gguf", "4x UltraSharp", ["art", "text"], "Crisp edges for art, screenshots and text.", "Very sharp lines. On faces it can look smooth.", 76),
-    ("4x_foolhardy_Remacri.gguf", "4x Remacri", ["photo", "art"], "Soft natural enlargement.", "Gentle results for photos and paintings. Smooth skin.", 76),
-    ("4x_foolhardy_Remacri_ExtraSmoother.gguf", "4x Remacri ExtraSmoother", ["photo"], "Remacri with extra smoothing.", "Hides compression blocks in low-quality photos.", 70),
-    ("4xLSDIRplusR.gguf", "4x LSDIR plus R", ["photo"], "Strong clean-up for damaged photos.", "Good at removing noise and blur; skin comes out smooth.", 72),
-    ("4xLSDIRplusN.gguf", "4x LSDIR plus N", ["photo"], "Keeps fine grain and texture.", "Adds a sandy grain; good for textures, rough on faces.", 70),
-    ("4xLSDIRplusC.gguf", "4x LSDIR plus C", ["photo"], "LSDIR tuned for compressed images.", "Repairs JPEG artifacts.", 70),
-    ("4xNomos2_otf_esrgan.gguf", "4xNomos2 otf", ["photo", "art"], "Textured, grainy enlargement.", "Lots of texture; can look noisy on skin.", 68),
-    ("4xNomos8kSC.gguf", "4xNomos8k SC", ["photo", "art"], "Detail for large, clean images.", "Made for high-resolution sources.", 74),
-    ("4x_NickelbackFS_72000_G.gguf", "4x NickelbackFS", ["art"], "Painterly, detailed enlargement.", "Good for illustrations and game art.", 70),
-    ("4x_Nickelback_70000G.gguf", "4x Nickelback", ["art"], "An earlier Nickelback version.", "Good for illustrations.", 68),
-    ("2x-ESRGAN.gguf", "2x ESRGAN", ["photo", "fast"], "Gentle 2x enlargement.", "Smaller step than 4x, keeps things natural.", 72),
-    ("2xPSNR.gguf", "2x PSNR", ["photo"], "Faithful 2x enlargement without invented detail.", "Best when you want accuracy over sharpness.", 66),
-    ("2x_StarSample_V2.0.gguf", "2x StarSample", ["art"], "2x enlargement for stylised art.", "Made for cartoon and game art.", 66),
-    ("RealESRGAN_x4plus_anime_6B.gguf", "Real-ESRGAN anime 6B", ["anime"], "The standard upscaler for anime.", "Clean lines and flat colours; small and fast.", 84),
-    ("smbss_2x_RRDB_Animation.gguf", "2x Animation RRDB", ["anime"], "2x enlargement for animation frames.", "Made for cartoons and animation.", 70),
+    ("4xNomosWebPhoto_esrgan.gguf", "4xNomosWebPhoto", ["photo", "faces"], "Best for photos of people: keeps real skin texture.", "Keeps real pore and wrinkle texture, so skin does not turn plastic. Tested best on a portrait.", 92),
+    ("RealESRGAN_x4plus.gguf", "Real-ESRGAN x4plus", ["photo", "fast"], "Best all-rounder for everyday photos and art.", "Clean and safe on photos and art. Can smooth skin a little.", 78),
+    ("4xUltrasharpV10.gguf", "4x UltraSharp", ["art", "text"], "Best for art, screenshots and text with hard edges.", "Very sharp lines. On faces it can look smooth.", 76),
+    ("4x_foolhardy_Remacri.gguf", "4x Remacri", ["photo", "art"], "Best for gentle, natural enlargement of photos and paintings.", "Gentle results for photos and paintings. Smooth skin.", 76),
+    ("4x_foolhardy_Remacri_ExtraSmoother.gguf", "4x Remacri ExtraSmoother", ["photo"], "Best for low-quality or heavily compressed photos.", "Hides compression blocks in low-quality photos.", 70),
+    ("4xLSDIRplusR.gguf", "4x LSDIR plus R", ["photo"], "Best for noisy, blurry or damaged photos.", "Good at removing noise and blur; skin comes out smooth.", 72),
+    ("4xLSDIRplusN.gguf", "4x LSDIR plus N", ["photo"], "Best for textured scenes: stone, fabric, leaves and film grain.", "Adds a sandy grain; good for textures, rough on faces.", 70),
+    ("4xLSDIRplusC.gguf", "4x LSDIR plus C", ["photo"], "Best for JPEG-compressed pictures, like old web downloads.", "Repairs JPEG artifacts.", 70),
+    ("4xNomos2_otf_esrgan.gguf", "4xNomos2 otf", ["photo", "art"], "Best for detailed texture in photos and art.", "Lots of texture; can look noisy on skin.", 68),
+    ("4xNomos8kSC.gguf", "4xNomos8k SC", ["photo", "art"], "Best for large, already-clean pictures.", "Made for high-resolution sources.", 74),
+    ("4x_NickelbackFS_72000_G.gguf", "4x NickelbackFS", ["art"], "Best for illustrations and game art.", "Good for illustrations and game art.", 70),
+    ("4x_Nickelback_70000G.gguf", "4x Nickelback", ["art"], "Best for illustrations; an earlier version of NickelbackFS.", "Good for illustrations.", 68),
+    ("2x-ESRGAN.gguf", "2x ESRGAN", ["photo", "fast"], "Best for a gentle 2x step on photos.", "Smaller step than 4x, keeps things natural.", 72),
+    ("2xPSNR.gguf", "2x PSNR", ["photo"], "Best when accuracy matters more than sharpness.", "Best when you want accuracy over sharpness.", 66),
+    ("2x_StarSample_V2.0.gguf", "2x StarSample", ["art"], "Best for cartoon and game art at 2x.", "Made for cartoon and game art.", 66),
+    ("RealESRGAN_x4plus_anime_6B.gguf", "Real-ESRGAN anime 6B", ["anime"], "Best for anime and cartoon pictures.", "Clean lines and flat colours; small and fast.", 84),
+    ("smbss_2x_RRDB_Animation.gguf", "2x Animation RRDB", ["anime"], "Best for animation frames and cartoons at 2x.", "Made for cartoons and animation.", 70),
 ]
 
 def build_upscalers():
@@ -236,7 +236,7 @@ def build_upscalers():
             f = fileinfo(repo, fn, "model")
         except SystemExit as e:
             print("upscaler skipped", fn, e, file=sys.stderr); continue
-        scale = 2 if fn.startswith("2x") else 4
+        scale = 2 if re.match(r"(?:.*_)?2x", fn) else 4
         out.append({
             "id": "upscale-" + re.sub(r"[^a-z0-9]+", "-", fn.lower().replace(".gguf", "")).strip("-"),
             "name": name, "family": "Upscaler", "kind": "upscale", "tags": sorted(set(tags)), "looks": [],

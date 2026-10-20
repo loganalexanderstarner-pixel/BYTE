@@ -4,7 +4,7 @@
  "models": [
   {
    "id": "abenzerps-qwen-image-2-1-uncensored-quantized",
-   "name": "Qwen-Image 2.1 · abenzerps",
+   "name": "Qwen-Image 2.1 \u00b7 abenzerps",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -149,7 +149,7 @@
   },
   {
    "id": "atomicchat-qwen-image-2-1-turbo-uncensored-gguf",
-   "name": "Qwen-Image 2.1 Turbo · AtomicChat",
+   "name": "Qwen-Image 2.1 Turbo \u00b7 AtomicChat",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -1216,7 +1216,7 @@
   },
   {
    "id": "kasugaisakura-qwen-image-2-1-uncensored-abenzerps-gguf",
-   "name": "Qwen-Image 2.1 · KasugaiSakura",
+   "name": "Qwen-Image 2.1 \u00b7 KasugaiSakura",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -1361,7 +1361,7 @@
   },
   {
    "id": "lesliemore-z-image-turbo-nsfw-v2-gguf",
-   "name": "Z-Image Turbo v2 · lesliemore",
+   "name": "Z-Image Turbo v2 \u00b7 lesliemore",
    "family": "Z-Image",
    "kind": "generate",
    "tags": [
@@ -1426,7 +1426,7 @@
   },
   {
    "id": "0xsojalsec-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image 2.1 · 0xSojalSec",
+   "name": "Qwen-Image 2.1 \u00b7 0xSojalSec",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -3440,7 +3440,7 @@
   },
   {
    "id": "webmp3-sakura-qwen-image-2-1-turbo-uncensored-gguf",
-   "name": "Qwen-Image 2.1 Turbo · webmp3",
+   "name": "Qwen-Image 2.1 Turbo \u00b7 webmp3",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -3763,7 +3763,7 @@
   },
   {
    "id": "technobaptist-qwen-image-2-1-turbo-uncensored-gguf",
-   "name": "Qwen-Image 2.1 Turbo · TechnoBaptist",
+   "name": "Qwen-Image 2.1 Turbo \u00b7 TechnoBaptist",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -3925,7 +3925,7 @@
   },
   {
    "id": "t8star-flux-1-dev-abliterated-v2-gguf",
-   "name": "FLUX.1 dev · t8star",
+   "name": "FLUX.1 dev \u00b7 t8star",
    "family": "FLUX.1",
    "kind": "generate",
    "tags": [
@@ -5336,7 +5336,7 @@
   },
   {
    "id": "luffythefox-qwen-image-2-1-uncensored-genesis-bf16-gguf",
-   "name": "Qwen-Image 2.1 · LuffyTheFox",
+   "name": "Qwen-Image 2.1 \u00b7 LuffyTheFox",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -6541,7 +6541,7 @@
   },
   {
    "id": "basileleuwa-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image 2.1 · basileleuwa",
+   "name": "Qwen-Image 2.1 \u00b7 basileleuwa",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -7078,7 +7078,7 @@
   },
   {
    "id": "tbt000-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image 2.1 · TBT000",
+   "name": "Qwen-Image 2.1 \u00b7 TBT000",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -7552,7 +7552,7 @@
   },
   {
    "id": "janchan123-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image 2.1 · Janchan123",
+   "name": "Qwen-Image 2.1 \u00b7 Janchan123",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -8275,7 +8275,7 @@
   },
   {
    "id": "ldov-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image 2.1 · ldov",
+   "name": "Qwen-Image 2.1 \u00b7 ldov",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -8750,7 +8750,7 @@
   },
   {
    "id": "manusagents-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image 2.1 · Manusagents",
+   "name": "Qwen-Image 2.1 \u00b7 Manusagents",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -9239,7 +9239,7 @@
   },
   {
    "id": "daddysteven-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image 2.1 · daddysteven",
+   "name": "Qwen-Image 2.1 \u00b7 daddysteven",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -9852,7 +9852,7 @@
   },
   {
    "id": "rayss868123-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image 2.1 · rayss868123",
+   "name": "Qwen-Image 2.1 \u00b7 rayss868123",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -10388,7 +10388,7 @@
   },
   {
    "id": "kkguku-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image 2.1 · kkguku",
+   "name": "Qwen-Image 2.1 \u00b7 kkguku",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -11233,7 +11233,7 @@
   },
   {
    "id": "kenic-1-qwen-image-2-1-turbo-uncensored-gguf-bf16",
-   "name": "Qwen-Image 2.1 Turbo · KENIC-1",
+   "name": "Qwen-Image 2.1 Turbo \u00b7 KENIC-1",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -11299,7 +11299,7 @@
   },
   {
    "id": "0endzz-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image 2.1 · 0Endzz",
+   "name": "Qwen-Image 2.1 \u00b7 0Endzz",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -11444,7 +11444,7 @@
   },
   {
    "id": "zyszztggd-qwen-image-2-1-turbo-uncensored-gguf",
-   "name": "Qwen-Image 2.1 Turbo · Zyszztggd",
+   "name": "Qwen-Image 2.1 Turbo \u00b7 Zyszztggd",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -12814,7 +12814,7 @@
   },
   {
    "id": "wesley1234-flux-1-dev-abliterated-v2-gguf",
-   "name": "FLUX.1 dev · Wesley1234",
+   "name": "FLUX.1 dev \u00b7 Wesley1234",
    "family": "FLUX.1",
    "kind": "generate",
    "tags": [
@@ -12998,7 +12998,7 @@
   },
   {
    "id": "w-zil-qwen-image-2-1-uncensored-gguf-bcp",
-   "name": "Qwen-Image 2.1 · W-Zil",
+   "name": "Qwen-Image 2.1 \u00b7 W-Zil",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -13867,7 +13867,7 @@
   },
   {
    "id": "ziangli-qwen-image-2-1-uncensored-gguf",
-   "name": "Qwen-Image 2.1 · ZiangLi",
+   "name": "Qwen-Image 2.1 \u00b7 ZiangLi",
    "family": "Qwen-Image 2.1",
    "kind": "generate",
    "tags": [
@@ -17213,7 +17213,7 @@
   },
   {
    "id": "manjushri-pornworks-real-porn-photo-realistic-nsfw-sdxl-and-pony-chekpoint",
-   "name": "Photoreal SDXL · Manjushri",
+   "name": "Photoreal SDXL \u00b7 Manjushri",
    "family": "Stable Diffusion XL",
    "kind": "generate",
    "tags": [
@@ -17474,7 +17474,7 @@
   },
   {
    "id": "debugdll-nsfw-image-generator",
-   "name": "SDXL model · debugdll",
+   "name": "SDXL model \u00b7 debugdll",
    "family": "Stable Diffusion XL",
    "kind": "generate",
    "tags": [
@@ -20384,7 +20384,7 @@
     "photo"
    ],
    "looks": [],
-   "tagline": "The best for photos of people.",
+   "tagline": "Best for photos of people: keeps real skin texture.",
    "strengths": "Keeps real pore and wrinkle texture, so skin does not turn plastic. Tested best on a portrait. Enlarges 4x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20425,7 +20425,7 @@
     "photo"
    ],
    "looks": [],
-   "tagline": "The classic all-round upscaler.",
+   "tagline": "Best all-rounder for everyday photos and art.",
    "strengths": "Clean and safe on photos and art. Can smooth skin a little. Enlarges 4x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20466,7 +20466,7 @@
     "text"
    ],
    "looks": [],
-   "tagline": "Crisp edges for art, screenshots and text.",
+   "tagline": "Best for art, screenshots and text with hard edges.",
    "strengths": "Very sharp lines. On faces it can look smooth. Enlarges 4x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20507,7 +20507,7 @@
     "photo"
    ],
    "looks": [],
-   "tagline": "Soft natural enlargement.",
+   "tagline": "Best for gentle, natural enlargement of photos and paintings.",
    "strengths": "Gentle results for photos and paintings. Smooth skin. Enlarges 4x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20547,7 +20547,7 @@
     "photo"
    ],
    "looks": [],
-   "tagline": "Remacri with extra smoothing.",
+   "tagline": "Best for low-quality or heavily compressed photos.",
    "strengths": "Hides compression blocks in low-quality photos. Enlarges 4x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20587,7 +20587,7 @@
     "photo"
    ],
    "looks": [],
-   "tagline": "Strong clean-up for damaged photos.",
+   "tagline": "Best for noisy, blurry or damaged photos.",
    "strengths": "Good at removing noise and blur; skin comes out smooth. Enlarges 4x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20627,7 +20627,7 @@
     "photo"
    ],
    "looks": [],
-   "tagline": "Keeps fine grain and texture.",
+   "tagline": "Best for textured scenes: stone, fabric, leaves and film grain.",
    "strengths": "Adds a sandy grain; good for textures, rough on faces. Enlarges 4x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20667,7 +20667,7 @@
     "photo"
    ],
    "looks": [],
-   "tagline": "LSDIR tuned for compressed images.",
+   "tagline": "Best for JPEG-compressed pictures, like old web downloads.",
    "strengths": "Repairs JPEG artifacts. Enlarges 4x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20708,7 +20708,7 @@
     "photo"
    ],
    "looks": [],
-   "tagline": "Textured, grainy enlargement.",
+   "tagline": "Best for detailed texture in photos and art.",
    "strengths": "Lots of texture; can look noisy on skin. Enlarges 4x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20749,7 +20749,7 @@
     "photo"
    ],
    "looks": [],
-   "tagline": "Detail for large, clean images.",
+   "tagline": "Best for large, already-clean pictures.",
    "strengths": "Made for high-resolution sources. Enlarges 4x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20789,7 +20789,7 @@
     "art"
    ],
    "looks": [],
-   "tagline": "Painterly, detailed enlargement.",
+   "tagline": "Best for illustrations and game art.",
    "strengths": "Good for illustrations and game art. Enlarges 4x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20829,7 +20829,7 @@
     "art"
    ],
    "looks": [],
-   "tagline": "An earlier Nickelback version.",
+   "tagline": "Best for illustrations; an earlier version of NickelbackFS.",
    "strengths": "Good for illustrations. Enlarges 4x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20870,7 +20870,7 @@
     "photo"
    ],
    "looks": [],
-   "tagline": "Gentle 2x enlargement.",
+   "tagline": "Best for a gentle 2x step on photos.",
    "strengths": "Smaller step than 4x, keeps things natural. Enlarges 2x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20910,7 +20910,7 @@
     "photo"
    ],
    "looks": [],
-   "tagline": "Faithful 2x enlargement without invented detail.",
+   "tagline": "Best when accuracy matters more than sharpness.",
    "strengths": "Best when you want accuracy over sharpness. Enlarges 2x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20950,7 +20950,7 @@
     "art"
    ],
    "looks": [],
-   "tagline": "2x enlargement for stylised art.",
+   "tagline": "Best for cartoon and game art at 2x.",
    "strengths": "Made for cartoon and game art. Enlarges 2x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -20990,7 +20990,7 @@
     "anime"
    ],
    "looks": [],
-   "tagline": "The standard upscaler for anime.",
+   "tagline": "Best for anime and cartoon pictures.",
    "strengths": "Clean lines and flat colours; small and fast. Enlarges 4x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
@@ -21030,20 +21030,20 @@
     "anime"
    ],
    "looks": [],
-   "tagline": "2x enlargement for animation frames.",
-   "strengths": "Made for cartoons and animation. Enlarges 4x.",
+   "tagline": "Best for animation frames and cartoons at 2x.",
+   "strengths": "Made for cartoons and animation. Enlarges 2x.",
    "license": "Check the licence of the original model",
    "commercialOk": false,
    "community": true,
    "mature": false,
    "quality": 70,
-   "steps": 4,
+   "steps": 2,
    "overheadGb": 0.5,
    "downloads": 0,
    "source": "wbruna/upscalers-sdcpp-gguf",
    "variants": [
     {
-     "quant": "4x",
+     "quant": "2x",
      "bits": 16,
      "qualityCost": 0,
      "sizeBytes": 66697696,

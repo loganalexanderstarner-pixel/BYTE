@@ -28,9 +28,9 @@ Image Studio makes pictures on your PC from a few words. Nothing leaves your PC:
 - **Good at** badges show what each model stands out for. They never hide models; they just help you choose.
 
 ## Finding a model
-- **What you want to do:** make pictures, upscale, and more kinds as they arrive (edit a photo, remove things, restore faces, remove a background, change the style).
+- **What you want to do:** make pictures and more kinds as they arrive (edit a photo, remove things, restore faces, remove a background, change the style).
 - **Styles:** Realism (then a real-life look: portraits, street, landscapes, animals, product photos, food, buildings, movie-still or film look), Cartoon, Illustration, Poems and posters, Words in pictures, Fast, Small graphics card.
-- The **Official** and **Community** tabs split models from the labs that made them from versions and fine-tunes by other people. Some community models have fewer built-in limits than the originals; those are never shown in kids mode.
+- The **Official**, **Community** and **Upscalers** tabs split models from the labs that made them, versions and fine-tunes by other people, and the resizers that make a finished picture bigger. Each upscaler's card says what it is best for (photos, faces, art, anime, text). Some community models have fewer built-in limits than the originals; those are never shown in kids mode.
 - **Fits my graphics card** and **Commercial use OK** narrow the list.
 
 ## If something goes wrong
