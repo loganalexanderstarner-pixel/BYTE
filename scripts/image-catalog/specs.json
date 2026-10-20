@@ -1231,7 +1231,7 @@
    "realism"
   ],
   "tagline": "A flexible FLUX-based model with a wide range of styles.",
-  "strengths": "Open, uncensored-leaning model with very varied styles from anime to photo. Needs more steps than FLUX.1 schnell.",
+  "strengths": "Open model with very varied styles from anime to photo. Needs more steps than FLUX.1 schnell.",
   "repo": "silveroxides/Chroma-GGUF",
   "dl": 98964
  },
